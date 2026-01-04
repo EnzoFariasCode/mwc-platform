@@ -1,0 +1,48 @@
+@import "tailwindcss";
+@layer base {
+  :root {
+    /* === BRANDING (Identidade Visual) === */
+    --primary: #d73cbe;        /* Rosa Neon Principal */
+    --primary-hover: #c02aa8;  /* Tom mais escuro para hover */
+    --primary-light: rgba(215, 60, 190, 0.2); /* Fundo leve */
+    
+    --secondary: #7c3aed;      /* Violeta */
+    
+    /* === BACKGROUNDS === */
+    --bg-page: #020617;    /* Slate 950 (Fundo da tela) */
+    --bg-surface: #0f172a; /* Slate 900 (Cards) */
+    --bg-input: rgba(15, 23, 42, 0.5); /* Fundo de input */
+    
+    /* === BORDAS === */
+    --border-subtle: rgba(255, 255, 255, 0.1); 
+    --border-strong: rgba(255, 255, 255, 0.2); 
+    
+    /* === TEXTOS === */
+    --text-main: #ffffff; 
+    --text-body: #cbd5e1;  /* Slate 300 */
+    --text-muted: #94a3b8; /* Slate 400 */
+    
+    /* === STATUS === */
+    --status-success: #10b981;
+    --status-error: #ef4444;
+    --status-warning: #f59e0b;
+  }
+
+  /* Aplicação das Fontes e Cores Padrão */
+  html {
+    font-family: var(--font-poppins), sans-serif;
+  }
+  
+  body {
+    font-family: var(--font-poppins), sans-serif;
+    background-color: var(--bg-page);
+    color: var(--text-main);
+  }
+}
+
+@layer utilities {
+  /* Força a fonte Orbitron quando usar a classe .font-futura */
+  .font-futura {
+    font-family: var(--font-orbitron), sans-serif !important;
+  }
+}
