@@ -24,7 +24,7 @@ export default function DashboardSidebar() {
 
   // --- DEFINIÇÃO DOS LINKS ---
 
-  // Menu do Profissional (Adicionado Chat)
+  // Menu do Profissional
   const professionalLinks = [
     { icon: LayoutDashboard, label: "Visão Geral", href: "/dashboard" },
     {
@@ -38,7 +38,7 @@ export default function DashboardSidebar() {
       label: "Projetos Ativos",
       href: "/dashboard/projetos-ativos",
     },
-    { icon: MessageSquare, label: "Chat", href: "/dashboard/chat" }, // <--- NOVO
+    { icon: MessageSquare, label: "Chat", href: "/dashboard/chat" },
     { icon: Wallet, label: "Financeiro", href: "/dashboard/financeiro" },
     {
       icon: Settings,
@@ -47,7 +47,7 @@ export default function DashboardSidebar() {
     },
   ];
 
-  // Menu do Cliente (Já tinha Chat)
+  // Menu do Cliente
   const clientLinks = [
     { icon: LayoutDashboard, label: "Visão Geral", href: "/dashboard" },
     {
@@ -69,6 +69,7 @@ export default function DashboardSidebar() {
 
   return (
     <>
+      {/* Overlay Mobile */}
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
@@ -76,15 +77,16 @@ export default function DashboardSidebar() {
         />
       )}
 
+      {/* Sidebar Container */}
       <aside
         className={`
-        // MUDANÇA: Removemos 'fixed' no desktop e usamos sticky para acompanhar o scroll se necessário
-        fixed lg:sticky top-0 left-0 z-50 h-screen w-64 bg-slate-900 border-r border-white/5 flex flex-col transition-transform duration-300
-        ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} 
-        lg:translate-x-0 shrink-0 // shrink-0 impede que a sidebar diminua
-      `}
+          fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-white/5 flex flex-col transition-transform duration-300
+          ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} 
+          lg:static lg:translate-x-0 shrink-0
+        `}
       >
-        <div className="h-20 flex items-center justify-between px-6 border-b border-white/5">
+        {/* Header da Sidebar */}
+        <div className="h-20 flex items-center justify-between px-6 border-b border-white/5 shrink-0">
           <Link
             href="/dashboard"
             onClick={closeMobileMenu}
@@ -109,6 +111,7 @@ export default function DashboardSidebar() {
           </button>
         </div>
 
+        {/* Links de Navegação */}
         <nav className="flex-1 py-8 px-4 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
           <div className="px-4 mb-4 text-xs font-bold text-slate-500 uppercase tracking-widest opacity-50">
             Menu {userType === "professional" ? "Profissional" : "Cliente"}
@@ -142,7 +145,8 @@ export default function DashboardSidebar() {
           })}
         </nav>
 
-        <div className="p-4 border-t border-white/5 bg-slate-900">
+        {/* Footer da Sidebar */}
+        <div className="p-4 border-t border-white/5 bg-slate-900 shrink-0">
           <button className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-red-400 hover:bg-red-400/10 transition-all cursor-pointer">
             <LogOut size={20} />
             <span>Sair da Conta</span>

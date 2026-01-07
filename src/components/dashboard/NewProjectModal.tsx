@@ -9,8 +9,9 @@ import {
   Paperclip,
   AlertCircle,
   Clock,
+  Plus,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, KeyboardEvent } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
@@ -23,9 +24,12 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Estado para tipo de orçamento
+  // Estados do Formulário
   const [budgetType, setBudgetType] = useState<"fixed" | "hourly">("fixed");
+  const [tags, setTags] = useState<string[]>([]);
+  const [currentTag, setCurrentTag] = useState("");
 
+  // Animação de Entrada/Saída
   useGSAP(() => {
     if (isOpen) {
       gsap.to(overlayRef.current, {
@@ -47,9 +51,29 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
     }
   }, [isOpen]);
 
-  // Função para fechar clicando fora ou no X
+  // Lógica de Adicionar Tags
+  const handleAddTag = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    const tag = currentTag.trim();
+    if (tag && !tags.includes(tag) && tags.length < 5) {
+      setTags([...tags, tag]);
+      setCurrentTag("");
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter((tag) => tag !== tagToRemove));
+  };
+
+  // Função para fechar (reseta estados se quiser)
   const handleClose = () => {
-    // Animação de saída manual antes de fechar o estado (opcional, aqui simplificado)
     onClose();
   };
 
@@ -61,17 +85,17 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
     >
       <div
         ref={modalRef}
-        onClick={(e) => e.stopPropagation()} // Impede fechar ao clicar dentro
+        onClick={(e) => e.stopPropagation()}
         className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
       >
-        {/* Header Branco */}
+        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-white shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 font-futura">
               Publicar Novo Projeto
             </h2>
             <p className="text-sm text-slate-500 mt-1">
-              Descreva sua necessidade para encontrar o profissional ideal.
+              Preencha os dados para que os profissionais encontrem seu projeto.
             </p>
           </div>
           <button
@@ -82,8 +106,8 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
           </button>
         </div>
 
-        {/* Form Body (Scrollável) */}
-        <div className="p-6 md:p-8 space-y-6 overflow-y-auto bg-slate-50/50">
+        {/* Form Body */}
+        <div className="p-6 md:p-8 space-y-6 overflow-y-auto bg-slate-50/50 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
           {/* 1. Nome do Projeto */}
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">
@@ -96,11 +120,11 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
             />
           </div>
 
-          {/* 2. Categoria e Tags */}
+          {/* 2. Categoria e Tags (AGORA COM LÓGICA DE TAGS) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">
-                Categoria Principal
+                Categoria Principal <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <select className="w-full bg-white border border-slate-200 rounded-xl p-3.5 text-slate-700 focus:border-[#d73cbe] focus:ring-1 focus:ring-[#d73cbe] outline-none appearance-none cursor-pointer shadow-sm">
@@ -114,24 +138,54 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
                   <option>Jurídico</option>
                   <option>Engenharia</option>
                 </select>
-                {/* Seta customizada via CSS ou ícone absoluto seria ideal aqui */}
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">
-                Habilidades Desejadas
+                Habilidades Necessárias (Tags)
                 <span className="text-xs font-normal text-slate-400 ml-2">
-                  (Opcional)
+                  (Max 5)
                 </span>
               </label>
-              <div className="relative">
-                <Tag className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+
+              {/* Input de Tags */}
+              <div className="w-full bg-white border border-slate-200 rounded-xl p-2 flex flex-wrap gap-2 focus-within:border-[#d73cbe] focus-within:ring-1 focus-within:ring-[#d73cbe] transition-all shadow-sm min-h-[50px]">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="bg-slate-100 text-slate-700 text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1"
+                  >
+                    {tag}
+                    <button
+                      onClick={() => removeTag(tag)}
+                      className="hover:text-red-500"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+
                 <input
                   type="text"
-                  placeholder="Ex: Logo, Photoshop, Figma..."
-                  className="w-full bg-white border border-slate-200 rounded-xl p-3.5 pl-10 text-slate-800 placeholder:text-slate-400 focus:border-[#d73cbe] focus:ring-1 focus:ring-[#d73cbe] outline-none transition-all shadow-sm"
+                  value={currentTag}
+                  onChange={(e) => setCurrentTag(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    tags.length === 0
+                      ? "Digite e aperte Enter (ex: React)..."
+                      : ""
+                  }
+                  className="flex-1 bg-transparent outline-none text-sm text-slate-800 placeholder:text-slate-400 min-w-[100px] p-1.5"
+                  disabled={tags.length >= 5}
                 />
+                <button
+                  onClick={handleAddTag}
+                  disabled={!currentTag}
+                  className="text-slate-400 hover:text-[#d73cbe]"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
               </div>
             </div>
           </div>
@@ -143,7 +197,7 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
             </label>
             <textarea
               rows={5}
-              placeholder="Explique o que você precisa, quais são os objetivos, se existe algum estilo preferido, etc. Quanto mais detalhes, melhores as propostas."
+              placeholder="Explique o que você precisa, quais são os objetivos, se existe algum estilo preferido, etc."
               className="w-full bg-white border border-slate-200 rounded-xl p-4 text-slate-800 placeholder:text-slate-400 focus:border-[#d73cbe] focus:ring-1 focus:ring-[#d73cbe] outline-none transition-all shadow-sm resize-none"
             ></textarea>
             <p className="text-xs text-slate-500 mt-2 text-right">
@@ -151,7 +205,7 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
             </p>
           </div>
 
-          {/* 4. Anexos (Novo!) */}
+          {/* 4. Anexos */}
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">
               Anexos de Referência
@@ -169,7 +223,6 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
             </div>
           </div>
 
-          {/* Divisor */}
           <div className="h-px bg-slate-200 my-2" />
 
           {/* 5. Orçamento e Prazo */}
@@ -180,7 +233,6 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
                 Qual seu orçamento?
               </label>
 
-              {/* Switch Tipo de Orçamento */}
               <div className="flex bg-slate-100 p-1 rounded-lg w-fit">
                 <button
                   onClick={() => setBudgetType("fixed")}
@@ -191,6 +243,16 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
                   }`}
                 >
                   Preço Fixo
+                </button>
+                <button
+                  onClick={() => setBudgetType("hourly")}
+                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+                    budgetType === "hourly"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Por Hora
                 </button>
               </div>
 

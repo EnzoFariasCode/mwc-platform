@@ -1,48 +1,53 @@
 @import "tailwindcss";
-@layer base {
-  :root {
-    /* === BRANDING (Identidade Visual) === */
-    --primary: #d73cbe;        /* Rosa Neon Principal */
-    --primary-hover: #c02aa8;  /* Tom mais escuro para hover */
-    --primary-light: rgba(215, 60, 190, 0.2); /* Fundo leve */
-    
-    --secondary: #7c3aed;      /* Violeta */
-    
-    /* === BACKGROUNDS === */
-    --bg-page: #020617;    /* Slate 950 (Fundo da tela) */
-    --bg-surface: #0f172a; /* Slate 900 (Cards) */
-    --bg-input: rgba(15, 23, 42, 0.5); /* Fundo de input */
-    
-    /* === BORDAS === */
-    --border-subtle: rgba(255, 255, 255, 0.1); 
-    --border-strong: rgba(255, 255, 255, 0.2); 
-    
-    /* === TEXTOS === */
-    --text-main: #ffffff; 
-    --text-body: #cbd5e1;  /* Slate 300 */
-    --text-muted: #94a3b8; /* Slate 400 */
-    
-    /* === STATUS === */
-    --status-success: #10b981;
-    --status-error: #ef4444;
-    --status-warning: #f59e0b;
-  }
 
-  /* Aplicação das Fontes e Cores Padrão */
-  html {
-    font-family: var(--font-poppins), sans-serif;
-  }
-  
-  body {
-    font-family: var(--font-poppins), sans-serif;
-    background-color: var(--bg-page);
-    color: var(--text-main);
-  }
+@theme {
+  /* 1. Mapear as variáveis CSS para Classes do Tailwind */
+  /* Isso cria classes como bg-background, text-primary, etc. */
+
+  /* Cor para a bolha de mensagem recebida(Chat)*/
+  --color-chat-bubble: #1e293b;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+
+  --radius-custom: var(--radius);
+
+  /* 2. Mapear as Fontes */
+  /* Isso cria a classe font-poppins e font-futura automaticamente */
+  --font-poppins: var(--font-poppins), sans-serif;
+  --font-futura: var(--font-orbitron), sans-serif;
 }
 
-@layer utilities {
-  /* Força a fonte Orbitron quando usar a classe .font-futura */
-  .font-futura {
-    font-family: var(--font-orbitron), sans-serif !important;
-  }
+/* 3. Definir os valores das variáveis CSS */
+:root {
+  --primary: #d73cbe;
+  --primary-foreground: #ffffff;
+
+  --background: #020617;
+  --foreground: #f8fafc;
+
+  --card: #0f172a;
+  --card-foreground: #f8fafc;
+
+  --border: #1e293b;
+  --input: #1e293b;
+
+  --radius: 0.75rem;
+}
+
+/* 4. Estilos Globais */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  /* Agora você pode usar a classe do tema ou a variável direta */
+  font-family: var(--font-poppins);
 }
