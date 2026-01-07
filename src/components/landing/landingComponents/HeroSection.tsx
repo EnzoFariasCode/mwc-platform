@@ -1,43 +1,74 @@
-import { Search, MapPin, ArrowRight } from 'lucide-react';
+"use client"; // 1. Obrigatório ser Client Component
+
+import { useRef } from "react";
+import { Search, MapPin } from "lucide-react";
+import gsap from "gsap"; // 2. Importar GSAP
+import { useGSAP } from "@gsap/react"; // 3. Importar o Hook
 
 export function HeroSection() {
+  // 4. Criamos uma ref para o container principal
+  const containerRef = useRef<HTMLElement>(null);
+
+  // 5. O Hook de animação
+  useGSAP(
+    () => {
+      // Selecionamos tudo que tem a classe 'animate-hero'
+      gsap.from(".animate-hero", {
+        y: 50, // Começa 50px abaixo
+        opacity: 0, // Começa invisível
+        duration: 1, // Dura 1 segundo
+        stagger: 0.2, // Um elemento espera 0.2s depois do outro (efeito escadinha)
+        ease: "power3.out", // Desaceleração suave (Sênior feel)
+        delay: 0.2, // Espera um tiquinho para começar após carregar
+      });
+    },
+    { scope: containerRef }
+  ); // O scope garante que só animamos O QUE ESTÁ DENTRO dessa ref
+
   return (
-    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
+    // Adicionamos a ref aqui
+    <section
+      ref={containerRef}
+      className="relative min-h-screen flex items-center overflow-hidden"
+    >
+      {/* Background Grid */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[120px] -z-10" />
-      
       <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px] -z-10" />
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-4 relative z-10 -mt-20">
         <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-white mb-6 leading-[1.1]">
+          {/* Adicionei a classe 'animate-hero' nos elementos que quero animar */}
+          <h1 className="animate-hero text-5xl md:text-7xl font-bold tracking-tight text-white mb-6 leading-[1.1]">
             Encontre profissionais <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-purple-400 animate-gradient bg-300%">
               extraordinários.
             </span>
           </h1>
 
-          <p className="text-lg text-slate-400 mb-10 max-w-2xl leading-relaxed">
-            De serviços digitais a reparos residenciais. Conecte-se com especialistas verificados em um ecossistema onde seu pagamento só é liberado após a conclusão.
+          <p className="animate-hero text-lg text-slate-400 mb-10 max-w-2xl leading-relaxed">
+            De serviços digitais a reparos residenciais. Conecte-se com
+            especialistas verificados em um ecossistema onde seu pagamento só é
+            liberado após a conclusão.
           </p>
 
-          {/* BARRA DE BUSCA PRINCIPAL (Glass Effect) */}
-          <div className="w-full max-w-2xl bg-white/5 border border-white/10 backdrop-blur-xl p-2 rounded-2xl flex flex-col md:flex-row gap-2 shadow-2xl shadow-purple-900/20">
-            
+          {/* BARRA DE BUSCA */}
+          <div className="animate-hero w-full max-w-2xl bg-white/5 border border-white/10 backdrop-blur-xl p-2 rounded-2xl flex flex-col md:flex-row gap-2 shadow-2xl shadow-purple-900/20">
             <div className="flex-1 flex items-center px-4 h-12 md:h-14 bg-black/20 rounded-xl border border-transparent focus-within:border-purple-500/50 transition-all">
               <Search className="w-5 h-5 text-slate-500 mr-3" />
-              <input 
-                type="text" 
-                placeholder="O que você precisa fazer?" 
+              <input
+                type="text"
+                placeholder="O que você precisa fazer?"
                 className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500"
               />
             </div>
 
             <div className="flex-[0.6] flex items-center px-4 h-12 md:h-14 bg-black/20 rounded-xl border border-transparent focus-within:border-purple-500/50 transition-all">
               <MapPin className="w-5 h-5 text-slate-500 mr-3" />
-              <input 
-                type="text" 
-                placeholder="CEP ou Cidade" 
+              <input
+                type="text"
+                placeholder="CEP ou Cidade"
                 className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500"
               />
             </div>
@@ -48,15 +79,24 @@ export function HeroSection() {
           </div>
 
           {/* Tags Populares */}
-          <div className="mt-8 flex flex-wrap justify-center gap-3 text-sm text-slate-500">
+          <div className="animate-hero mt-8 flex flex-wrap justify-center gap-3 text-sm text-slate-500">
             <span>Populares:</span>
-            {['Web Designer', 'Eletricista', 'Personal Trainer', 'Faxina', 'Dev Fullstack'].map((tag) => (
-              <a key={tag} href="#" className="text-slate-300 hover:text-purple-400 transition-colors underline decoration-slate-700 underline-offset-4 hover:decoration-purple-400">
+            {[
+              "Web Designer",
+              "Eletricista",
+              "Personal Trainer",
+              "Faxina",
+              "Dev Fullstack",
+            ].map((tag) => (
+              <a
+                key={tag}
+                href="#"
+                className="text-slate-300 hover:text-purple-400 transition-colors underline decoration-slate-700 underline-offset-4 hover:decoration-purple-400"
+              >
                 {tag}
               </a>
             ))}
           </div>
-
         </div>
       </div>
     </section>

@@ -1,80 +1,88 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Bell, Search, Menu, UserCircle } from 'lucide-react';
+import { Bell, Search, Menu, UserCircle } from "lucide-react";
+import { useDashboard } from "@/context/DashboardContext";
 
 export default function DashboardHeader() {
-  const [userMode, setUserMode] = useState<'client' | 'pro'>('pro'); // Estado temporário para simular a troca
+  const { userType, toggleUserType, toggleMobileMenu } = useDashboard();
 
   return (
-    <header className="h-20 bg-[var(--bg-surface)] border-b border-[var(--border-subtle)] flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
-      
-      {/* Esquerda: Menu Mobile (Só aparece em telas pequenas) */}
+    // Adicionei border-b border-white/5 para ficar igual a sidebar
+    <header className="h-20 bg-slate-900 border-b border-white/5 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
       <div className="flex items-center gap-4 lg:hidden">
-        <button className="text-white p-2">
+        <button onClick={toggleMobileMenu} className="text-white p-2">
           <Menu size={24} />
         </button>
         <span className="font-futura font-bold text-white">MWC</span>
       </div>
 
-      {/* Centro: Barra de Pesquisa (Visível apenas em Desktop por enquanto) */}
       <div className="hidden lg:flex flex-1 max-w-md mx-8 relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] w-4 h-4" />
-        <input 
-          type="text" 
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
+        <input
+          type="text"
           placeholder="Buscar projetos ou profissionais..."
-          className="w-full bg-[var(--bg-page)] border border-[var(--border-subtle)] rounded-full py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-[var(--primary)] transition-all placeholder:text-[var(--text-muted)]"
+          className="w-full bg-slate-950 border border-white/10 rounded-full py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-[#d73cbe] transition-all placeholder:text-slate-500"
         />
       </div>
 
-      {/* Direita: Switch de Modo + Ações */}
       <div className="flex items-center gap-4 lg:gap-6 ml-auto">
-        
-        {/* --- O SWITCH DE MODO (A "Chave" do Sistema) --- */}
-        <div className="hidden sm:flex bg-[var(--bg-page)] p-1 rounded-full border border-[var(--border-subtle)]">
-            <button 
-                onClick={() => setUserMode('pro')}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
-                    userMode === 'pro' 
-                    ? 'bg-[var(--primary)] text-white shadow-lg' 
-                    : 'text-[var(--text-muted)] hover:text-white'
+        {/* --- O SWITCH CORRIGIDO --- */}
+        {/* Removi o p-1 que causava o desalinhamento e ajustei as cores */}
+        <div className="hidden sm:flex bg-slate-950 rounded-full border border-white/10 relative overflow-hidden">
+          {/* Fundo Animado (Roxo) - Ajustado para cobrir exatamente a metade */}
+          <div
+            className={`absolute top-0 bottom-0 w-1/2 bg-[#d73cbe] transition-all duration-300
+                ${
+                  userType === "client" ? "translate-x-full" : "translate-x-0"
                 }`}
-            >
-                Sou Profissional
-            </button>
-            <button 
-                onClick={() => setUserMode('client')}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
-                    userMode === 'client' 
-                    ? 'bg-[var(--secondary)] text-white shadow-lg' 
-                    : 'text-[var(--text-muted)] hover:text-white'
-                }`}
-            >
-                Sou Cliente
-            </button>
+          />
+
+          {/* Botão Profissional */}
+          <button
+            onClick={() => userType === "client" && toggleUserType()}
+            className={`relative z-10 px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all ${
+              userType === "professional"
+                ? "text-white"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            Sou Profissional
+          </button>
+          {/* Botão Cliente */}
+          <button
+            onClick={() => userType === "professional" && toggleUserType()}
+            className={`relative z-10 px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all ${
+              userType === "client"
+                ? "text-white"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            Sou Cliente
+          </button>
         </div>
 
-        {/* Notificações */}
-        <button className="relative text-[var(--text-muted)] hover:text-white transition-colors">
+        <button className="relative text-slate-400 hover:text-white transition-colors">
           <Bell size={22} />
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[var(--primary)] rounded-full border-2 border-[var(--bg-surface)]"></span>
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#d73cbe] rounded-full border-2 border-slate-900"></span>
         </button>
 
-        {/* Avatar / Menu Usuário */}
-        <div className="flex items-center gap-3 pl-4 border-l border-[var(--border-subtle)]">
-            <div className="text-right hidden md:block">
-                <p className="text-sm font-bold text-white leading-none">João Silva</p>
-                <p className="text-xs text-[var(--text-muted)] mt-1">Nível Starter</p>
+        <div className="flex items-center gap-3 pl-4 border-l border-white/10">
+          <div className="text-right hidden md:block">
+            <p className="text-sm font-bold text-white leading-none">
+              João Silva
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {userType === "professional"
+                ? "Nível Starter"
+                : "Cliente Verificado"}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#d73cbe] to-purple-600 p-[2px]">
+            <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center overflow-hidden">
+              <UserCircle size={28} className="text-slate-400" />
             </div>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--primary)] to-violet-600 p-[2px]">
-                <div className="w-full h-full rounded-full bg-[var(--bg-surface)] flex items-center justify-center overflow-hidden">
-                    {/* Placeholder de avatar se não tiver imagem */}
-                    <UserCircle size={28} className="text-[var(--text-muted)]" />
-                    {/* <img src="..." /> */}
-                </div>
-            </div>
+          </div>
         </div>
-
       </div>
     </header>
   );
