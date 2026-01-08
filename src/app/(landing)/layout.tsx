@@ -1,9 +1,10 @@
-    import LandingLayout from '@/layouts/LandingLayout';
+import { ReactNode } from "react";
+import LandingLayoutComponent from "@/layouts/LandingLayout";
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <LandingLayout>
-      {children}
-    </LandingLayout>
-  );
+interface LayoutProps {
+  children: ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
+  return <LandingLayoutComponent>{children}</LandingLayoutComponent>;
 }

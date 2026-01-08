@@ -13,6 +13,9 @@ import {
   Zap,
   ArrowRight,
   Megaphone,
+  Eye,
+  MessageCircle,
+  UserCheck,
 } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { NewProjectModal } from "@/components/dashboard/NewProjectModal";
@@ -21,7 +24,7 @@ export default function DashboardHome() {
   const { userType, toggleUserType } = useDashboard();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // --- RENDERIZAÇÃO: VISÃO DO PROFISSIONAL ---
+  // --- RENDERIZAÇÃO: VISÃO DO PROFISSIONAL (VITRINE + ATIVO) ---
   if (userType === "professional") {
     return (
       <PageContainer>
@@ -35,32 +38,43 @@ export default function DashboardHome() {
               <div className="flex items-center gap-2 mt-1">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                 <p className="text-slate-400 text-sm">
-                  Modo Profissional Ativo
+                  Seu perfil está visível na busca
                 </p>
               </div>
             </div>
-            {/* Botão de Ação Principal do Pro */}
-            <Link href="/dashboard/encontrar-projetos">
-              <button className="px-6 py-3 bg-[#d73cbe] hover:bg-[#b0269a] text-white font-bold rounded-xl transition-all shadow-lg shadow-purple-900/20 hover:-translate-y-1 flex items-center gap-2 cursor-pointer">
-                <Search className="w-4 h-4" />
-                Encontrar Projetos
-              </button>
-            </Link>
+
+            {/* Ações do Pro: Focar em melhorar o perfil ou buscar ativamente */}
+            <div className="flex gap-3">
+              <Link href="/dashboard/perfil">
+                <button className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all border border-slate-700 flex items-center gap-2 cursor-pointer">
+                  <UserCheck className="w-4 h-4" />
+                  Editar Vitrine
+                </button>
+              </Link>
+              <Link href="/dashboard/encontrar-projetos">
+                <button className="px-6 py-3 bg-[#d73cbe] hover:bg-[#b0269a] text-white font-bold rounded-xl transition-all shadow-lg shadow-purple-900/20 hover:-translate-y-1 flex items-center gap-2 cursor-pointer">
+                  <Search className="w-4 h-4" />
+                  Buscar Oportunidades
+                </button>
+              </Link>
+            </div>
           </div>
 
-          {/* Cards de Resumo (Stats) */}
+          {/* Cards de Resumo (Híbridos) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard
-              icon={DollarSign}
-              label="Total Ganhos"
-              value="R$ 1.250,00"
-              color="text-[#d73cbe]"
+              icon={Eye}
+              label="Visitas no Perfil"
+              value="128"
+              subtext="Esta semana"
+              color="text-blue-400"
             />
             <StatCard
-              icon={Briefcase}
-              label="Projetos Ativos"
-              value="3"
-              color="text-blue-400"
+              icon={MessageCircle}
+              label="Leads Diretos"
+              value="5"
+              subtext="Mensagens novas"
+              color="text-green-400"
             />
             <StatCard
               icon={FileText}
@@ -69,10 +83,10 @@ export default function DashboardHome() {
               color="text-yellow-400"
             />
             <StatCard
-              icon={Star}
-              label="Minha Nota"
-              value="4.9"
-              color="text-green-400"
+              icon={DollarSign}
+              label="Total Ganhos"
+              value="R$ 1.250,00"
+              color="text-[#d73cbe]"
             />
           </div>
 
@@ -80,15 +94,15 @@ export default function DashboardHome() {
           <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-8 border border-white/5 relative overflow-hidden group">
             <div className="relative z-10 max-w-xl">
               <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
-                Buscando novos desafios?
+                Aumente sua visibilidade
               </h2>
               <p className="text-slate-400 mb-6">
-                Existem centenas de clientes publicando projetos agora. Envie
-                uma proposta e feche negócio.
+                Profissionais com foto de perfil e portfólio completo recebem 5x
+                mais contatos diretos de clientes.
               </p>
-              <Link href="/dashboard/encontrar-projetos">
+              <Link href="/dashboard/perfil">
                 <span className="text-[#d73cbe] font-bold hover:text-white transition-colors flex items-center gap-2 cursor-pointer">
-                  Ir para o Feed de Projetos <ArrowRight className="w-4 h-4" />
+                  Completar meu Perfil agora <ArrowRight className="w-4 h-4" />
                 </span>
               </Link>
             </div>
@@ -99,7 +113,7 @@ export default function DashboardHome() {
     );
   }
 
-  // --- RENDERIZAÇÃO: VISÃO DO CLIENTE ---
+  // --- RENDERIZAÇÃO: VISÃO DO CLIENTE (HÍBRIDO) ---
   return (
     <PageContainer>
       <div className="space-y-8">
@@ -111,37 +125,46 @@ export default function DashboardHome() {
             </h1>
             <div className="flex items-center gap-2 mt-1">
               <span className="w-2 h-2 rounded-full bg-blue-500" />
-              <p className="text-slate-400 text-sm">Modo Cliente Ativo</p>
+              <p className="text-slate-400 text-sm">Painel do Cliente</p>
             </div>
           </div>
-          {/* Botão de Ação Principal do Cliente: Novo Projeto */}
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="px-6 py-3 bg-white text-slate-950 hover:bg-slate-200 font-bold rounded-xl transition-all shadow-lg flex items-center gap-2 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            Novo Projeto
-          </button>
+
+          {/* Botões de Ação Dupla: Buscar ou Postar */}
+          <div className="flex gap-3">
+            <Link href="/search">
+              <button className="px-6 py-3 bg-slate-800 text-white hover:bg-slate-700 font-bold rounded-xl transition-all border border-slate-700 flex items-center gap-2 cursor-pointer">
+                <Search className="w-4 h-4" />
+                Buscar Profissionais
+              </button>
+            </Link>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="px-6 py-3 bg-white text-slate-950 hover:bg-slate-200 font-bold rounded-xl transition-all shadow-lg flex items-center gap-2 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Pedido
+            </button>
+          </div>
         </div>
 
         {/* Cards de Resumo Cliente */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatCard
+            icon={MessageCircle}
+            label="Mensagens não lidas"
+            value="3"
+            color="text-green-400"
+          />
+          <StatCard
             icon={Megaphone}
-            label="Projetos Publicados"
-            value="5"
+            label="Pedidos Abertos"
+            value="2"
             color="text-[#d73cbe]"
           />
           <StatCard
-            icon={Star}
-            label="Minha Nota (Cliente)"
-            value="5.0"
-            color="text-yellow-400"
-          />
-          <StatCard
             icon={Briefcase}
-            label="Projetos em Andamento"
-            value="2"
+            label="Serviços em Andamento"
+            value="1"
             color="text-blue-400"
           />
         </div>
@@ -153,17 +176,17 @@ export default function DashboardHome() {
               <Zap className="w-8 h-8 text-purple-400" />
             </div>
             <h3 className="text-2xl font-bold text-white">
-              Também quer vender seus serviços?
+              Você também é um especialista?
             </h3>
             <p className="text-slate-300 max-w-lg leading-relaxed">
-              Torne-se um profissional na MWC Jobs, assine o plano Starter e
-              comece a enviar propostas hoje mesmo.
+              Use sua mesma conta para oferecer serviços. Ative seu perfil
+              profissional e apareça nas buscas.
             </p>
             <button
               onClick={toggleUserType}
               className="mt-2 bg-[#d73cbe] hover:bg-[#b0269a] text-white px-6 py-2 rounded-lg font-bold transition-colors cursor-pointer"
             >
-              Virar Profissional
+              Mudar para modo Profissional
             </button>
           </div>
         </div>
@@ -179,7 +202,7 @@ export default function DashboardHome() {
 }
 
 // Componente visual simples para os Cards
-function StatCard({ icon: Icon, label, value, color }: any) {
+function StatCard({ icon: Icon, label, value, color, subtext }: any) {
   return (
     <div className="p-6 rounded-2xl bg-slate-900 border border-white/5 hover:border-white/10 transition-colors">
       <div className="flex items-center gap-4">
@@ -189,6 +212,7 @@ function StatCard({ icon: Icon, label, value, color }: any) {
         <div>
           <h3 className="text-slate-400 text-sm font-medium mb-1">{label}</h3>
           <p className="text-2xl font-bold text-white font-futura">{value}</p>
+          {subtext && <p className="text-xs text-slate-500 mt-1">{subtext}</p>}
         </div>
       </div>
     </div>

@@ -17,6 +17,8 @@ import {
   X,
   User,
   ChevronUp,
+  Heart, // Novo import
+  Store, // Novo import para Vitrine
 } from "lucide-react";
 import Logo from "@/assets/images/landingPage/logo.png";
 import { useDashboard } from "@/context/DashboardContext";
@@ -26,7 +28,6 @@ function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Fecha ao clicar fora
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -39,7 +40,6 @@ function UserMenu() {
 
   return (
     <div className="relative" ref={menuRef}>
-      {/* Menu Flutuante (Abre para CIMA) */}
       {isOpen && (
         <div className="absolute bottom-full left-0 w-full mb-2 bg-slate-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 z-50">
           <div className="p-2 space-y-1">
@@ -64,7 +64,6 @@ function UserMenu() {
         </div>
       )}
 
-      {/* Botão Gatilho (O Card do Usuário) */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
@@ -95,45 +94,48 @@ export default function DashboardSidebar() {
   const pathname = usePathname();
   const { userType, isMobileMenuOpen, closeMobileMenu } = useDashboard();
 
-  // --- DEFINIÇÃO DOS LINKS ---
-
-  // Menu do Profissional
+  // --- MENU DO PROFISSIONAL (VITRINE + ATIVO) ---
   const professionalLinks = [
     { icon: LayoutDashboard, label: "Visão Geral", href: "/dashboard" },
+    // A Vitrine é o mais importante agora
+    {
+      icon: Store,
+      label: "Meu Perfil (Vitrine)",
+      href: "/dashboard/perfil",
+    },
+    {
+      icon: MessageSquare,
+      label: "Leads / Mensagens",
+      href: "/dashboard/chat",
+    },
     {
       icon: Search,
-      label: "Encontrar Projetos",
+      label: "Buscar Oportunidades", // Mudou de "Encontrar Projetos"
       href: "/dashboard/encontrar-projetos",
     },
     {
       icon: FileText,
-      label: "Minhas Propostas",
+      label: "Propostas Enviadas",
       href: "/dashboard/minhas-propostas",
     },
     {
       icon: Briefcase,
-      label: "Projetos Ativos",
+      label: "Projetos em Andamento",
       href: "/dashboard/projetos-ativos",
     },
-    { icon: MessageSquare, label: "Chat", href: "/dashboard/chat" },
     { icon: Wallet, label: "Financeiro", href: "/dashboard/financeiro" },
-    {
-      icon: Settings,
-      label: "Configurações",
-      href: "/dashboard/configuracoes",
-    },
   ];
 
-  // Menu do Cliente
+  // --- MENU DO CLIENTE (HÍBRIDO) ---
   const clientLinks = [
     { icon: LayoutDashboard, label: "Visão Geral", href: "/dashboard" },
+    { icon: MessageSquare, label: "Mensagens", href: "/dashboard/chat" },
     {
       icon: Briefcase,
-      label: "Meus Projetos",
+      label: "Meus Pedidos", // Mudou de "Meus Projetos"
       href: "/dashboard/meus-projetos",
     },
-    { icon: Megaphone, label: "Meus Anúncios", href: "/dashboard/anuncios" },
-    { icon: MessageSquare, label: "Chat", href: "/dashboard/chat" },
+    { icon: Heart, label: "Favoritos", href: "/dashboard/favoritos" }, // Novo
     {
       icon: Settings,
       label: "Configurações",
@@ -146,7 +148,6 @@ export default function DashboardSidebar() {
 
   return (
     <>
-      {/* Overlay Mobile */}
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
@@ -154,7 +155,6 @@ export default function DashboardSidebar() {
         />
       )}
 
-      {/* Sidebar Container */}
       <aside
         className={`
           fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-white/5 flex flex-col transition-transform duration-300
@@ -162,7 +162,6 @@ export default function DashboardSidebar() {
           lg:static lg:translate-x-0 shrink-0
         `}
       >
-        {/* Header da Sidebar */}
         <div className="h-20 flex items-center justify-between px-6 border-b border-white/5 shrink-0">
           <Link
             href="/dashboard"
@@ -188,7 +187,6 @@ export default function DashboardSidebar() {
           </button>
         </div>
 
-        {/* Links de Navegação */}
         <nav className="flex-1 py-8 px-4 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
           <div className="px-4 mb-4 text-xs font-bold text-slate-500 uppercase tracking-widest opacity-50">
             Menu {userType === "professional" ? "Profissional" : "Cliente"}
@@ -222,7 +220,6 @@ export default function DashboardSidebar() {
           })}
         </nav>
 
-        {/* Footer da Sidebar (AGORA COM O DROPDOWN DE USUÁRIO) */}
         <div className="p-4 border-t border-white/5 bg-slate-900 shrink-0">
           <UserMenu />
         </div>

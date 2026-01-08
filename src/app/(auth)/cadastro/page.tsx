@@ -1,9 +1,51 @@
 "use client";
 
 import Link from "next/link";
-import { Mail, Lock, User, Check, Calendar, Smile } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  User,
+  Check,
+  Calendar,
+  Smile,
+  Loader2,
+  CheckCircle2,
+} from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, Suspense } from "react";
 
-export default function RegisterPage() {
+function RegisterContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Captura contexto da URL
+  const action = searchParams.get("action");
+  const proId = searchParams.get("proId");
+  const proName = searchParams.get("proName");
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Cria a string de query para passar adiante se necessário
+  const queryParams = proId
+    ? `?action=chat&proId=${proId}&proName=${encodeURIComponent(proName || "")}`
+    : "";
+
+  const handleRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    // Simulação de Cadastro
+    setTimeout(() => {
+      if (action === "chat" && proId) {
+        // Redireciona para o chat com o profissional escolhido
+        router.push(`/dashboard/chat?newChat=${proId}`);
+      } else {
+        // Redireciona para o dashboard padrão
+        router.push("/dashboard");
+      }
+    }, 1500);
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Cabeçalho */}
@@ -11,18 +53,38 @@ export default function RegisterPage() {
         <h1 className="text-3xl font-bold text-foreground font-futura uppercase">
           Crie sua conta
         </h1>
-        <p className="text-muted-foreground">
-          Já tem uma conta?{" "}
-          <Link
-            href="/login"
-            className="text-primary hover:underline font-medium transition-all"
-          >
-            Fazer Login
-          </Link>
-        </p>
+
+        {/* --- AVISO INTELIGENTE DE CONTEXTO --- */}
+        {proName ? (
+          <div className="mt-4 p-4 bg-primary/10 border border-primary/20 rounded-xl flex items-start gap-3 text-left animate-in slide-in-from-top-2 mb-4">
+            <div className="p-1.5 bg-primary rounded-full mt-0.5 shrink-0">
+              <CheckCircle2 className="w-3 h-3 text-primary-foreground" />
+            </div>
+            <div>
+              <p className="text-foreground text-sm font-medium">
+                Você está se cadastrando para falar com{" "}
+                <span className="text-primary">{proName}</span>.
+              </p>
+              <p className="text-muted-foreground text-xs mt-0.5">
+                Crie sua conta em segundos e inicie a conversa.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-muted-foreground">
+            Já tem uma conta?{" "}
+            <Link
+              // Mantém o contexto ao ir para o login
+              href={`/login${queryParams}`}
+              className="text-primary hover:underline font-medium transition-all"
+            >
+              Fazer Login
+            </Link>
+          </p>
+        )}
       </div>
 
-      <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+      <form className="space-y-5" onSubmit={handleRegister}>
         {/* 1. Nome Completo */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
@@ -146,9 +208,19 @@ export default function RegisterPage() {
         {/* Botão */}
         <button
           type="submit"
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all transform hover:-translate-y-0.5"
+          disabled={isLoading}
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2"
         >
-          Criar Conta Gratuita
+          {isLoading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Criando conta...
+            </>
+          ) : proName ? (
+            "Criar Conta e Iniciar Chat"
+          ) : (
+            "Criar Conta Gratuita"
+          )}
         </button>
       </form>
 
@@ -195,5 +267,18 @@ export default function RegisterPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+// Wrapper Principal
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="text-center text-muted-foreground">Carregando...</div>
+      }
+    >
+      <RegisterContent />
+    </Suspense>
   );
 }

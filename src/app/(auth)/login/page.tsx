@@ -1,9 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Lock, CheckCircle2, Loader2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, Suspense } from "react";
 
-export default function LoginPage() {
+function LoginContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Captura os dados da URL
+  const action = searchParams.get("action");
+  const proName = searchParams.get("proName");
+  const proId = searchParams.get("proId");
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Lógica inteligente para o link de cadastro:
+  // Se estamos num fluxo de chat, o link de cadastro deve saber disso também.
+  const registerUrl = proId
+    ? `/cadastro?action=chat&proId=${proId}&proName=${encodeURIComponent(
+        proName || ""
+      )}`
+    : "/cadastro";
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    setTimeout(() => {
+      if (action === "chat" && proId) {
+        router.push(`/dashboard/chat?newChat=${proId}`);
+      } else {
+        router.push("/dashboard");
+      }
+    }, 1500);
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Cabeçalho */}
@@ -11,10 +44,30 @@ export default function LoginPage() {
         <h1 className="text-3xl font-bold text-foreground font-futura">
           Bem-vindo de volta!
         </h1>
+
+        {/* AVISO INTELIGENTE (Se vier da busca) */}
+        {proName && (
+          <div className="mt-4 mb-4 p-4 bg-primary/10 border border-primary/20 rounded-xl flex items-start gap-3 text-left animate-in slide-in-from-top-2">
+            <div className="p-1.5 bg-primary rounded-full mt-0.5 shrink-0">
+              <CheckCircle2 className="w-3 h-3 text-primary-foreground" />
+            </div>
+            <div>
+              <p className="text-foreground text-sm font-medium">
+                Você está a um passo de falar com{" "}
+                <span className="text-primary">{proName}</span>.
+              </p>
+              <p className="text-gray-400 text-xs mt-0.5">
+                Faça login para iniciar o chat gratuitamente.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* LINK DE CRIAR CONTA (AGORA SEMPRE VISÍVEL) */}
         <p className="text-gray-400">
           Não tem uma conta?{" "}
           <Link
-            href="/cadastro"
+            href={registerUrl} // Agora leva o contexto junto!
             className="text-primary hover:underline font-medium transition-all"
           >
             Crie gratuitamente
@@ -23,7 +76,7 @@ export default function LoginPage() {
       </div>
 
       {/* Formulário */}
-      <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+      <form className="space-y-5" onSubmit={handleLogin}>
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-300 ml-1">
             Email
@@ -34,6 +87,7 @@ export default function LoginPage() {
             </div>
             <input
               type="email"
+              required
               placeholder="seu@email.com"
               className="w-full bg-card/50 border border-input text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-gray-600"
             />
@@ -56,22 +110,32 @@ export default function LoginPage() {
             </div>
             <input
               type="password"
+              required
               placeholder="••••••••"
               className="w-full bg-card/50 border border-input text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-gray-600"
             />
           </div>
         </div>
 
-        {/* Botão Principal */}
         <button
           type="submit"
-          className="w-full bg-primary cursor-pointer hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all transform hover:-translate-y-0.5"
+          disabled={isLoading}
+          className="w-full bg-primary cursor-pointer hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2"
         >
-          Entrar na Plataforma
+          {isLoading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Entrando...
+            </>
+          ) : proName ? (
+            "Entrar e Abrir Chat"
+          ) : (
+            "Entrar na Plataforma"
+          )}
         </button>
       </form>
 
-      {/* Divisor */}
+      {/* Divisor e Social Buttons (Mantidos iguais) */}
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-border" />
@@ -81,7 +145,6 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Botões Sociais */}
       <div className="grid grid-cols-2 gap-4">
         <button className="flex cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all">
           <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -112,5 +175,15 @@ export default function LoginPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={<div className="text-center text-gray-500">Carregando...</div>}
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

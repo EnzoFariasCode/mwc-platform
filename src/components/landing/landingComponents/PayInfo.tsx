@@ -98,7 +98,7 @@ function PayInfo() {
             </div>
           </div>
 
-          <Link href="/#planos">
+          <Link href="/planos">
             <button className="bg-[#d73cbe] hover:bg-[#b0269a] cursor-pointer text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-purple-500/20 hover:translate-x-1">
               Ver Planos
             </button>

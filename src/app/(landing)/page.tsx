@@ -1,4 +1,4 @@
-import LandingPage from '@/components/landing'; // Importa aquele index.tsx que acabamos de arrumar
+import LandingPage from '@/components/landing'; 
 export default function Home() {
   return (
     <main>

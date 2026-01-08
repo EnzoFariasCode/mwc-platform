@@ -1,66 +1,88 @@
-"use client"; // 1. Obrigatório ser Client Component
+"use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search, MapPin } from "lucide-react";
-import gsap from "gsap"; // 2. Importar GSAP
-import { useGSAP } from "@gsap/react"; // 3. Importar o Hook
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 
 export function HeroSection() {
-  // 4. Criamos uma ref para o container principal
   const containerRef = useRef<HTMLElement>(null);
+  const router = useRouter();
 
-  // 5. O Hook de animação
+  const [query, setQuery] = useState("");
+  const [location, setLocation] = useState("");
+
   useGSAP(
     () => {
-      // Selecionamos tudo que tem a classe 'animate-hero'
       gsap.from(".animate-hero", {
-        y: 50, // Começa 50px abaixo
-        opacity: 0, // Começa invisível
-        duration: 1, // Dura 1 segundo
-        stagger: 0.2, // Um elemento espera 0.2s depois do outro (efeito escadinha)
-        ease: "power3.out", // Desaceleração suave (Sênior feel)
-        delay: 0.2, // Espera um tiquinho para começar após carregar
+        y: 50,
+        opacity: 0,
+        duration: 1,
+        stagger: 0.2,
+        ease: "power3.out",
+        delay: 0.2,
       });
     },
     { scope: containerRef }
-  ); // O scope garante que só animamos O QUE ESTÁ DENTRO dessa ref
+  );
+
+  const handleSearch = () => {
+    // Mesmo vazia, permitimos a busca (para listar todos),
+    // mas o ideal é ter pelo menos um filtro ou levar para uma página geral.
+    const params = new URLSearchParams();
+
+    if (query) params.set("q", query); // q = termo de busca (ex: Pedreiro)
+    if (location) params.set("local", location); // local = cidade/bairro
+
+    // Redireciona para a página de LISTAGEM DE PROFISSIONAIS
+    router.push(`/search?${params.toString()}`);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
 
   return (
-    // Adicionamos a ref aqui
     <section
       ref={containerRef}
       className="relative min-h-screen flex items-center overflow-hidden"
     >
-      {/* Background Grid */}
+      {/* Backgrounds mantidos */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[120px] -z-10" />
       <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px] -z-10" />
 
       <div className="container mx-auto px-4 relative z-10 -mt-20">
         <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
-          {/* Adicionei a classe 'animate-hero' nos elementos que quero animar */}
+          {/* TÍTULO FOCADO EM "ENCONTRAR ALGUÉM" */}
           <h1 className="animate-hero text-5xl md:text-7xl font-bold tracking-tight text-white mb-6 leading-[1.1]">
-            Encontre profissionais <br />
+            Encontre o profissional <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-purple-400 animate-gradient bg-300%">
-              extraordinários.
+              certo, perto de você.
             </span>
           </h1>
 
+          {/* SUBTÍTULO FOCADO EM CONFIANÇA E CHAT */}
           <p className="animate-hero text-lg text-slate-400 mb-10 max-w-2xl leading-relaxed">
-            De serviços digitais a reparos residenciais. Conecte-se com
-            especialistas verificados em um ecossistema onde seu pagamento só é
-            liberado após a conclusão.
+            Explore perfis detalhados, veja avaliações reais e negocie
+            diretamente pelo chat. Sem intermediários, simples e rápido.
           </p>
 
-          {/* BARRA DE BUSCA */}
+          {/* BARRA DE BUSCA DE PROFISSIONAIS */}
           <div className="animate-hero w-full max-w-2xl bg-white/5 border border-white/10 backdrop-blur-xl p-2 rounded-2xl flex flex-col md:flex-row gap-2 shadow-2xl shadow-purple-900/20">
             <div className="flex-1 flex items-center px-4 h-12 md:h-14 bg-black/20 rounded-xl border border-transparent focus-within:border-purple-500/50 transition-all">
               <Search className="w-5 h-5 text-slate-500 mr-3" />
               <input
                 type="text"
-                placeholder="O que você precisa fazer?"
+                // Placeholder focado no CARGO/PROFISSÃO
+                placeholder="Busque por: Eletricista, Design, Coach..."
                 className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
               />
             </div>
 
@@ -70,31 +92,39 @@ export function HeroSection() {
                 type="text"
                 placeholder="CEP ou Cidade"
                 className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                onKeyDown={handleKeyDown}
               />
             </div>
 
-            <button className="h-12 md:h-14 px-8 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold transition-all shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2">
-              Buscar
+            <button
+              onClick={handleSearch}
+              className="h-12 md:h-14 px-8 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold transition-all shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2"
+            >
+              Encontrar
             </button>
           </div>
 
-          {/* Tags Populares */}
+          {/* Tags Populares - Links diretos para busca */}
           <div className="animate-hero mt-8 flex flex-wrap justify-center gap-3 text-sm text-slate-500">
-            <span>Populares:</span>
+            <span>Mais buscados:</span>
             {[
-              "Web Designer",
               "Eletricista",
-              "Personal Trainer",
-              "Faxina",
-              "Dev Fullstack",
+              "Diarista",
+              "Mecânico",
+              "Advogado",
+              "Web Designer",
             ].map((tag) => (
-              <a
+              <button
                 key={tag}
-                href="#"
-                className="text-slate-300 hover:text-purple-400 transition-colors underline decoration-slate-700 underline-offset-4 hover:decoration-purple-400"
+                onClick={() =>
+                  router.push(`/search?q=${encodeURIComponent(tag)}`)
+                }
+                className="text-slate-300 hover:text-purple-400 transition-colors underline decoration-slate-700 underline-offset-4 hover:decoration-purple-400 cursor-pointer bg-transparent border-none"
               >
                 {tag}
-              </a>
+              </button>
             ))}
           </div>
         </div>
