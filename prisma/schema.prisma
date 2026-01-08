@@ -1,0 +1,39 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// 1. Modelo de Usuário (A base de tudo)
+model User {
+  id        String   @id @default(uuid()) // ID único (ex: 550e8400-e29b...)
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Dados de Negócio
+  userType  String   @default("client") // "client" ou "professional"
+  plan      String   @default("free")   // "free", "starter", "pro"
+  
+  // Dados do Perfil (Opcionais no começo)
+  avatarUrl String?
+  bio       String?
+  location  String?
+  hourlyRate Float?   // Valor hora (se for profissional)
+  
+  // Relacionamentos (Vamos criar essas tabelas depois, mas já deixamos preparado)
+  // projects Project[]
+  // proposals Proposal[]
+
+  @@map("users") // Nome da tabela no banco será "users" (minúsculo)
+}
