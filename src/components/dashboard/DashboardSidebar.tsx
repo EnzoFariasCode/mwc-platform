@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
 import {
   LayoutDashboard,
   Wallet,
@@ -14,10 +15,82 @@ import {
   Megaphone,
   MessageSquare,
   X,
+  User,
+  ChevronUp,
 } from "lucide-react";
 import Logo from "@/assets/images/landingPage/logo.png";
 import { useDashboard } from "@/context/DashboardContext";
 
+// --- SUB-COMPONENTE: Menu de Usuário (Dropdown) ---
+function UserMenu() {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Fecha ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      {/* Menu Flutuante (Abre para CIMA) */}
+      {isOpen && (
+        <div className="absolute bottom-full left-0 w-full mb-2 bg-slate-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 z-50">
+          <div className="p-2 space-y-1">
+            <Link href="/dashboard/perfil">
+              <button className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 rounded-lg text-sm text-slate-200 transition-colors text-left group cursor-pointer">
+                <User className="w-4 h-4 text-slate-400 group-hover:text-[#d73cbe]" />
+                Meu Perfil
+              </button>
+            </Link>
+            <Link href="/dashboard/configuracoes">
+              <button className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 rounded-lg text-sm text-slate-200 transition-colors text-left group cursor-pointer">
+                <Settings className="w-4 h-4 text-slate-400 group-hover:text-[#d73cbe]" />
+                Configurações
+              </button>
+            </Link>
+            <div className="h-px bg-white/5 my-1" />
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-500/10 rounded-lg text-sm text-red-400 hover:text-red-300 transition-colors text-left cursor-pointer">
+              <LogOut className="w-4 h-4" />
+              Sair da Conta
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Botão Gatilho (O Card do Usuário) */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
+          isOpen
+            ? "bg-white/5 border-[#d73cbe]/30"
+            : "bg-transparent border-transparent hover:bg-white/5 hover:border-white/5"
+        }`}
+      >
+        <div className="w-10 h-10 rounded-full bg-[#d73cbe] flex items-center justify-center text-white font-bold shrink-0">
+          JS
+        </div>
+        <div className="flex-1 text-left min-w-0">
+          <p className="font-bold text-sm text-white truncate">João Silva</p>
+          <p className="text-xs text-slate-400 truncate">Nível Starter</p>
+        </div>
+        <ChevronUp
+          className={`w-4 h-4 text-slate-400 transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
+// --- COMPONENTE PRINCIPAL ---
 export default function DashboardSidebar() {
   const pathname = usePathname();
   const { userType, isMobileMenuOpen, closeMobileMenu } = useDashboard();
@@ -32,7 +105,11 @@ export default function DashboardSidebar() {
       label: "Encontrar Projetos",
       href: "/dashboard/encontrar-projetos",
     },
-    { icon: FileText, label: "Minhas Propostas", href: "/dashboard/propostas" },
+    {
+      icon: FileText,
+      label: "Minhas Propostas",
+      href: "/dashboard/minhas-propostas",
+    },
     {
       icon: Briefcase,
       label: "Projetos Ativos",
@@ -145,12 +222,9 @@ export default function DashboardSidebar() {
           })}
         </nav>
 
-        {/* Footer da Sidebar */}
+        {/* Footer da Sidebar (AGORA COM O DROPDOWN DE USUÁRIO) */}
         <div className="p-4 border-t border-white/5 bg-slate-900 shrink-0">
-          <button className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-red-400 hover:bg-red-400/10 transition-all cursor-pointer">
-            <LogOut size={20} />
-            <span>Sair da Conta</span>
-          </button>
+          <UserMenu />
         </div>
       </aside>
     </>

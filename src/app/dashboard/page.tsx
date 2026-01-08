@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/dashboard/PageContainer";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -23,9 +24,8 @@ export default function DashboardHome() {
   // --- RENDERIZAÇÃO: VISÃO DO PROFISSIONAL ---
   if (userType === "professional") {
     return (
-      // WRAPPER DE SCROLL E PADDING (Adicionado)
-      <div className="h-full overflow-y-auto p-4 lg:p-8">
-        <div className="max-w-7xl mx-auto space-y-8 animate-fade-in pb-20">
+      <PageContainer>
+        <div className="space-y-8">
           {/* Header Pro */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -95,15 +95,14 @@ export default function DashboardHome() {
             <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-[#d73cbe]/5 to-transparent pointer-events-none" />
           </div>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   // --- RENDERIZAÇÃO: VISÃO DO CLIENTE ---
   return (
-    // WRAPPER DE SCROLL E PADDING (Adicionado)
-    <div className="h-full overflow-y-auto p-4 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-8 animate-fade-in pb-20">
+    <PageContainer>
+      <div className="space-y-8">
         {/* Header Cliente */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -175,7 +174,7 @@ export default function DashboardHome() {
           onClose={() => setIsModalOpen(false)}
         />
       </div>
-    </div>
+    </PageContainer>
   );
 }
 
