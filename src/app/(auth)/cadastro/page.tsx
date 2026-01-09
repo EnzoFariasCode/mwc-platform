@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
-import { registerUser } from "@/actions/register-user";
+import { registerUser } from "@/actions/auth/register-user";
 import { toast } from "sonner";
 
 function RegisterContent() {

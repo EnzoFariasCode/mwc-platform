@@ -1,4 +1,5 @@
 ## MWC Jobs - Plataforma de Freelancers
+
 Plataforma de marketplace de serviços (estilo Workana/Upwork) desenvolvida com foco em segurança, integridade de contrato e experiência de usuário premium.
 
 🛠 Tech Stack
@@ -31,12 +32,12 @@ Permissões: Imutável. Nada pode ser alterado. Alterações de escopo devem ser
 Encontrar Projetos (Pro Side): Lista pública de anúncios disponíveis para aplicação.
 
 2. Segurança Financeira (Escrow)
-Pagamento Retido: O valor do projeto não vai direto para o profissional. Ele fica retido na conta da plataforma (Escrow) assim que o contrato é iniciado.
+   Pagamento Retido: O valor do projeto não vai direto para o profissional. Ele fica retido na conta da plataforma (Escrow) assim que o contrato é iniciado.
 
 Liberação: O valor só é liberado para a carteira do profissional quando o cliente marcar o projeto como "Concluído/Entregue".
 
 3. Modelo de Monetização & Connects
-Connects (Moedas): Profissionais gastam "Connects" para enviar propostas (evita spam).
+   Connects (Moedas): Profissionais gastam "Connects" para enviar propostas (evita spam).
 
 Planos:
 
@@ -50,20 +51,20 @@ A arquitetura segue o modelo de funcionalidades dentro de /dashboard:
 Bash
 
 src/app/dashboard/
-├── layout.tsx             # Sidebar + Header + Lógica de Auth/Context
-├── page.tsx               # Visão Geral (Dashboards de Métricas)
+├── layout.tsx # Sidebar + Header + Lógica de Auth/Context
+├── page.tsx # Visão Geral (Dashboards de Métricas)
 │
-├── anuncios/              # (CLIENTE) Lista de vagas abertas
-│   └── page.tsx           # Lista + Modais de Criação/Edição
+├── anuncios/ # (CLIENTE) Lista de vagas abertas
+│ └── page.tsx # Lista + Modais de Criação/Edição
 │
-├── meus-projetos/         # (CLIENTE) Lista de contratos ativos
-│   └── page.tsx           # Lista focada em status/prazo (Sem barra de progresso fake)
+├── meus-projetos/ # (CLIENTE) Lista de contratos ativos
+│ └── page.tsx # Lista focada em status/prazo (Sem barra de progresso fake)
 │
-├── encontrar-projetos/    # (PROFISSIONAL) Feed de busca
-│   ├── page.tsx           # Filtros (Tags, Preço, Categoria) + Lista
-│   └── [id]/              # Landing Page do Projeto (Detalhes Vendedores)
+├── encontrar-projetos/ # (PROFISSIONAL) Feed de busca
+│ ├── page.tsx # Filtros (Tags, Preço, Categoria) + Lista
+│ └── [id]/ # Landing Page do Projeto (Detalhes Vendedores)
 │
-└── chat/                  # (GLOBAL) Sistema de Mensagens
+└── chat/ # (GLOBAL) Sistema de Mensagens
 ✅ Funcionalidades Implementadas
 Core / UI
 [x] Landing Page com animações GSAP (ScrollTrigger).
@@ -137,3 +138,14 @@ Responsividade: O layout usa h-[100dvh] e flex para evitar problemas de scroll n
 Dados: Atualmente usamos Arrays Mockados (ACTIVE_PROJECTS, OPEN_ADS, ALL_PROJECTS_MOCK). Ao integrar com Backend, manter a tipagem forte das Interfaces.
 
 Tags: O input de tags no modal é crucial para o sistema de recomendação futuro.
+
+### BACKEND
+
+# Actions
+
+get-user-profile.ts = buscar os dados do usuário (Nome, Nome de Exibição e Tipo) baseado no cookie.
+login-user.ts = Buscar dados de login e senha.
+register-users.ts = Registrar dados dos imputs no banco de dados.
+
+src/services/ (Onde fica a regra de banco de dados/Prisma).
+src/types/ (Onde ficam as definições de dados para compartilhar entre front e back).

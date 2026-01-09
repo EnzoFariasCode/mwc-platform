@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
+
 import {
   LayoutDashboard,
   Wallet,
@@ -12,22 +13,35 @@ import {
   Briefcase,
   Search,
   FileText,
-  Megaphone,
   MessageSquare,
   X,
   User,
   ChevronUp,
-  Heart, // Novo import
-  Store, // Novo import para Vitrine
+  Heart,
+  Store,
 } from "lucide-react";
 import Logo from "@/assets/images/landingPage/logo.png";
 import { useDashboard } from "@/context/DashboardContext";
 
+// --- ATUALIZAÇÃO DOS IMPORTS (SEPARADOS) ---
+import { getUserProfile } from "@/actions/account/get-user-profile";
+import { logoutUser } from "@/actions/auth/logout-user";
+
+// Tipo para os dados do usuário
+type UserData = {
+  name: string | null;
+  displayName: string | null;
+  email: string | null;
+  userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
+};
+
 // --- SUB-COMPONENTE: Menu de Usuário (Dropdown) ---
-function UserMenu() {
+function UserMenu({ user }: { user: UserData | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
+  // Fecha ao clicar fora
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -37,6 +51,24 @@ function UserMenu() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Função de Logout
+  const handleLogout = async () => {
+    await logoutUser();
+    router.push("/login"); // Redireciona para login após sair
+  };
+
+  // Lógica para nome de exibição (Prioridade: displayName > name > "Usuário")
+  const displayName = user?.displayName || user?.name || "Usuário";
+
+  // Lógica para iniciais (Ex: João Silva -> JS)
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(" ");
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
+  const initials = getInitials(displayName);
 
   return (
     <div className="relative" ref={menuRef}>
@@ -56,7 +88,10 @@ function UserMenu() {
               </button>
             </Link>
             <div className="h-px bg-white/5 my-1" />
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-500/10 rounded-lg text-sm text-red-400 hover:text-red-300 transition-colors text-left cursor-pointer">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-500/10 rounded-lg text-sm text-red-400 hover:text-red-300 transition-colors text-left cursor-pointer"
+            >
               <LogOut className="w-4 h-4" />
               Sair da Conta
             </button>
@@ -72,13 +107,20 @@ function UserMenu() {
             : "bg-transparent border-transparent hover:bg-white/5 hover:border-white/5"
         }`}
       >
-        <div className="w-10 h-10 rounded-full bg-[#d73cbe] flex items-center justify-center text-white font-bold shrink-0">
-          JS
+        {/* Avatar com Iniciais */}
+        <div className="w-10 h-10 rounded-full bg-[#d73cbe] flex items-center justify-center text-white font-bold shrink-0 select-none">
+          {user ? initials : "..."}
         </div>
+
         <div className="flex-1 text-left min-w-0">
-          <p className="font-bold text-sm text-white truncate">João Silva</p>
-          <p className="text-xs text-slate-400 truncate">Nível Starter</p>
+          <p className="font-bold text-sm text-white truncate">
+            {user ? displayName : "Carregando..."}
+          </p>
+          <p className="text-xs text-slate-400 truncate">
+            {user?.userType === "PROFESSIONAL" ? "Profissional" : "Cliente"}
+          </p>
         </div>
+
         <ChevronUp
           className={`w-4 h-4 text-slate-400 transition-transform ${
             isOpen ? "rotate-180" : ""
@@ -92,17 +134,33 @@ function UserMenu() {
 // --- COMPONENTE PRINCIPAL ---
 export default function DashboardSidebar() {
   const pathname = usePathname();
-  const { userType, isMobileMenuOpen, closeMobileMenu } = useDashboard();
+  const { isMobileMenuOpen, closeMobileMenu } = useDashboard();
+  const [user, setUser] = useState<UserData | null>(null);
 
-  // --- MENU DO PROFISSIONAL (VITRINE + ATIVO) ---
+  // --- ATUALIZAÇÃO DA LÓGICA DE BUSCA ---
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const response = await getUserProfile();
+        // Agora verificamos .success e pegamos o .data
+        if (response.success && response.data) {
+          setUser(response.data as UserData);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar usuário no sidebar", error);
+      }
+    }
+    loadUser();
+  }, []);
+
+  // --- MENU DO PROFISSIONAL ---
   const professionalLinks = [
-    { icon: LayoutDashboard, label: "Visão Geral", href: "/dashboard" },
-    // A Vitrine é o mais importante agora
     {
-      icon: Store,
-      label: "Meu Perfil (Vitrine)",
-      href: "/dashboard/perfil",
+      icon: LayoutDashboard,
+      label: "Visão Geral",
+      href: "/dashboard/profissional",
     },
+    { icon: Store, label: "Minha Vitrine", href: "/dashboard/perfil" },
     {
       icon: MessageSquare,
       label: "Leads / Mensagens",
@@ -110,7 +168,7 @@ export default function DashboardSidebar() {
     },
     {
       icon: Search,
-      label: "Buscar Oportunidades", // Mudou de "Encontrar Projetos"
+      label: "Buscar Oportunidades",
       href: "/dashboard/encontrar-projetos",
     },
     {
@@ -126,16 +184,17 @@ export default function DashboardSidebar() {
     { icon: Wallet, label: "Financeiro", href: "/dashboard/financeiro" },
   ];
 
-  // --- MENU DO CLIENTE (HÍBRIDO) ---
+  // --- MENU DO CLIENTE ---
   const clientLinks = [
-    { icon: LayoutDashboard, label: "Visão Geral", href: "/dashboard" },
+    { icon: LayoutDashboard, label: "Visão Geral", href: "/dashboard/cliente" },
     { icon: MessageSquare, label: "Mensagens", href: "/dashboard/chat" },
+    { icon: Search, label: "Buscar Profissionais", href: "/search" },
     {
       icon: Briefcase,
-      label: "Meus Pedidos", // Mudou de "Meus Projetos"
+      label: "Meus Pedidos",
       href: "/dashboard/meus-projetos",
     },
-    { icon: Heart, label: "Favoritos", href: "/dashboard/favoritos" }, // Novo
+    { icon: Heart, label: "Favoritos", href: "/dashboard/favoritos" },
     {
       icon: Settings,
       label: "Configurações",
@@ -143,8 +202,9 @@ export default function DashboardSidebar() {
     },
   ];
 
-  const menuItems =
-    userType === "professional" ? professionalLinks : clientLinks;
+  // Define qual menu mostrar baseado na URL atual
+  const isProfessionalArea = pathname.includes("/dashboard/profissional");
+  const menuItems = isProfessionalArea ? professionalLinks : clientLinks;
 
   return (
     <>
@@ -189,7 +249,7 @@ export default function DashboardSidebar() {
 
         <nav className="flex-1 py-8 px-4 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
           <div className="px-4 mb-4 text-xs font-bold text-slate-500 uppercase tracking-widest opacity-50">
-            Menu {userType === "professional" ? "Profissional" : "Cliente"}
+            Menu {isProfessionalArea ? "Profissional" : "Cliente"}
           </div>
 
           {menuItems.map((item) => {
@@ -221,7 +281,8 @@ export default function DashboardSidebar() {
         </nav>
 
         <div className="p-4 border-t border-white/5 bg-slate-900 shrink-0">
-          <UserMenu />
+          {/* Passamos o user carregado para o sub-componente */}
+          <UserMenu user={user} />
         </div>
       </aside>
     </>

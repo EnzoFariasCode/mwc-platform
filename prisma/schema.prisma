@@ -24,4 +24,5 @@ model User {
   userType    UserType @default(CLIENT)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  bio           String?   @db.Text  // @db.Text permite textos longos
 }

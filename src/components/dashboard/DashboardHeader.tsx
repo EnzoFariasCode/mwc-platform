@@ -3,9 +3,27 @@
 import { Bell, Search, Menu } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { NotificationDropdown } from "./NotificationDropdown";
+import { usePathname, useRouter } from "next/navigation"; // 1. Novos imports
 
 export default function DashboardHeader() {
-  const { userType, toggleUserType, toggleMobileMenu } = useDashboard();
+  // 2. Removemos userType e toggleUserType do contexto (não usamos mais)
+  const { toggleMobileMenu } = useDashboard();
+
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // 3. Descobrimos o tipo baseado na URL atual
+  const isClient = pathname.includes("/dashboard/cliente");
+  const currentType = isClient ? "client" : "professional";
+
+  // 4. Função de navegação ao clicar no switch
+  const handleSwitch = (targetType: "client" | "professional") => {
+    if (targetType === "client") {
+      router.push("/dashboard/cliente");
+    } else {
+      router.push("/dashboard/profissional");
+    }
+  };
 
   return (
     <header className="h-20 bg-slate-900 border-b border-white/5 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
@@ -31,26 +49,29 @@ export default function DashboardHeader() {
       <div className="flex items-center gap-4 lg:gap-6 ml-auto">
         {/* Switch Profissional/Cliente */}
         <div className="hidden sm:flex bg-slate-950 rounded-full border border-white/10 relative overflow-hidden">
+          {/* Fundo colorido deslizante */}
           <div
             className={`absolute top-0 bottom-0 w-1/2 bg-[#d73cbe] transition-all duration-300
-                ${
-                  userType === "client" ? "translate-x-full" : "translate-x-0"
-                }`}
+              ${
+                currentType === "client" ? "translate-x-full" : "translate-x-0"
+              }`}
           />
+
           <button
-            onClick={() => userType === "client" && toggleUserType()}
+            onClick={() => handleSwitch("professional")}
             className={`relative z-10 px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-              userType === "professional"
+              currentType === "professional"
                 ? "text-white"
                 : "text-slate-400 hover:text-white"
             }`}
           >
             Sou Profissional
           </button>
+
           <button
-            onClick={() => userType === "professional" && toggleUserType()}
+            onClick={() => handleSwitch("client")}
             className={`relative z-10 px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-              userType === "client"
+              currentType === "client"
                 ? "text-white"
                 : "text-slate-400 hover:text-white"
             }`}

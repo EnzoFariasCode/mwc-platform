@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Mail, Lock, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense, useEffect, useRef } from "react";
-import { loginUser } from "@/actions/login-user";
+import { loginUser } from "@/actions/auth/login-user";
 import { toast } from "sonner";
 
 function LoginContent() {
