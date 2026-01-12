@@ -23,16 +23,16 @@ import {
 import Logo from "@/assets/images/landingPage/logo.png";
 import { useDashboard } from "@/context/DashboardContext";
 
-// --- ATUALIZAÇÃO DOS IMPORTS (SEPARADOS) ---
 import { getUserProfile } from "@/actions/account/get-user-profile";
 import { logoutUser } from "@/actions/auth/logout-user";
 
-// Tipo para os dados do usuário
+// Tipo atualizado para bater com o banco de dados
 type UserData = {
   name: string | null;
   displayName: string | null;
   email: string | null;
   userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
+  jobTitle?: string | null; // Adicionado para exibir o cargo
 };
 
 // --- SUB-COMPONENTE: Menu de Usuário (Dropdown) ---
@@ -52,16 +52,20 @@ function UserMenu({ user }: { user: UserData | null }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Função de Logout
   const handleLogout = async () => {
     await logoutUser();
-    router.push("/login"); // Redireciona para login após sair
+    router.push("/login");
   };
 
-  // Lógica para nome de exibição (Prioridade: displayName > name > "Usuário")
   const displayName = user?.displayName || user?.name || "Usuário";
 
-  // Lógica para iniciais (Ex: João Silva -> JS)
+  // Exibe o Cargo se tiver, senão o Tipo de Usuário
+  const subTitle = user?.jobTitle
+    ? user.jobTitle
+    : user?.userType === "PROFESSIONAL"
+    ? "Profissional"
+    : "Cliente";
+
   const getInitials = (name: string) => {
     const parts = name.trim().split(" ");
     if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
@@ -116,9 +120,7 @@ function UserMenu({ user }: { user: UserData | null }) {
           <p className="font-bold text-sm text-white truncate">
             {user ? displayName : "Carregando..."}
           </p>
-          <p className="text-xs text-slate-400 truncate">
-            {user?.userType === "PROFESSIONAL" ? "Profissional" : "Cliente"}
-          </p>
+          <p className="text-xs text-slate-400 truncate">{subTitle}</p>
         </div>
 
         <ChevronUp
@@ -137,14 +139,16 @@ export default function DashboardSidebar() {
   const { isMobileMenuOpen, closeMobileMenu } = useDashboard();
   const [user, setUser] = useState<UserData | null>(null);
 
-  // --- ATUALIZAÇÃO DA LÓGICA DE BUSCA ---
+  // --- CORREÇÃO DA BUSCA ---
   useEffect(() => {
     async function loadUser() {
       try {
-        const response = await getUserProfile();
-        // Agora verificamos .success e pegamos o .data
-        if (response.success && response.data) {
-          setUser(response.data as UserData);
+        const data = await getUserProfile();
+
+        // O getUserProfile agora retorna o objeto user direto ou null.
+        // Não precisamos verificar .success ou .data
+        if (data) {
+          setUser(data as UserData);
         }
       } catch (error) {
         console.error("Erro ao carregar usuário no sidebar", error);
@@ -202,7 +206,6 @@ export default function DashboardSidebar() {
     },
   ];
 
-  // Define qual menu mostrar baseado na URL atual
   const isProfessionalArea = pathname.includes("/dashboard/profissional");
   const menuItems = isProfessionalArea ? professionalLinks : clientLinks;
 
@@ -281,7 +284,6 @@ export default function DashboardSidebar() {
         </nav>
 
         <div className="p-4 border-t border-white/5 bg-slate-900 shrink-0">
-          {/* Passamos o user carregado para o sub-componente */}
           <UserMenu user={user} />
         </div>
       </aside>

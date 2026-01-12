@@ -1,16 +1,21 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { db } from "@/lib/prisma"; // <--- ATENÇÃO: Verifique se o seu prisma é importado daqui
+import { db } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { ActionResponse } from "@/types/user-types"; // Usando sua tipagem padrão
+import { ActionResponse } from "@/types/user-types";
 
-// Tipagem dos dados que vêm do formulário/modal
+// 1. Atualizamos a interface para aceitar 'skills'
 interface UpdateProfileData {
   name: string;
   displayName: string;
   birthDate: string;
-  bio?: string; // O campo novo
+  bio?: string;
+  city?: string;
+  state?: string;
+  hourlyRate?: string;
+  jobTitle?: string;
+  skills?: string[]; // <--- ADICIONADO AQUI
   currentPassword?: string;
   newPassword?: string;
 }
@@ -19,7 +24,6 @@ export async function updateProfile(
   data: UpdateProfileData
 ): Promise<ActionResponse> {
   try {
-    // 1. Pega a sessão (Lendo o cookie manualmente, igual você fez no login)
     const cookieStore = await cookies();
     const userId = cookieStore.get("userId")?.value;
 
@@ -27,7 +31,6 @@ export async function updateProfile(
       return { success: false, error: "Usuário não autenticado." };
     }
 
-    // 2. Busca o usuário no banco para checar senha (se necessário)
     const userInDb = await db.user.findUnique({
       where: { id: userId },
     });
@@ -36,38 +39,38 @@ export async function updateProfile(
       return { success: false, error: "Usuário não encontrado." };
     }
 
-    // 3. Lógica de Alteração de Senha
     let passwordHash = undefined;
 
     if (data.newPassword && data.newPassword.trim() !== "") {
-      // Verifica se mandou a senha atual
       if (!data.currentPassword) {
         return { success: false, error: "Informe a senha atual para alterar." };
       }
 
-      // Compara a senha atual enviada com a do banco
       const isPasswordValid = await bcrypt.compare(
         data.currentPassword,
-        userInDb.password // Assumindo que o campo no banco chama 'password'
+        userInDb.password
       );
 
       if (!isPasswordValid) {
         return { success: false, error: "Senha atual incorreta." };
       }
 
-      // Cria o hash da nova senha
       passwordHash = await bcrypt.hash(data.newPassword, 10);
     }
 
-    // 4. Atualiza no Banco de Dados
+    // 2. Atualizamos o banco de dados incluindo 'skills'
     await db.user.update({
       where: { id: userId },
       data: {
         name: data.name,
         displayName: data.displayName,
-        birthDate: data.birthDate,
-        bio: data.bio, // Salvando a Bio aqui!
-        // Só atualiza a senha se passwordHash tiver valor
+        birthDate: data.birthDate ? new Date(data.birthDate) : null,
+        bio: data.bio,
+        city: data.city,
+        state: data.state,
+        hourlyRate: data.hourlyRate ? parseFloat(data.hourlyRate) : null,
+        jobTitle: data.jobTitle,
+        skills: data.skills, // <--- SALVANDO O ARRAY NO BANCO
         ...(passwordHash && { password: passwordHash }),
       },
     });

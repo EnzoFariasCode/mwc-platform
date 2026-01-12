@@ -20,9 +20,14 @@ model User {
   email       String   @unique
   password    String
   birthDate   DateTime?
-
   userType    UserType @default(CLIENT)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  bio           String?   @db.Text  // @db.Text permite textos longos
+  bio         String?  @db.Text
+  city        String?
+  state       String?
+  hourlyRate  Float?  
+  rating      Float    @default(5.0) 
+  jobTitle    String? 
+  skills      String[] @default([])
 }

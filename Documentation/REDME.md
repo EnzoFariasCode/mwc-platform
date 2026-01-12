@@ -149,3 +149,5 @@ register-users.ts = Registrar dados dos imputs no banco de dados.
 
 src/services/ (Onde fica a regra de banco de dados/Prisma).
 src/types/ (Onde ficam as definições de dados para compartilhar entre front e back).
+
+criar campio de Finalizar Serviço
