@@ -25,11 +25,14 @@ export async function getUserProfile() {
         city: true,
         state: true,
         createdAt: true,
-        // CAMPOS NOVOS QUE ESTAVAM FALTANDO:
         hourlyRate: true,
         rating: true,
         jobTitle: true,
         skills: true,
+        socialGithub: true,
+        socialLinkedin: true,
+        portfolio: true,
+        certificates: true,
       },
     });
 

@@ -5,7 +5,13 @@ import { db } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { ActionResponse } from "@/types/user-types";
 
-// 1. Atualizamos a interface para aceitar 'skills'
+// Interface auxiliar para os itens de lista (JSON)
+interface PortfolioItem {
+  title: string;
+  url: string;
+}
+
+// Interface completa com todos os campos (Antigos + Novos)
 interface UpdateProfileData {
   name: string;
   displayName: string;
@@ -15,7 +21,15 @@ interface UpdateProfileData {
   state?: string;
   hourlyRate?: string;
   jobTitle?: string;
-  skills?: string[]; // <--- ADICIONADO AQUI
+  skills?: string[];
+
+  // --- NOVOS CAMPOS ---
+  socialGithub?: string;
+  socialLinkedin?: string;
+  portfolio?: PortfolioItem[];
+  certificates?: PortfolioItem[];
+
+  // --- SEGURANÇA ---
   currentPassword?: string;
   newPassword?: string;
 }
@@ -24,6 +38,7 @@ export async function updateProfile(
   data: UpdateProfileData
 ): Promise<ActionResponse> {
   try {
+    // 1. Verificação de Sessão
     const cookieStore = await cookies();
     const userId = cookieStore.get("userId")?.value;
 
@@ -31,6 +46,7 @@ export async function updateProfile(
       return { success: false, error: "Usuário não autenticado." };
     }
 
+    // 2. Busca usuário no banco
     const userInDb = await db.user.findUnique({
       where: { id: userId },
     });
@@ -39,6 +55,7 @@ export async function updateProfile(
       return { success: false, error: "Usuário não encontrado." };
     }
 
+    // 3. Lógica de Senha (Mantida intacta)
     let passwordHash = undefined;
 
     if (data.newPassword && data.newPassword.trim() !== "") {
@@ -58,19 +75,31 @@ export async function updateProfile(
       passwordHash = await bcrypt.hash(data.newPassword, 10);
     }
 
-    // 2. Atualizamos o banco de dados incluindo 'skills'
+    // 4. Atualização no Banco de Dados
     await db.user.update({
       where: { id: userId },
       data: {
+        // Campos Básicos
         name: data.name,
         displayName: data.displayName,
         birthDate: data.birthDate ? new Date(data.birthDate) : null,
         bio: data.bio,
         city: data.city,
         state: data.state,
+
+        // Campos Profissionais (Numéricos/Strings)
         hourlyRate: data.hourlyRate ? parseFloat(data.hourlyRate) : null,
         jobTitle: data.jobTitle,
-        skills: data.skills, // <--- SALVANDO O ARRAY NO BANCO
+        skills: data.skills,
+
+        // --- NOVOS CAMPOS (Redes e JSONs) ---
+        socialGithub: data.socialGithub,
+        socialLinkedin: data.socialLinkedin,
+        // Usamos 'as any' para garantir que o Prisma aceite o array de objetos no campo JSON
+        portfolio: data.portfolio as any,
+        certificates: data.certificates as any,
+
+        // Senha (apenas se alterada)
         ...(passwordHash && { password: passwordHash }),
       },
     });

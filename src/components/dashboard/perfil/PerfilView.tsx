@@ -15,13 +15,23 @@ import {
   Image as ImageIcon,
   FileText,
   CalendarDays,
-  X,
-  Save,
   Github,
   Linkedin,
+  Briefcase,
+  ExternalLink,
+  // --- CORREÇÃO 1: Adicionados ícones que faltavam ---
+  Save,
+  X,
 } from "lucide-react";
 import Image from "next/image";
 
+// Tipagem dos itens de array
+interface PortfolioItem {
+  title: string;
+  url: string;
+}
+
+// --- CORREÇÃO 2: Interface robusta para alinhar com o Modal ---
 interface UserData {
   name: string | null;
   displayName: string | null;
@@ -36,19 +46,28 @@ interface UserData {
   hourlyRate?: number | null;
   rating?: number | null;
   jobTitle?: string | null;
-  skills?: string[]; // NOVO
+  skills?: string[];
+  socialGithub?: string | null;
+  socialLinkedin?: string | null;
+  portfolio?: PortfolioItem[];
+  certificates?: PortfolioItem[];
 }
 
+// --- CORREÇÃO 3: Proteção contra data inválida (NaN) ---
 function getMemberSince(dateInput: Date | string | undefined) {
   if (!dateInput) return "Membro recente";
 
   const date = new Date(dateInput);
+  // Verifica se a data é inválida
   if (isNaN(date.getTime())) return "Membro recente";
 
   const now = new Date();
   const diffMonths =
     (now.getFullYear() - date.getFullYear()) * 12 +
     (now.getMonth() - date.getMonth());
+
+  // Se o cálculo falhar por algum motivo, retorna fallback
+  if (isNaN(diffMonths)) return "Membro recente";
 
   if (diffMonths < 1) {
     return `Membro desde ${date.toLocaleDateString("pt-BR", {
@@ -74,66 +93,42 @@ export default function PerfilView({ user }: { user: UserData }) {
   }, [user]);
 
   const isPro = currentUser.userType === "PROFESSIONAL";
-
   const mainName =
     currentUser.name && currentUser.name.trim() !== ""
       ? currentUser.name
       : "Usuário";
-
   const hasNickname =
     currentUser.displayName &&
     currentUser.displayName.trim() !== "" &&
     currentUser.displayName !== currentUser.name;
-
-  const initials = mainName.charAt(0).toUpperCase();
-
+  const initials = mainName ? mainName.charAt(0).toUpperCase() : "U";
   const locationText =
     currentUser.city && currentUser.state
       ? `${currentUser.city} - ${currentUser.state}`
       : "Brasil";
-
   const memberSinceText = getMemberSince(currentUser.createdAt);
 
-  // Manipulador de Atualização do Perfil
-  const handleUpdateProfile = async (newData: {
-    name: string;
-    displayName: string;
-    birthDate: string;
-    city: string;
-    state: string;
-    hourlyRate?: string;
-    jobTitle: string;
-    skills: string[]; // NOVO
-    currentPassword?: string;
-    newPassword?: string;
-  }) => {
+  const handleUpdateProfile = async (newData: any) => {
     setIsLoading(true);
 
-    // Atualização visual otimista
+    // Update otimista
     setCurrentUser((prev) => ({
       ...prev,
-      name: newData.name,
-      displayName: newData.displayName,
-      birthDate: newData.birthDate,
-      city: newData.city,
-      state: newData.state,
+      ...newData,
+      // Garante conversão correta para visualização imediata
       hourlyRate: newData.hourlyRate ? parseFloat(newData.hourlyRate) : null,
-      jobTitle: newData.jobTitle,
-      skills: newData.skills, // NOVO
     }));
+
     try {
+      // Envia para o backend
       const response = await updateProfile({
-        name: newData.name,
-        displayName: newData.displayName,
-        birthDate: newData.birthDate,
+        ...newData,
+        // Garante que campos opcionais vão como undefined se vazios
+        socialGithub: newData.socialGithub || undefined,
+        socialLinkedin: newData.socialLinkedin || undefined,
+        portfolio: newData.portfolio || [],
+        certificates: newData.certificates || [],
         bio: currentUser.bio || "",
-        city: newData.city,
-        state: newData.state,
-        hourlyRate: newData.hourlyRate,
-        jobTitle: newData.jobTitle,
-        skills: newData.skills,
-        currentPassword: newData.currentPassword,
-        newPassword: newData.newPassword,
       });
 
       if (!response.success) {
@@ -164,8 +159,12 @@ export default function PerfilView({ user }: { user: UserData }) {
         hourlyRate: currentUser.hourlyRate
           ? currentUser.hourlyRate.toString()
           : undefined,
-        jobTitle: currentUser.jobTitle || undefined,
-        skills: currentUser.skills || [],
+        jobTitle: currentUser.jobTitle || "",
+        skills: currentUser.skills,
+        portfolio: currentUser.portfolio,
+        certificates: currentUser.certificates,
+        socialGithub: currentUser.socialGithub || undefined,
+        socialLinkedin: currentUser.socialLinkedin || undefined,
       });
     } catch (error) {
       alert("Erro ao salvar a bio.");
@@ -179,6 +178,14 @@ export default function PerfilView({ user }: { user: UserData }) {
     : isPro
     ? "Sou um especialista apaixonado por criar soluções tecnológicas..."
     : "Olá! Estou aqui em busca dos melhores profissionais...";
+
+  // Tratamento seguro para arrays (evita crash se vier null do banco)
+  const portfolioItems = Array.isArray(currentUser.portfolio)
+    ? currentUser.portfolio
+    : [];
+  const certificateItems = Array.isArray(currentUser.certificates)
+    ? currentUser.certificates
+    : [];
 
   return (
     <PageContainer>
@@ -197,12 +204,12 @@ export default function PerfilView({ user }: { user: UserData }) {
       />
 
       <div className="space-y-6 animate-fade-in">
-        {/* Header do Perfil */}
+        {/* HEADER */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden relative">
           <button
             onClick={() => setIsEditModalOpen(true)}
             className="absolute top-6 right-6 p-2 bg-background border border-border text-foreground rounded-xl hover:border-primary hover:text-primary transition-all shadow-sm z-10 cursor-pointer group"
-            title="Editar Dados Pessoais"
+            title="Editar Perfil"
           >
             <Edit3 className="w-5 h-5 group-hover:scale-110 transition-transform" />
           </button>
@@ -235,13 +242,11 @@ export default function PerfilView({ user }: { user: UserData }) {
                     <h1 className="text-3xl font-bold text-foreground font-futura">
                       {mainName}
                     </h1>
-
                     {hasNickname && (
                       <span className="text-lg text-slate-500 font-medium mb-1">
                         ({currentUser.displayName})
                       </span>
                     )}
-
                     {!isPro && (
                       <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-bold uppercase rounded-md border border-blue-500/20 tracking-wide mb-1.5">
                         Cliente Ativo
@@ -249,6 +254,7 @@ export default function PerfilView({ user }: { user: UserData }) {
                     )}
                   </div>
 
+                  {/* Cargo do Usuário */}
                   <p className="text-lg text-primary font-medium">
                     {currentUser.jobTitle ? (
                       currentUser.jobTitle
@@ -308,8 +314,10 @@ export default function PerfilView({ user }: { user: UserData }) {
           </div>
         </div>
 
+        {/* GRID PRINCIPAL */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
+            {/* SOBRE */}
             <SectionCard title="Sobre" onEdit={() => setIsBioModalOpen(true)}>
               <div className="text-slate-300">
                 <ExpandableText
@@ -320,7 +328,7 @@ export default function PerfilView({ user }: { user: UserData }) {
               </div>
             </SectionCard>
 
-            {/* SEÇÃO HABILIDADES ATUALIZADA */}
+            {/* HABILIDADES */}
             <div className={`relative ${!isPro ? "min-h-[320px]" : ""}`}>
               {!isPro && <ProFeatureLock title="Habilidades e Tecnologias" />}
               <SectionCard title="Habilidades e Tecnologias">
@@ -331,7 +339,6 @@ export default function PerfilView({ user }: { user: UserData }) {
                       : ""
                   }`}
                 >
-                  {/* Lista de Habilidades Reais */}
                   {currentUser.skills && currentUser.skills.length > 0 ? (
                     currentUser.skills.map((skill) => (
                       <span
@@ -342,12 +349,10 @@ export default function PerfilView({ user }: { user: UserData }) {
                       </span>
                     ))
                   ) : (
-                    // Estado Vazio se não houver skills
                     <span className="text-sm text-slate-500 italic py-2">
                       Nenhuma habilidade adicionada.
                     </span>
                   )}
-
                   <button
                     onClick={() => setIsEditModalOpen(true)}
                     className="px-3 py-1.5 border border-dashed border-border text-muted-foreground rounded-lg text-sm flex items-center gap-1 hover:border-primary/50 transition-colors cursor-pointer"
@@ -358,6 +363,7 @@ export default function PerfilView({ user }: { user: UserData }) {
               </SectionCard>
             </div>
 
+            {/* PORTFÓLIO */}
             <div className={`relative ${!isPro ? "min-h-[320px]" : ""}`}>
               {!isPro && <ProFeatureLock title="Portfólio Profissional" />}
               <SectionCard title="Portfólio e Anexos">
@@ -366,54 +372,157 @@ export default function PerfilView({ user }: { user: UserData }) {
                     !isPro ? "blur-sm select-none opacity-50 min-h-[200px]" : ""
                   }`}
                 >
-                  <div className="group relative aspect-square bg-slate-800 rounded-xl border border-border overflow-hidden cursor-pointer hover:border-primary/50 transition-all">
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
-                      <ImageIcon className="w-8 h-8 text-slate-600" />
-                    </div>
-                  </div>
+                  {/* Itens do Banco */}
+                  {portfolioItems.map((item, index) => (
+                    <a
+                      key={index}
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group relative aspect-square bg-slate-800 rounded-xl border border-border flex flex-col items-center justify-center p-4 cursor-pointer hover:border-primary/50 transition-all text-center hover:bg-slate-800/80"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-indigo-500/10 flex items-center justify-center mb-2">
+                        <FileText className="w-6 h-6 text-indigo-400" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-300 truncate w-full px-2">
+                        {item.title}
+                      </span>
+                      <span className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" /> Abrir
+                      </span>
+                    </a>
+                  ))}
 
-                  <div className="group relative aspect-square bg-slate-800 rounded-xl border border-border flex flex-col items-center justify-center p-4 cursor-pointer hover:border-primary/50 transition-all">
-                    <div className="w-12 h-12 rounded-lg bg-red-500/10 flex items-center justify-center mb-2">
-                      <FileText className="w-6 h-6 text-red-400" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-300 text-center truncate w-full">
-                      Curriculo_2024.pdf
-                    </span>
-                  </div>
+                  {/* Botão Adicionar */}
+                  {portfolioItems.length < 3 && (
+                    <button
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="aspect-square rounded-xl border border-dashed border-border flex flex-col items-center justify-center gap-2 hover:bg-slate-800/50 hover:border-primary/50 text-muted-foreground hover:text-primary transition-all cursor-pointer"
+                    >
+                      <div className="p-2 rounded-full bg-background border border-border">
+                        <Plus className="w-5 h-5" />
+                      </div>
+                      <span className="text-xs font-medium">
+                        Adicionar Projeto
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </SectionCard>
+            </div>
 
-                  <button className="aspect-square rounded-xl border border-dashed border-border flex flex-col items-center justify-center gap-2 hover:bg-slate-800/50 hover:border-primary/50 text-muted-foreground hover:text-primary transition-all cursor-pointer">
-                    <div className="p-2 rounded-full bg-background border border-border">
-                      <Plus className="w-5 h-5" />
-                    </div>
-                    <span className="text-xs font-medium">
-                      Adicionar Projeto
+            {/* CERTIFICADOS */}
+            <div className={`relative ${!isPro ? "min-h-[200px]" : ""}`}>
+              {!isPro && <ProFeatureLock title="Certificações" />}
+              <SectionCard title="Certificações e Cursos">
+                <div className="flex flex-col gap-3">
+                  {certificateItems.length > 0 ? (
+                    certificateItems.map((cert, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between p-3 bg-slate-800/40 border border-border rounded-xl"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-yellow-500/10 rounded-lg">
+                            <Briefcase className="w-5 h-5 text-yellow-500" />
+                          </div>
+                          <span className="text-sm font-medium text-slate-200">
+                            {cert.title}
+                          </span>
+                        </div>
+                        <a
+                          href={cert.url}
+                          target="_blank"
+                          className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-sm text-slate-500 italic">
+                      Nenhum certificado adicionado.
                     </span>
-                  </button>
+                  )}
+                  {certificateItems.length < 5 && (
+                    <button
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="w-full py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" /> Adicionar Certificado
+                    </button>
+                  )}
                 </div>
               </SectionCard>
             </div>
           </div>
 
+          {/* SIDEBAR REDES SOCIAIS */}
           <div className="space-y-6">
             <div className="bg-card border border-border rounded-2xl p-6">
               <h3 className="font-bold text-foreground mb-4">Redes Sociais</h3>
               <div className="space-y-3">
-                <button className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left group/social">
-                  <Github className="w-5 h-5 text-white group-hover/social:text-primary transition-colors" />
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-white">Github</p>
-                    <p className="text-xs text-slate-500">Conectar conta</p>
-                  </div>
-                  <Plus className="w-4 h-4 text-slate-500" />
-                </button>
-                <button className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left group/social">
-                  <Linkedin className="w-5 h-5 text-blue-400" />
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-white">LinkedIn</p>
-                    <p className="text-xs text-slate-500">Conectar conta</p>
-                  </div>
-                  <Plus className="w-4 h-4 text-slate-500" />
-                </button>
+                {/* GITHUB */}
+                {currentUser.socialGithub ? (
+                  <a
+                    href={currentUser.socialGithub}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left group/social hover:bg-slate-800"
+                  >
+                    <Github className="w-5 h-5 text-white group-hover/social:text-primary transition-colors" />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-white">Github</p>
+                      <p className="text-xs text-green-400 flex items-center gap-1">
+                        Conectado <ExternalLink className="w-3 h-3" />
+                      </p>
+                    </div>
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left opacity-70 hover:opacity-100"
+                  >
+                    <Github className="w-5 h-5 text-slate-400" />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-slate-400">Github</p>
+                      <p className="text-xs text-slate-500">Conectar conta</p>
+                    </div>
+                    <Plus className="w-4 h-4 text-slate-500" />
+                  </button>
+                )}
+
+                {/* LINKEDIN */}
+                {currentUser.socialLinkedin ? (
+                  <a
+                    href={currentUser.socialLinkedin}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left group/social hover:bg-slate-800"
+                  >
+                    <Linkedin className="w-5 h-5 text-blue-400" />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-white">LinkedIn</p>
+                      <p className="text-xs text-green-400 flex items-center gap-1">
+                        Conectado <ExternalLink className="w-3 h-3" />
+                      </p>
+                    </div>
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left opacity-70 hover:opacity-100"
+                  >
+                    <Linkedin className="w-5 h-5 text-slate-400" />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-slate-400">
+                        LinkedIn
+                      </p>
+                      <p className="text-xs text-slate-500">Conectar conta</p>
+                    </div>
+                    <Plus className="w-4 h-4 text-slate-500" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -423,7 +532,7 @@ export default function PerfilView({ user }: { user: UserData }) {
   );
 }
 
-// ... (Componentes auxiliares SectionCard, ProFeatureLock, EditBioModal permanecem iguais)
+// ... Auxiliares (SectionCard, ProFeatureLock, EditBioModal) ...
 function SectionCard({
   title,
   children,

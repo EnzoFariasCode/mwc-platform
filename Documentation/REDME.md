@@ -151,3 +151,28 @@ src/services/ (Onde fica a regra de banco de dados/Prisma).
 src/types/ (Onde ficam as definições de dados para compartilhar entre front e back).
 
 criar campio de Finalizar Serviço
+
+src/
+├── actions/ # 🧠 O "Coração" do Backend (Server Actions)
+│ ├── account/ # Ações relacionadas à conta do usuário
+│ │ ├── get-user-profile.ts # Busca dados (com tratamento de null/undefined)
+│ │ ├── update-profile.ts # Atualiza dados (inclui validação de senha)
+│ │ └── become-professional.ts # Lógica de upgrade de conta
+│ └── auth/ # Ações de autenticação
+│ ├── login.ts
+│ ├── register.ts
+│ └── logout-user.ts
+│
+├── lib/ # ⚙️ Configurações Globais
+│ └── prisma.ts # Instância única do Prisma Client (Singleton)
+│
+├── types/ # 📝 Tipagem TypeScript
+│ └── user-types.ts # Interfaces globais (UserData, ActionResponse)
+│
+└── app/ # 🌐 Rotas e Páginas (Server Components)
+└── dashboard/ # Área logada
+├── layout.tsx # Sidebar e Contexto global
+├── page.tsx # Roteador (Redireciona Cliente ou Pro)
+├── cliente/ # Dashboard exclusiva do Cliente
+│ └── page.tsx # Busca dados do DB e renderiza a View
+└── profissional/ # Dashboard exclusiva do Profissional

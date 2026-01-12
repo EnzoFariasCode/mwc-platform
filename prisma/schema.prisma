@@ -30,4 +30,54 @@ model User {
   rating      Float    @default(5.0) 
   jobTitle    String? 
   skills      String[] @default([])
+  socialGithub   String? // URL do Github
+  socialLinkedin String? // URL do Linkedin
+  portfolio      Json?   @default("[]") 
+  certificates   Json?   @default("[]")
+  projectsOwned    Project[] @relation("ClientProjects")
+  projectsAssigned Project[] @relation("ProProjects")
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  title       String
+  description String   @db.Text
+  category    String   // Ex: "TI e Programação"
+  tags        String[] // Array de tags ex: ["React", "Node"]
+  
+  // Orçamento
+  budgetType  String   // "fixed" ou "hourly"
+  budgetValue Float    // Valor numérico para filtros
+  budgetLabel String   // Texto formatado ex: "R$ 1500,00" ou "R$ 50/h"
+  
+  deadline    String   // "Urgente", "Para essa semana", etc.
+  status      String   @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED
+  
+  // Anexos (Links) - Vamos usar JSON array de strings/objetos
+  attachments Json?    @default("[]") 
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ownerId     String
+  owner       User     @relation("ClientProjects", fields: [ownerId], references: [id])
+  
+  professionalId String?
+  professional   User?    @relation("ProProjects", fields: [professionalId], references: [id])
+  
+  // Contagem de propostas (opcional, mas bom ter)
+  bidsCount   Int      @default(0)
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  content    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  
+  // Quem enviou e quem recebeu
+  senderId   String
+  receiverId String
+  
+  // Relacionamentos com User (precisaria adicionar no model User tbm, mas para contagem simples o ID basta)
 }

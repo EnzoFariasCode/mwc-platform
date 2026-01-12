@@ -1,33 +1,48 @@
 "use client";
 
-import { Bell, Search, Menu } from "lucide-react";
+import { Bell, Search, Menu, Lock } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { NotificationDropdown } from "./NotificationDropdown";
-import { usePathname, useRouter } from "next/navigation"; // 1. Novos imports
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getUserProfile } from "@/actions/account/get-user-profile";
 
 export default function DashboardHeader() {
-  // 2. Removemos userType e toggleUserType do contexto (não usamos mais)
   const { toggleMobileMenu } = useDashboard();
-
   const pathname = usePathname();
   const router = useRouter();
 
-  // 3. Descobrimos o tipo baseado na URL atual
-  const isClient = pathname.includes("/dashboard/cliente");
-  const currentType = isClient ? "client" : "professional";
+  // CORREÇÃO AQUI: Adicionamos "ADMIN" para o TypeScript parar de reclamar
+  const [userRole, setUserRole] = useState<
+    "CLIENT" | "PROFESSIONAL" | "ADMIN" | null
+  >(null);
 
-  // 4. Função de navegação ao clicar no switch
+  useEffect(() => {
+    async function checkRole() {
+      const user = await getUserProfile();
+      if (user) {
+        // Agora o tipo bate com o que vem do banco
+        setUserRole(user.userType);
+      }
+    }
+    checkRole();
+  }, []);
+
+  const isClientArea = pathname.includes("/dashboard/cliente");
+
   const handleSwitch = (targetType: "client" | "professional") => {
     if (targetType === "client") {
       router.push("/dashboard/cliente");
     } else {
-      router.push("/dashboard/profissional");
+      // Permite se for PROFISSIONAL ou ADMIN (caso você queira que admin veja tudo)
+      if (userRole === "PROFESSIONAL" || userRole === "ADMIN") {
+        router.push("/dashboard/profissional");
+      }
     }
   };
 
   return (
     <header className="h-20 bg-slate-900 border-b border-white/5 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
-      {/* Botão Mobile (Menu Hamburguer) */}
       <div className="flex items-center gap-4 lg:hidden">
         <button onClick={toggleMobileMenu} className="text-white p-2">
           <Menu size={24} />
@@ -35,7 +50,6 @@ export default function DashboardHeader() {
         <span className="font-futura font-bold text-white">MWC</span>
       </div>
 
-      {/* Barra de Busca Central */}
       <div className="hidden lg:flex flex-1 max-w-md mx-8 relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
         <input
@@ -45,36 +59,43 @@ export default function DashboardHeader() {
         />
       </div>
 
-      {/* Área da Direita (Switch + Notificações) */}
       <div className="flex items-center gap-4 lg:gap-6 ml-auto">
         {/* Switch Profissional/Cliente */}
         <div className="hidden sm:flex bg-slate-950 rounded-full border border-white/10 relative overflow-hidden">
-          {/* Fundo colorido deslizante */}
           <div
-            className={`absolute top-0 bottom-0 w-1/2 bg-[#d73cbe] transition-all duration-300
-              ${
-                currentType === "client" ? "translate-x-full" : "translate-x-0"
-              }`}
+            className={`absolute top-0 bottom-0 w-1/2 bg-[#d73cbe] transition-transform duration-300
+              ${isClientArea ? "translate-x-full" : "translate-x-0"}`}
           />
 
+          {/* Botão Sou Profissional */}
           <button
             onClick={() => handleSwitch("professional")}
-            className={`relative z-10 px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-              currentType === "professional"
-                ? "text-white"
-                : "text-slate-400 hover:text-white"
-            }`}
+            // Desabilita apenas se for estritamente CLIENTE.
+            // Se o userRole ainda for null (carregando), também desabilita para evitar clique falso.
+            disabled={userRole === "CLIENT" || userRole === null}
+            className={`relative z-10 px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer
+              ${
+                !isClientArea ? "text-white" : "text-slate-400 hover:text-white"
+              }
+              ${
+                userRole === "CLIENT"
+                  ? "opacity-50 cursor-not-allowed hover:text-slate-400"
+                  : ""
+              }
+            `}
           >
             Sou Profissional
+            {/* Mostra cadeado se for Cliente */}
+            {userRole === "CLIENT" && <Lock className="w-3 h-3 mb-0.5" />}
           </button>
 
+          {/* Botão Sou Cliente */}
           <button
             onClick={() => handleSwitch("client")}
-            className={`relative z-10 px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-              currentType === "client"
-                ? "text-white"
-                : "text-slate-400 hover:text-white"
-            }`}
+            className={`relative z-10 px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer
+              ${
+                isClientArea ? "text-white" : "text-slate-400 hover:text-white"
+              }`}
           >
             Sou Cliente
           </button>
