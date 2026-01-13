@@ -1,4 +1,4 @@
-// src/actions/logout-user.ts
+// src/actions/auth/logout-user.ts
 "use server";
 
 import { cookies } from "next/headers";
@@ -7,7 +7,11 @@ import { ActionResponse } from "@/types/user-types";
 export async function logoutUser(): Promise<ActionResponse> {
   try {
     const cookieStore = await cookies();
-    cookieStore.delete("userId");
+
+    // ANTES: cookieStore.delete("userId");
+    // AGORA: Deletamos o cookie "session" (onde fica o Token Seguro)
+    cookieStore.delete("session");
+
     return { success: true };
   } catch (error) {
     console.error("Erro no logout:", error);

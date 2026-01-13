@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import { db } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { ActionResponse } from "@/types/user-types";
+import { verifySession } from "@/lib/auth"; // <--- 1. IMPORTANTE: Segurança JWT
+import { revalidatePath } from "next/cache"; // <--- 2. IMPORTANTE: Atualizar a tela
 
 // Interface auxiliar para os itens de lista (JSON)
 interface PortfolioItem {
@@ -11,7 +13,7 @@ interface PortfolioItem {
   url: string;
 }
 
-// Interface completa com todos os campos (Antigos + Novos)
+// Interface completa com todos os campos
 interface UpdateProfileData {
   name: string;
   displayName: string;
@@ -38,13 +40,20 @@ export async function updateProfile(
   data: UpdateProfileData
 ): Promise<ActionResponse> {
   try {
-    // 1. Verificação de Sessão
     const cookieStore = await cookies();
-    const userId = cookieStore.get("userId")?.value;
+
+    // --- CORREÇÃO DE SEGURANÇA (JWT) ---
+    // Antes: const userId = cookieStore.get("userId")?.value;
+
+    // Agora: Ler e verificar o token seguro
+    const token = cookieStore.get("session")?.value;
+    const session = token ? await verifySession(token) : null;
+    const userId = session?.sub as string; // O ID real está aqui dentro
 
     if (!userId) {
       return { success: false, error: "Usuário não autenticado." };
     }
+    // -----------------------------------
 
     // 2. Busca usuário no banco
     const userInDb = await db.user.findUnique({
@@ -55,7 +64,7 @@ export async function updateProfile(
       return { success: false, error: "Usuário não encontrado." };
     }
 
-    // 3. Lógica de Senha (Mantida intacta)
+    // 3. Lógica de Senha
     let passwordHash = undefined;
 
     if (data.newPassword && data.newPassword.trim() !== "") {
@@ -87,7 +96,7 @@ export async function updateProfile(
         city: data.city,
         state: data.state,
 
-        // Campos Profissionais (Numéricos/Strings)
+        // Campos Profissionais
         hourlyRate: data.hourlyRate ? parseFloat(data.hourlyRate) : null,
         jobTitle: data.jobTitle,
         skills: data.skills,
@@ -95,7 +104,6 @@ export async function updateProfile(
         // --- NOVOS CAMPOS (Redes e JSONs) ---
         socialGithub: data.socialGithub,
         socialLinkedin: data.socialLinkedin,
-        // Usamos 'as any' para garantir que o Prisma aceite o array de objetos no campo JSON
         portfolio: data.portfolio as any,
         certificates: data.certificates as any,
 
@@ -103,6 +111,10 @@ export async function updateProfile(
         ...(passwordHash && { password: passwordHash }),
       },
     });
+
+    // 5. ATUALIZAR O CACHE (Para o nome/cidade mudar no Header e Perfil imediatamente)
+    revalidatePath("/dashboard/perfil");
+    revalidatePath("/", "layout");
 
     return { success: true };
   } catch (error) {

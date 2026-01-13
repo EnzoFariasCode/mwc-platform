@@ -1,3 +1,7 @@
+// =========================================================
+// 1. CONFIGURAÇÕES E ENUMS
+// =========================================================
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -13,30 +17,56 @@ enum UserType {
   ADMIN
 }
 
+// =========================================================
+// 2. MODELO DE USUÁRIO (Principal)
+// =========================================================
+
 model User {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
   displayName String?
-  email       String   @unique
+  email       String    @unique
   password    String
   birthDate   DateTime?
-  userType    UserType @default(CLIENT)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  bio         String?  @db.Text
-  city        String?
-  state       String?
-  hourlyRate  Float?  
-  rating      Float    @default(5.0) 
-  jobTitle    String? 
-  skills      String[] @default([])
-  socialGithub   String? // URL do Github
-  socialLinkedin String? // URL do Linkedin
-  portfolio      Json?   @default("[]") 
-  certificates   Json?   @default("[]")
+  userType    UserType  @default(CLIENT)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // --- Dados de Perfil ---
+  bio            String?   @db.Text
+  city           String?
+  state          String?
+  hourlyRate     Float?    
+  rating         Float     @default(5.0) 
+  jobTitle       String?   
+  skills         String[]  @default([])
+  socialGithub   String?
+  socialLinkedin String?
+  
+  // --- JSONs ---
+  portfolio      Json?     @default("[]") 
+  certificates   Json?     @default("[]")
+
+  // --- Relacionamentos de Projetos ---
   projectsOwned    Project[] @relation("ClientProjects")
   projectsAssigned Project[] @relation("ProProjects")
+
+  // --- Relacionamentos de Chat ---
+  // Conversas das quais o usuário participa
+  conversations Conversation[] @relation("UserConversations")
+  // Mensagens enviadas pelo usuário
+  sentMessages  Message[]      @relation("SentMessages")
+
+  // --- Relacionamentos de Favoritos ---
+  // Quem esse usuário favoritou (Ex: Cliente favoritou Eletricista)
+  favorites     Favorite[] @relation("UserFavorites")
+  // Quem favoritou este usuário (Ex: Eletricista foi favoritado por X clientes)
+  favoritedBy   Favorite[] @relation("FavoritedBy")
 }
+
+// =========================================================
+// 3. MODELO DE PROJETOS
+// =========================================================
 
 model Project {
   id          String   @id @default(uuid())
@@ -53,7 +83,7 @@ model Project {
   deadline    String   // "Urgente", "Para essa semana", etc.
   status      String   @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED
   
-  // Anexos (Links) - Vamos usar JSON array de strings/objetos
+  // Anexos (Links)
   attachments Json?    @default("[]") 
 
   createdAt   DateTime @default(now())
@@ -65,19 +95,60 @@ model Project {
   professionalId String?
   professional   User?    @relation("ProProjects", fields: [professionalId], references: [id])
   
-  // Contagem de propostas (opcional, mas bom ter)
   bidsCount   Int      @default(0)
 }
 
+// =========================================================
+// 4. MODELOS DE CHAT (Conversas e Mensagens)
+// =========================================================
+
+// Agrupa mensagens entre dois ou mais usuários
+model Conversation {
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Campo auxiliar para ordenação (data da última mensagem)
+  lastMessageAt DateTime  @default(now())
+
+  // Usuários participantes da conversa (Ex: Cliente e Profissional)
+  participants  User[]    @relation("UserConversations")
+  
+  // Mensagens dentro desta conversa
+  messages      Message[]
+}
+
 model Message {
-  id         String   @id @default(uuid())
-  content    String
-  read       Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id             String       @id @default(uuid())
+  content        String       @db.Text
+  read           Boolean      @default(false)
+  createdAt      DateTime     @default(now())
   
-  // Quem enviou e quem recebeu
-  senderId   String
-  receiverId String
+  // Quem enviou
+  senderId       String
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id])
   
-  // Relacionamentos com User (precisaria adicionar no model User tbm, mas para contagem simples o ID basta)
+  // A qual conversa pertence
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+// =========================================================
+// 5. MODELO DE FAVORITOS
+// =========================================================
+
+model Favorite {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+
+  // O Cliente que clicou no coração
+  clientId       String
+  client         User     @relation("UserFavorites", fields: [clientId], references: [id], onDelete: Cascade)
+
+  // O Profissional que foi favoritado
+  professionalId String
+  professional   User     @relation("FavoritedBy", fields: [professionalId], references: [id], onDelete: Cascade)
+
+  // Garante que o cliente só possa favoritar o mesmo profissional uma vez
+  @@unique([clientId, professionalId])
 }

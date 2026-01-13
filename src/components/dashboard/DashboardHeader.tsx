@@ -12,7 +12,6 @@ export default function DashboardHeader() {
   const pathname = usePathname();
   const router = useRouter();
 
-  // CORREÇÃO AQUI: Adicionamos "ADMIN" para o TypeScript parar de reclamar
   const [userRole, setUserRole] = useState<
     "CLIENT" | "PROFESSIONAL" | "ADMIN" | null
   >(null);
@@ -21,20 +20,36 @@ export default function DashboardHeader() {
     async function checkRole() {
       const user = await getUserProfile();
       if (user) {
-        // Agora o tipo bate com o que vem do banco
         setUserRole(user.userType);
       }
     }
     checkRole();
   }, []);
 
-  const isClientArea = pathname.includes("/dashboard/cliente");
+  // --- LÓGICA DEFINITIVA ---
+  // Rotas que são EXCLUSIVAMENTE do painel profissional
+  const professionalRoutes = [
+    "/dashboard/profissional",
+    "/dashboard/minhas-propostas",
+    "/dashboard/projetos-ativos",
+    "/dashboard/financeiro",
+    "/dashboard/encontrar-projetos",
+  ];
+
+  // Verifica se a rota atual começa com alguma rota profissional
+  const isProfessionalPath = professionalRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
+
+  // A área é "Cliente" se:
+  // 1. NÃO estivermos em uma rota explicitamente profissional
+  // 2. OU se o usuário for apenas CLIENTE (mesmo que tente acessar, o header deve refletir quem ele é)
+  const isClientArea = !isProfessionalPath || userRole === "CLIENT";
 
   const handleSwitch = (targetType: "client" | "professional") => {
     if (targetType === "client") {
       router.push("/dashboard/cliente");
     } else {
-      // Permite se for PROFISSIONAL ou ADMIN (caso você queira que admin veja tudo)
       if (userRole === "PROFESSIONAL" || userRole === "ADMIN") {
         router.push("/dashboard/profissional");
       }
@@ -55,23 +70,19 @@ export default function DashboardHeader() {
         <input
           type="text"
           placeholder="Buscar projetos ou profissionais..."
-          className="w-full bg-slate-950 border border-white/10 rounded-full py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-[#d73cbe] transition-all placeholder:text-slate-500"
+          className="w-full bg-slate-900 border border-white/10 rounded-full py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-[#d73cbe] transition-all placeholder:text-slate-500"
         />
       </div>
 
       <div className="flex items-center gap-4 lg:gap-6 ml-auto">
-        {/* Switch Profissional/Cliente */}
         <div className="hidden sm:flex bg-slate-950 rounded-full border border-white/10 relative overflow-hidden">
           <div
             className={`absolute top-0 bottom-0 w-1/2 bg-[#d73cbe] transition-transform duration-300
               ${isClientArea ? "translate-x-full" : "translate-x-0"}`}
           />
 
-          {/* Botão Sou Profissional */}
           <button
             onClick={() => handleSwitch("professional")}
-            // Desabilita apenas se for estritamente CLIENTE.
-            // Se o userRole ainda for null (carregando), também desabilita para evitar clique falso.
             disabled={userRole === "CLIENT" || userRole === null}
             className={`relative z-10 px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer
               ${
@@ -85,11 +96,9 @@ export default function DashboardHeader() {
             `}
           >
             Sou Profissional
-            {/* Mostra cadeado se for Cliente */}
             {userRole === "CLIENT" && <Lock className="w-3 h-3 mb-0.5" />}
           </button>
 
-          {/* Botão Sou Cliente */}
           <button
             onClick={() => handleSwitch("client")}
             className={`relative z-10 px-6 py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer

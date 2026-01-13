@@ -19,7 +19,6 @@ import {
   Linkedin,
   Briefcase,
   ExternalLink,
-  // --- CORREÇÃO 1: Adicionados ícones que faltavam ---
   Save,
   X,
 } from "lucide-react";
@@ -31,7 +30,7 @@ interface PortfolioItem {
   url: string;
 }
 
-// --- CORREÇÃO 2: Interface robusta para alinhar com o Modal ---
+// Interface robusta para alinhar com o Modal
 interface UserData {
   name: string | null;
   displayName: string | null;
@@ -53,12 +52,11 @@ interface UserData {
   certificates?: PortfolioItem[];
 }
 
-// --- CORREÇÃO 3: Proteção contra data inválida (NaN) ---
+// Proteção contra data inválida (NaN)
 function getMemberSince(dateInput: Date | string | undefined) {
   if (!dateInput) return "Membro recente";
 
   const date = new Date(dateInput);
-  // Verifica se a data é inválida
   if (isNaN(date.getTime())) return "Membro recente";
 
   const now = new Date();
@@ -66,7 +64,6 @@ function getMemberSince(dateInput: Date | string | undefined) {
     (now.getFullYear() - date.getFullYear()) * 12 +
     (now.getMonth() - date.getMonth());
 
-  // Se o cálculo falhar por algum motivo, retorna fallback
   if (isNaN(diffMonths)) return "Membro recente";
 
   if (diffMonths < 1) {
@@ -115,15 +112,12 @@ export default function PerfilView({ user }: { user: UserData }) {
     setCurrentUser((prev) => ({
       ...prev,
       ...newData,
-      // Garante conversão correta para visualização imediata
       hourlyRate: newData.hourlyRate ? parseFloat(newData.hourlyRate) : null,
     }));
 
     try {
-      // Envia para o backend
       const response = await updateProfile({
         ...newData,
-        // Garante que campos opcionais vão como undefined se vazios
         socialGithub: newData.socialGithub || undefined,
         socialLinkedin: newData.socialLinkedin || undefined,
         portfolio: newData.portfolio || [],
@@ -179,7 +173,6 @@ export default function PerfilView({ user }: { user: UserData }) {
     ? "Sou um especialista apaixonado por criar soluções tecnológicas..."
     : "Olá! Estou aqui em busca dos melhores profissionais...";
 
-  // Tratamento seguro para arrays (evita crash se vier null do banco)
   const portfolioItems = Array.isArray(currentUser.portfolio)
     ? currentUser.portfolio
     : [];
@@ -372,7 +365,6 @@ export default function PerfilView({ user }: { user: UserData }) {
                     !isPro ? "blur-sm select-none opacity-50 min-h-[200px]" : ""
                   }`}
                 >
-                  {/* Itens do Banco */}
                   {portfolioItems.map((item, index) => (
                     <a
                       key={index}
@@ -393,7 +385,6 @@ export default function PerfilView({ user }: { user: UserData }) {
                     </a>
                   ))}
 
-                  {/* Botão Adicionar */}
                   {portfolioItems.length < 3 && (
                     <button
                       onClick={() => setIsEditModalOpen(true)}
@@ -411,8 +402,8 @@ export default function PerfilView({ user }: { user: UserData }) {
               </SectionCard>
             </div>
 
-            {/* CERTIFICADOS */}
-            <div className={`relative ${!isPro ? "min-h-[200px]" : ""}`}>
+            {/* CERTIFICADOS - AQUI FOI A ALTERAÇÃO PRINCIPAL NA ALTURA */}
+            <div className={`relative ${!isPro ? "min-h-[260px]" : ""}`}>
               {!isPro && <ProFeatureLock title="Certificações" />}
               <SectionCard title="Certificações e Cursos">
                 <div className="flex flex-col gap-3">
@@ -562,16 +553,17 @@ function SectionCard({
   );
 }
 
+// CORREÇÃO: Fundo mais escuro (90%) e blur mais forte para não vazar o conteúdo de trás
 function ProFeatureLock({ title }: { title: string }) {
   return (
-    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-6 bg-slate-950/40 backdrop-blur-[2px] rounded-2xl border border-white/5">
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-6 bg-slate-950/90 backdrop-blur-sm rounded-2xl border border-white/5 animate-fade-in">
       <div className="p-3 bg-slate-900 rounded-full border border-white/10 mb-3 shadow-xl">
         <Lock className="w-6 h-6 text-[#d73cbe]" />
       </div>
-      <h3 className="text-lg font-bold text-white mb-1">
+      <h3 className="text-lg font-bold text-white mb-2 max-w-[260px] mx-auto leading-tight">
         {title} é para Profissionais
       </h3>
-      <p className="text-sm text-slate-300 max-w-xs mb-4">
+      <p className="text-sm text-slate-300 max-w-[280px] mx-auto mb-4 leading-relaxed">
         Ative seu perfil profissional para exibir seu portfólio.
       </p>
       <button className="px-5 py-2 bg-[#d73cbe] hover:bg-[#b0269a] text-white text-sm font-bold rounded-xl transition-all shadow-lg cursor-pointer">

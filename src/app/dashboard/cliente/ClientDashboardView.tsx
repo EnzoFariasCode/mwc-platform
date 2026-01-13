@@ -3,6 +3,7 @@
 import { PageContainer } from "@/components/dashboard/PageContainer";
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // <--- 1. Import necessário
 import {
   Briefcase,
   Megaphone,
@@ -27,7 +28,9 @@ interface ClientDashboardViewProps {
 export default function ClientDashboardView({
   stats,
 }: ClientDashboardViewProps) {
-  // Estado para o Modal de Novo Projeto (que estava faltando)
+  const router = useRouter(); // <--- 2. Inicializa o router
+
+  // Estado para o Modal de Novo Projeto
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
   // Estado para o Modal de Virar Profissional
@@ -36,7 +39,16 @@ export default function ClientDashboardView({
 
   const handleConfirmUpgrade = () => {
     startTransition(async () => {
-      await becomeProfessional();
+      // 3. Captura o resultado e redireciona se der certo
+      const result = await becomeProfessional();
+
+      if (result.success) {
+        setIsUpgradeModalOpen(false); // Fecha o modal
+        router.push("/dashboard/perfil"); // Vai para o perfil (agora desbloqueado)
+      } else {
+        // Opcional: Tratar erro aqui
+        console.error("Erro ao virar profissional");
+      }
     });
   };
 
@@ -50,14 +62,14 @@ export default function ClientDashboardView({
         isLoading={isPending}
       />
 
-      {/* 2. Modal de Novo Projeto (Restaurado) */}
+      {/* 2. Modal de Novo Projeto */}
       <NewProjectModal
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
       />
 
       <div className="space-y-8 animate-fade-in">
-        {/* --- HEADER DO CLIENTE (Restaurado) --- */}
+        {/* --- HEADER DO CLIENTE --- */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white font-futura">
@@ -77,7 +89,7 @@ export default function ClientDashboardView({
               </button>
             </Link>
             <button
-              onClick={() => setIsProjectModalOpen(true)} // Abre o modal de projeto
+              onClick={() => setIsProjectModalOpen(true)}
               className="px-6 py-3 bg-white text-slate-950 hover:bg-slate-200 font-bold rounded-xl transition-all shadow-lg flex items-center gap-2 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
@@ -86,7 +98,7 @@ export default function ClientDashboardView({
           </div>
         </div>
 
-        {/* --- CARDS DE ESTATÍSTICAS (Restaurados com Dados Reais) --- */}
+        {/* --- CARDS DE ESTATÍSTICAS --- */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatCard
             icon={MessageCircle}
@@ -108,7 +120,7 @@ export default function ClientDashboardView({
           />
         </div>
 
-        {/* --- BANNER DE UPGRADE (Já estava lá) --- */}
+        {/* --- BANNER DE UPGRADE --- */}
         <div className="bg-gradient-to-br from-purple-900/40 to-slate-900 rounded-2xl p-8 border border-purple-500/20 relative overflow-hidden">
           <div className="relative z-10 flex flex-col items-start gap-4">
             <div className="p-3 bg-purple-500/20 rounded-xl mb-2">
@@ -142,7 +154,7 @@ export default function ClientDashboardView({
   );
 }
 
-// Componente Visual do Card (Mantido igual)
+// Componente Visual do Card
 function StatCard({ icon: Icon, label, value, color, subtext }: any) {
   return (
     <div className="p-6 rounded-2xl bg-slate-900 border border-white/5 hover:border-white/10 transition-colors">

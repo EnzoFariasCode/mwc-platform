@@ -3,28 +3,36 @@
 import { db } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { UserType } from "@prisma/client";
+import { verifySession } from "@/lib/auth"; // <--- Importante: Segurança JWT
 
 export async function becomeProfessional() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("userId")?.value;
-
-  if (!userId) return;
-
   try {
-    // 1. Atualiza o tipo do usuário
+    const cookieStore = await cookies();
+
+    // 1. LÓGICA NOVA DE AUTH (JWT)
+    const token = cookieStore.get("session")?.value;
+    const session = token ? await verifySession(token) : null;
+    const userId = session?.sub as string;
+
+    if (!userId) {
+      return { success: false, error: "Usuário não autenticado." };
+    }
+
+    // 2. Atualiza o usuário no Banco
     await db.user.update({
       where: { id: userId },
-      data: { userType: "PROFESSIONAL" },
+      data: {
+        userType: UserType.PROFESSIONAL,
+      },
     });
 
-    // 2. Revalida o layout para atualizar a sidebar
-    revalidatePath("/dashboard");
+    // 3. Atualiza as caches para o Header/Sidebar mudarem imediatamente
+    revalidatePath("/", "layout");
+
+    return { success: true };
   } catch (error) {
     console.error("Erro ao virar profissional:", error);
-    return { error: "Erro ao atualizar perfil." };
+    return { success: false, error: "Erro ao atualizar perfil." };
   }
-
-  // 3. Redireciona para o perfil para completar o cadastro
-  redirect("/dashboard/perfil");
 }

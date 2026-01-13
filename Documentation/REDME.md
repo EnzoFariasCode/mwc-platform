@@ -176,3 +176,298 @@ src/
 ├── cliente/ # Dashboard exclusiva do Cliente
 │ └── page.tsx # Busca dados do DB e renderiza a View
 └── profissional/ # Dashboard exclusiva do Profissional
+
+##################################################################################################################
+🚀 MWC — Documentação Técnica
+
+Versão: Checkpoint
+Stack: Next.js • TypeScript • Tailwind • Prisma
+
+📌 Visão Geral
+
+O MWC é uma aplicação moderna construída com foco em performance, segurança, escalabilidade e clean architecture, utilizando o que há de mais atual no ecossistema Next.js (App Router).
+
+Este documento descreve a stack tecnológica, a arquitetura do projeto, a estrutura de diretórios e as principais regras de negócio já implementadas.
+
+## 🧰 Stack Tecnológica & Bibliotecas
+
+| Biblioteca / Ferramenta        | Tipo           | Função no Projeto                                                           |
+| ------------------------------ | -------------- | --------------------------------------------------------------------------- |
+| **Next.js 14/15 (App Router)** | Framework      | Estrutura principal, roteamento e renderização (SSR, CSR e Server Actions). |
+| **React**                      | Biblioteca     | Construção de interfaces e gerenciamento de estado via Hooks.               |
+| **TypeScript**                 | Linguagem      | Tipagem estática para maior segurança, escalabilidade e DX avançada.        |
+| **Tailwind CSS**               | Estilização    | Design system, responsividade, dark mode e UI moderna.                      |
+| **Prisma ORM**                 | Banco de Dados | Comunicação com o banco, definição de schemas e migrations.                 |
+| **Lucide React**               | UI / Ícones    | Biblioteca de ícones leve, consistente e moderna.                           |
+| **Jose**                       | Segurança      | Geração e validação de JWT para autenticação stateless.                     |
+| **Bcryptjs**                   | Segurança      | Criptografia (hash) de senhas antes do armazenamento.                       |
+| **Sonner**                     | UI / Feedback  | Notificações toast (sucesso, erro e warning).                               |
+
+## 🗂️ Estrutura de Diretórios
+
+Estrutura baseada em separação de responsabilidades, clean architecture e boas práticas modernas de frontend/backend no Next.js.
+
+src/
+├─ app/
+├─ actions/
+├─ components/
+├─ lib/
+└─ prisma/
+
+## ⚙️ src/lib/ — Utilitários & Configurações Globais
+
+Contém arquivos responsáveis por configuração centralizada de serviços.
+
+prisma.ts
+
+Instância global do Prisma Client.
+
+Evita múltiplas conexões em ambiente de hot-reload.
+
+auth.ts
+
+Núcleo da autenticação.
+
+Funções:
+
+encrypt() → Criação do token JWT
+
+decrypt() → Leitura segura do token
+
+verifySession() → Validação da sessão
+
+🔌 src/actions/ — Server Actions
+
+Camada que faz a ponte entre a UI e o banco de dados.
+Todas as funções aqui executam no servidor.
+
+## 📁 account/
+
+get-user-profile.ts
+
+Busca dados do usuário autenticado via token.
+
+update-profile.ts
+
+Valida senha com bcrypt.
+
+Atualiza dados do usuário no Prisma.
+
+become-professional.ts
+
+Altera o userType para PROFESSIONAL.
+
+## 📁 auth/
+
+logout-user.ts
+
+Remove/destrói o cookie de sessão (JWT).
+
+🎨 src/components/dashboard/ — Componentes de UI
+
+Componentes reutilizáveis e específicos do Dashboard.
+
+DashboardHeader.tsx
+
+Header fixo.
+
+Switch Cliente ↔ Profissional.
+
+Verificação de rota para exibição correta do menu.
+
+DashboardSidebar.tsx
+
+Sidebar responsiva.
+
+Menus diferentes conforme o contexto do usuário.
+
+Gerenciamento do menu mobile.
+
+EditProfileModal.tsx
+
+Formulário complexo de edição de perfil.
+
+Integração com a API do IBGE (frontend-only) para cidades.
+
+BecomeProfessionalModal.tsx
+
+Modal de confirmação para upgrade de conta.
+
+🧭 src/app/dashboard/ — Rotas & Páginas
+
+Estrutura de páginas usando App Router.
+
+### perfil/
+
+Visualização do perfil do usuário.
+
+Cards de habilidades e portfólio.
+
+Conteúdo bloqueado para usuários não-PRO.
+
+cliente/
+
+Dashboard do cliente.
+
+Estatísticas e atalhos rápidos.
+
+profissional/
+
+Dashboard do profissional (prestador de serviços).
+
+chat/
+
+Interface visual (mockup).
+
+Estado local para mensagens.
+
+Botão de favoritar integrado ao header.
+
+favoritos/
+
+Listagem de profissionais favoritados.
+
+🧠 Lógica de Negócio Implementada
+🔐 Autenticação & Segurança (JWT)
+
+Evolução da arquitetura:
+
+❌ Cookies simples (userId)
+
+✅ Tokens JWT assinados
+
+Fluxo de autenticação:
+
+Usuário realiza login
+
+Servidor gera JWT usando jose
+
+Token é salvo em cookie httpOnly
+
+Cada Server Action valida o token antes de acessar o banco
+
+🔄 Contexto de Navegação (Cliente vs Profissional)
+
+Sistema criado para evitar inconsistência de UI e menus incorretos.
+
+Regra:
+
+Rotas exclusivas de profissional:
+
+/financeiro
+
+/propostas
+
+Comportamento:
+
+Se o usuário:
+
+estiver fora dessas rotas OU
+
+tiver userType === CLIENT
+
+➡️ O sistema força a exibição do Menu de Cliente, evitando bugs de navegação.
+
+🌍 Integração com API do IBGE (Frontend Only)
+
+Não armazena cidades no banco (evita +5.000 registros).
+
+Sempre que o campo UF é alterado:
+
+Um fetch é feito diretamente para a API pública do IBGE.
+
+As cidades são carregadas dinamicamente no datalist.
+
+✔ Mais leve
+✔ Mais atual
+✔ Zero poluição no banco
+
+⭐ Favoritos & Chat (Estado Local)
+
+Chat
+
+Lógica visual implementada.
+
+Estado local com useState.
+
+Envio de mensagens e toggle de favorito.
+
+Favoritos
+
+Página dedicada para exibir profissionais favoritados.
+
+Base pronta para futura persistência no backend.
+
+🏁 Status do Projeto
+
+🚧 Checkpoint atual
+
+Arquitetura consolidada
+
+Autenticação segura
+
+UI base funcional
+
+Pronto para evolução (pagamentos, tempo real, notificações)
+
+📂 src/actions/favorites/ (Domínio: Favoritos)
+Responsável pelo gerenciamento da lista de profissionais preferidos do cliente.
+
+toggle-favorite.ts
+Função: Adiciona ou remove um profissional da lista de favoritos (lógica de toggle).
+
+Detalhes Técnicos:
+
+Verifica primeiro se o registro já existe na tabela Favorite.
+
+Se existir, executa delete; se não, executa create.
+
+Utiliza revalidatePath para atualizar a UI do Chat e da Lista de Favoritos instantaneamente sem recarregar a página.
+
+get-my-favorites.ts
+Função: Busca todos os favoritos do usuário logado para renderizar a página /dashboard/favoritos.
+
+Detalhes Técnicos:
+
+Faz uma query no banco filtrando pelo clientId.
+
+Retorna dados formatados do profissional (Nome, Foto, Nota, Preço, JobTitle) prontos para os cards do frontend.
+
+📂 src/actions/chat/ (Domínio: Chat)
+Lógica central de mensageria e gerenciamento de conversas em tempo real (via Server Actions).
+
+send-message.ts
+Função: Envia uma nova mensagem para outro usuário.
+
+Lógica Inteligente:
+
+Antes de enviar, verifica se já existe uma Conversation entre os dois IDs (Remetente e Destinatário).
+
+Se não existir, cria a conversa automaticamente e vincula os dois participantes.
+
+Salva a mensagem na tabela Message.
+
+Atualiza o campo lastMessageAt da conversa para que ela suba para o topo da lista recente.
+
+get-my-conversations.ts
+Função: Alimenta a barra lateral (Sidebar) do chat.
+
+Detalhes Técnicos:
+
+Lista todas as conversas onde o usuário logado é um dos participants.
+
+Traz o nome e dados do outro participante (identifica quem é o "outro" lado da conversa).
+
+Busca apenas a última mensagem (take: 1) para exibir o preview ("Olá, tudo bem?...") na lista lateral.
+
+get-conversation-messages.ts
+Função: Carrega o histórico completo de mensagens de um chat ativo.
+
+Detalhes Técnicos:
+
+Busca mensagens ordenadas cronologicamente (asc) para renderizar o chat.
+
+Realiza uma verificação cruzada na tabela Favorite para saber se o usuário com quem você está falando é um favorito, permitindo exibir o estado correto do botão de "Coração" no cabeçalho do chat.
+
+📝 Nota de Arquitetura
+Diferente da estrutura inicial, estas ações foram refatoradas e separadas em subpastas (/chat, /favorites) seguindo princípios de Clean Architecture e SRP (Single Responsibility Principle). Isso facilita a manutenção, testes e escalabilidade futura do projeto.

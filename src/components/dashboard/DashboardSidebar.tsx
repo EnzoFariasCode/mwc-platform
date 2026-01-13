@@ -26,22 +26,20 @@ import { useDashboard } from "@/context/DashboardContext";
 import { getUserProfile } from "@/actions/account/get-user-profile";
 import { logoutUser } from "@/actions/auth/logout-user";
 
-// Tipo atualizado para bater com o banco de dados
 type UserData = {
   name: string | null;
   displayName: string | null;
   email: string | null;
   userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
-  jobTitle?: string | null; // Adicionado para exibir o cargo
+  jobTitle?: string | null;
 };
 
-// --- SUB-COMPONENTE: Menu de Usuário (Dropdown) ---
+// ... (MANTENHA O USERMENU EXATAMENTE COMO ESTÁ PARA ECONOMIZAR ESPAÇO AQUI) ...
 function UserMenu({ user }: { user: UserData | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Fecha ao clicar fora
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -58,8 +56,6 @@ function UserMenu({ user }: { user: UserData | null }) {
   };
 
   const displayName = user?.displayName || user?.name || "Usuário";
-
-  // Exibe o Cargo se tiver, senão o Tipo de Usuário
   const subTitle = user?.jobTitle
     ? user.jobTitle
     : user?.userType === "PROFESSIONAL"
@@ -71,7 +67,6 @@ function UserMenu({ user }: { user: UserData | null }) {
     if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
-
   const initials = getInitials(displayName);
 
   return (
@@ -102,7 +97,6 @@ function UserMenu({ user }: { user: UserData | null }) {
           </div>
         </div>
       )}
-
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
@@ -111,18 +105,15 @@ function UserMenu({ user }: { user: UserData | null }) {
             : "bg-transparent border-transparent hover:bg-white/5 hover:border-white/5"
         }`}
       >
-        {/* Avatar com Iniciais */}
         <div className="w-10 h-10 rounded-full bg-[#d73cbe] flex items-center justify-center text-white font-bold shrink-0 select-none">
           {user ? initials : "..."}
         </div>
-
         <div className="flex-1 text-left min-w-0">
           <p className="font-bold text-sm text-white truncate">
             {user ? displayName : "Carregando..."}
           </p>
           <p className="text-xs text-slate-400 truncate">{subTitle}</p>
         </div>
-
         <ChevronUp
           className={`w-4 h-4 text-slate-400 transition-transform ${
             isOpen ? "rotate-180" : ""
@@ -133,20 +124,16 @@ function UserMenu({ user }: { user: UserData | null }) {
   );
 }
 
-// --- COMPONENTE PRINCIPAL ---
+// --- MAIN COMPONENT ---
 export default function DashboardSidebar() {
   const pathname = usePathname();
   const { isMobileMenuOpen, closeMobileMenu } = useDashboard();
   const [user, setUser] = useState<UserData | null>(null);
 
-  // --- CORREÇÃO DA BUSCA ---
   useEffect(() => {
     async function loadUser() {
       try {
         const data = await getUserProfile();
-
-        // O getUserProfile agora retorna o objeto user direto ou null.
-        // Não precisamos verificar .success ou .data
         if (data) {
           setUser(data as UserData);
         }
@@ -157,7 +144,6 @@ export default function DashboardSidebar() {
     loadUser();
   }, []);
 
-  // --- MENU DO PROFISSIONAL ---
   const professionalLinks = [
     {
       icon: LayoutDashboard,
@@ -188,7 +174,6 @@ export default function DashboardSidebar() {
     { icon: Wallet, label: "Financeiro", href: "/dashboard/financeiro" },
   ];
 
-  // --- MENU DO CLIENTE ---
   const clientLinks = [
     { icon: LayoutDashboard, label: "Visão Geral", href: "/dashboard/cliente" },
     { icon: MessageSquare, label: "Mensagens", href: "/dashboard/chat" },
@@ -206,8 +191,28 @@ export default function DashboardSidebar() {
     },
   ];
 
-  const isProfessionalArea = pathname.includes("/dashboard/profissional");
-  const menuItems = isProfessionalArea ? professionalLinks : clientLinks;
+  // --- LÓGICA DEFINITIVA DE CONTEXTO ---
+  // Rotas exclusivas de Profissional
+  const professionalRoutes = [
+    "/dashboard/profissional",
+    "/dashboard/minhas-propostas",
+    "/dashboard/projetos-ativos",
+    "/dashboard/financeiro",
+    "/dashboard/encontrar-projetos",
+  ];
+
+  // Verifica se estamos em uma rota PRO
+  const isProfessionalPath = professionalRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
+
+  // É contexto de Cliente se:
+  // 1. NÃO for uma rota PRO
+  // 2. OU se o usuário for explicitamente CLIENTE (bloqueia menu PRO mesmo se tentar acessar URL)
+  const isClientContext =
+    !isProfessionalPath || user?.userType !== "PROFESSIONAL";
+
+  const menuItems = isClientContext ? clientLinks : professionalLinks;
 
   return (
     <>
@@ -219,11 +224,9 @@ export default function DashboardSidebar() {
       )}
 
       <aside
-        className={`
-          fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-white/5 flex flex-col transition-transform duration-300
-          ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} 
-          lg:static lg:translate-x-0 shrink-0
-        `}
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-white/5 flex flex-col transition-transform duration-300 ${
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:static lg:translate-x-0 shrink-0`}
       >
         <div className="h-20 flex items-center justify-between px-6 border-b border-white/5 shrink-0">
           <Link
@@ -252,12 +255,11 @@ export default function DashboardSidebar() {
 
         <nav className="flex-1 py-8 px-4 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
           <div className="px-4 mb-4 text-xs font-bold text-slate-500 uppercase tracking-widest opacity-50">
-            Menu {isProfessionalArea ? "Profissional" : "Cliente"}
+            Menu {isClientContext ? "Cliente" : "Profissional"}
           </div>
 
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
-
             return (
               <Link
                 key={item.href}

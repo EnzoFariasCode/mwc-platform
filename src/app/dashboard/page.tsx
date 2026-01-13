@@ -2,46 +2,53 @@ import { db } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { UserType } from "@prisma/client";
+import { verifySession } from "@/lib/auth"; // <--- Importante: Importar a função de segurança
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { newChat?: string };
+  searchParams: Promise<{ newChat?: string }>; // Next.js 15: params são Promises agora
 }) {
-  // 1. Pega o ID do usuário dos cookies
   const cookieStore = await cookies();
-  const userId = cookieStore.get("userId")?.value;
+  const { newChat } = await searchParams; // Resolvemos a promise dos params
 
-  if (!userId) {
+  // 1. ANTES: const userId = cookieStore.get("userId")?.value;
+  // 2. AGORA: Pegamos o token "session" e verificamos a assinatura
+  const token = cookieStore.get("session")?.value;
+  const session = token ? await verifySession(token) : null;
+
+  // Se o token for inválido, falso ou não tiver ID -> Login
+  if (!session || !session.sub) {
     redirect("/login");
   }
 
-  // 2. Verifica no banco quem é esse usuário
+  const userId = session.sub as string; // O ID real do usuário
+
+  // 3. Verifica no banco quem é esse usuário
   const user = await db.user.findUnique({
     where: { id: userId },
     select: { userType: true },
   });
 
   if (!user) {
-    redirect("/login"); // Usuário não existe mais? Volta pro login
+    redirect("/login");
   }
 
-  // 3. Redirecionamento baseado no Role (UserType)
-
+  // 4. Redirecionamento baseado no Role (UserType)
   if (user.userType === UserType.PROFESSIONAL) {
     redirect("/dashboard/profissional");
   }
 
   if (user.userType === UserType.CLIENT) {
     // Se for cliente E tiver pedido para abrir chat, vai pro chat
-    if (searchParams?.newChat) {
-      redirect(`/dashboard/chat?newChat=${searchParams.newChat}`);
+    if (newChat) {
+      redirect(`/dashboard/chat?newChat=${newChat}`);
     }
     // Senão, vai pra home do cliente
     redirect("/dashboard/cliente");
   }
 
-  // Fallback visual enquanto redireciona
+  // Fallback visual (EXATAMENTE COMO VOCÊ PEDIU)
   return (
     <div className="flex items-center justify-center min-h-screen bg-slate-950">
       <div className="flex flex-col items-center gap-3">

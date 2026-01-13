@@ -1,17 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   X,
   Calendar,
   User,
-  Lock,
-  Mail,
-  Eye,
-  EyeOff,
-  AlertCircle,
-  MapPin,
-  DollarSign,
   Briefcase,
   Code2,
   Plus,
@@ -21,9 +14,43 @@ import {
   Link as LinkIcon,
   Trash2,
   Save,
+  AlertCircle,
+  MapPin,
+  DollarSign,
+  Loader2,
 } from "lucide-react";
 
-// Tipagem auxiliar para itens de lista
+// --- LISTA DE ESTADOS (IBGE) ---
+const BRAZIL_STATES = [
+  { sigla: "AC", nome: "Acre" },
+  { sigla: "AL", nome: "Alagoas" },
+  { sigla: "AP", nome: "Amapá" },
+  { sigla: "AM", nome: "Amazonas" },
+  { sigla: "BA", nome: "Bahia" },
+  { sigla: "CE", nome: "Ceará" },
+  { sigla: "DF", nome: "Distrito Federal" },
+  { sigla: "ES", nome: "Espírito Santo" },
+  { sigla: "GO", nome: "Goiás" },
+  { sigla: "MA", nome: "Maranhão" },
+  { sigla: "MT", nome: "Mato Grosso" },
+  { sigla: "MS", nome: "Mato Grosso do Sul" },
+  { sigla: "MG", nome: "Minas Gerais" },
+  { sigla: "PA", nome: "Pará" },
+  { sigla: "PB", nome: "Paraíba" },
+  { sigla: "PR", nome: "Paraná" },
+  { sigla: "PE", nome: "Pernambuco" },
+  { sigla: "PI", nome: "Piauí" },
+  { sigla: "RJ", nome: "Rio de Janeiro" },
+  { sigla: "RN", nome: "Rio Grande do Norte" },
+  { sigla: "RS", nome: "Rio Grande do Sul" },
+  { sigla: "RO", nome: "Rondônia" },
+  { sigla: "RR", nome: "Roraima" },
+  { sigla: "SC", nome: "Santa Catarina" },
+  { sigla: "SP", nome: "São Paulo" },
+  { sigla: "SE", nome: "Sergipe" },
+  { sigla: "TO", nome: "Tocantins" },
+];
+
 type PortfolioItem = {
   title: string;
   url: string;
@@ -36,7 +63,6 @@ interface EditProfileModalProps {
     name: string | null;
     displayName: string | null;
     email: string | null;
-    // userType é crucial aqui para a lógica condicional
     userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
     birthDate?: string | Date | null;
     city?: string | null;
@@ -52,16 +78,22 @@ interface EditProfileModalProps {
   onSave: (data: any) => void;
 }
 
+interface CityIBGE {
+  id: number;
+  nome: string;
+}
+
 export function EditProfileModal({
   isOpen,
   onClose,
   user,
   onSave,
 }: EditProfileModalProps) {
-  // Verificação Principal: É Profissional?
   const isPro = user.userType === "PROFESSIONAL";
 
-  // Estados principais
+  // --- REFS PARA O CLICK OUTSIDE ---
+  const cityWrapperRef = useRef<HTMLDivElement>(null);
+
   const [formData, setFormData] = useState({
     name: "",
     displayName: "",
@@ -77,19 +109,20 @@ export function EditProfileModal({
     newPassword: "",
   });
 
-  // Estados para listas (Portfolio e Certificados)
   const [portfolioList, setPortfolioList] = useState<PortfolioItem[]>([]);
   const [certificateList, setCertificateList] = useState<PortfolioItem[]>([]);
 
-  // Inputs temporários
+  // --- ESTADOS DE CIDADE ---
+  const [cities, setCities] = useState<CityIBGE[]>([]);
+  const [showCityList, setShowCityList] = useState(false); // Controla se a lista aparece
+  const [loadingCities, setLoadingCities] = useState(false);
+
   const [newSkill, setNewSkill] = useState("");
   const [newPortfolio, setNewPortfolio] = useState({ title: "", url: "" });
   const [newCertificate, setNewCertificate] = useState({ title: "", url: "" });
-
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Inicializa dados quando abre modal
   useEffect(() => {
     if (isOpen) {
       let formattedDate = "";
@@ -124,12 +157,59 @@ export function EditProfileModal({
 
       setError(null);
       setNewSkill("");
-      setShowCurrentPassword(false);
-      setShowNewPassword(false);
+      setShowCityList(false);
     }
   }, [isOpen, user]);
 
-  // --- Helpers de Lista ---
+  // Busca Cidades no IBGE
+  useEffect(() => {
+    if (formData.state && formData.state.length === 2) {
+      setLoadingCities(true);
+      fetch(
+        `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${formData.state}/municipios`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          const sortedCities = data.sort((a: CityIBGE, b: CityIBGE) =>
+            a.nome.localeCompare(b.nome)
+          );
+          setCities(sortedCities);
+          setLoadingCities(false);
+        })
+        .catch((err) => {
+          console.error("Erro ao buscar cidades", err);
+          setLoadingCities(false);
+        });
+    } else {
+      setCities([]);
+    }
+  }, [formData.state]);
+
+  // --- DETECTAR CLIQUE FORA DA LISTA DE CIDADES ---
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        cityWrapperRef.current &&
+        !cityWrapperRef.current.contains(event.target as Node)
+      ) {
+        setShowCityList(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // --- FILTRO DE CIDADES (AUTOCOMPLETE) ---
+  // Filtra as cidades baseado no que o usuário digitou
+  const filteredCities =
+    formData.city.length > 0
+      ? cities.filter((c) =>
+          c.nome.toLowerCase().includes(formData.city.toLowerCase())
+        )
+      : [];
+
   const addItem = (
     list: PortfolioItem[],
     setList: (l: PortfolioItem[]) => void,
@@ -155,12 +235,10 @@ export function EditProfileModal({
     setList(list.filter((_, i) => i !== index));
   };
 
-  // --- Submit ---
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // Validação Condicional: Só exige cargo se for Profissional
     if (isPro) {
       if (!formData.jobTitle || formData.jobTitle.trim() === "") {
         setError(
@@ -183,7 +261,6 @@ export function EditProfileModal({
 
     const payload: any = {
       ...formData,
-      // Se for cliente, limpamos ou enviamos vazio os dados profissionais para garantir
       skills: isPro ? formData.skills : [],
       portfolio: isPro ? portfolioList : [],
       certificates: isPro ? certificateList : [],
@@ -205,7 +282,7 @@ export function EditProfileModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
       <div className="bg-[#0f172a] border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[90vh]">
-        {/* Header Fixo */}
+        {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-slate-700/50 bg-slate-900/50 shrink-0">
           <h2 className="text-xl font-bold text-white">
             Editar Perfil {isPro ? "(Profissional)" : "(Cliente)"}
@@ -218,7 +295,7 @@ export function EditProfileModal({
           </button>
         </div>
 
-        {/* Conteúdo Scrollável */}
+        {/* Form */}
         <form
           onSubmit={handleSubmit}
           className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1"
@@ -230,7 +307,7 @@ export function EditProfileModal({
             </div>
           )}
 
-          {/* DADOS BÁSICOS (COMUNS PARA TODOS) */}
+          {/* DADOS BÁSICOS */}
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2 mb-2">
               <User className="w-4 h-4" /> Informações Básicas
@@ -264,9 +341,7 @@ export function EditProfileModal({
               </div>
             </div>
 
-            {/* Cargo (APENAS PROFISSIONAL) e Data (TODOS) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Condicional: Só mostra Cargo se for PRO */}
               {isPro && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-300">
@@ -286,8 +361,6 @@ export function EditProfileModal({
                   </div>
                 </div>
               )}
-
-              {/* Se for Cliente, a data ocupa a largura toda ou fica alinhada */}
               <div className={`space-y-1.5 ${!isPro ? "col-span-2" : ""}`}>
                 <label className="text-xs font-medium text-slate-300">
                   Nascimento
@@ -309,13 +382,120 @@ export function EditProfileModal({
 
           <div className="h-px bg-slate-800" />
 
-          {/* REDES SOCIAIS (COMUM PARA TODOS - CLIENTES TAMBÉM PODEM TER LINKEDIN) */}
+          {/* LOCAL E PREÇO */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                <MapPin className="w-4 h-4" /> Completar Cadastro
+              </h3>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              {/* UF */}
+              <div className="col-span-1 space-y-1.5">
+                <label className="text-xs font-medium text-slate-300">UF</label>
+                <select
+                  value={formData.state}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      state: e.target.value,
+                      city: "",
+                    })
+                  }
+                  className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 uppercase outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="">--</option>
+                  {BRAZIL_STATES.map((uf) => (
+                    <option key={uf.sigla} value={uf.sigla}>
+                      {uf.sigla}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* CIDADE CUSTOMIZADA */}
+              <div
+                className="col-span-2 space-y-1.5 relative"
+                ref={cityWrapperRef}
+              >
+                <label className="text-xs font-medium text-slate-300 flex justify-between">
+                  <span>Cidade</span>
+                  {loadingCities && (
+                    <span className="text-xs text-indigo-400 flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Buscando...
+                    </span>
+                  )}
+                </label>
+
+                <input
+                  type="text"
+                  placeholder={
+                    !formData.state
+                      ? "Selecione o UF primeiro"
+                      : "Digite para buscar..."
+                  }
+                  disabled={!formData.state}
+                  value={formData.city}
+                  onChange={(e) => {
+                    setFormData({ ...formData, city: e.target.value });
+                    setShowCityList(true); // Abre a lista ao digitar
+                  }}
+                  onFocus={() => {
+                    if (formData.city.length > 0) setShowCityList(true);
+                  }}
+                  className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  autoComplete="off" // Desativa o autocomplete nativo do browser
+                />
+
+                {/* LISTA CUSTOMIZADA (FLUTUANTE) */}
+                {showCityList && filteredCities.length > 0 && (
+                  <ul className="absolute z-50 left-0 right-0 top-[calc(100%+4px)] bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-1">
+                    {filteredCities.map((city) => (
+                      <li
+                        key={city.id}
+                        onClick={() => {
+                          setFormData({ ...formData, city: city.nome });
+                          setShowCityList(false); // Fecha ao clicar
+                        }}
+                        className="px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white cursor-pointer transition-colors"
+                      >
+                        {city.nome}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {isPro && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-300 flex items-center gap-1">
+                  Valor Hora Profissional
+                </label>
+                <div className="relative">
+                  <DollarSign className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.hourlyRate}
+                    onChange={(e) =>
+                      setFormData({ ...formData, hourlyRate: e.target.value })
+                    }
+                    className="w-full pl-10 p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="h-px bg-slate-800" />
+
+          {/* REDES SOCIAIS */}
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
               <LinkIcon className="w-4 h-4" /> Redes Sociais
             </h3>
             <div className="grid grid-cols-1 gap-3">
-              {/* Github geralmente é só pra Pro, mas pode deixar opcional. Se quiser esconder para cliente: {isPro && (...)} */}
               {isPro && (
                 <div className="relative">
                   <Github className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
@@ -330,7 +510,6 @@ export function EditProfileModal({
                   />
                 </div>
               )}
-
               <div className="relative">
                 <Linkedin className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
                 <input
@@ -346,12 +525,10 @@ export function EditProfileModal({
             </div>
           </div>
 
-          {/* --- BLOCO ESPECÍFICO DE PROFISSIONAL --- */}
+          {/* SKILLS E PORTFOLIO (PARA PROFISSIONAIS) */}
           {isPro && (
             <>
               <div className="h-px bg-slate-800" />
-
-              {/* HABILIDADES */}
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
@@ -408,7 +585,6 @@ export function EditProfileModal({
 
               <div className="h-px bg-slate-800" />
 
-              {/* PORTFÓLIO */}
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
@@ -422,7 +598,7 @@ export function EditProfileModal({
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Título (ex: Meu Site)"
+                      placeholder="Título"
                       value={newPortfolio.title}
                       onChange={(e) =>
                         setNewPortfolio({
@@ -434,7 +610,7 @@ export function EditProfileModal({
                     />
                     <input
                       type="text"
-                      placeholder="URL do Projeto/Arquivo"
+                      placeholder="URL"
                       value={newPortfolio.url}
                       onChange={(e) =>
                         setNewPortfolio({
@@ -491,154 +667,19 @@ export function EditProfileModal({
                   ))}
                 </div>
               </div>
-
-              {/* CERTIFICADOS */}
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
-                    <Briefcase className="w-4 h-4" /> Certificados
-                  </h3>
-                  <span className="text-[10px] text-slate-500">
-                    {certificateList.length}/5
-                  </span>
-                </div>
-                {certificateList.length < 5 && (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Nome Certificado"
-                      value={newCertificate.title}
-                      onChange={(e) =>
-                        setNewCertificate({
-                          ...newCertificate,
-                          title: e.target.value,
-                        })
-                      }
-                      className="flex-1 p-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Link do PDF"
-                      value={newCertificate.url}
-                      onChange={(e) =>
-                        setNewCertificate({
-                          ...newCertificate,
-                          url: e.target.value,
-                        })
-                      }
-                      className="flex-1 p-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        addItem(
-                          certificateList,
-                          setCertificateList,
-                          newCertificate,
-                          setNewCertificate,
-                          5
-                        )
-                      }
-                      className="p-2 bg-slate-800 rounded-lg text-white"
-                    >
-                      <Plus className="w-5 h-5" />
-                    </button>
-                  </div>
-                )}
-                <div className="space-y-2">
-                  {certificateList.map((item, i) => (
-                    <div
-                      key={i}
-                      className="flex justify-between items-center p-2 bg-slate-800/50 rounded text-sm"
-                    >
-                      <span className="truncate max-w-[150px] font-medium">
-                        {item.title}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          removeItem(certificateList, setCertificateList, i)
-                        }
-                      >
-                        <Trash2 className="w-4 h-4 text-red-400" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </>
           )}
 
           <div className="h-px bg-slate-800" />
 
-          {/* LOCAL E PREÇO */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
-                <MapPin className="w-4 h-4" /> Completar Cadastro
-              </h3>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2 space-y-1.5">
-                <label className="text-xs font-medium text-slate-300">
-                  Cidade
-                </label>
-                <input
-                  type="text"
-                  value={formData.city}
-                  onChange={(e) =>
-                    setFormData({ ...formData, city: e.target.value })
-                  }
-                  className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200"
-                />
-              </div>
-              <div className="col-span-1 space-y-1.5">
-                <label className="text-xs font-medium text-slate-300">UF</label>
-                <input
-                  type="text"
-                  maxLength={2}
-                  value={formData.state}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      state: e.target.value.toUpperCase(),
-                    })
-                  }
-                  className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 uppercase"
-                />
-              </div>
-            </div>
-
-            {/* Valor Hora (APENAS PROFISSIONAL) */}
-            {isPro && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-300 flex items-center gap-1">
-                  Valor Hora Profissional
-                </label>
-                <div className="relative">
-                  <DollarSign className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.hourlyRate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, hourlyRate: e.target.value })
-                    }
-                    className="w-full pl-10 p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* SEGURANÇA (COMUM) */}
+          {/* SEGURANÇA */}
           <div className="space-y-3 p-4 bg-slate-900/50 border border-slate-800 rounded-xl">
             <h3 className="text-xs font-bold text-slate-400 uppercase mb-2">
               Segurança (Opcional)
             </h3>
             <input
               type="password"
-              placeholder="Senha Atual (Obrigatório se mudar senha)"
+              placeholder="Senha Atual"
               value={formData.currentPassword}
               onChange={(e) =>
                 setFormData({ ...formData, currentPassword: e.target.value })

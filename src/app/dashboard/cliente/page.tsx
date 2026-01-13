@@ -1,18 +1,26 @@
-// --- PARTE 1: SERVER COMPONENT (Busca de Dados) ---
 import { db } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import ClientDashboardView from "./ClientDashboardView";
+import { verifySession } from "@/lib/auth";
 
 // Função para buscar os contadores reais
 async function getDashboardStats(userId: string) {
   const [unreadMessages, openProjects, ongoingProjects] = await Promise.all([
-    // 1. Mensagens não lidas onde o destinatário é o usuário
+    // 1. CORREÇÃO AQUI: Mensagens não lidas
+    // Como removemos receiverId, a lógica agora é:
+    // "Mensagens que NÃO fui eu que mandei, dentro de conversas que eu participo"
     db.message.count({
       where: {
-        receiverId: userId,
         read: false,
+        senderId: { not: userId }, // Não fui eu que enviei
+        conversation: {
+          participants: {
+            some: { id: userId }, // Mas eu participo da conversa
+          },
+        },
       },
     }),
+
     // 2. Projetos criados pelo usuário que estão Abertos (OPEN)
     db.project.count({
       where: {
@@ -20,6 +28,7 @@ async function getDashboardStats(userId: string) {
         status: "OPEN",
       },
     }),
+
     // 3. Projetos criados pelo usuário que estão em Andamento (IN_PROGRESS)
     db.project.count({
       where: {
@@ -34,9 +43,15 @@ async function getDashboardStats(userId: string) {
 
 export default async function ClienteDashboardPage() {
   const cookieStore = await cookies();
-  const userId = cookieStore.get("userId")?.value;
 
-  // Valores padrão caso não tenha ID (não deve acontecer devido ao middleware/layout)
+  // LÓGICA NOVA DE AUTH (JWT)
+  const token = cookieStore.get("session")?.value;
+  const session = token ? await verifySession(token) : null;
+
+  // Se extrair o ID com sucesso, usamos ele. Se não, segue com stats zerados.
+  const userId = session?.sub as string | undefined;
+
+  // Valores padrão caso não tenha ID
   let stats = { unreadMessages: 0, openProjects: 0, ongoingProjects: 0 };
 
   if (userId) {
