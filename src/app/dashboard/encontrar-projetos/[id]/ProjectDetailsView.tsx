@@ -12,12 +12,13 @@ import {
   Share2,
   Flag,
   Send,
-  ExternalLink, // Usado nos links de anexo
-  Calendar, // <--- ADICIONADO: Usado em "Membro desde"
+  Calendar,
+  ExternalLink,
 } from "lucide-react";
 import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
+import { useRouter } from "next/navigation";
 
 interface ProjectDetailsProps {
   project: {
@@ -30,8 +31,9 @@ interface ProjectDetailsProps {
     budgetLabel: string;
     deadline: string;
     createdAt: Date;
-    attachments: any; // Permite qualquer formato de anexo (array de strings)
+    attachments: any;
     owner: {
+      id: string; // ID para o chat
       name: string | null;
       city: string | null;
       state: string | null;
@@ -49,8 +51,18 @@ function formatDate(date: Date) {
   });
 }
 
+function timeAgo(date: Date) {
+  const diff = Math.floor(
+    (new Date().getTime() - new Date(date).getTime()) / 1000
+  );
+  if (diff < 3600) return `há ${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `há ${Math.floor(diff / 3600)} h`;
+  return `há ${Math.floor(diff / 86400)} dias`;
+}
+
 export default function ProjectDetailsView({ project }: ProjectDetailsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useGSAP(
     () => {
@@ -62,6 +74,12 @@ export default function ProjectDetailsView({ project }: ProjectDetailsProps) {
     },
     { scope: containerRef }
   );
+
+  // Lógica de Enviar Proposta (Ir para Chat)
+  const handleSendProposal = () => {
+    // Redireciona para o chat criando uma nova conversa com o dono do projeto
+    router.push(`/dashboard/chat?newChat=${project.owner.id}`);
+  };
 
   return (
     <PageContainer>
@@ -85,8 +103,8 @@ export default function ProjectDetailsView({ project }: ProjectDetailsProps) {
                   {project.category}
                 </span>
                 <span className="flex items-center gap-1 text-xs text-slate-500">
-                  <Clock className="w-3 h-3" /> Publicado em{" "}
-                  {formatDate(project.createdAt)}
+                  <Clock className="w-3 h-3" /> Publicado{" "}
+                  {timeAgo(project.createdAt)}
                 </span>
               </div>
 
@@ -106,7 +124,7 @@ export default function ProjectDetailsView({ project }: ProjectDetailsProps) {
               </div>
             </div>
 
-            {/* Card de Orçamento (Desktop) */}
+            {/* Card de Orçamento */}
             <div className="hidden md:flex flex-col items-end justify-center min-w-[200px] border-l border-white/5 pl-8">
               <p className="text-xs text-slate-500 font-bold uppercase mb-1">
                 Orçamento Estimado
@@ -131,72 +149,44 @@ export default function ProjectDetailsView({ project }: ProjectDetailsProps) {
               </h3>
 
               <div className="prose prose-invert prose-slate max-w-none">
-                <p className="text-slate-300 leading-relaxed whitespace-pre-line text-lg">
+                <p className="text-slate-300 leading-relaxed whitespace-pre-wrap text-lg">
                   {project.description}
                 </p>
               </div>
 
-              {/* Seção de Anexos REAL */}
-              <div className="mt-8 pt-8 border-t border-white/5">
-                <h4 className="text-sm font-bold text-white mb-4">
-                  Anexos do Cliente
-                </h4>
-
-                {/* Verifica se project.attachments existe e é um array */}
-                {Array.isArray(project.attachments) &&
-                project.attachments.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {project.attachments.map((link: any, idx: number) => (
-                      <a
-                        key={idx}
-                        href={link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-3 bg-slate-950/50 border border-slate-700 rounded-xl hover:border-[#d73cbe]/50 hover:bg-[#d73cbe]/5 transition-all group"
-                      >
-                        <div className="p-2 bg-slate-900 rounded-lg text-slate-400 group-hover:text-[#d73cbe]">
-                          {/* Ícone Genérico de Link */}
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                          </svg>
-                        </div>
-                        <div className="overflow-hidden flex-1">
-                          <p className="text-xs text-slate-500 font-medium mb-0.5">
-                            Link Externo
-                          </p>
-                          <p className="text-sm text-white truncate font-mono underline decoration-slate-700 group-hover:decoration-[#d73cbe]">
+              {/* Anexos (Se houver) */}
+              {Array.isArray(project.attachments) &&
+                project.attachments.length > 0 && (
+                  <div className="mt-8 pt-8 border-t border-white/5">
+                    <h4 className="text-sm font-bold text-white mb-4">
+                      Anexos do Cliente
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {project.attachments.map((link: any, idx: number) => (
+                        <a
+                          key={idx}
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-3 bg-slate-950/50 border border-slate-700 rounded-xl hover:border-[#d73cbe]/50 transition-all group"
+                        >
+                          <div className="p-2 bg-slate-900 rounded-lg text-slate-400 group-hover:text-[#d73cbe]">
+                            <ExternalLink size={16} />
+                          </div>
+                          <span className="text-sm text-white truncate font-mono underline decoration-slate-700">
                             {link}
-                          </p>
-                        </div>
-                        <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                          <ExternalLink className="w-4 h-4 text-[#d73cbe]" />
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 border border-dashed border-slate-700 rounded-xl bg-slate-950/50 flex items-center justify-center text-slate-500 text-sm">
-                    Nenhum anexo adicionado.
+                          </span>
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 )}
-              </div>
             </div>
           </div>
 
           {/* COLUNA DIREITA - SIDEBAR */}
           <div className="space-y-6 animate-item">
-            {/* Card Mobile de Orçamento */}
+            {/* Card Mobile Orçamento */}
             <div className="md:hidden bg-slate-900 border border-white/5 rounded-2xl p-6 text-center">
               <p className="text-xs text-slate-500 font-bold uppercase mb-1">
                 Orçamento
@@ -204,44 +194,43 @@ export default function ProjectDetailsView({ project }: ProjectDetailsProps) {
               <p className="text-3xl font-mono font-bold text-white mb-2">
                 {project.budgetLabel}
               </p>
-              <span className="text-xs text-slate-400 bg-slate-800 px-3 py-1 rounded-full">
-                {project.budgetType === "fixed" ? "Preço Fixo" : "Por Hora"}
-              </span>
             </div>
 
-            {/* Botão de Ação Principal */}
-            <div className="bg-slate-900 border border-white/5 rounded-2xl p-6 sticky top-24">
-              <button className="w-full py-4 bg-[#d73cbe] hover:bg-[#b0269a] text-white font-bold rounded-xl shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 transition-all hover:-translate-y-1 flex items-center justify-center gap-2 text-lg cursor-pointer">
-                <Send className="w-5 h-5" /> Enviar Proposta
+            {/* BOTÃO DE AÇÃO PRINCIPAL */}
+            <div className="bg-slate-900 border border-white/5 rounded-2xl p-6 sticky top-24 shadow-xl shadow-black/20">
+              <button
+                onClick={handleSendProposal}
+                className="w-full py-4 bg-[#d73cbe] hover:bg-[#b0269a] text-white font-bold rounded-xl shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 transition-all hover:-translate-y-1 flex items-center justify-center gap-2 text-lg cursor-pointer"
+              >
+                <Send className="w-5 h-5" />
+                Enviar Proposta
               </button>
               <p className="text-xs text-center text-slate-500 mt-3">
-                Você gasta <strong>2 conexões</strong> para enviar essa
-                proposta.
+                Inicia uma conversa direta com o cliente.
               </p>
             </div>
 
-            {/* Informações do Cliente */}
+            {/* Informações do Cliente (COM NOME REAL) */}
             <div className="bg-slate-900 border border-white/5 rounded-2xl p-6">
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">
                 Sobre o Cliente
               </h3>
 
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-700 to-slate-600 flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-lg">
                   {project.owner.name
                     ? project.owner.name.charAt(0).toUpperCase()
                     : "C"}
                 </div>
                 <div>
                   <p className="text-white font-bold">
-                    {project.owner.name || "Cliente Oculto"}
+                    {project.owner.name || "Cliente"}
                   </p>
                   <div className="flex items-center gap-1 text-yellow-500 text-xs">
                     <Star className="w-3 h-3 fill-current" />
                     <span className="font-bold">
-                      {project.owner.rating?.toFixed(1) || "Novo"}
+                      {project.owner.rating?.toFixed(1) || "5.0"}
                     </span>
-                    <span className="text-slate-500 ml-1">(0 avaliações)</span>
                   </div>
                 </div>
               </div>

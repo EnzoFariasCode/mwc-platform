@@ -18,8 +18,9 @@ import { getConversationMessages } from "@/actions/chat/get-conversation-message
 import { sendMessage } from "@/actions/chat/send-message";
 import { toggleFavorite } from "@/actions/favorites/toggle-favorite";
 import { markMessagesAsRead } from "@/actions/chat/mark-messages-read";
-import { deleteConversation } from "@/actions/chat/delete-conversation"; // Nova Action
+import { deleteConversation } from "@/actions/chat/delete-conversation";
 
+// Tipos alinhados com o retorno das Server Actions
 type ConversationSummary = {
   id: string;
   otherUserId: string;
@@ -58,37 +59,49 @@ export default function ChatPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // --- Effects (Mantidos iguais, apenas lógica de conexão) ---
+  // --- Effects ---
 
+  // 1. Polling da Sidebar (Lista de Conversas)
   useEffect(() => {
     loadConversations();
     const interval = setInterval(loadConversations, 5000);
     return () => clearInterval(interval);
   }, []);
 
+  // 2. Polling das Mensagens (Apenas se tiver chat ativo)
   useEffect(() => {
     if (!activeChatId) return;
+
     const silentReload = async () => {
-      const data = await getConversationMessages(activeChatId);
-      if (data) {
-        const formattedMessages = data.messages.map((m: any) => ({
-          id: m.id,
-          text: m.text,
-          time: new Date(m.time),
-          sender: m.sender as "me" | "other",
-        }));
-        // Só atualiza se o tamanho mudou para não atrapalhar a busca
-        setMessages((prev) =>
-          prev.length !== formattedMessages.length ? formattedMessages : prev
-        );
-        if (data.messages.length > messages.length)
-          markMessagesAsRead(activeChatId);
+      try {
+        const data = await getConversationMessages(activeChatId);
+        if (data) {
+          const formattedMessages: Message[] = data.messages.map((m: any) => ({
+            id: m.id,
+            text: m.text,
+            time: new Date(m.time),
+            sender: m.sender as "me" | "other",
+          }));
+
+          // Atualiza apenas se houver diferença no número de mensagens para evitar re-renders
+          setMessages((prev) => {
+            if (prev.length !== formattedMessages.length) {
+              markMessagesAsRead(activeChatId); // Marca como lido se chegou nova
+              return formattedMessages;
+            }
+            return prev;
+          });
+        }
+      } catch (error) {
+        console.error("Silent reload error:", error);
       }
     };
+
     const interval = setInterval(silentReload, 3000);
     return () => clearInterval(interval);
-  }, [activeChatId, messages.length]);
+  }, [activeChatId]);
 
+  // 3. Redirecionamento via URL (?newChat=ID)
   useEffect(() => {
     const newChatTarget = searchParams.get("newChat");
     if (newChatTarget) {
@@ -97,39 +110,48 @@ export default function ChatPage() {
     }
   }, [searchParams, router]);
 
+  // 4. Carregamento Inicial ao abrir um chat
   useEffect(() => {
     if (!activeChatId) return;
+
     async function initialLoad() {
       setIsLoading(true);
-      // Reseta a busca ao trocar de chat
       setIsSearchOpen(false);
       setSearchTerm("");
 
-      const data = await getConversationMessages(activeChatId!);
+      try {
+        const data = await getConversationMessages(activeChatId!);
 
-      if (data) {
-        const formattedMessages = data.messages.map((m: any) => ({
-          id: m.id,
-          text: m.text,
-          time: new Date(m.time),
-          sender: m.sender as "me" | "other",
-        }));
+        if (data) {
+          const formattedMessages: Message[] = data.messages.map((m: any) => ({
+            id: m.id,
+            text: m.text,
+            time: new Date(m.time),
+            sender: m.sender as "me" | "other",
+          }));
 
-        setMessages(formattedMessages);
-        setActiveChatData(data.otherUser);
-        await markMessagesAsRead(activeChatId!);
-        loadConversations();
-      } else {
-        setMessages([]);
-        setActiveChatData({ name: "Novo Chat", isFavorite: false });
+          setMessages(formattedMessages);
+          setActiveChatData(data.otherUser);
+          await markMessagesAsRead(activeChatId!);
+          loadConversations();
+        } else {
+          // Chat novo (ainda não existe no banco)
+          setMessages([]);
+          // Tenta buscar info básica ou usa placeholder
+          setActiveChatData({ name: "Novo Chat", isFavorite: false });
+        }
+      } catch (error) {
+        console.error("Erro ao carregar chat:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
+
     initialLoad();
   }, [activeChatId]);
 
+  // 5. Auto-scroll para baixo
   useEffect(() => {
-    // Só scrolla se não estiver buscando
     if (!isSearchOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
@@ -138,19 +160,25 @@ export default function ChatPage() {
   // --- Funções ---
 
   async function loadConversations() {
-    const data = await getMyConversations();
-    // @ts-ignore
-    const formatted: ConversationSummary[] = data.map((c: any) => ({
-      id: c.id || "",
-      otherUserId: c.otherUserId || "",
-      name: c.name || "Usuário",
-      jobTitle: c.jobTitle || null,
-      lastMessage: c.lastMessage || "",
-      lastMessageTime: new Date(c.lastMessageTime),
-      avatar: c.avatar || null,
-      unreadCount: c.unreadCount || 0,
-    }));
-    setConversations(formatted);
+    try {
+      const data = await getMyConversations();
+
+      // Mapeamento seguro tratando null/undefined
+      const formatted: ConversationSummary[] = data.map((c: any) => ({
+        id: c.id || "",
+        otherUserId: c.otherUserId || "",
+        name: c.name || "Usuário",
+        jobTitle: c.jobTitle || null,
+        lastMessage: c.lastMessage || "",
+        lastMessageTime: new Date(c.lastMessageTime),
+        avatar: c.avatar || null,
+        unreadCount: c.unreadCount || 0,
+      }));
+
+      setConversations(formatted);
+    } catch (error) {
+      console.error("Erro ao carregar conversas:", error);
+    }
   }
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -158,29 +186,56 @@ export default function ChatPage() {
     if (!inputText.trim() || !activeChatId) return;
 
     const text = inputText;
+    const tempId = Date.now().toString(); // ID Temporário
+
+    // 1. Otimista: Mostra na tela imediatamente
+    const optimisticMsg: Message = {
+      id: tempId,
+      text: text,
+      sender: "me",
+      time: new Date(),
+    };
+
     setInputText("");
+    setMessages((prev) => [...prev, optimisticMsg]);
     setIsSending(true);
 
-    const result = await sendMessage(activeChatId, text);
+    try {
+      // 2. Envia ao servidor
+      const result = await sendMessage(activeChatId, text);
 
-    if (result.success) {
-      const newMsg: Message = {
-        id: result.message!.id,
-        text: result.message!.content,
-        sender: "me",
-        time: new Date(),
-      };
-      setMessages((prev) => [...prev, newMsg]);
-      loadConversations();
-    } else {
-      alert("Erro ao enviar mensagem");
-      setInputText(text);
+      if (result.success && result.message) {
+        // 3. Sucesso: Atualiza o ID temporário pelo real
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === tempId
+              ? {
+                  ...msg,
+                  id: result.message!.id,
+                  // @ts-ignore - Garantindo que createdAt existe no retorno
+                  time: new Date(result.message!.createdAt),
+                }
+              : msg
+          )
+        );
+        loadConversations(); // Sobe a conversa na lista
+      } else {
+        throw new Error(result.error || "Erro desconhecido");
+      }
+    } catch (error) {
+      console.error("Falha no envio:", error);
+      alert("Não foi possível enviar a mensagem.");
+      // Rollback: Remove a mensagem se falhou
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+      setInputText(text); // Devolve o texto para tentar de novo
+    } finally {
+      setIsSending(false);
     }
-    setIsSending(false);
   };
 
   const handleToggleFavorite = async () => {
     if (!activeChatId) return;
+    // Otimista
     setActiveChatData((prev: any) => ({
       ...prev,
       isFavorite: !prev.isFavorite,
@@ -192,12 +247,11 @@ export default function ChatPage() {
     conversationId: string,
     e: React.MouseEvent
   ) => {
-    e.stopPropagation(); // Impede de abrir o chat ao clicar na lixeira
+    e.stopPropagation();
     if (!confirm("Tem certeza que deseja apagar esta conversa?")) return;
 
     const result = await deleteConversation(conversationId);
     if (result.success) {
-      // Se apagou o chat ativo, limpa a tela principal
       if (
         conversations.find((c) => c.id === conversationId)?.otherUserId ===
         activeChatId
@@ -211,7 +265,7 @@ export default function ChatPage() {
     }
   };
 
-  // Lógica de Filtro da Lupa
+  // Filtro de Busca
   const displayedMessages = searchTerm
     ? messages.filter((m) =>
         m.text.toLowerCase().includes(searchTerm.toLowerCase())
@@ -230,7 +284,6 @@ export default function ChatPage() {
           <h2 className="font-futura font-bold text-lg text-foreground">
             Mensagens
           </h2>
-          {/* Removido os 3 pontinhos daqui */}
         </div>
 
         <div className="p-3 shrink-0">
@@ -295,7 +348,6 @@ export default function ChatPage() {
                   </div>
                 </div>
 
-                {/* BOTÃO DE EXCLUIR (Aparece no Hover) */}
                 <button
                   onClick={(e) => handleDeleteConversation(chat.id, e)}
                   className="absolute right-2 bottom-3 opacity-0 group-hover:opacity-100 p-2 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-all"
@@ -322,7 +374,6 @@ export default function ChatPage() {
           </div>
         ) : (
           <>
-            {/* HEADER DA CONVERSA */}
             <header className="h-16 border-b border-border bg-card/10 backdrop-blur-sm flex items-center justify-between px-4 shrink-0 z-10">
               <div className="flex items-center gap-3">
                 <button
@@ -351,7 +402,6 @@ export default function ChatPage() {
               </div>
 
               <div className="flex gap-3 text-gray-400 items-center">
-                {/* BOTÃO FAVORITAR */}
                 <button
                   onClick={handleToggleFavorite}
                   disabled={!activeChatData}
@@ -374,7 +424,6 @@ export default function ChatPage() {
 
                 <div className="h-6 w-px bg-white/10 mx-1 hidden sm:block" />
 
-                {/* BOTÃO LUPA (BUSCA) */}
                 <div className="relative flex items-center">
                   {isSearchOpen ? (
                     <div className="flex items-center bg-slate-900 border border-white/20 rounded-lg overflow-hidden animate-in fade-in slide-in-from-right-4">
@@ -405,12 +454,9 @@ export default function ChatPage() {
                     </button>
                   )}
                 </div>
-
-                {/* Removido os 3 pontinhos daqui */}
               </div>
             </header>
 
-            {/* LISTA DE MENSAGENS */}
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-primary/20">
               {isLoading ? (
                 <div className="flex justify-center mt-10">
@@ -425,7 +471,6 @@ export default function ChatPage() {
               ) : (
                 displayedMessages.map((msg, index) => {
                   const isMe = msg.sender === "me";
-                  // Verifica se a mensagem anterior era do mesmo remetente para agrupar (opcional, mas fica bonito)
                   const showName =
                     index === 0 ||
                     displayedMessages[index - 1].sender !== msg.sender;
@@ -437,7 +482,6 @@ export default function ChatPage() {
                         isMe ? "items-end" : "items-start"
                       }`}
                     >
-                      {/* NOME ACIMA DO BALÃO */}
                       {showName && (
                         <span
                           className={`text-[10px] text-slate-500 mb-1 px-1 ${
@@ -475,7 +519,6 @@ export default function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* INPUT */}
             <footer className="p-3 bg-card/10 border-t border-white/5 shrink-0">
               <form
                 onSubmit={handleSendMessage}

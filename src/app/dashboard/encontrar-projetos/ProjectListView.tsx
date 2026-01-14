@@ -2,13 +2,12 @@
 
 import { PageContainer } from "@/components/dashboard/PageContainer";
 import { useState, useRef } from "react";
-import Link from "next/link";
+import Link from "next/link"; // Voltamos com o Link
 import {
   Search,
   MapPin,
   Clock,
   DollarSign,
-  Filter,
   Star,
   Heart,
   SlidersHorizontal,
@@ -32,7 +31,6 @@ const CATEGORIES = [
   "Engenharia",
 ];
 
-// Helper para formatar tempo (ex: "há 2 horas")
 function timeAgo(date: Date | string) {
   const now = new Date();
   const past = new Date(date);
@@ -72,7 +70,6 @@ export default function ProjectListView({
 
   useGSAP(
     () => {
-      // Refresh da animação quando a lista muda
       gsap.fromTo(
         ".gsap-project-card",
         { y: 30, opacity: 0 },
@@ -90,7 +87,7 @@ export default function ProjectListView({
       );
     },
     { scope: containerRef, dependencies: [filteredProjects] }
-  ); // Re-executa se filtrar
+  );
 
   return (
     <PageContainer>
@@ -119,7 +116,7 @@ export default function ProjectListView({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* --- SIDEBAR FILTROS (Mantida igual ao seu original) --- */}
+          {/* --- SIDEBAR FILTERS --- */}
           <aside className="hidden lg:block lg:col-span-1 space-y-6">
             <div className="bg-slate-900 p-5 rounded-2xl border border-white/5">
               <h3 className="text-white font-bold mb-4 flex items-center gap-2 text-xs uppercase tracking-wider">
@@ -163,10 +160,48 @@ export default function ProjectListView({
                 ))}
               </div>
             </div>
-            {/* ... Filtro de Preço (pode copiar do seu código original se quiser manter igual) ... */}
+            {/* Filtro Simples de Preço */}
+            <div className="bg-slate-900 p-5 rounded-2xl border border-white/5">
+              <h3 className="text-white font-bold mb-4 flex items-center gap-2 text-xs uppercase tracking-wider">
+                <DollarSign className="w-4 h-4 text-[#d73cbe]" /> Tipo de
+                Orçamento
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFilterType("all")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    filterType === "all"
+                      ? "bg-[#d73cbe] text-white"
+                      : "bg-slate-800 text-slate-400"
+                  }`}
+                >
+                  Todos
+                </button>
+                <button
+                  onClick={() => setFilterType("fixed")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    filterType === "fixed"
+                      ? "bg-[#d73cbe] text-white"
+                      : "bg-slate-800 text-slate-400"
+                  }`}
+                >
+                  Fixo
+                </button>
+                <button
+                  onClick={() => setFilterType("hourly")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    filterType === "hourly"
+                      ? "bg-[#d73cbe] text-white"
+                      : "bg-slate-800 text-slate-400"
+                  }`}
+                >
+                  Hora
+                </button>
+              </div>
+            </div>
           </aside>
 
-          {/* --- LISTA DE PROJETOS --- */}
+          {/* --- LISTA --- */}
           <div className="lg:col-span-3 space-y-4">
             <div className="flex items-center justify-between mb-2 px-1">
               <span className="text-sm text-slate-400">
@@ -184,13 +219,16 @@ export default function ProjectListView({
                 <div className="flex flex-col md:flex-row justify-between gap-6">
                   <div className="flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                      {/* Título como Link */}
                       <Link
                         href={`/dashboard/encontrar-projetos/${project.id}`}
+                        className="text-left"
                       >
                         <h3 className="text-lg font-bold text-white group-hover:text-[#d73cbe] transition-colors cursor-pointer leading-tight hover:underline decoration-[#d73cbe]/50 underline-offset-4">
                           {project.title}
                         </h3>
                       </Link>
+
                       {project.deadline.includes("Urgente") && (
                         <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold border border-red-500/20 uppercase">
                           <Zap className="w-3 h-3 fill-current" /> Urgente
@@ -226,10 +264,12 @@ export default function ProjectListView({
                       </p>
                     </div>
 
-                    <Link href={`/dashboard/encontrar-projetos/${project.id}`}>
-                      <button className="py-2 px-5 rounded-lg bg-[#d73cbe] hover:bg-[#b0269a] text-white text-sm font-bold transition-all shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 hover:-translate-y-0.5 whitespace-nowrap cursor-pointer">
-                        Ver Projeto
-                      </button>
+                    {/* BOTÃO LINK para a Página de Detalhes */}
+                    <Link
+                      href={`/dashboard/encontrar-projetos/${project.id}`}
+                      className="py-2 px-5 rounded-lg bg-[#d73cbe] hover:bg-[#b0269a] text-white text-sm font-bold transition-all shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 hover:-translate-y-0.5 whitespace-nowrap cursor-pointer text-center"
+                    >
+                      Ver Projeto
                     </Link>
 
                     <div className="hidden md:flex items-center gap-1 text-xs text-slate-500 mt-auto">

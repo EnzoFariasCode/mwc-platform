@@ -10,10 +10,12 @@ import {
   DollarSign,
   Plus,
   Briefcase,
+  Eye, // Ícone do olho
 } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { NewProjectModal } from "@/components/dashboard/NewProjectModal";
+import { ProjectDetailsModal } from "@/components/dashboard/ProjectDetailsModal"; // <--- Importamos o Modal
 import Link from "next/link";
 
 interface MyProjectsViewProps {
@@ -25,7 +27,10 @@ export default function MyProjectsView({
 }: MyProjectsViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Estados
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Estado do Modal
+  const [selectedProject, setSelectedProject] = useState<any>(null); // Projeto selecionado
 
   useGSAP(
     () => {
@@ -44,6 +49,12 @@ export default function MyProjectsView({
     },
     { scope: containerRef }
   );
+
+  // Função para abrir o modal com o projeto clicado
+  const handleOpenDetails = (project: any) => {
+    setSelectedProject(project);
+    setIsDetailsModalOpen(true);
+  };
 
   return (
     <PageContainer>
@@ -138,12 +149,15 @@ export default function MyProjectsView({
 
                 {/* Ações */}
                 <div className="grid grid-cols-2 gap-3 mt-auto">
-                  <Link
-                    href={`/dashboard/encontrar-projetos/${project.id}`}
+                  <button
+                    onClick={() => handleOpenDetails(project)}
                     className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors border border-white/5 cursor-pointer"
                   >
+                    <Eye className="w-3 h-3" />
                     Ver Detalhes
-                  </Link>
+                  </button>
+                  {/* ------------------------------- */}
+
                   <Link
                     href="/dashboard/chat"
                     className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#d73cbe]/10 hover:bg-[#d73cbe] text-[#d73cbe] hover:text-white text-xs font-bold transition-all border border-[#d73cbe]/20 hover:border-[#d73cbe] cursor-pointer"
@@ -177,10 +191,17 @@ export default function MyProjectsView({
           </div>
         )}
 
-        {/* Modal de Criação (Reutilizado) */}
+        {/* Modal de Criação */}
         <NewProjectModal
           isOpen={isNewProjectModalOpen}
           onClose={() => setIsNewProjectModalOpen(false)}
+        />
+
+        {/* Modal de Detalhes - Renderizado aqui */}
+        <ProjectDetailsModal
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+          project={selectedProject}
         />
       </div>
     </PageContainer>

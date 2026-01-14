@@ -1,22 +1,32 @@
 import { db } from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { verifySession } from "@/lib/auth";
+import { cookies } from "next/headers";
 import ProjectDetailsView from "./ProjectDetailsView";
 
-// Correção: params agora é uma Promise<{ id: string }>
+// Página Dinâmica do Servidor
 export default async function ProjectPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // 1. Aguardamos os parâmetros serem resolvidos
+  // 1. Verifica sessão (Segurança básica)
+  const cookieStore = await cookies();
+  const token = cookieStore.get("session")?.value;
+  const session = token ? await verifySession(token) : null;
+
+  if (!session) redirect("/login");
+
+  // 2. Resolve os params (Next.js 15)
   const { id } = await params;
 
-  // 2. Agora o 'id' é uma string válida, podemos chamar o banco
+  // 3. Busca o projeto com dados do dono
   const project = await db.project.findUnique({
     where: { id: id },
     include: {
       owner: {
         select: {
+          id: true, // Importante para o Chat
           name: true,
           city: true,
           state: true,
@@ -27,11 +37,10 @@ export default async function ProjectPage({
     },
   });
 
-  // Se não achar (link quebrado ou id inválido), mostra 404
   if (!project) {
     notFound();
   }
 
-  // Passa os dados reais para o componente visual
+  // 4. Passa os dados reais para o componente visual
   return <ProjectDetailsView project={project} />;
 }
