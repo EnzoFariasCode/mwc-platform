@@ -1,9 +1,9 @@
 "use client";
 
 import { PageContainer } from "@/components/dashboard/PageContainer";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // <--- 1. Import necessário
+import { useRouter } from "next/navigation";
 import {
   Briefcase,
   Megaphone,
@@ -16,6 +16,7 @@ import {
 import { NewProjectModal } from "@/components/dashboard/NewProjectModal";
 import { becomeProfessional } from "@/actions/account/become-professional";
 import { BecomeProfessionalModal } from "@/components/dashboard/BecomeProfessionalModal";
+import { CompleteProfileModal } from "@/components/dashboard/CompleteProfileModal"; // <--- Import New Modal
 
 interface ClientDashboardViewProps {
   stats: {
@@ -23,30 +24,47 @@ interface ClientDashboardViewProps {
     openProjects: number;
     ongoingProjects: number;
   };
+  isProfileIncomplete: boolean; // <--- New Prop from Server Page
 }
 
 export default function ClientDashboardView({
   stats,
+  isProfileIncomplete,
 }: ClientDashboardViewProps) {
-  const router = useRouter(); // <--- 2. Inicializa o router
+  const router = useRouter();
 
-  // Estado para o Modal de Novo Projeto
+  // Modal States
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
-
-  // Estado para o Modal de Virar Profissional
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // <--- State for Profile Modal
+
   const [isPending, startTransition] = useTransition();
+
+  // Effect to handle Profile Modal opening logic
+  useEffect(() => {
+    // Check local storage to avoid annoying the user every single refresh if they closed it
+    const hasSeenModal = localStorage.getItem("profile_modal_seen");
+
+    if (isProfileIncomplete && !hasSeenModal) {
+      // Small delay for better UX
+      const timer = setTimeout(() => setIsProfileModalOpen(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isProfileIncomplete]);
+
+  const handleCloseProfileModal = () => {
+    setIsProfileModalOpen(false);
+    // Remember that the user saw/closed it
+    localStorage.setItem("profile_modal_seen", "true");
+  };
 
   const handleConfirmUpgrade = () => {
     startTransition(async () => {
-      // 3. Captura o resultado e redireciona se der certo
       const result = await becomeProfessional();
-
       if (result.success) {
-        setIsUpgradeModalOpen(false); // Fecha o modal
-        router.push("/dashboard/perfil"); // Vai para o perfil (agora desbloqueado)
+        setIsUpgradeModalOpen(false);
+        router.push("/dashboard/perfil");
       } else {
-        // Opcional: Tratar erro aqui
         console.error("Erro ao virar profissional");
       }
     });
@@ -54,7 +72,7 @@ export default function ClientDashboardView({
 
   return (
     <PageContainer>
-      {/* 1. Modal de Virar Profissional */}
+      {/* 1. Become Professional Modal */}
       <BecomeProfessionalModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
@@ -62,10 +80,16 @@ export default function ClientDashboardView({
         isLoading={isPending}
       />
 
-      {/* 2. Modal de Novo Projeto */}
+      {/* 2. New Project Modal */}
       <NewProjectModal
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
+      />
+
+      {/* 3. Complete Profile Modal (New) */}
+      <CompleteProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={handleCloseProfileModal}
       />
 
       <div className="space-y-8 animate-fade-in">

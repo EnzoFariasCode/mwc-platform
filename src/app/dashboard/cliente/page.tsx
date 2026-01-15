@@ -5,18 +5,20 @@ import { verifySession } from "@/lib/auth";
 
 // Função para buscar os contadores reais
 async function getDashboardStats(userId: string) {
+  // Executa as 3 consultas em paralelo para ser mais rápido
   const [unreadMessages, openProjects, ongoingProjects] = await Promise.all([
-    // 1. CORREÇÃO AQUI: Mensagens não lidas
-    // Como removemos receiverId, a lógica agora é:
-    // "Mensagens que NÃO fui eu que mandei, dentro de conversas que eu participo"
+    // 1. Mensagens não lidas
     db.message.count({
       where: {
         read: false,
-        senderId: { not: userId }, // Não fui eu que enviei
+        senderId: { not: userId }, // Mensagem que NÃO fui eu que enviei
         conversation: {
-          participants: {
-            some: { id: userId }, // Mas eu participo da conversa
-          },
+          // Verifica se eu sou um dos participantes (A ou B)
+          OR: [{ participantAId: userId }, { participantBId: userId }],
+          // Opcional: Se quiser ignorar chats deletados, descomente abaixo:
+          // NOT: {
+          //   deletedByIds: { has: userId }
+          // }
         },
       },
     }),
@@ -53,11 +55,29 @@ export default async function ClienteDashboardPage() {
 
   // Valores padrão caso não tenha ID
   let stats = { unreadMessages: 0, openProjects: 0, ongoingProjects: 0 };
+  let isProfileIncomplete = false; // <--- Variável nova para o Modal
 
   if (userId) {
+    // 1. Busca estatísticas
     stats = await getDashboardStats(userId);
+
+    // 2. Busca dados para verificar se o perfil está completo
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { city: true, state: true },
+    });
+
+    // Se faltar cidade ou estado, marca como incompleto
+    if (!user?.city || !user?.state) {
+      isProfileIncomplete = true;
+    }
   }
 
-  // Passamos os dados reais para a View
-  return <ClientDashboardView stats={stats} />;
+  // Passamos os dados reais E a flag do perfil para a View
+  return (
+    <ClientDashboardView
+      stats={stats}
+      isProfileIncomplete={isProfileIncomplete}
+    />
+  );
 }

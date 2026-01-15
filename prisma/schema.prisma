@@ -53,15 +53,18 @@ model User {
 
   // --- Relacionamentos de Chat ---
   // Conversas das quais o usuário participa
-  conversations Conversation[] @relation("UserConversations")
+  // [MODIFICADO]: Agora usamos relation explícita para saber quem é quem
+  conversationsAsA Conversation[] @relation("ParticipantA")
+  conversationsAsB Conversation[] @relation("ParticipantB")
+  
   // Mensagens enviadas pelo usuário
-  sentMessages  Message[]      @relation("SentMessages")
+  sentMessages  Message[]       @relation("SentMessages")
 
   // --- Relacionamentos de Favoritos ---
   // Quem esse usuário favoritou (Ex: Cliente favoritou Eletricista)
-  favorites     Favorite[] @relation("UserFavorites")
+  favorites      Favorite[] @relation("UserFavorites")
   // Quem favoritou este usuário (Ex: Eletricista foi favoritado por X clientes)
-  favoritedBy   Favorite[] @relation("FavoritedBy")
+  favoritedBy    Favorite[] @relation("FavoritedBy")
 }
 
 // =========================================================
@@ -89,13 +92,13 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  ownerId     String
-  owner       User     @relation("ClientProjects", fields: [ownerId], references: [id])
+  ownerId      String
+  owner        User     @relation("ClientProjects", fields: [ownerId], references: [id])
   
   professionalId String?
   professional   User?    @relation("ProProjects", fields: [professionalId], references: [id])
   
-  bidsCount   Int      @default(0)
+  bidsCount    Int      @default(0)
 }
 
 // =========================================================
@@ -109,13 +112,30 @@ model Conversation {
   updatedAt     DateTime  @updatedAt
   
   // Campo auxiliar para ordenação (data da última mensagem)
-  lastMessageAt DateTime  @default(now())
+  // [MODIFICADO]: Renomeei de lastMessageAt para lastMessageTime para bater com seu código frontend
+  lastMessageTime DateTime  @default(now()) 
+  lastMessage     String?   // [NOVO] Snippet da última mensagem para exibir na lista sem join
 
-  // Usuários participantes da conversa (Ex: Cliente e Profissional)
-  participants  User[]    @relation("UserConversations")
-  
+  // [NOVO] Participantes explícitos (Melhor para query de chat 1x1)
+  participantAId String
+  participantA   User   @relation("ParticipantA", fields: [participantAId], references: [id])
+
+  participantBId String
+  participantB   User   @relation("ParticipantB", fields: [participantBId], references: [id])
+
+  // [NOVO] Contadores de mensagens não lidas para cada participante
+  unreadCountA Int @default(0) // Quantas msgs o Participante A não leu
+  unreadCountB Int @default(0) // Quantas msgs o Participante B não leu
+
+  // [NOVO] Soft Delete: Quem apagou essa conversa da sua lista?
+  deletedByIds String[] @default([]) // Array de IDs
+
   // Mensagens dentro desta conversa
   messages      Message[]
+
+  // Garante que só existe UMA conversa única entre A e B
+  @@unique([participantAId, participantBId])
+  // Índice para busca rápida de conversas deletadas
 }
 
 model Message {

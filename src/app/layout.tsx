@@ -28,6 +28,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body
+        suppressHydrationWarning={true}
         className={`${poppins.className} ${orbitron.variable} antialiased bg-slate-950 text-slate-50`}
       >
         {children}
