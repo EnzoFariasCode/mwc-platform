@@ -2,21 +2,25 @@
 
 import { PageContainer } from "@/components/dashboard/PageContainer";
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation"; // Importar useRouter para atualizar a lista
 import {
   MessageSquare,
-  MoreHorizontal,
+  Trash2, // Trocado MoreHorizontal por Trash2
   CalendarClock,
   AlertCircle,
   DollarSign,
   Plus,
   Briefcase,
-  Eye, // Ícone do olho
+  Eye,
 } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { NewProjectModal } from "@/components/dashboard/NewProjectModal";
-import { ProjectDetailsModal } from "@/components/dashboard/ProjectDetailsModal"; // <--- Importamos o Modal
+import { ProjectDetailsModal } from "@/components/dashboard/ProjectDetailsModal";
+import { DelMyProjectsModal } from "@/components/dashboard/DelMyProjectsModal"; // Importar o novo modal
+import { deleteProject } from "@/actions/projects/delete-project"; // Importar a action
 import Link from "next/link";
+import { toast } from "sonner"; // Opcional: Se tiver toast configurado
 
 interface MyProjectsViewProps {
   initialProjects: any[];
@@ -26,11 +30,17 @@ export default function MyProjectsView({
   initialProjects,
 }: MyProjectsViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // Estados
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Estado do Modal
-  const [selectedProject, setSelectedProject] = useState<any>(null); // Projeto selecionado
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<any>(null);
+
+  // Estados para Exclusão
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useGSAP(
     () => {
@@ -50,10 +60,35 @@ export default function MyProjectsView({
     { scope: containerRef }
   );
 
-  // Função para abrir o modal com o projeto clicado
+  // Função para abrir o modal de detalhes
   const handleOpenDetails = (project: any) => {
     setSelectedProject(project);
     setIsDetailsModalOpen(true);
+  };
+
+  // Função para abrir o modal de exclusão
+  const handleOpenDelete = (project: any) => {
+    setProjectToDelete(project);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Função para confirmar a exclusão
+  const handleConfirmDelete = async () => {
+    if (!projectToDelete) return;
+
+    setIsDeleting(true);
+    const result = await deleteProject(projectToDelete.id);
+
+    if (result.success) {
+      setIsDeleteModalOpen(false);
+      setProjectToDelete(null);
+      router.refresh(); // Atualiza a lista na tela
+      // toast.success("Projeto excluído com sucesso!");
+    } else {
+      console.error(result.error);
+      // toast.error("Erro ao excluir projeto.");
+    }
+    setIsDeleting(false);
   };
 
   return (
@@ -92,8 +127,14 @@ export default function MyProjectsView({
                 <div>
                   <div className="flex items-start justify-between mb-4">
                     <StatusBadge status={project.status} />
-                    <button className="text-slate-500 hover:text-white transition-colors cursor-pointer">
-                      <MoreHorizontal className="w-5 h-5" />
+
+                    {/* Botão de Lixeira (Substituindo os 3 pontinhos) */}
+                    <button
+                      onClick={() => handleOpenDelete(project)}
+                      className="text-slate-500 hover:text-red-500 transition-colors cursor-pointer p-1 rounded-lg hover:bg-red-500/10"
+                      title="Excluir projeto"
+                    >
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
 
@@ -197,11 +238,20 @@ export default function MyProjectsView({
           onClose={() => setIsNewProjectModalOpen(false)}
         />
 
-        {/* Modal de Detalhes - Renderizado aqui */}
+        {/* Modal de Detalhes */}
         <ProjectDetailsModal
           isOpen={isDetailsModalOpen}
           onClose={() => setIsDetailsModalOpen(false)}
           project={selectedProject}
+        />
+
+        {/* Modal de Exclusão (NOVO) */}
+        <DelMyProjectsModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={handleConfirmDelete}
+          projectTitle={projectToDelete?.title || ""}
+          isLoading={isDeleting}
         />
       </div>
     </PageContainer>

@@ -12,25 +12,37 @@ export async function deleteConversation(conversationId: string) {
     const session = await verifySession(token);
     const userId = session?.sub as string;
 
-    if (!userId) return { success: false, error: "Não autorizado" };
+    if (!userId) {
+      return { success: false, error: "Não autorizado" };
+    }
 
-    // Verifica se o usuário participa dessa conversa antes de deletar
+    // Busca a conversa para ver se participo
     const conversation = await db.conversation.findUnique({
       where: { id: conversationId },
-      include: { participants: true },
     });
 
-    if (!conversation)
+    if (!conversation) {
       return { success: false, error: "Conversa não encontrada" };
+    }
 
-    const isParticipant = conversation.participants.some(
-      (p) => p.id === userId
-    );
-    if (!isParticipant) return { success: false, error: "Permissão negada" };
+    // Verifica se sou A ou B
+    const isParticipant =
+      conversation.participantAId === userId ||
+      conversation.participantBId === userId;
 
-    // Deleta a conversa (O Cascade no Schema vai apagar as mensagens automaticamente)
-    await db.conversation.delete({
+    if (!isParticipant) {
+      return { success: false, error: "Permissão negada" };
+    }
+
+    // Soft Delete: Apenas adiciona meu ID na lista de excluídos
+    // (Não deletamos do banco para manter o histórico para o outro usuário)
+    await db.conversation.update({
       where: { id: conversationId },
+      data: {
+        deletedByIds: {
+          push: userId,
+        },
+      },
     });
 
     revalidatePath("/dashboard/chat");

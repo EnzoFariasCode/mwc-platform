@@ -30,7 +30,6 @@ export default async function MeusProjetosPage() {
       professional: {
         select: {
           name: true,
-          // avatarUrl se tiver
         },
       },
     },

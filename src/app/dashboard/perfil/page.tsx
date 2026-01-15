@@ -12,7 +12,5 @@ export default async function PerfilPage() {
   }
 
   // 3. Renderiza a view passando os dados
-  // Precisamos converter o user para o tipo esperado se necessário,
-  // mas como o Prisma retorna o objeto compatível, deve funcionar direto.
   return <PerfilView user={user as any} />;
 }

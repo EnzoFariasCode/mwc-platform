@@ -18,9 +18,9 @@ export async function sendMessage(receiverId: string, content: string) {
     // 1. Tenta achar conversa existente
     let conversation = await db.conversation.findFirst({
       where: {
-        AND: [
-          { participants: { some: { id: senderId } } },
-          { participants: { some: { id: receiverId } } },
+        OR: [
+          { participantAId: senderId, participantBId: receiverId },
+          { participantAId: receiverId, participantBId: senderId },
         ],
       },
     });
@@ -29,26 +29,42 @@ export async function sendMessage(receiverId: string, content: string) {
     if (!conversation) {
       conversation = await db.conversation.create({
         data: {
-          participants: {
-            connect: [{ id: senderId }, { id: receiverId }],
-          },
+          participantAId: senderId,
+          participantBId: receiverId,
+          lastMessage: content,
+          lastMessageTime: new Date(),
+          unreadCountA: 0,
+          unreadCountB: 1,
+          deletedByIds: [],
+        },
+      });
+    } else {
+      // 3. Se já existe, atualiza
+      const isSenderA = conversation.participantAId === senderId;
+
+      await db.conversation.update({
+        where: { id: conversation.id },
+        data: {
+          lastMessage: content,
+          lastMessageTime: new Date(),
+          unreadCountA: isSenderA
+            ? conversation.unreadCountA
+            : { increment: 1 },
+          unreadCountB: !isSenderA
+            ? conversation.unreadCountB
+            : { increment: 1 },
+          deletedByIds: [], // Ressuscita conversa
         },
       });
     }
 
-    // 3. Cria a mensagem
+    // 4. Cria a mensagem
     const newMessage = await db.message.create({
       data: {
         content: content,
         senderId: senderId,
         conversationId: conversation.id,
       },
-    });
-
-    // 4. Atualiza data da conversa (para ordenar na lista)
-    await db.conversation.update({
-      where: { id: conversation.id },
-      data: { lastMessageAt: new Date() },
     });
 
     revalidatePath("/dashboard/chat");

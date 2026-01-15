@@ -11,6 +11,7 @@ import {
   Loader2,
   Trash2,
   X,
+  Briefcase, // Icone para o projeto
 } from "lucide-react";
 
 import { getMyConversations } from "@/actions/chat/get-my-conversations";
@@ -19,8 +20,13 @@ import { sendMessage } from "@/actions/chat/send-message";
 import { toggleFavorite } from "@/actions/favorites/toggle-favorite";
 import { markMessagesAsRead } from "@/actions/chat/mark-messages-read";
 import { deleteConversation } from "@/actions/chat/delete-conversation";
+// NOVAS ACTIONS:
+import {
+  getProjectContext,
+  getBasicUserInfo,
+} from "@/actions/chat/get-chat-context";
 
-// Tipos alinhados com o retorno das Server Actions
+// Tipos
 type ConversationSummary = {
   id: string;
   otherUserId: string;
@@ -49,11 +55,14 @@ export default function ChatPage() {
   const [activeChatData, setActiveChatData] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
 
+  // NOVO: Estado para o contexto do projeto
+  const [projectContext, setProjectContext] = useState<any>(null);
+
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
-  // Estados de Busca Local (Lupa)
+  // Estados de Busca Local
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -61,14 +70,14 @@ export default function ChatPage() {
 
   // --- Effects ---
 
-  // 1. Polling da Sidebar (Lista de Conversas)
+  // 1. Polling da Sidebar
   useEffect(() => {
     loadConversations();
     const interval = setInterval(loadConversations, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // 2. Polling das Mensagens (Apenas se tiver chat ativo)
+  // 2. Polling das Mensagens
   useEffect(() => {
     if (!activeChatId) return;
 
@@ -83,10 +92,9 @@ export default function ChatPage() {
             sender: m.sender as "me" | "other",
           }));
 
-          // Atualiza apenas se houver diferença no número de mensagens para evitar re-renders
           setMessages((prev) => {
             if (prev.length !== formattedMessages.length) {
-              markMessagesAsRead(activeChatId); // Marca como lido se chegou nova
+              markMessagesAsRead(activeChatId);
               return formattedMessages;
             }
             return prev;
@@ -101,16 +109,31 @@ export default function ChatPage() {
     return () => clearInterval(interval);
   }, [activeChatId]);
 
-  // 3. Redirecionamento via URL (?newChat=ID)
+  // 3. Redirecionamento via URL (?newChat=ID&projectId=ID)
   useEffect(() => {
     const newChatTarget = searchParams.get("newChat");
+    const projectIdTarget = searchParams.get("projectId");
+
     if (newChatTarget) {
       setActiveChatId(newChatTarget);
-      router.replace("/dashboard/chat");
+
+      // Se tiver projeto na URL, busca o contexto
+      if (projectIdTarget) {
+        getProjectContext(projectIdTarget).then((data) => {
+          setProjectContext(data);
+        });
+      } else {
+        setProjectContext(null);
+      }
+
+      // Limpa a URL para ficar bonita, mas mantém o estado
+      // router.replace("/dashboard/chat");
+      // DICA: Comentei o replace para você poder testar o F5 se quiser,
+      // mas idealmente você limpa a URL depois de pegar os dados.
     }
   }, [searchParams, router]);
 
-  // 4. Carregamento Inicial ao abrir um chat
+  // 4. Carregamento Inicial ao abrir um chat (CORREÇÃO DO BUG CARREGANDO)
   useEffect(() => {
     if (!activeChatId) return;
 
@@ -120,9 +143,11 @@ export default function ChatPage() {
       setSearchTerm("");
 
       try {
+        // Tenta buscar mensagens
         const data = await getConversationMessages(activeChatId!);
 
-        if (data) {
+        if (data && data.otherUser) {
+          // CENÁRIO 1: Já existe conversa
           const formattedMessages: Message[] = data.messages.map((m: any) => ({
             id: m.id,
             text: m.text,
@@ -131,15 +156,27 @@ export default function ChatPage() {
           }));
 
           setMessages(formattedMessages);
-          setActiveChatData(data.otherUser);
+          setActiveChatData(data.otherUser); // Define os dados do usuário
           await markMessagesAsRead(activeChatId!);
-          loadConversations();
         } else {
-          // Chat novo (ainda não existe no banco)
+          // CENÁRIO 2: Chat Novo ou Retorno Nulo (Bug do Spinner)
           setMessages([]);
-          // Tenta buscar info básica ou usa placeholder
-          setActiveChatData({ name: "Novo Chat", isFavorite: false });
+
+          // AQUI ESTÁ A CORREÇÃO:
+          // Se não veio user data do getConversationMessages, buscamos manual
+          const basicUser = await getBasicUserInfo(activeChatId!);
+          if (basicUser) {
+            setActiveChatData({
+              name: basicUser.name,
+              jobTitle: basicUser.jobTitle,
+              isFavorite: false, // Default
+            });
+          } else {
+            setActiveChatData({ name: "Usuário", isFavorite: false });
+          }
         }
+
+        loadConversations();
       } catch (error) {
         console.error("Erro ao carregar chat:", error);
       } finally {
@@ -150,7 +187,7 @@ export default function ChatPage() {
     initialLoad();
   }, [activeChatId]);
 
-  // 5. Auto-scroll para baixo
+  // 5. Auto-scroll
   useEffect(() => {
     if (!isSearchOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -162,8 +199,6 @@ export default function ChatPage() {
   async function loadConversations() {
     try {
       const data = await getMyConversations();
-
-      // Mapeamento seguro tratando null/undefined
       const formatted: ConversationSummary[] = data.map((c: any) => ({
         id: c.id || "",
         otherUserId: c.otherUserId || "",
@@ -174,7 +209,6 @@ export default function ChatPage() {
         avatar: c.avatar || null,
         unreadCount: c.unreadCount || 0,
       }));
-
       setConversations(formatted);
     } catch (error) {
       console.error("Erro ao carregar conversas:", error);
@@ -186,9 +220,9 @@ export default function ChatPage() {
     if (!inputText.trim() || !activeChatId) return;
 
     const text = inputText;
-    const tempId = Date.now().toString(); // ID Temporário
+    const tempId = Date.now().toString();
 
-    // 1. Otimista: Mostra na tela imediatamente
+    // 1. Otimista
     const optimisticMsg: Message = {
       id: tempId,
       text: text,
@@ -201,33 +235,31 @@ export default function ChatPage() {
     setIsSending(true);
 
     try {
-      // 2. Envia ao servidor
+      // 2. Envia
       const result = await sendMessage(activeChatId, text);
 
       if (result.success && result.message) {
-        // 3. Sucesso: Atualiza o ID temporário pelo real
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === tempId
               ? {
                   ...msg,
                   id: result.message!.id,
-                  // @ts-ignore - Garantindo que createdAt existe no retorno
+                  // @ts-ignore
                   time: new Date(result.message!.createdAt),
                 }
               : msg
           )
         );
-        loadConversations(); // Sobe a conversa na lista
+        loadConversations();
       } else {
         throw new Error(result.error || "Erro desconhecido");
       }
     } catch (error) {
       console.error("Falha no envio:", error);
       alert("Não foi possível enviar a mensagem.");
-      // Rollback: Remove a mensagem se falhou
       setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
-      setInputText(text); // Devolve o texto para tentar de novo
+      setInputText(text);
     } finally {
       setIsSending(false);
     }
@@ -235,7 +267,6 @@ export default function ChatPage() {
 
   const handleToggleFavorite = async () => {
     if (!activeChatId) return;
-    // Otimista
     setActiveChatData((prev: any) => ({
       ...prev,
       isFavorite: !prev.isFavorite,
@@ -258,6 +289,7 @@ export default function ChatPage() {
       ) {
         setActiveChatId(null);
         setActiveChatData(null);
+        setProjectContext(null); // Limpa contexto ao apagar
       }
       loadConversations();
     } else {
@@ -274,7 +306,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-background">
-      {/* SIDEBAR DO CHAT */}
+      {/* SIDEBAR DO CHAT (Mantive igual, só ocultei para brevidade se não houve mudança) */}
       <aside
         className={`flex flex-col border-r border-border bg-card/20 shrink-0 h-full
         ${activeChatId ? "hidden md:flex w-80" : "w-full md:w-80"} 
@@ -306,7 +338,12 @@ export default function ChatPage() {
             conversations.map((chat) => (
               <div
                 key={chat.id}
-                onClick={() => setActiveChatId(chat.otherUserId)}
+                onClick={() => {
+                  setActiveChatId(chat.otherUserId);
+                  // Quando clica na sidebar, limpamos o contexto de projeto específico
+                  // pois é uma navegação geral
+                  setProjectContext(null);
+                }}
                 className={`group relative p-3 flex gap-3 cursor-pointer hover:bg-white/5 border-b border-white/5 transition-colors ${
                   activeChatId === chat.otherUserId
                     ? "bg-white/5 border-l-2 border-primary"
@@ -374,87 +411,89 @@ export default function ChatPage() {
           </div>
         ) : (
           <>
-            <header className="h-16 border-b border-border bg-card/10 backdrop-blur-sm flex items-center justify-between px-4 shrink-0 z-10">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setActiveChatId(null)}
-                  className="md:hidden text-gray-400"
-                >
-                  <ArrowLeft />
-                </button>
-                <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-white font-bold">
-                  {activeChatData?.name?.charAt(0) || "?"}
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm md:text-base text-white">
-                    {activeChatData?.name || "Carregando..."}
-                  </h3>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                    <span className="text-[10px] text-gray-400">Online</span>
-                    {activeChatData?.jobTitle && (
-                      <span className="text-[10px] text-slate-500 ml-1 border-l border-slate-700 pl-2">
-                        {activeChatData.jobTitle}
-                      </span>
-                    )}
+            <header className="flex flex-col border-b border-border bg-card/10 backdrop-blur-sm z-10">
+              {/* Linha Principal do Header */}
+              <div className="h-16 flex items-center justify-between px-4 shrink-0">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setActiveChatId(null)}
+                    className="md:hidden text-gray-400"
+                  >
+                    <ArrowLeft />
+                  </button>
+                  <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-white font-bold">
+                    {activeChatData?.name?.charAt(0) || "?"}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm md:text-base text-white">
+                      {/* Correção do BUG CARREGANDO: Se for null, mostra "Usuário" ou um skeleton, mas o useEffect já deve ter corrigido */}
+                      {activeChatData?.name || "Carregando..."}
+                    </h3>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                      <span className="text-[10px] text-gray-400">Online</span>
+                      {activeChatData?.jobTitle && (
+                        <span className="text-[10px] text-slate-500 ml-1 border-l border-slate-700 pl-2">
+                          {activeChatData.jobTitle}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex gap-3 text-gray-400 items-center">
-                <button
-                  onClick={handleToggleFavorite}
-                  disabled={!activeChatData}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-xs font-bold cursor-pointer ${
-                    activeChatData?.isFavorite
-                      ? "bg-[#d73cbe]/10 border-[#d73cbe] text-[#d73cbe]"
-                      : "bg-transparent border-white/10 text-slate-400 hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <Heart
-                    size={16}
-                    className={`transition-colors ${
-                      activeChatData?.isFavorite ? "fill-[#d73cbe]" : ""
+                <div className="flex gap-3 text-gray-400 items-center">
+                  <button
+                    onClick={handleToggleFavorite}
+                    disabled={!activeChatData}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-xs font-bold cursor-pointer ${
+                      activeChatData?.isFavorite
+                        ? "bg-[#d73cbe]/10 border-[#d73cbe] text-[#d73cbe]"
+                        : "bg-transparent border-white/10 text-slate-400 hover:bg-white/5 hover:text-white"
                     }`}
-                  />
-                  <span className="hidden sm:inline">
-                    {activeChatData?.isFavorite ? "Favoritado" : "Favoritar"}
-                  </span>
-                </button>
-
-                <div className="h-6 w-px bg-white/10 mx-1 hidden sm:block" />
-
-                <div className="relative flex items-center">
-                  {isSearchOpen ? (
-                    <div className="flex items-center bg-slate-900 border border-white/20 rounded-lg overflow-hidden animate-in fade-in slide-in-from-right-4">
-                      <input
-                        type="text"
-                        autoFocus
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="bg-transparent text-sm text-white px-3 py-1.5 outline-none w-40"
-                        placeholder="Buscar..."
-                      />
-                      <button
-                        onClick={() => {
-                          setIsSearchOpen(false);
-                          setSearchTerm("");
-                        }}
-                        className="p-1.5 hover:bg-white/10 text-slate-400"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setIsSearchOpen(true)}
-                      className="hover:text-primary cursor-pointer p-1"
-                    >
-                      <Search size={18} />
-                    </button>
-                  )}
+                  >
+                    <Heart
+                      size={16}
+                      className={`transition-colors ${
+                        activeChatData?.isFavorite ? "fill-[#d73cbe]" : ""
+                      }`}
+                    />
+                    <span className="hidden sm:inline">
+                      {activeChatData?.isFavorite ? "Favoritado" : "Favoritar"}
+                    </span>
+                  </button>
                 </div>
               </div>
+
+              {/* --- CONTEXTO DO PROJETO (BANNER) --- */}
+              {/* Só aparece se projectContext existir */}
+              {projectContext && (
+                <div className="px-4 py-2 bg-slate-800/50 border-t border-white/5 flex items-center justify-between gap-3 animate-in slide-in-from-top-2">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="p-1.5 bg-[#d73cbe]/20 rounded-lg text-[#d73cbe]">
+                      <Briefcase size={14} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-slate-400">
+                        Referente ao projeto:
+                      </p>
+                      <p className="text-sm font-bold text-white truncate">
+                        {projectContext.title}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 flex items-center gap-3">
+                    <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">
+                      {projectContext.budgetLabel}
+                    </span>
+                    <button
+                      onClick={() => setProjectContext(null)} // Fecha o banner
+                      className="text-slate-500 hover:text-white"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </header>
 
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-primary/20">
@@ -463,10 +502,20 @@ export default function ChatPage() {
                   <Loader2 className="animate-spin text-slate-500" />
                 </div>
               ) : displayedMessages.length === 0 ? (
-                <div className="text-center text-slate-500 text-sm mt-10">
-                  {searchTerm
-                    ? "Nenhuma mensagem encontrada na busca."
-                    : "Nenhuma mensagem ainda. Diga olá! 👋"}
+                <div className="text-center text-slate-500 text-sm mt-10 space-y-2">
+                  {projectContext ? (
+                    <>
+                      <p>
+                        Inicie a conversa sobre{" "}
+                        <strong>"{projectContext.title}"</strong>.
+                      </p>
+                      <p className="text-xs">
+                        Seja profissional e tire suas dúvidas!
+                      </p>
+                    </>
+                  ) : (
+                    <p>Nenhuma mensagem ainda. Diga olá! 👋</p>
+                  )}
                 </div>
               ) : (
                 displayedMessages.map((msg, index) => {

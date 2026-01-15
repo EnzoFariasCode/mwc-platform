@@ -4,8 +4,8 @@ import { cookies } from "next/headers";
 import { db } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { ActionResponse } from "@/types/user-types";
-import { verifySession } from "@/lib/auth"; // <--- 1. IMPORTANTE: Segurança JWT
-import { revalidatePath } from "next/cache"; // <--- 2. IMPORTANTE: Atualizar a tela
+import { verifySession } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 
 // Interface auxiliar para os itens de lista (JSON)
 interface PortfolioItem {
@@ -42,18 +42,14 @@ export async function updateProfile(
   try {
     const cookieStore = await cookies();
 
-    // --- CORREÇÃO DE SEGURANÇA (JWT) ---
-    // Antes: const userId = cookieStore.get("userId")?.value;
-
-    // Agora: Ler e verificar o token seguro
+    // --- SEGURANÇA (JWT) ---
     const token = cookieStore.get("session")?.value;
     const session = token ? await verifySession(token) : null;
-    const userId = session?.sub as string; // O ID real está aqui dentro
+    const userId = session?.sub as string;
 
     if (!userId) {
       return { success: false, error: "Usuário não autenticado." };
     }
-    // -----------------------------------
 
     // 2. Busca usuário no banco
     const userInDb = await db.user.findUnique({
@@ -93,8 +89,8 @@ export async function updateProfile(
         displayName: data.displayName,
         birthDate: data.birthDate ? new Date(data.birthDate) : null,
         bio: data.bio,
-        city: data.city,
-        state: data.state,
+        city: data.city, // <--- Isso vai preencher o campo e remover o Modal
+        state: data.state, // <--- Isso vai preencher o campo e remover o Modal
 
         // Campos Profissionais
         hourlyRate: data.hourlyRate ? parseFloat(data.hourlyRate) : null,
@@ -112,8 +108,10 @@ export async function updateProfile(
       },
     });
 
-    // 5. ATUALIZAR O CACHE (Para o nome/cidade mudar no Header e Perfil imediatamente)
+    // 5. ATUALIZAR O CACHE
+    // Importante: Revalidar a dashboard para que ela perceba que o perfil agora está completo
     revalidatePath("/dashboard/perfil");
+    revalidatePath("/dashboard/cliente"); // <--- ADICIONADO: Garante que o modal suma na hora
     revalidatePath("/", "layout");
 
     return { success: true };

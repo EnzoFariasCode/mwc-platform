@@ -77,8 +77,10 @@ export default function ProjectDetailsView({ project }: ProjectDetailsProps) {
 
   // Lógica de Enviar Proposta (Ir para Chat)
   const handleSendProposal = () => {
-    // Redireciona para o chat criando uma nova conversa com o dono do projeto
-    router.push(`/dashboard/chat?newChat=${project.owner.id}`);
+    // Redireciona para o chat criando uma nova conversa COM O CONTEXTO DO PROJETO
+    router.push(
+      `/dashboard/chat?newChat=${project.owner.id}&projectId=${project.id}`
+    );
   };
 
   return (
