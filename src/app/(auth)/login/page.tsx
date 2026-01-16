@@ -49,20 +49,29 @@ function LoginContent() {
     setErrorMessage("");
 
     const formData = new FormData(e.currentTarget);
+
+    // Chama a SUA action robusta (com Zod/JWT)
     const result = await loginUser(formData);
 
     if (result?.error) {
       setErrorMessage(result.error);
       toast.error(result.error);
-      setIsLoading(false);
+      setIsLoading(false); // Destrava para tentar de novo
     } else {
       toast.success("Login realizado!");
 
+      // --- CORREÇÃO DEFINITIVA DO "CARREGANDO..." ---
+      // Usamos window.location.href para forçar o navegador a ler o novo cookie
+      // router.push() as vezes falha em detectar cookies novos instantaneamente
+
       if (action === "chat" && proId) {
-        router.push(`/dashboard/chat?newChat=${proId}`);
+        window.location.href = `/dashboard/chat?newChat=${proId}`;
       } else {
-        router.push("/dashboard");
+        window.location.href = "/dashboard/cliente";
       }
+
+      // Nota: Não setamos setIsLoading(false) aqui.
+      // Deixamos girando até a página recarregar.
     }
   };
 

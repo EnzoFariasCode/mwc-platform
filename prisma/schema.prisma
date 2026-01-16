@@ -17,20 +17,39 @@ enum UserType {
   ADMIN
 }
 
+// [NOVO] Enum para Status do Projeto (Fluxo Financeiro)
+enum ProjectStatus {
+  OPEN             // Aberto para receber propostas
+  WAITING_PAYMENT  // Cliente aceitou proposta, aguardando pagamento (Escrow)
+  IN_PROGRESS      // Pago e em desenvolvimento
+  UNDER_REVIEW     // Profissional entregou, cliente está revisando
+  COMPLETED        // Finalizado e dinheiro liberado
+  CANCELED         // Cancelado antes de começar
+  DISPUTE          // Deu problema (Mediação)
+}
+
+// [NOVO] Enum para Status da Proposta
+enum ProposalStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN // Profissional desistiu da proposta
+}
+
 // =========================================================
 // 2. MODELO DE USUÁRIO (Principal)
 // =========================================================
 
 model User {
-  id          String    @id @default(uuid())
-  name        String
-  displayName String?
-  email       String    @unique
-  password    String
-  birthDate   DateTime?
-  userType    UserType  @default(CLIENT)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  name          String
+  displayName   String?
+  email         String    @unique
+  password      String
+  birthDate     DateTime?
+  userType      UserType  @default(CLIENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   
   // --- Dados de Perfil ---
   bio            String?   @db.Text
@@ -51,19 +70,18 @@ model User {
   projectsOwned    Project[] @relation("ClientProjects")
   projectsAssigned Project[] @relation("ProProjects")
 
+  // [NOVO] Relações para Propostas e Entregas
+  proposals     Proposal[]    @relation("ProfessionalProposals") // Propostas que enviei
+  deliverables  Deliverable[] @relation("UserDeliverables")      // Entregas que fiz
+
   // --- Relacionamentos de Chat ---
-  // Conversas das quais o usuário participa
-  // [MODIFICADO]: Agora usamos relation explícita para saber quem é quem
   conversationsAsA Conversation[] @relation("ParticipantA")
   conversationsAsB Conversation[] @relation("ParticipantB")
   
-  // Mensagens enviadas pelo usuário
-  sentMessages  Message[]       @relation("SentMessages")
+  sentMessages   Message[]        @relation("SentMessages")
 
   // --- Relacionamentos de Favoritos ---
-  // Quem esse usuário favoritou (Ex: Cliente favoritou Eletricista)
   favorites      Favorite[] @relation("UserFavorites")
-  // Quem favoritou este usuário (Ex: Eletricista foi favoritado por X clientes)
   favoritedBy    Favorite[] @relation("FavoritedBy")
 }
 
@@ -78,13 +96,20 @@ model Project {
   category    String   // Ex: "TI e Programação"
   tags        String[] // Array de tags ex: ["React", "Node"]
   
-  // Orçamento
+  // Orçamento Original (Estimativa do Cliente)
   budgetType  String   // "fixed" ou "hourly"
   budgetValue Float    // Valor numérico para filtros
-  budgetLabel String   // Texto formatado ex: "R$ 1500,00" ou "R$ 50/h"
+  budgetLabel String   // Texto formatado ex: "R$ 1500,00"
+  
+  // [NOVO] Valor Final Acordado (Escrow)
+  agreedPrice Decimal? // Valor que fechou na proposta aceita
   
   deadline    String   // "Urgente", "Para essa semana", etc.
-  status      String   @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED
+  
+  // [MODIFICADO] Usando o Enum ProjectStatus no lugar de String
+  // Para compatibilidade, se der erro de migration, podemos mapear,
+  // mas idealmente migramos para o Enum novo.
+  status      ProjectStatus @default(OPEN) 
   
   // Anexos (Links)
   attachments Json?    @default("[]") 
@@ -92,50 +117,93 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  ownerId      String
-  owner        User     @relation("ClientProjects", fields: [ownerId], references: [id])
+  ownerId       String
+  owner         User      @relation("ClientProjects", fields: [ownerId], references: [id])
   
   professionalId String?
-  professional   User?    @relation("ProProjects", fields: [professionalId], references: [id])
+  professional   User?     @relation("ProProjects", fields: [professionalId], references: [id])
   
-  bidsCount    Int      @default(0)
+  bidsCount     Int       @default(0)
+
+  // [NOVO] Relacionamentos para o Fluxo de Trabalho
+  proposals     Proposal[]    // Lista de propostas recebidas
+  deliverables  Deliverable[] // Arquivos entregues pelo profissional
 }
 
 // =========================================================
-// 4. MODELOS DE CHAT (Conversas e Mensagens)
+// 4. NOVO MODEL: PROPOSTA (Proposal)
 // =========================================================
 
-// Agrupa mensagens entre dois ou mais usuários
-model Conversation {
-  id            String    @id @default(uuid())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+model Proposal {
+  id            String   @id @default(uuid())
   
-  // Campo auxiliar para ordenação (data da última mensagem)
-  // [MODIFICADO]: Renomeei de lastMessageAt para lastMessageTime para bater com seu código frontend
-  lastMessageTime DateTime  @default(now()) 
-  lastMessage     String?   // [NOVO] Snippet da última mensagem para exibir na lista sem join
+  price         Decimal  // Valor que o profissional cobrou
+  estimatedDays Int      // Prazo em dias
+  coverLetter   String   @db.Text // A mensagem de venda/apresentação
+  
+  status        ProposalStatus @default(PENDING)
+  
+  // Relacionamentos
+  projectId     String
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  professionalId String
+  professional   User    @relation("ProfessionalProposals", fields: [professionalId], references: [id])
 
-  // [NOVO] Participantes explícitos (Melhor para query de chat 1x1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([professionalId])
+}
+
+// =========================================================
+// 5. NOVO MODEL: ENTREGA (Deliverable)
+// =========================================================
+
+model Deliverable {
+  id            String   @id @default(uuid())
+  
+  description   String?  // Comentário sobre a entrega ("Segue anexo v1")
+  fileUrl       String?  // URL do arquivo (AWS S3, Uploadthing, etc)
+  link          String?  // Link externo (Github, Figma, Drive)
+  
+  // Relacionamentos
+  projectId     String
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  senderId      String   // Quem enviou (geralmente o profissional)
+  sender        User     @relation("UserDeliverables", fields: [senderId], references: [id])
+
+  createdAt     DateTime @default(now())
+}
+
+// =========================================================
+// 6. MODELOS DE CHAT (Conversas e Mensagens)
+// =========================================================
+
+model Conversation {
+  id             String    @id @default(uuid())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  lastMessageTime DateTime  @default(now()) 
+  lastMessage     String?   
+
   participantAId String
-  participantA   User   @relation("ParticipantA", fields: [participantAId], references: [id])
+  participantA   User    @relation("ParticipantA", fields: [participantAId], references: [id])
 
   participantBId String
-  participantB   User   @relation("ParticipantB", fields: [participantBId], references: [id])
+  participantB   User    @relation("ParticipantB", fields: [participantBId], references: [id])
 
-  // [NOVO] Contadores de mensagens não lidas para cada participante
-  unreadCountA Int @default(0) // Quantas msgs o Participante A não leu
-  unreadCountB Int @default(0) // Quantas msgs o Participante B não leu
+  unreadCountA Int @default(0) 
+  unreadCountB Int @default(0) 
 
-  // [NOVO] Soft Delete: Quem apagou essa conversa da sua lista?
-  deletedByIds String[] @default([]) // Array de IDs
+  deletedByIds String[] @default([]) 
 
-  // Mensagens dentro desta conversa
-  messages      Message[]
+  messages       Message[]
 
-  // Garante que só existe UMA conversa única entre A e B
   @@unique([participantAId, participantBId])
-  // Índice para busca rápida de conversas deletadas
 }
 
 model Message {
@@ -144,31 +212,26 @@ model Message {
   read           Boolean      @default(false)
   createdAt      DateTime     @default(now())
   
-  // Quem enviou
   senderId       String
   sender         User         @relation("SentMessages", fields: [senderId], references: [id])
   
-  // A qual conversa pertence
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 // =========================================================
-// 5. MODELO DE FAVORITOS
+// 7. MODELO DE FAVORITOS
 // =========================================================
 
 model Favorite {
   id             String   @id @default(uuid())
   createdAt      DateTime @default(now())
 
-  // O Cliente que clicou no coração
   clientId       String
   client         User     @relation("UserFavorites", fields: [clientId], references: [id], onDelete: Cascade)
 
-  // O Profissional que foi favoritado
   professionalId String
   professional   User     @relation("FavoritedBy", fields: [professionalId], references: [id], onDelete: Cascade)
 
-  // Garante que o cliente só possa favoritar o mesmo profissional uma vez
   @@unique([clientId, professionalId])
 }

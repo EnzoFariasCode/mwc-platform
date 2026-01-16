@@ -2,25 +2,26 @@
 
 import { PageContainer } from "@/components/dashboard/PageContainer";
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation"; // Importar useRouter para atualizar a lista
+import { useRouter } from "next/navigation";
 import {
   MessageSquare,
-  Trash2, // Trocado MoreHorizontal por Trash2
+  Trash2,
   CalendarClock,
   AlertCircle,
   DollarSign,
   Plus,
   Briefcase,
   Eye,
+  Users, // <--- 1. Import do ícone Users
 } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { NewProjectModal } from "@/components/dashboard/NewProjectModal";
 import { ProjectDetailsModal } from "@/components/dashboard/ProjectDetailsModal";
-import { DelMyProjectsModal } from "@/components/dashboard/DelMyProjectsModal"; // Importar o novo modal
-import { deleteProject } from "@/actions/projects/delete-project"; // Importar a action
+import { DelMyProjectsModal } from "@/components/dashboard/DelMyProjectsModal";
+import { deleteProject } from "@/actions/projects/delete-project";
 import Link from "next/link";
-import { toast } from "sonner"; // Opcional: Se tiver toast configurado
+import { toast } from "sonner";
 
 interface MyProjectsViewProps {
   initialProjects: any[];
@@ -60,19 +61,16 @@ export default function MyProjectsView({
     { scope: containerRef }
   );
 
-  // Função para abrir o modal de detalhes
   const handleOpenDetails = (project: any) => {
     setSelectedProject(project);
     setIsDetailsModalOpen(true);
   };
 
-  // Função para abrir o modal de exclusão
   const handleOpenDelete = (project: any) => {
     setProjectToDelete(project);
     setIsDeleteModalOpen(true);
   };
 
-  // Função para confirmar a exclusão
   const handleConfirmDelete = async () => {
     if (!projectToDelete) return;
 
@@ -82,11 +80,10 @@ export default function MyProjectsView({
     if (result.success) {
       setIsDeleteModalOpen(false);
       setProjectToDelete(null);
-      router.refresh(); // Atualiza a lista na tela
-      // toast.success("Projeto excluído com sucesso!");
+      router.refresh();
     } else {
       console.error(result.error);
-      // toast.error("Erro ao excluir projeto.");
+      toast.error("Erro ao excluir projeto.");
     }
     setIsDeleting(false);
   };
@@ -123,15 +120,24 @@ export default function MyProjectsView({
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-[#d73cbe]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
+                {/* --- 2. BADGE DE PROPOSTAS (NOVO) --- */}
+                {/* Verifica se existe o contador e se é maior que 0 */}
+                {project._count?.proposals > 0 && (
+                  <div className="absolute top-6 right-16 px-2.5 py-1 rounded-full bg-[#d73cbe] text-white text-[10px] font-bold shadow-lg shadow-[#d73cbe]/30 flex items-center gap-1 animate-pulse z-10">
+                    <Users className="w-3 h-3" />
+                    {project._count.proposals} Proposta
+                    {project._count.proposals > 1 ? "s" : ""}
+                  </div>
+                )}
+
                 {/* Topo */}
                 <div>
                   <div className="flex items-start justify-between mb-4">
                     <StatusBadge status={project.status} />
 
-                    {/* Botão de Lixeira (Substituindo os 3 pontinhos) */}
                     <button
                       onClick={() => handleOpenDelete(project)}
-                      className="text-slate-500 hover:text-red-500 transition-colors cursor-pointer p-1 rounded-lg hover:bg-red-500/10"
+                      className="text-slate-500 hover:text-red-500 transition-colors cursor-pointer p-1 rounded-lg hover:bg-red-500/10 z-20"
                       title="Excluir projeto"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -143,7 +149,6 @@ export default function MyProjectsView({
                       {project.title}
                     </h3>
 
-                    {/* Exibe profissional se já tiver um */}
                     {project.professional ? (
                       <div className="flex items-center gap-3 bg-slate-950/50 p-3 rounded-xl border border-white/5">
                         <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs border border-white/10 shrink-0">
@@ -197,7 +202,6 @@ export default function MyProjectsView({
                     <Eye className="w-3 h-3" />
                     Ver Detalhes
                   </button>
-                  {/* ------------------------------- */}
 
                   <Link
                     href="/dashboard/chat"
@@ -243,9 +247,10 @@ export default function MyProjectsView({
           isOpen={isDetailsModalOpen}
           onClose={() => setIsDetailsModalOpen(false)}
           project={selectedProject}
+          isOwner={true} // <--- 3. Aqui ativamos o modo "Dono" para ver propostas
         />
 
-        {/* Modal de Exclusão (NOVO) */}
+        {/* Modal de Exclusão */}
         <DelMyProjectsModal
           isOpen={isDeleteModalOpen}
           onClose={() => setIsDeleteModalOpen(false)}

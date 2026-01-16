@@ -26,24 +26,26 @@ export default function DashboardHeader() {
     checkRole();
   }, []);
 
-  // --- LÓGICA DEFINITIVA ---
-  // Rotas que são EXCLUSIVAMENTE do painel profissional
+  // --- LÓGICA DEFINITIVA (CORRIGIDA) ---
+  // Adicionamos Chat, Perfil e Configurações aqui.
+  // Como temos a trava (userRole === "CLIENT") abaixo, isso não quebra para o cliente.
   const professionalRoutes = [
     "/dashboard/profissional",
     "/dashboard/minhas-propostas",
     "/dashboard/projetos-ativos",
     "/dashboard/financeiro",
     "/dashboard/encontrar-projetos",
+    "/dashboard/chat", // <--- ADICIONADO
+    "/dashboard/perfil", // <--- ADICIONADO (Minha Vitrine)
+    "/dashboard/configuracoes", // <--- ADICIONADO
   ];
 
-  // Verifica se a rota atual começa com alguma rota profissional
   const isProfessionalPath = professionalRoutes.some((route) =>
     pathname.startsWith(route)
   );
 
-  // A área é "Cliente" se:
-  // 1. NÃO estivermos em uma rota explicitamente profissional
-  // 2. OU se o usuário for apenas CLIENTE (mesmo que tente acessar, o header deve refletir quem ele é)
+  // Se for rota de PRO, mas o usuário for CLIENTE, forçamos o modo Cliente.
+  // Se for rota de PRO e usuário PRO, o modo Cliente fica FALSO (ou seja, modo Pro).
   const isClientArea = !isProfessionalPath || userRole === "CLIENT";
 
   const handleSwitch = (targetType: "client" | "professional") => {

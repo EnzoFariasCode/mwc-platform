@@ -471,3 +471,68 @@ Realiza uma verificação cruzada na tabela Favorite para saber se o usuário co
 
 📝 Nota de Arquitetura
 Diferente da estrutura inicial, estas ações foram refatoradas e separadas em subpastas (/chat, /favorites) seguindo princípios de Clean Architecture e SRP (Single Responsibility Principle). Isso facilita a manutenção, testes e escalabilidade futura do projeto.
+
+1. Banco de Dados (Prisma)
+   prisma/schema.prisma
+
+Função: Arquivo principal de definição do banco de dados.
+
+Alterações:
+
+Criação da tabela Proposal (armazena valor, prazo e carta de apresentação).
+
+Criação da tabela Deliverable (para futuras entregas de arquivos).
+
+Atualização do model Project para incluir relações com propostas e o novo Enum ProjectStatus.
+
+Atualização do model User para relacionar com propostas enviadas.
+
+2. Backend (Server Actions)
+   src/actions/proposals/create-proposal.ts
+
+Função: Recebe os dados do formulário do profissional, verifica se ele já enviou proposta antes e salva a nova proposta no banco de dados com status PENDING.
+
+src/actions/proposals/get-project-proposals.ts
+
+Função: Busca todas as propostas recebidas de um projeto específico. Inclui validação de segurança para garantir que apenas o dono do projeto possa ver esses dados.
+
+3. Componentes Visuais (Frontend)
+   src/components/dashboard/SendProposalModal.tsx
+
+Função: Modal com formulário para o profissional enviar uma oferta.
+
+Lógica: Detecta se o projeto é Preço Fixo ou Por Hora. Se for Fixo, permite "Aceitar Valor do Cliente" ou "Propor Novo Valor".
+
+src/components/dashboard/ProjectDetailsModal.tsx
+
+Função: Modal híbrido.
+
+Para Visitantes: Exibe detalhes do projeto (escopo, orçamento).
+
+Para o Dono (Cliente): Exibe uma lista expansível ("accordion") com as propostas recebidas, fotos dos profissionais e valores.
+
+4. Páginas e Rotas
+   src/app/dashboard/encontrar-projetos/[id]/page.tsx (Server Component)
+
+Função: Busca os dados brutos do projeto no banco e verifica o ID do usuário logado para passar para a View.
+
+src/app/dashboard/encontrar-projetos/[id]/ProjectDetailsView.tsx (Client Component)
+
+Função: Tela cheia de detalhes do projeto. Controla a lógica de mostrar o botão "Enviar Proposta" (para profissionais) ou o aviso "Este projeto é seu" (para o dono).
+
+src/app/dashboard/meus-projetos/page.tsx (Server Component)
+
+Função: Busca os projetos criados pelo usuário logado e adiciona uma contagem (\_count) de quantas propostas cada projeto recebeu.
+
+src/app/dashboard/meus-projetos/MyProjectsView.tsx (Client Component)
+
+Função: Renderiza a grid de cards dos projetos do cliente. Exibe o Badge de Notificação (ex: "🔔 3 Propostas") e abre o modal de detalhes no modo "Dono".
+
+5. Navegação e Estrutura
+   src/components/dashboard/DashboardHeader.tsx
+
+Função: Cabeçalho superior. Contém a lógica do "Switch" (botão deslizante) entre painel de Cliente e Profissional. Foi ajustado para reconhecer rotas compartilhadas (como Chat e Perfil) corretamente.
+
+src/components/dashboard/DashboardSidebar.tsx
+
+Função: Menu lateral. Lista os links de navegação e altera dinamicamente os itens do menu dependendo se o usuário está no contexto de Cliente ou Profissional.

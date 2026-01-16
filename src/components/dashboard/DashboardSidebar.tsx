@@ -34,7 +34,7 @@ type UserData = {
   jobTitle?: string | null;
 };
 
-// ... (MANTENHA O USERMENU EXATAMENTE COMO ESTÁ PARA ECONOMIZAR ESPAÇO AQUI) ...
+// ... (MANTENHA O USERMENU IGUAL) ...
 function UserMenu({ user }: { user: UserData | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -191,24 +191,25 @@ export default function DashboardSidebar() {
     },
   ];
 
-  // --- LÓGICA DEFINITIVA DE CONTEXTO ---
-  // Rotas exclusivas de Profissional
+  // --- LÓGICA DEFINITIVA DE CONTEXTO (CORRIGIDA) ---
   const professionalRoutes = [
     "/dashboard/profissional",
     "/dashboard/minhas-propostas",
     "/dashboard/projetos-ativos",
     "/dashboard/financeiro",
     "/dashboard/encontrar-projetos",
+    "/dashboard/chat", // <--- ADICIONADO
+    "/dashboard/perfil", // <--- ADICIONADO
+    "/dashboard/configuracoes", // <--- ADICIONADO
   ];
 
-  // Verifica se estamos em uma rota PRO
   const isProfessionalPath = professionalRoutes.some((route) =>
     pathname.startsWith(route)
   );
 
   // É contexto de Cliente se:
-  // 1. NÃO for uma rota PRO
-  // 2. OU se o usuário for explicitamente CLIENTE (bloqueia menu PRO mesmo se tentar acessar URL)
+  // 1. NÃO for uma rota PRO (ou compartilhada que consideramos PRO para o profissional)
+  // 2. OU se o usuário for explicitamente CLIENTE (bloqueia menu PRO mesmo se acessar URL)
   const isClientContext =
     !isProfessionalPath || user?.userType !== "PROFESSIONAL";
 
