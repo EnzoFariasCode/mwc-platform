@@ -34,7 +34,6 @@ type UserData = {
   jobTitle?: string | null;
 };
 
-// ... (MANTENHA O USERMENU IGUAL) ...
 function UserMenu({ user }: { user: UserData | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -130,12 +129,16 @@ export default function DashboardSidebar() {
   const { isMobileMenuOpen, closeMobileMenu } = useDashboard();
   const [user, setUser] = useState<UserData | null>(null);
 
+  // Estado local para controlar o menu exibido
+  const [viewMode, setViewMode] = useState<"CLIENT" | "PROFESSIONAL">("CLIENT");
+
   useEffect(() => {
     async function loadUser() {
       try {
         const data = await getUserProfile();
         if (data) {
           setUser(data as UserData);
+          if (data.userType === "CLIENT") setViewMode("CLIENT");
         }
       } catch (error) {
         console.error("Erro ao carregar usuário no sidebar", error);
@@ -143,6 +146,45 @@ export default function DashboardSidebar() {
     }
     loadUser();
   }, []);
+
+  // --- LÓGICA DE PERSISTÊNCIA (A mesma do Header) ---
+  useEffect(() => {
+    const exclusiveProfessionalRoutes = [
+      "/dashboard/profissional",
+      "/dashboard/minhas-propostas",
+      "/dashboard/projetos-ativos",
+      "/dashboard/financeiro",
+      "/dashboard/encontrar-projetos",
+    ];
+
+    const exclusiveClientRoutes = [
+      "/dashboard/cliente",
+      "/dashboard/meus-projetos",
+      "/dashboard/favoritos",
+      "/search",
+    ];
+
+    const isExclusivePro = exclusiveProfessionalRoutes.some((r) =>
+      pathname.startsWith(r)
+    );
+    const isExclusiveClient = exclusiveClientRoutes.some((r) =>
+      pathname.startsWith(r)
+    );
+
+    if (isExclusivePro) {
+      setViewMode("PROFESSIONAL");
+    } else if (isExclusiveClient) {
+      setViewMode("CLIENT");
+    } else {
+      // Rotas compartilhadas: lemos do storage
+      const storedMode = localStorage.getItem("dashboardViewMode") as
+        | "CLIENT"
+        | "PROFESSIONAL";
+      if (storedMode) {
+        setViewMode(storedMode);
+      }
+    }
+  }, [pathname]);
 
   const professionalLinks = [
     {
@@ -191,29 +233,7 @@ export default function DashboardSidebar() {
     },
   ];
 
-  // --- LÓGICA DEFINITIVA DE CONTEXTO (CORRIGIDA) ---
-  const professionalRoutes = [
-    "/dashboard/profissional",
-    "/dashboard/minhas-propostas",
-    "/dashboard/projetos-ativos",
-    "/dashboard/financeiro",
-    "/dashboard/encontrar-projetos",
-    "/dashboard/chat", // <--- ADICIONADO
-    "/dashboard/perfil", // <--- ADICIONADO
-    "/dashboard/configuracoes", // <--- ADICIONADO
-  ];
-
-  const isProfessionalPath = professionalRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
-
-  // É contexto de Cliente se:
-  // 1. NÃO for uma rota PRO (ou compartilhada que consideramos PRO para o profissional)
-  // 2. OU se o usuário for explicitamente CLIENTE (bloqueia menu PRO mesmo se acessar URL)
-  const isClientContext =
-    !isProfessionalPath || user?.userType !== "PROFESSIONAL";
-
-  const menuItems = isClientContext ? clientLinks : professionalLinks;
+  const menuItems = viewMode === "CLIENT" ? clientLinks : professionalLinks;
 
   return (
     <>
@@ -256,7 +276,7 @@ export default function DashboardSidebar() {
 
         <nav className="flex-1 py-8 px-4 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
           <div className="px-4 mb-4 text-xs font-bold text-slate-500 uppercase tracking-widest opacity-50">
-            Menu {isClientContext ? "Cliente" : "Profissional"}
+            Menu {viewMode === "CLIENT" ? "Cliente" : "Profissional"}
           </div>
 
           {menuItems.map((item) => {

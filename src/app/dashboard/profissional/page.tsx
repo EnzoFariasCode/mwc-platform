@@ -1,5 +1,7 @@
-"use client";
-
+import { db } from "@/lib/prisma";
+import { verifySession } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { PageContainer } from "@/components/dashboard/PageContainer";
 import Link from "next/link";
 import {
@@ -12,7 +14,62 @@ import {
   UserCheck,
 } from "lucide-react";
 
-export default function ProfissionalDashboard() {
+// Server Component (Async)
+export default async function ProfissionalDashboard() {
+  // 1. Autenticação
+  const cookieStore = await cookies();
+  const token = cookieStore.get("session")?.value;
+  const session = token ? await verifySession(token) : null;
+
+  if (!session || !session.sub) {
+    redirect("/login");
+  }
+
+  const userId = session.sub as string;
+
+  // 2. Buscando dados reais em paralelo
+  const [conversationsCount, proposalsCount, completedProjects] =
+    await Promise.all([
+      // Leads Diretos: Conversas onde sou Participante A ou B
+      db.conversation.count({
+        where: {
+          OR: [{ participantAId: userId }, { participantBId: userId }],
+        },
+      }),
+
+      // Propostas Enviadas
+      db.proposal.count({
+        where: {
+          professionalId: userId,
+        },
+      }),
+
+      // Ganhos: Projetos FINALIZADOS onde fui o profissional
+      db.project.findMany({
+        where: {
+          professionalId: userId,
+          status: "COMPLETED", // Só conta dinheiro de projeto entregue
+          agreedPrice: { not: null }, // Garante que tem valor
+        },
+        select: {
+          agreedPrice: true,
+        },
+      }),
+    ]);
+
+  // 3. Cálculo de Ganhos
+  const totalEarnings = completedProjects.reduce((acc, project) => {
+    return acc + (Number(project.agreedPrice) || 0);
+  }, 0);
+
+  const formattedEarnings = totalEarnings.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+
+  // * Visitas no Perfil: Mantido mockado pois ainda não temos analytics de profile views
+  const profileVisits = 128;
+
   return (
     <PageContainer>
       <div className="space-y-8 animate-fade-in">
@@ -46,32 +103,32 @@ export default function ProfissionalDashboard() {
           </div>
         </div>
 
-        {/* Cards Pro */}
+        {/* Cards Pro - Agora com DADOS REAIS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             icon={Eye}
             label="Visitas no Perfil"
-            value="128"
+            value={profileVisits}
             subtext="Esta semana"
             color="text-blue-400"
           />
           <StatCard
             icon={MessageCircle}
             label="Leads Diretos"
-            value="5"
-            subtext="Mensagens novas"
+            value={conversationsCount} // Dados reais do banco
+            subtext="Conversas ativas"
             color="text-green-400"
           />
           <StatCard
             icon={FileText}
             label="Propostas Enviadas"
-            value="12"
+            value={proposalsCount} // Dados reais do banco
             color="text-yellow-400"
           />
           <StatCard
             icon={DollarSign}
             label="Total Ganhos"
-            value="R$ 1.250,00"
+            value={formattedEarnings} // Calculado com base em projetos COMPLETED
             color="text-[#d73cbe]"
           />
         </div>
@@ -99,7 +156,7 @@ export default function ProfissionalDashboard() {
   );
 }
 
-// StatCard duplicado aqui ou importado de componente comum
+// Componente visual simples para os cards
 function StatCard({ icon: Icon, label, value, color, subtext }: any) {
   return (
     <div className="p-6 rounded-2xl bg-slate-900 border border-white/5 hover:border-white/10 transition-colors">

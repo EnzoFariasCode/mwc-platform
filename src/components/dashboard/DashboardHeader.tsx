@@ -15,48 +15,88 @@ export default function DashboardHeader() {
   const [userRole, setUserRole] = useState<
     "CLIENT" | "PROFESSIONAL" | "ADMIN" | null
   >(null);
+  // Estado para controlar visualmente se estamos no modo Cliente ou Profissional
+  const [viewMode, setViewMode] = useState<"CLIENT" | "PROFESSIONAL">("CLIENT");
 
+  // 1. Carrega o Perfil
   useEffect(() => {
     async function checkRole() {
       const user = await getUserProfile();
       if (user) {
         setUserRole(user.userType);
+        // Se for 100% cliente, força o viewMode inicial
+        if (user.userType === "CLIENT") setViewMode("CLIENT");
       }
     }
     checkRole();
   }, []);
 
-  // --- LÓGICA DEFINITIVA (CORRIGIDA) ---
-  // Adicionamos Chat, Perfil e Configurações aqui.
-  // Como temos a trava (userRole === "CLIENT") abaixo, isso não quebra para o cliente.
-  const professionalRoutes = [
-    "/dashboard/profissional",
-    "/dashboard/minhas-propostas",
-    "/dashboard/projetos-ativos",
-    "/dashboard/financeiro",
-    "/dashboard/encontrar-projetos",
-    "/dashboard/chat", // <--- ADICIONADO
-    "/dashboard/perfil", // <--- ADICIONADO (Minha Vitrine)
-    "/dashboard/configuracoes", // <--- ADICIONADO
-  ];
+  // 2. Lógica Inteligente de Persistência de Modo (Sticky Mode)
+  useEffect(() => {
+    // Rotas que SÓ existem para o Profissional
+    const exclusiveProfessionalRoutes = [
+      "/dashboard/profissional",
+      "/dashboard/minhas-propostas",
+      "/dashboard/projetos-ativos",
+      "/dashboard/financeiro",
+      "/dashboard/encontrar-projetos",
+    ];
 
-  const isProfessionalPath = professionalRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
+    // Rotas que SÓ existem para o Cliente
+    const exclusiveClientRoutes = [
+      "/dashboard/cliente",
+      "/dashboard/meus-projetos",
+      "/dashboard/favoritos",
+      "/search",
+    ];
 
-  // Se for rota de PRO, mas o usuário for CLIENTE, forçamos o modo Cliente.
-  // Se for rota de PRO e usuário PRO, o modo Cliente fica FALSO (ou seja, modo Pro).
-  const isClientArea = !isProfessionalPath || userRole === "CLIENT";
+    // Verifica onde estamos
+    const isExclusivePro = exclusiveProfessionalRoutes.some((r) =>
+      pathname.startsWith(r)
+    );
+    const isExclusiveClient = exclusiveClientRoutes.some((r) =>
+      pathname.startsWith(r)
+    );
+
+    if (isExclusivePro) {
+      // Se entrou em área exclusiva PRO, marca como PRO e salva
+      setViewMode("PROFESSIONAL");
+      localStorage.setItem("dashboardViewMode", "PROFESSIONAL");
+    } else if (isExclusiveClient) {
+      // Se entrou em área exclusiva CLIENTE, marca como CLIENTE e salva
+      setViewMode("CLIENT");
+      localStorage.setItem("dashboardViewMode", "CLIENT");
+    } else {
+      // Se estamos em rota COMPARTILHADA (Chat, Perfil, Configurações),
+      // recuperamos a última memória do usuário.
+      const storedMode = localStorage.getItem("dashboardViewMode") as
+        | "CLIENT"
+        | "PROFESSIONAL";
+      if (storedMode) {
+        setViewMode(storedMode);
+      } else {
+        // Fallback: Se não tem memória, usa o papel do usuário
+        if (userRole === "PROFESSIONAL") setViewMode("PROFESSIONAL");
+      }
+    }
+  }, [pathname, userRole]);
 
   const handleSwitch = (targetType: "client" | "professional") => {
+    // Salva a intenção do usuário no LocalStorage
     if (targetType === "client") {
+      localStorage.setItem("dashboardViewMode", "CLIENT");
+      setViewMode("CLIENT");
       router.push("/dashboard/cliente");
     } else {
       if (userRole === "PROFESSIONAL" || userRole === "ADMIN") {
+        localStorage.setItem("dashboardViewMode", "PROFESSIONAL");
+        setViewMode("PROFESSIONAL");
         router.push("/dashboard/profissional");
       }
     }
   };
+
+  const isClientArea = viewMode === "CLIENT";
 
   return (
     <header className="h-20 bg-slate-900 border-b border-white/5 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">

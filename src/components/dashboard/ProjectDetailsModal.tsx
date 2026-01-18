@@ -4,7 +4,6 @@ import {
   X,
   Calendar,
   DollarSign,
-  Briefcase,
   Send,
   Users,
   ChevronDown,
@@ -14,10 +13,17 @@ import {
   Loader2,
   Clock,
   Quote,
+  Download,
+  ThumbsUp,
+  ThumbsDown,
+  Hourglass,
+  CheckCircle,
+  Briefcase,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { SendProposalModal } from "./SendProposalModal";
 import { getProjectProposals } from "@/actions/proposals/get-project-proposals";
+import { approveProject } from "@/actions/proposals/approve-project";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -37,14 +43,13 @@ export function ProjectDetailsModal({
   isOwner = false,
 }: ProjectDetailsModalProps) {
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
-
-  // Estados para Propostas
   const [proposals, setProposals] = useState<any[]>([]);
   const [isLoadingProposals, setIsLoadingProposals] = useState(false);
   const [showProposals, setShowProposals] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
 
   useEffect(() => {
-    if (isOpen && isOwner && project?.id) {
+    if (isOpen && isOwner && project?.id && project?.status === "OPEN") {
       const fetchProposals = async () => {
         setIsLoadingProposals(true);
         const res = await getProjectProposals(project.id);
@@ -60,12 +65,33 @@ export function ProjectDetailsModal({
     }
   }, [isOpen, isOwner, project]);
 
+  const handleApprove = async () => {
+    setIsApproving(true);
+    const result = await approveProject(project.id);
+
+    if (result.success) {
+      toast.success("Projeto finalizado com sucesso!");
+      onClose();
+    } else {
+      toast.error(result.error || "Erro ao aprovar.");
+    }
+    setIsApproving(false);
+  };
+
   if (!isOpen || !project) return null;
 
   const budgetLabel = project.budgetLabel || "A combinar";
   const deadline = project.deadline || "Não informado";
   const category = project.category || "Geral";
   const tags = project.tags || [];
+
+  // MOCK DE ENTREGA (Simulando dados do banco)
+  const lastDeliverable = {
+    link: "https://github.com/mwc-project/delivery",
+    description:
+      "Olá! Segue o link com o código fonte finalizado e a documentação no README.",
+    date: new Date().toLocaleDateString("pt-BR"),
+  };
 
   return (
     <>
@@ -97,10 +123,184 @@ export function ProjectDetailsModal({
 
           {/* --- BODY --- */}
           <div className="p-6 overflow-y-auto custom-scrollbar space-y-8">
-            {/* === ÁREA VIP: PROPOSTAS (Só aparece para o dono) === */}
-            {isOwner && (
+            {/* === CENÁRIO 1: PROJETO EM ANÁLISE (ENTREGUE) === */}
+            {isOwner && project.status === "UNDER_REVIEW" && (
+              <div className="relative bg-green-500/5 border border-green-500/20 rounded-2xl p-6 overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-green-500" />
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="p-2 bg-green-500/20 rounded-lg">
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">
+                      Projeto Entregue!
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      O profissional marcou como concluído. Analise os arquivos
+                      abaixo e aprove para liberar o pagamento.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card de Entrega */}
+                <div className="bg-slate-950/50 border border-white/10 rounded-xl p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1">
+                      <Download className="w-4 h-4 text-[#d73cbe]" />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <p className="text-xs text-slate-500 uppercase font-bold">
+                        Arquivos / Link
+                      </p>
+                      <a
+                        href={lastDeliverable.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-[#d73cbe] hover:underline break-all block"
+                      >
+                        {lastDeliverable.link}
+                      </a>
+                      <div className="h-px bg-white/5 my-2" />
+                      <p className="text-xs text-slate-500 uppercase font-bold">
+                        Comentário
+                      </p>
+                      <p className="text-sm text-slate-300 italic">
+                        "{lastDeliverable.description}"
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Botões de Ação */}
+                <div className="grid grid-cols-2 gap-3">
+                  <button className="flex items-center justify-center gap-2 py-3 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 font-bold text-xs transition-colors cursor-pointer">
+                    <ThumbsDown className="w-4 h-4" /> Solicitar Revisão
+                  </button>
+                  <button
+                    onClick={handleApprove}
+                    disabled={isApproving}
+                    className="flex items-center justify-center gap-2 py-3 rounded-xl bg-green-500 hover:bg-green-400 text-black font-bold text-xs transition-all shadow-lg shadow-green-900/20 transform hover:-translate-y-0.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {isApproving ? (
+                      <>Processando...</>
+                    ) : (
+                      <>
+                        <ThumbsUp className="w-4 h-4" /> Aprovar e Finalizar
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* === CENÁRIO 4: PROJETO CONCLUÍDO (FIXO PARA SEMPRE) === */}
+            {project.status === "COMPLETED" && (
+              <div className="space-y-6">
+                {/* Mensagem de Sucesso */}
+                <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-6 text-center relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-green-500" />
+                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-green-500/20">
+                    <CheckCircle className="w-6 h-6 text-black" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    Projeto Finalizado!
+                  </h3>
+                  <p className="text-slate-400 text-xs">
+                    Pagamento liberado. O projeto foi encerrado com sucesso.
+                  </p>
+                </div>
+
+                {/* ARQUIVOS FINAIS (FIXOS) - O que você pediu */}
+                {isOwner && (
+                  <div className="bg-slate-900 border border-white/5 rounded-2xl p-6">
+                    <h4 className="text-sm text-slate-300 font-bold uppercase mb-4 flex items-center gap-2">
+                      <Briefcase className="w-4 h-4 text-[#d73cbe]" /> Arquivos
+                      da Entrega
+                    </h4>
+                    <div className="bg-slate-950/50 border border-white/10 rounded-xl p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-1">
+                          <Download className="w-4 h-4 text-[#d73cbe]" />
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <p className="text-xs text-slate-500 uppercase font-bold">
+                            Link de Acesso
+                          </p>
+                          <a
+                            href={lastDeliverable.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-[#d73cbe] hover:underline break-all block"
+                          >
+                            {lastDeliverable.link}
+                          </a>
+                          <div className="h-px bg-white/5 my-2" />
+                          <p className="text-xs text-slate-500 uppercase font-bold">
+                            Nota do Profissional
+                          </p>
+                          <p className="text-sm text-slate-300 italic">
+                            "{lastDeliverable.description}"
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* === CENÁRIO 2: PROJETO EM ANDAMENTO (AGUARDANDO) === */}
+            {isOwner && project.status === "IN_PROGRESS" && (
+              <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-6 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="p-2 bg-blue-500/20 rounded-lg shrink-0">
+                    <Hourglass className="w-6 h-6 text-blue-400 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white mb-1">
+                      Trabalho em Andamento
+                    </h3>
+                    <p className="text-sm text-slate-400 leading-relaxed">
+                      O profissional já iniciou o serviço. Você será notificado
+                      aqui assim que ele enviar os arquivos.
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-slate-950/50 rounded-xl p-4 border border-white/10 flex flex-col gap-4">
+                  <div className="flex items-center gap-3 pb-4 border-b border-white/5">
+                    <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
+                      {project.professional?.name
+                        ? project.professional.name.charAt(0)
+                        : "P"}
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase font-bold">
+                        Profissional Responsável
+                      </p>
+                      <p className="text-white font-bold">
+                        {project.professional?.name || "Profissional MWC"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-slate-900 rounded-lg text-slate-400">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase font-bold">
+                        Prazo de Entrega
+                      </p>
+                      <p className="text-white font-mono">{deadline}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* === CENÁRIO 3: PROJETO EM ABERTO (LISTA DE PROPOSTAS) === */}
+            {isOwner && project.status === "OPEN" && (
               <div className="relative">
-                {/* Botão Principal / Toggle */}
                 <button
                   onClick={() => setShowProposals(!showProposals)}
                   className={`w-full flex items-center justify-between p-5 rounded-2xl border transition-all group relative overflow-hidden ${
@@ -109,7 +309,6 @@ export function ProjectDetailsModal({
                       : "bg-slate-900/50 border-white/10 hover:border-[#d73cbe]/30"
                   }`}
                 >
-                  {/* Background Gradient Sutil */}
                   <div
                     className={`absolute inset-0 bg-gradient-to-r from-[#d73cbe]/10 to-transparent transition-opacity ${
                       showProposals
@@ -117,7 +316,6 @@ export function ProjectDetailsModal({
                         : "opacity-0 group-hover:opacity-50"
                     }`}
                   />
-
                   <div className="flex items-center gap-4 relative z-10">
                     <div className="relative">
                       <div className="w-12 h-12 rounded-xl bg-[#d73cbe] flex items-center justify-center text-white shadow-lg shadow-[#d73cbe]/20">
@@ -149,7 +347,6 @@ export function ProjectDetailsModal({
                   />
                 </button>
 
-                {/* Lista de Cards */}
                 {showProposals && (
                   <div className="mt-4 space-y-4 animate-in slide-in-from-top-4 fade-in duration-300">
                     {isLoadingProposals ? (
@@ -170,9 +367,8 @@ export function ProjectDetailsModal({
                           key={proposal.id}
                           className="bg-slate-900 border border-white/5 rounded-2xl p-5 hover:border-[#d73cbe]/40 transition-all shadow-lg hover:shadow-[#d73cbe]/5 group"
                         >
-                          {/* Topo do Card: Info Profissional + Preço */}
+                          {/* ... Card de Proposta ... */}
                           <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-5">
-                            {/* Profissional */}
                             <div className="flex items-center gap-3">
                               <div className="w-12 h-12 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-lg font-bold text-slate-300 group-hover:border-[#d73cbe]/50 transition-colors">
                                 {proposal.professional.name.charAt(0)}
@@ -194,8 +390,6 @@ export function ProjectDetailsModal({
                                 </div>
                               </div>
                             </div>
-
-                            {/* Valor e Prazo (Caixa de Destaque) */}
                             <div className="flex items-center gap-3 bg-slate-950/80 p-2 rounded-xl border border-white/5">
                               <div className="text-right px-2 border-r border-white/10">
                                 <p className="text-[10px] text-slate-500 uppercase font-bold">
@@ -220,31 +414,30 @@ export function ProjectDetailsModal({
                               </div>
                             </div>
                           </div>
-
-                          {/* Carta de Apresentação (Balão) */}
                           <div className="relative bg-slate-800/30 p-4 rounded-xl rounded-tl-none border border-white/5 mb-5 ml-4">
                             <Quote className="absolute -top-2 -left-2 w-4 h-4 text-slate-600 fill-current" />
                             <p className="text-sm text-slate-300 italic leading-relaxed">
                               "{proposal.coverLetter}"
                             </p>
                           </div>
-
-                          {/* Ações */}
                           <div className="grid grid-cols-2 gap-3">
                             <Link
                               href={`/dashboard/chat?newChat=${proposal.professionalId}&projectId=${project.id}`}
                               className="w-full"
                             >
                               <button className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors border border-white/5">
-                                <MessageSquare className="w-4 h-4" />
-                                Negociar
+                                <MessageSquare className="w-4 h-4" /> Negociar
                               </button>
                             </Link>
-
-                            <button className="flex items-center justify-center gap-2 py-3 rounded-xl bg-green-500 hover:bg-green-400 text-black text-xs font-bold transition-all shadow-lg shadow-green-900/20 hover:shadow-green-500/20 transform hover:-translate-y-0.5">
-                              <CheckCircle2 className="w-4 h-4" />
-                              ACEITAR PROPOSTA
-                            </button>
+                            <Link
+                              href={`/dashboard/checkout/${proposal.id}`}
+                              className="w-full"
+                            >
+                              <button className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-green-500 hover:bg-green-400 text-black text-xs font-bold transition-all shadow-lg shadow-green-900/20 hover:shadow-green-500/20 transform hover:-translate-y-0.5">
+                                <CheckCircle2 className="w-4 h-4" /> ACEITAR
+                                PROPOSTA
+                              </button>
+                            </Link>
                           </div>
                         </div>
                       ))
@@ -254,7 +447,7 @@ export function ProjectDetailsModal({
               </div>
             )}
 
-            {/* --- CONTEÚDO NORMAL DO PROJETO (Escopo) --- */}
+            {/* --- CONTEÚDO COMUM (ESCOPO) --- */}
             <div className="space-y-4 pt-2">
               <div className="flex items-center gap-2 text-slate-200 font-bold text-sm uppercase tracking-wider">
                 <div className="w-1 h-4 bg-[#d73cbe] rounded-full" />
@@ -329,16 +522,35 @@ export function ProjectDetailsModal({
 
 // Badge Helper
 function StatusBadge({ status }: { status: string }) {
-  if (status === "OPEN") {
-    return (
-      <span className="px-2 py-1 rounded bg-green-500/10 border border-green-500/20 text-[10px] font-bold text-green-400 uppercase">
-        Em Aberto
-      </span>
-    );
-  }
+  const statusMap: Record<string, any> = {
+    OPEN: {
+      label: "Em Aberto",
+      class: "text-green-400 bg-green-500/10 border-green-500/20",
+    },
+    IN_PROGRESS: {
+      label: "Em Andamento",
+      class: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+    },
+    UNDER_REVIEW: {
+      label: "Em Análise",
+      class: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+    },
+    COMPLETED: {
+      label: "Concluído",
+      class: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+    },
+  };
+
+  const style = statusMap[status] || {
+    label: status,
+    class: "text-slate-400 bg-slate-500/10 border-slate-500/20",
+  };
+
   return (
-    <span className="px-2 py-1 rounded bg-slate-500/10 border border-slate-500/20 text-[10px] font-bold text-slate-400 uppercase">
-      {status}
+    <span
+      className={`px-2 py-1 rounded border text-[10px] font-bold uppercase ${style.class}`}
+    >
+      {style.label}
     </span>
   );
 }

@@ -14,16 +14,17 @@ import {
   Send,
   Calendar,
   ExternalLink,
+  CheckCircle, // <--- Importante: Ícone novo
 } from "lucide-react";
 import { useRef, useState } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { useRouter } from "next/navigation";
 import { SendProposalModal } from "@/components/dashboard/SendProposalModal";
-import { ProjectDetailsModal } from "@/components/dashboard/ProjectDetailsModal"; // <--- Importe o Modal de Detalhes aqui também se for usá-lo, mas acho que o botão "Ver Detalhes" não existe nessa tela cheia, certo? O botão principal é o de baixo.
 
+// 👇 AQUI ESTAVA O ERRO: Adicionamos hasProposed na interface
 interface ProjectDetailsProps {
-  currentUserId: string; // <--- RECEBENDO O ID
+  currentUserId: string;
+  hasProposed: boolean; // <--- AGORA ELE ACEITA RECEBER ISSO
   project: {
     id: string;
     title: string;
@@ -35,8 +36,8 @@ interface ProjectDetailsProps {
     deadline: string;
     createdAt: Date;
     attachments: any;
-    status: string; // Adicionei status aqui para garantir tipagem
-    budgetValue?: number; // Adicionei
+    status: string;
+    budgetValue?: number;
     owner: {
       id: string;
       name: string | null;
@@ -57,15 +58,16 @@ function timeAgo(date: Date) {
   return `há ${Math.floor(diff / 86400)} dias`;
 }
 
+// 👇 Recebemos hasProposed aqui também
 export default function ProjectDetailsView({
   project,
   currentUserId,
+  hasProposed,
 }: ProjectDetailsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
 
-  // --- LÓGICA DE SEGURANÇA ---
   // Sou o dono se meu ID for igual ao ID do dono do projeto
   const isOwner = currentUserId === project.owner.id;
 
@@ -187,8 +189,38 @@ export default function ProjectDetailsView({
 
             {/* BOTÃO DE AÇÃO - LÓGICA DE VISIBILIDADE */}
             <div className="bg-slate-900 border border-white/5 rounded-2xl p-6 sticky top-24 shadow-xl shadow-black/20">
-              {!isOwner ? (
-                // SE NÃO FOR O DONO -> MOSTRA BOTÃO DE PROPOSTA
+              {isOwner ? (
+                // CENÁRIO 1: DONO
+                <div className="text-center py-2">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-800 mb-3 text-slate-400">
+                    <Briefcase className="w-6 h-6" />
+                  </div>
+                  <p className="text-white font-bold mb-1">
+                    Este projeto é seu
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Gerencie em <strong>Meus Pedidos</strong>.
+                  </p>
+                </div>
+              ) : hasProposed ? (
+                // CENÁRIO 2: JÁ ENVIOU PROPOSTA (NOVO)
+                <div className="text-center py-2">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-500/10 mb-3 text-green-500 border border-green-500/20">
+                    <CheckCircle className="w-6 h-6" />
+                  </div>
+                  <p className="text-white font-bold mb-1">Proposta Enviada</p>
+                  <p className="text-xs text-slate-400 mb-4">
+                    Você já aplicou para este projeto. <br />
+                    Acompanhe em "Minhas Propostas".
+                  </p>
+                  <Link href="/dashboard/minhas-propostas">
+                    <button className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors border border-white/5 cursor-pointer">
+                      Ver Minha Proposta
+                    </button>
+                  </Link>
+                </div>
+              ) : (
+                // CENÁRIO 3: PODE ENVIAR
                 <>
                   <button
                     onClick={() => setIsProposalModalOpen(true)}
@@ -201,20 +233,6 @@ export default function ProjectDetailsView({
                     Envie sua oferta e inicie a negociação.
                   </p>
                 </>
-              ) : (
-                // SE FOR O DONO -> MOSTRA AVISO (Ou botão para gerenciar)
-                <div className="text-center py-2">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-800 mb-3 text-slate-400">
-                    <Briefcase className="w-6 h-6" />
-                  </div>
-                  <p className="text-white font-bold mb-1">
-                    Este projeto é seu
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    Você não pode enviar propostas para si mesmo. <br />
-                    Vá em <strong>Meus Pedidos</strong> para gerenciar.
-                  </p>
-                </div>
               )}
             </div>
 

@@ -10,9 +10,9 @@ import {
   AlertCircle,
   DollarSign,
   Plus,
-  Briefcase,
   Eye,
-  Users, // <--- 1. Import do ícone Users
+  Users,
+  Briefcase, // <--- ADICIONADO AQUI
 } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -81,6 +81,7 @@ export default function MyProjectsView({
       setIsDeleteModalOpen(false);
       setProjectToDelete(null);
       router.refresh();
+      toast.success("Projeto excluído com sucesso.");
     } else {
       console.error(result.error);
       toast.error("Erro ao excluir projeto.");
@@ -120,9 +121,8 @@ export default function MyProjectsView({
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-[#d73cbe]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-                {/* --- 2. BADGE DE PROPOSTAS (NOVO) --- */}
-                {/* Verifica se existe o contador e se é maior que 0 */}
-                {project._count?.proposals > 0 && (
+                {/* Badge de Propostas (Só se estiver em aberto) */}
+                {project.status === "OPEN" && project._count?.proposals > 0 && (
                   <div className="absolute top-6 right-16 px-2.5 py-1 rounded-full bg-[#d73cbe] text-white text-[10px] font-bold shadow-lg shadow-[#d73cbe]/30 flex items-center gap-1 animate-pulse z-10">
                     <Users className="w-3 h-3" />
                     {project._count.proposals} Proposta
@@ -135,13 +135,15 @@ export default function MyProjectsView({
                   <div className="flex items-start justify-between mb-4">
                     <StatusBadge status={project.status} />
 
-                    <button
-                      onClick={() => handleOpenDelete(project)}
-                      className="text-slate-500 hover:text-red-500 transition-colors cursor-pointer p-1 rounded-lg hover:bg-red-500/10 z-20"
-                      title="Excluir projeto"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                    {project.status === "OPEN" && (
+                      <button
+                        onClick={() => handleOpenDelete(project)}
+                        className="text-slate-500 hover:text-red-500 transition-colors cursor-pointer p-1 rounded-lg hover:bg-red-500/10 z-20"
+                        title="Excluir projeto"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
                   </div>
 
                   <div className="mb-4">
@@ -149,9 +151,10 @@ export default function MyProjectsView({
                       {project.title}
                     </h3>
 
+                    {/* Mostra o Profissional se já tiver */}
                     {project.professional ? (
                       <div className="flex items-center gap-3 bg-slate-950/50 p-3 rounded-xl border border-white/5">
-                        <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs border border-white/10 shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs border border-white/10 shrink-0">
                           {project.professional.name
                             ? project.professional.name.charAt(0)
                             : "P"}
@@ -161,11 +164,12 @@ export default function MyProjectsView({
                             {project.professional.name}
                           </p>
                           <p className="text-xs text-slate-400">
-                            Profissional Responsável
+                            Profissional Contratado
                           </p>
                         </div>
                       </div>
                     ) : (
+                      // Se não tiver profissional, mostra o aviso
                       <div className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-slate-700 bg-slate-950/30 text-slate-500 text-xs">
                         <AlertCircle className="w-4 h-4" />
                         Aguardando propostas...
@@ -179,7 +183,7 @@ export default function MyProjectsView({
                         <CalendarClock className="w-3 h-3" /> Prazo
                       </p>
                       <p className="text-sm font-bold text-slate-200 truncate">
-                        {project.deadline}
+                        {project.deadline || "A definir"}
                       </p>
                     </div>
                     <div>
@@ -187,7 +191,12 @@ export default function MyProjectsView({
                         <DollarSign className="w-3 h-3" /> Valor
                       </p>
                       <p className="text-sm font-bold text-slate-200">
-                        {project.budgetLabel}
+                        {project.agreedPrice
+                          ? Number(project.agreedPrice).toLocaleString(
+                              "pt-BR",
+                              { style: "currency", currency: "BRL" }
+                            )
+                          : project.budgetLabel}
                       </p>
                     </div>
                   </div>
@@ -197,19 +206,24 @@ export default function MyProjectsView({
                 <div className="grid grid-cols-2 gap-3 mt-auto">
                   <button
                     onClick={() => handleOpenDetails(project)}
-                    className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors border border-white/5 cursor-pointer"
+                    className={`flex items-center justify-center gap-2 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors border border-white/5 cursor-pointer ${
+                      !project.professional ? "col-span-2" : ""
+                    }`}
                   >
                     <Eye className="w-3 h-3" />
                     Ver Detalhes
                   </button>
 
-                  <Link
-                    href="/dashboard/chat"
-                    className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#d73cbe]/10 hover:bg-[#d73cbe] text-[#d73cbe] hover:text-white text-xs font-bold transition-all border border-[#d73cbe]/20 hover:border-[#d73cbe] cursor-pointer"
-                  >
-                    <MessageSquare className="w-3 h-3" />
-                    Chat
-                  </Link>
+                  {/* Link do Chat (Só se tiver profissional) */}
+                  {project.professional && (
+                    <Link
+                      href={`/dashboard/chat?newChat=${project.professional.id}&projectId=${project.id}`}
+                      className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#d73cbe]/10 hover:bg-[#d73cbe] text-[#d73cbe] hover:text-white text-xs font-bold transition-all border border-[#d73cbe]/20 hover:border-[#d73cbe] cursor-pointer"
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      Chat
+                    </Link>
+                  )}
                 </div>
               </div>
             ))}
@@ -247,7 +261,7 @@ export default function MyProjectsView({
           isOpen={isDetailsModalOpen}
           onClose={() => setIsDetailsModalOpen(false)}
           project={selectedProject}
-          isOwner={true} // <--- 3. Aqui ativamos o modo "Dono" para ver propostas
+          isOwner={true}
         />
 
         {/* Modal de Exclusão */}
@@ -280,6 +294,15 @@ function StatusBadge({ status }: { status: string }) {
         <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
         <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wide">
           Em Andamento
+        </span>
+      </div>
+    );
+  }
+  if (status === "WAITING_PAYMENT") {
+    return (
+      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20">
+        <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wide">
+          Pagamento Pendente
         </span>
       </div>
     );
