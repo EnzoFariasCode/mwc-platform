@@ -536,3 +536,120 @@ Função: Cabeçalho superior. Contém a lógica do "Switch" (botão deslizante)
 src/components/dashboard/DashboardSidebar.tsx
 
 Função: Menu lateral. Lista os links de navegação e altera dinamicamente os itens do menu dependendo se o usuário está no contexto de Cliente ou Profissional.
+
+## Modais
+
+1. Fluxo de Conta e Perfil
+   BecomeProfessionalModal.tsx
+   Quem usa: Cliente (que ainda não é profissional).
+
+Objetivo: Transformar a conta de apenas "Cliente" para "Híbrida" (Cliente + Profissional).
+
+Onde é chamado: Dashboard do Cliente (ClientDashboardView), botão "Trabalhar como Profissional".
+
+Ação: Atualiza o role no banco e força um reload da página para liberar o switch de perfil no menu lateral.
+
+CompleteProfileModal.tsx
+Quem usa: Profissional novo.
+
+Objetivo: Forçar/Lembrar o usuário de preencher bio, skills e foto para ter mais visibilidade.
+
+Onde é chamado: Dashboard do Profissional (ProfessionalDashboardView).
+
+Lógica: Aparece automaticamente se o perfil estiver incompleto (verificação feita no page.tsx).
+
+EditProfileModal.tsx
+Quem usa: Ambos.
+
+Objetivo: Editar dados pessoais, foto, bio e skills.
+
+Onde é chamado: Página de Perfil (/dashboard/perfil).
+
+2. Fluxo de Criação e Gestão de Projetos (Cliente)
+   NewProjectModal.tsx
+   Quem usa: Cliente.
+
+Objetivo: Formulário para criar um novo projeto (Título, Descrição, Categoria, Orçamento).
+
+Onde é chamado: Botão "Novo Pedido" no Header ou no Dashboard do Cliente.
+
+Ação: Cria o projeto com status OPEN no banco.
+
+DelMyProjectsModal.tsx
+Quem usa: Cliente.
+
+Objetivo: Confirmar a exclusão de um projeto que ainda não foi iniciado.
+
+Onde é chamado: Lista de "Meus Pedidos" (MyProjectsView), ícone de lixeira.
+
+Segurança: Só permite excluir se o projeto estiver OPEN.
+
+EditProjectModal.tsx
+Quem usa: Cliente.
+
+Objetivo: Corrigir informações de um projeto publicado.
+
+Onde é chamado: Lista de "Meus Pedidos" (geralmente via menu de opções no card).
+
+3. Fluxo de Negociação e Contratação
+   SendProposalModal.tsx
+   Quem usa: Profissional.
+
+Objetivo: Enviar uma proposta financeira e carta de apresentação para um projeto aberto.
+
+Onde é chamado:
+
+Na busca de projetos (FindProjectsView).
+
+Dentro do ProjectDetailsModal (se o projeto estiver aberto).
+
+4. O "Coração" do Sistema (O Modal Mais Importante)
+   ProjectDetailsModal.tsx
+   Este é o modal "inteligente" que muda de cara dependendo de quem vê e do status do projeto.
+
+Quem usa: Cliente (Dono) e Profissional (Visitante/Contratado).
+
+Objetivo: Centralizar todas as informações e ações do ciclo de vida do projeto.
+
+Comportamentos por Status:
+
+Status OPEN (Em Aberto):
+
+Cliente: Vê lista de propostas recebidas (Card com botão de Aceitar/Checkout).
+
+Profissional: Vê botão "Enviar Proposta".
+
+Status IN_PROGRESS (Em Andamento):
+
+Cliente: Vê card azul "Trabalho em Andamento" e dados do profissional.
+
+Profissional: Vê detalhes do que deve fazer.
+
+Status UNDER_REVIEW (Em Análise):
+
+Cliente: Vê card verde "Projeto Entregue" com link dos arquivos e botões "Aprovar" ou "Revisão".
+
+Status COMPLETED (Concluído):
+
+Ambos: Veem mensagem de sucesso e o link dos arquivos finais fixado para sempre (acesso vitalício).
+
+5. Fluxo de Entrega (Profissional)
+   DeliverProjectModal.tsx
+   Quem usa: Profissional (apenas o contratado).
+
+Objetivo: Enviar o link final (GitHub/Drive) e a mensagem de conclusão.
+
+Onde é chamado: Aba "Projetos Ativos" (ActiveProjectsView), botão "Entregar Projeto".
+
+Condição: O botão só aparece se o status for IN_PROGRESS.
+
+Componentes de Layout (Não são Modais)
+Apenas para referência rápida dos outros arquivos na pasta:
+
+PageContainer.tsx: O "wrapper" que dá o espaçamento padrão e padding em todas as páginas do dashboard.
+
+DashboardHeader.tsx: A barra superior com o Switch (Cliente/Pro), notificações e menu de usuário.
+
+DashboardSidebar.tsx: O menu lateral de navegação.
+
+NotificationDropdown.tsx: O menu que abre ao clicar no sininho.
