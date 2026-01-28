@@ -12,10 +12,10 @@ import {
   ChevronRight,
   Search,
   DollarSign,
-  Loader2, // <--- Importei Loader
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
-import { getProfessionals } from "@/actions/search/get-professionals"; // <--- Importe a Action
+import { getProfessionals } from "@/actions/search/get-professionals";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -61,10 +61,10 @@ function SearchContent() {
     const fetchPros = async () => {
       setIsLoading(true);
 
-      // Debounce simples (opcional) ou chamada direta
+      // Busca os dados via Server Action
       const res = await getProfessionals({
         query: localSearch,
-        location: queryLocation, // Você pode adicionar um input de local na sidebar tbm se quiser
+        location: queryLocation,
         category: selectedCategory !== "Todas" ? selectedCategory : undefined,
         minPrice: minPrice ? Number(minPrice) : undefined,
         maxPrice: maxPrice ? Number(maxPrice) : undefined,
@@ -82,7 +82,7 @@ function SearchContent() {
       setIsLoading(false);
     };
 
-    // Delay para não buscar a cada letra digitada (Debounce simulado de 500ms)
+    // Debounce de 500ms para não chamar o banco a cada tecla
     const timeoutId = setTimeout(() => {
       fetchPros();
     }, 500);
@@ -172,7 +172,7 @@ function SearchContent() {
               </div>
             </div>
 
-            {/* 3. Categorias (Filtro Visual - Backend precisaria suportar 'role' específico ou tags) */}
+            {/* 3. Categorias */}
             <div className="space-y-3 mb-6">
               <label className="text-sm font-medium text-slate-300">
                 Categorias
@@ -191,7 +191,11 @@ function SearchContent() {
                       className="accent-purple-500"
                     />
                     <span
-                      className={`text-sm ${selectedCategory === cat ? "text-white font-medium" : "text-slate-400 group-hover:text-purple-300"}`}
+                      className={`text-sm ${
+                        selectedCategory === cat
+                          ? "text-white font-medium"
+                          : "text-slate-400 group-hover:text-purple-300"
+                      }`}
                     >
                       {cat}
                     </span>
@@ -255,7 +259,7 @@ function SearchContent() {
                         alt={pro.name}
                         className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-slate-700 bg-slate-800"
                       />
-                      {/* Badge Online (Simulado ou Real se tiver no banco) */}
+                      {/* Badge Online (Simulado) */}
                       <span
                         className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 border-2 border-slate-900 rounded-full"
                         title="Disponível"
@@ -268,20 +272,19 @@ function SearchContent() {
                         <div>
                           <h2 className="text-xl font-bold text-white flex items-center gap-2">
                             {pro.name}
-                            {/* Verifica se rating > 4.5 para dar selo verificado, por exemplo */}
+                            {/* Verifica se rating > 4.5 para dar selo verificado */}
                             {pro.rating >= 4.5 && (
                               <span title="Profissional Top">
                                 <CheckCircle2 className="w-5 h-5 text-blue-400" />
                               </span>
                             )}
                           </h2>
+
+                          {/* --- [AQUI ESTAVA O ERRO] CORRIGIDO: Usa jobTitle --- */}
                           <p className="text-purple-400 font-medium truncate max-w-[200px] sm:max-w-md">
-                            {pro.role === "PROFESSIONAL"
-                              ? pro.bio
-                                ? pro.bio.slice(0, 50) + "..."
-                                : "Profissional MWC"
-                              : pro.role}
+                            {pro.jobTitle || "Profissional MWC"}
                           </p>
+                          {/* --------------------------------------------------- */}
                         </div>
                         <div className="text-left md:text-right shrink-0">
                           <span className="block text-xl font-bold text-white">
@@ -310,7 +313,6 @@ function SearchContent() {
                       {/* Skills / Tags */}
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-slate-800">
                         <div className="flex flex-wrap gap-2">
-                          {/* Se skills for array, mapeia. Se não, mostra genérico */}
                           {Array.isArray(pro.skills) &&
                           pro.skills.length > 0 ? (
                             pro.skills.slice(0, 3).map((tag: string) => (
@@ -340,7 +342,9 @@ function SearchContent() {
 
                           {/* AÇÃO DO CHAT */}
                           <Link
-                            href={`/login?action=chat&proId=${pro.id}&proName=${encodeURIComponent(pro.name)}`}
+                            href={`/login?action=chat&proId=${
+                              pro.id
+                            }&proName=${encodeURIComponent(pro.name)}`}
                             className="flex-1 sm:flex-none"
                           >
                             <button className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-purple-900/20">
@@ -403,7 +407,7 @@ function SearchContent() {
   );
 }
 
-// Wrapper para Suspense (Necessário no Next.js com useSearchParams)
+// Wrapper para Suspense
 export default function SearchPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200">

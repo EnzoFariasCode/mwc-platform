@@ -1,13 +1,12 @@
-// src/actions/auth/register-user.ts
 "use server";
 
 import bcrypt from "bcryptjs";
 import { UserType } from "@prisma/client";
-import { findUserByEmail, createUser } from "@/services/user-service"; // <--- Service
-import { ActionResponse } from "@/types/user-types"; // <--- Tipagem Padrão
+import { findUserByEmail, createUser } from "@/services/user-service";
+import { ActionResponse } from "@/types/user-types";
 
 export async function registerUser(
-  formData: FormData
+  formData: FormData,
 ): Promise<ActionResponse> {
   const name = formData.get("name")?.toString().trim();
   const email = formData.get("email")?.toString().trim();
@@ -16,8 +15,20 @@ export async function registerUser(
   const birthDateRaw = formData.get("birthDate")?.toString();
   const isPro = formData.get("isPro") === "on";
 
+  // [NOVO] Captura os dados profissionais
+  const jobTitle = formData.get("jobTitle")?.toString().trim();
+  const experienceRaw = formData.get("experienceLevel")?.toString();
+
   if (!name || !email || !password) {
     return { success: false, error: "Preencha todos os campos obrigatórios." };
+  }
+
+  // [NOVO] Validação extra para profissionais
+  if (isPro && !jobTitle) {
+    return {
+      success: false,
+      error: "Profissionais precisam informar sua especialidade.",
+    };
   }
 
   try {
@@ -32,6 +43,9 @@ export async function registerUser(
     const hashedPassword = await bcrypt.hash(password, 10);
     const birthDate = birthDateRaw ? new Date(birthDateRaw) : null;
 
+    // [NOVO] Converte a experiência para número (se existir)
+    const yearsOfExperience = experienceRaw ? parseInt(experienceRaw) : null;
+
     // 3. Cria via Service
     await createUser({
       name,
@@ -40,6 +54,8 @@ export async function registerUser(
       displayName: displayName || name,
       birthDate,
       userType: isPro ? UserType.PROFESSIONAL : UserType.CLIENT,
+      jobTitle: isPro ? jobTitle : null,
+      yearsOfExperience: isPro ? yearsOfExperience : null,
     });
 
     return { success: true };

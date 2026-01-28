@@ -3,7 +3,6 @@
 import { PageContainer } from "@/components/dashboard/PageContainer";
 import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
-// import { useRouter } from "next/navigation"; // <--- Não precisamos mais do router aqui
 import {
   Briefcase,
   Megaphone,
@@ -17,6 +16,7 @@ import { NewProjectModal } from "@/components/dashboard/NewProjectModal";
 import { becomeProfessional } from "@/actions/account/become-professional";
 import { BecomeProfessionalModal } from "@/components/dashboard/BecomeProfessionalModal";
 import { CompleteProfileModal } from "@/components/dashboard/CompleteProfileModal";
+import { toast } from "sonner"; // Importei para feedback visual
 
 interface ClientDashboardViewProps {
   stats: {
@@ -25,14 +25,14 @@ interface ClientDashboardViewProps {
     ongoingProjects: number;
   };
   isProfileIncomplete: boolean;
+  user: any; // Adicionei user prop se precisar do ID, mas nossa action nova usa cookie
 }
 
 export default function ClientDashboardView({
   stats,
   isProfileIncomplete,
+  user,
 }: ClientDashboardViewProps) {
-  // const router = useRouter(); // <--- Removido pois vamos usar window.location
-
   // Modal States
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -55,31 +55,36 @@ export default function ClientDashboardView({
     localStorage.setItem("profile_modal_seen", "true");
   };
 
-  // --- A CORREÇÃO ESTÁ AQUI ---
-  const handleConfirmUpgrade = () => {
+  // --- LÓGICA ATUALIZADA AQUI ---
+  // Agora recebe os dados do Modal
+  const handleConfirmUpgrade = (data: {
+    jobTitle: string;
+    yearsOfExperience: number;
+  }) => {
     startTransition(async () => {
-      const result = await becomeProfessional();
+      // Chama a Server Action passando os dados
+      const result = await becomeProfessional(data);
 
       if (result.success) {
+        toast.success("Parabéns! Modo Profissional ativado.");
         setIsUpgradeModalOpen(false);
 
-        // ⚠️ HARD RELOAD: Força o navegador a recarregar a página do zero.
-        // Isso obriga o Header e Sidebar a lerem o banco novamente e verem que agora você é PRO.
+        // ⚠️ HARD RELOAD: Força o navegador a recarregar para atualizar o layout
         window.location.href = "/dashboard/perfil";
       } else {
         console.error("Erro ao virar profissional");
-        // Aqui você poderia adicionar um toast.error("Erro ao atualizar") se tiver o componente
+        toast.error(result.error || "Erro ao atualizar perfil.");
       }
     });
   };
 
   return (
     <PageContainer>
-      {/* 1. Become Professional Modal */}
+      {/* 1. Become Professional Modal (Atualizado) */}
       <BecomeProfessionalModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
-        onConfirm={handleConfirmUpgrade}
+        onConfirm={handleConfirmUpgrade} // Passa a função que aceita dados
         isLoading={isPending}
       />
 

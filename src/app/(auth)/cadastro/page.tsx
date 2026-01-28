@@ -10,6 +10,8 @@ import {
   Smile,
   Loader2,
   CheckCircle2,
+  Briefcase, // Adicionado
+  Clock,     // Adicionado
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
@@ -25,8 +27,9 @@ function RegisterContent() {
   const proName = searchParams.get("proName");
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isPro, setIsPro] = useState(false); // <--- ESTADO IMPORTANTE
 
-  // Helper para links estáticos (manter contexto se o user clicar em "Login")
+  // Helper para links estáticos
   const queryParams = proId
     ? `?action=chat&proId=${proId}&proName=${encodeURIComponent(proName || "")}`
     : "";
@@ -36,8 +39,10 @@ function RegisterContent() {
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
+    
+    // Adicionar log para debug se necessário
+    // console.log("Is Pro:", isPro);
 
-    // Server Action
     const result = await registerUser(formData);
 
     if (result?.error) {
@@ -46,20 +51,15 @@ function RegisterContent() {
       return;
     }
 
-    // SUCESSO: Construção da URL de redirecionamento
     const params = new URLSearchParams();
-
-    // 1. Adiciona o gatilho visual para a página de Login
     params.set("registered", "true");
 
-    // 2. Preserva o contexto do chat (se houver)
     if (action === "chat" && proId) {
       params.set("action", "chat");
       params.set("proId", proId);
       if (proName) params.set("proName", proName);
     }
 
-    // Redireciona imediatamente. O Login cuidará do feedback de sucesso.
     router.push(`/login?${params.toString()}`);
   };
 
@@ -99,6 +99,7 @@ function RegisterContent() {
       </div>
 
       <form className="space-y-5" onSubmit={handleRegister}>
+        {/* Nome */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Nome Completo
@@ -117,6 +118,7 @@ function RegisterContent() {
           </div>
         </div>
 
+        {/* Display Name */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Como quer ser chamado?
@@ -135,6 +137,7 @@ function RegisterContent() {
           </div>
         </div>
 
+        {/* Data Nascimento */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Data de Nascimento
@@ -153,6 +156,7 @@ function RegisterContent() {
           </div>
         </div>
 
+        {/* Email */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Email Profissional
@@ -171,6 +175,7 @@ function RegisterContent() {
           </div>
         </div>
 
+        {/* Senha */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Senha
@@ -189,22 +194,77 @@ function RegisterContent() {
           </div>
         </div>
 
-        {/* Checkbox Tipo de Conta */}
-        <div className="flex items-center gap-3 py-2">
-          <input
-            type="checkbox"
-            name="isPro"
-            id="isPro"
-            className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-          />
-          <label
-            htmlFor="isPro"
-            className="text-sm font-medium text-foreground cursor-pointer select-none"
-          >
-            Cadastrar como Profissional
-          </label>
+        {/* Checkbox Tipo de Conta e Campos Condicionais */}
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              name="isPro"
+              id="isPro"
+              checked={isPro}
+              onChange={(e) => setIsPro(e.target.checked)} // <--- ATIVA/DESATIVA OS CAMPOS
+              className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer accent-primary"
+            />
+            <label
+              htmlFor="isPro"
+              className="text-sm font-medium text-foreground cursor-pointer select-none"
+            >
+              Cadastrar como Profissional
+            </label>
+          </div>
+
+          {/* --- AQUI ESTÁ A LÓGICA CONDICIONAL --- */}
+          {isPro && (
+            <div className="space-y-4 pl-4 border-l-2 border-primary/20 animate-in slide-in-from-top-2 fade-in duration-300">
+              
+              {/* Profissão (Job Title) */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Qual sua especialidade principal?
+                </label>
+                <div className="relative group">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
+                    <Briefcase size={18} />
+                  </div>
+                  <input
+                    name="jobTitle"
+                    type="text"
+                    required={isPro} // Obrigatório se for Pro
+                    placeholder="Ex: Eletricista, Advogado, Dev..."
+                    className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Tempo de Experiência (Select) */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Tempo de experiência
+                </label>
+                <div className="relative group">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
+                    <Clock size={18} />
+                  </div>
+                  <select
+                    name="experienceLevel"
+                    required={isPro} // Obrigatório se for Pro
+                    className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all text-sm appearance-none cursor-pointer"
+                  >
+                    <option value="" disabled selected className="text-muted-foreground">Selecione...</option>
+                    <option value="0">Menos de 1 ano</option>
+                    <option value="2">Entre 1 a 3 anos</option>
+                    <option value="5">Entre 3 a 5 anos</option>
+                    <option value="8">Mais de 5 anos</option>
+                    <option value="12">Mais de 10 anos</option>
+                  </select>
+                </div>
+              </div>
+
+            </div>
+          )}
         </div>
 
+        {/* Termos */}
         <div className="flex items-start gap-3 pt-2">
           <div className="relative flex items-center">
             <input
@@ -263,7 +323,7 @@ function RegisterContent() {
         </div>
       </div>
 
-      {/* Botões Sociais Restaurados */}
+      {/* Botões Sociais */}
       <div className="grid grid-cols-2 gap-4">
         <button
           type="button"
