@@ -18,6 +18,7 @@ import {
   MapPin,
   DollarSign,
   Loader2,
+  Clock, // Adicionado ícone de relógio
 } from "lucide-react";
 
 // --- LISTA DE ESTADOS (IBGE) ---
@@ -69,6 +70,7 @@ interface EditProfileModalProps {
     state?: string | null;
     hourlyRate?: number | null;
     jobTitle?: string | null;
+    yearsOfExperience?: number | null; // <--- NOVO
     skills?: string[];
     socialGithub?: string | null;
     socialLinkedin?: string | null;
@@ -102,6 +104,7 @@ export function EditProfileModal({
     state: "",
     hourlyRate: "",
     jobTitle: "",
+    yearsOfExperience: "", // <--- NOVO (string para o input)
     skills: [] as string[],
     socialGithub: "",
     socialLinkedin: "",
@@ -114,12 +117,11 @@ export function EditProfileModal({
 
   // --- ESTADOS DE CIDADE ---
   const [cities, setCities] = useState<CityIBGE[]>([]);
-  const [showCityList, setShowCityList] = useState(false); // Controla se a lista aparece
+  const [showCityList, setShowCityList] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
 
   const [newSkill, setNewSkill] = useState("");
   const [newPortfolio, setNewPortfolio] = useState({ title: "", url: "" });
-  const [newCertificate, setNewCertificate] = useState({ title: "", url: "" });
   const [error, setError] = useState<string | null>(null);
 
   // Inicializa dados quando abre modal
@@ -143,6 +145,9 @@ export function EditProfileModal({
         state: user.state || "",
         hourlyRate: user.hourlyRate ? user.hourlyRate.toString() : "",
         jobTitle: user.jobTitle || "",
+        yearsOfExperience: user.yearsOfExperience
+          ? user.yearsOfExperience.toString()
+          : "", // <--- Carrega do user
         skills: user.skills || [],
         socialGithub: user.socialGithub || "",
         socialLinkedin: user.socialLinkedin || "",
@@ -152,7 +157,7 @@ export function EditProfileModal({
 
       setPortfolioList(Array.isArray(user.portfolio) ? user.portfolio : []);
       setCertificateList(
-        Array.isArray(user.certificates) ? user.certificates : []
+        Array.isArray(user.certificates) ? user.certificates : [],
       );
 
       setError(null);
@@ -166,12 +171,12 @@ export function EditProfileModal({
     if (formData.state && formData.state.length === 2) {
       setLoadingCities(true);
       fetch(
-        `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${formData.state}/municipios`
+        `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${formData.state}/municipios`,
       )
         .then((res) => res.json())
         .then((data) => {
           const sortedCities = data.sort((a: CityIBGE, b: CityIBGE) =>
-            a.nome.localeCompare(b.nome)
+            a.nome.localeCompare(b.nome),
           );
           setCities(sortedCities);
           setLoadingCities(false);
@@ -202,11 +207,10 @@ export function EditProfileModal({
   }, []);
 
   // --- FILTRO DE CIDADES (AUTOCOMPLETE) ---
-  // Filtra as cidades baseado no que o usuário digitou
   const filteredCities =
     formData.city.length > 0
       ? cities.filter((c) =>
-          c.nome.toLowerCase().includes(formData.city.toLowerCase())
+          c.nome.toLowerCase().includes(formData.city.toLowerCase()),
         )
       : [];
 
@@ -215,7 +219,7 @@ export function EditProfileModal({
     setList: (l: PortfolioItem[]) => void,
     newItem: PortfolioItem,
     setNewItem: (i: PortfolioItem) => void,
-    limit: number
+    limit: number,
   ) => {
     if (!newItem.title.trim() || !newItem.url.trim()) return;
     if (list.length >= limit) {
@@ -230,7 +234,7 @@ export function EditProfileModal({
   const removeItem = (
     list: PortfolioItem[],
     setList: (l: PortfolioItem[]) => void,
-    index: number
+    index: number,
   ) => {
     setList(list.filter((_, i) => i !== index));
   };
@@ -242,7 +246,7 @@ export function EditProfileModal({
     if (isPro) {
       if (!formData.jobTitle || formData.jobTitle.trim() === "") {
         setError(
-          "O campo 'Cargo / Especialização' é obrigatório para profissionais."
+          "O campo 'Cargo / Especialização' é obrigatório para profissionais.",
         );
         return;
       }
@@ -266,6 +270,7 @@ export function EditProfileModal({
       certificates: isPro ? certificateList : [],
       jobTitle: isPro ? formData.jobTitle : null,
       hourlyRate: isPro ? formData.hourlyRate : null,
+      yearsOfExperience: isPro ? Number(formData.yearsOfExperience) : null, // <--- Converte e envia
     };
 
     if (formData.newPassword) {
@@ -342,10 +347,11 @@ export function EditProfileModal({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* --- CAMPO CARGO (PROFISSIONAIS) --- */}
               {isPro && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-300">
-                    Cargo <span className="text-red-400">*</span>
+                    Cargo / Profissão <span className="text-red-400">*</span>
                   </label>
                   <div className="relative">
                     <Briefcase className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
@@ -361,6 +367,7 @@ export function EditProfileModal({
                   </div>
                 </div>
               )}
+
               <div className={`space-y-1.5 ${!isPro ? "col-span-2" : ""}`}>
                 <label className="text-xs font-medium text-slate-300">
                   Nascimento
@@ -378,6 +385,37 @@ export function EditProfileModal({
                 </div>
               </div>
             </div>
+
+            {/* --- CAMPO EXPERIÊNCIA (NOVO PARA PROFISSIONAIS) --- */}
+            {isPro && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-300">
+                  Tempo de Experiência
+                </label>
+                <div className="relative">
+                  <Clock className="w-4 h-4 absolute left-3 top-3 text-slate-500 pointer-events-none" />
+                  <select
+                    value={formData.yearsOfExperience}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        yearsOfExperience: e.target.value,
+                      })
+                    }
+                    className="w-full pl-10 p-2.5 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-200 appearance-none cursor-pointer"
+                  >
+                    <option value="" disabled className="text-slate-500">
+                      Selecione...
+                    </option>
+                    <option value="0">Menos de 1 ano</option>
+                    <option value="2">Entre 1 a 3 anos</option>
+                    <option value="5">Entre 3 a 5 anos</option>
+                    <option value="8">Mais de 5 anos</option>
+                    <option value="12">Mais de 10 anos</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="h-px bg-slate-800" />
@@ -438,16 +476,16 @@ export function EditProfileModal({
                   value={formData.city}
                   onChange={(e) => {
                     setFormData({ ...formData, city: e.target.value });
-                    setShowCityList(true); // Abre a lista ao digitar
+                    setShowCityList(true);
                   }}
                   onFocus={() => {
                     if (formData.city.length > 0) setShowCityList(true);
                   }}
                   className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                  autoComplete="off" // Desativa o autocomplete nativo do browser
+                  autoComplete="off"
                 />
 
-                {/* LISTA CUSTOMIZADA (FLUTUANTE) */}
+                {/* LISTA CUSTOMIZADA */}
                 {showCityList && filteredCities.length > 0 && (
                   <ul className="absolute z-50 left-0 right-0 top-[calc(100%+4px)] bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-1">
                     {filteredCities.map((city) => (
@@ -455,7 +493,7 @@ export function EditProfileModal({
                         key={city.id}
                         onClick={() => {
                           setFormData({ ...formData, city: city.nome });
-                          setShowCityList(false); // Fecha ao clicar
+                          setShowCityList(false);
                         }}
                         className="px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white cursor-pointer transition-colors"
                       >
@@ -490,7 +528,10 @@ export function EditProfileModal({
 
           <div className="h-px bg-slate-800" />
 
-          {/* REDES SOCIAIS */}
+          {/* REDES SOCIAIS E OUTROS CAMPOS JÁ EXISTENTES */}
+          {/* ... (O resto do seu código de Redes Sociais, Skills e Portfólio continua aqui) ... */}
+          {/* Pode manter o código anterior daqui para baixo, pois não mexemos nessas seções */}
+
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
               <LinkIcon className="w-4 h-4" /> Redes Sociais
@@ -628,7 +669,7 @@ export function EditProfileModal({
                           setPortfolioList,
                           newPortfolio,
                           setNewPortfolio,
-                          3
+                          3,
                         )
                       }
                       className="p-2 bg-slate-800 rounded-lg text-white"
