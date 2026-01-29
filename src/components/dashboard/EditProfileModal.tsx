@@ -18,7 +18,7 @@ import {
   MapPin,
   DollarSign,
   Loader2,
-  Clock, // Adicionado ícone de relógio
+  Clock,
 } from "lucide-react";
 
 // --- LISTA DE ESTADOS (IBGE) ---

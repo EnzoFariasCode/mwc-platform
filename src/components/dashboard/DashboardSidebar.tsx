@@ -58,8 +58,8 @@ function UserMenu({ user }: { user: UserData | null }) {
   const subTitle = user?.jobTitle
     ? user.jobTitle
     : user?.userType === "PROFESSIONAL"
-    ? "Profissional"
-    : "Cliente";
+      ? "Profissional"
+      : "Cliente";
 
   const getInitials = (name: string) => {
     const parts = name.trim().split(" ");
@@ -161,14 +161,15 @@ export default function DashboardSidebar() {
       "/dashboard/cliente",
       "/dashboard/meus-projetos",
       "/dashboard/favoritos",
-      "/search",
+      "/search", // Mantive aqui para compatibilidade
+      "/dashboard/encontrar-profissionais", // <--- ADICIONADO PARA IDENTIFICAR COMO ROTA DE CLIENTE
     ];
 
     const isExclusivePro = exclusiveProfessionalRoutes.some((r) =>
-      pathname.startsWith(r)
+      pathname.startsWith(r),
     );
     const isExclusiveClient = exclusiveClientRoutes.some((r) =>
-      pathname.startsWith(r)
+      pathname.startsWith(r),
     );
 
     if (isExclusivePro) {
@@ -219,7 +220,12 @@ export default function DashboardSidebar() {
   const clientLinks = [
     { icon: LayoutDashboard, label: "Visão Geral", href: "/dashboard/cliente" },
     { icon: MessageSquare, label: "Mensagens", href: "/dashboard/chat" },
-    { icon: Search, label: "Buscar Profissionais", href: "/search" },
+    // --- LINK ATUALIZADO AQUI ---
+    {
+      icon: Search,
+      label: "Buscar Profissionais",
+      href: "/dashboard/encontrar-profissionais", // <--- ROTA INTERNA AGORA
+    },
     {
       icon: Briefcase,
       label: "Meus Pedidos",

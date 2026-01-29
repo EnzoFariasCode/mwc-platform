@@ -15,7 +15,6 @@ export default function DashboardHeader() {
   const [userRole, setUserRole] = useState<
     "CLIENT" | "PROFESSIONAL" | "ADMIN" | null
   >(null);
-  // Estado para controlar visualmente se estamos no modo Cliente ou Profissional
   const [viewMode, setViewMode] = useState<"CLIENT" | "PROFESSIONAL">("CLIENT");
 
   // 1. Carrega o Perfil
@@ -24,65 +23,66 @@ export default function DashboardHeader() {
       const user = await getUserProfile();
       if (user) {
         setUserRole(user.userType);
-        // Se for 100% cliente, força o viewMode inicial
         if (user.userType === "CLIENT") setViewMode("CLIENT");
       }
     }
     checkRole();
   }, []);
 
-  // 2. Lógica Inteligente de Persistência de Modo (Sticky Mode)
+  // 2. Lógica Inteligente de Persistência (COM CORREÇÃO PARA PERFIL)
   useEffect(() => {
-    // Rotas que SÓ existem para o Profissional
+    // Rotas EXCLUSIVAS do painel do profissional
     const exclusiveProfessionalRoutes = [
-      "/dashboard/profissional",
+      "/dashboard/profissional", // Visão geral
       "/dashboard/minhas-propostas",
       "/dashboard/projetos-ativos",
       "/dashboard/financeiro",
       "/dashboard/encontrar-projetos",
     ];
 
-    // Rotas que SÓ existem para o Cliente
     const exclusiveClientRoutes = [
       "/dashboard/cliente",
       "/dashboard/meus-projetos",
       "/dashboard/favoritos",
       "/search",
+      "/dashboard/encontrar-profissionais", // Importante estar aqui
     ];
 
-    // Verifica onde estamos
-    const isExclusivePro = exclusiveProfessionalRoutes.some((r) =>
-      pathname.startsWith(r)
-    );
-    const isExclusiveClient = exclusiveClientRoutes.some((r) =>
-      pathname.startsWith(r)
+    // --- CORREÇÃO AQUI ---
+    // Verifica se estamos vendo um perfil público (ex: /dashboard/profissional/UUID-DO-CARA)
+    // A regex verifica se tem algo depois de /profissional/
+    const isProfileView = /^\/dashboard\/profissional\/[a-zA-Z0-9-]+$/.test(
+      pathname,
     );
 
-    if (isExclusivePro) {
-      // Se entrou em área exclusiva PRO, marca como PRO e salva
+    const isExclusivePro = exclusiveProfessionalRoutes.some((r) =>
+      pathname.startsWith(r),
+    );
+    const isExclusiveClient = exclusiveClientRoutes.some((r) =>
+      pathname.startsWith(r),
+    );
+
+    // Lógica: Só vira PRO se for rota exclusiva E NÃO for visualização de perfil
+    if (isExclusivePro && !isProfileView) {
       setViewMode("PROFESSIONAL");
       localStorage.setItem("dashboardViewMode", "PROFESSIONAL");
     } else if (isExclusiveClient) {
-      // Se entrou em área exclusiva CLIENTE, marca como CLIENTE e salva
       setViewMode("CLIENT");
       localStorage.setItem("dashboardViewMode", "CLIENT");
     } else {
-      // Se estamos em rota COMPARTILHADA (Chat, Perfil, Configurações),
-      // recuperamos a última memória do usuário.
+      // Rotas compartilhadas (Chat, Configurações, Perfil de Outro) -> Mantém o modo atual
       const storedMode = localStorage.getItem("dashboardViewMode") as
         | "CLIENT"
         | "PROFESSIONAL";
       if (storedMode) {
         setViewMode(storedMode);
       } else {
-        // Fallback: Se não tem memória, usa o papel do usuário
         if (userRole === "PROFESSIONAL") setViewMode("PROFESSIONAL");
       }
     }
   }, [pathname, userRole]);
 
   const handleSwitch = (targetType: "client" | "professional") => {
-    // Salva a intenção do usuário no LocalStorage
     if (targetType === "client") {
       localStorage.setItem("dashboardViewMode", "CLIENT");
       setViewMode("CLIENT");
@@ -101,7 +101,10 @@ export default function DashboardHeader() {
   return (
     <header className="h-20 bg-slate-900 border-b border-white/5 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
       <div className="flex items-center gap-4 lg:hidden">
-        <button onClick={toggleMobileMenu} className="text-white p-2">
+        <button
+          onClick={toggleMobileMenu}
+          className="text-white p-2 cursor-pointer"
+        >
           <Menu size={24} />
         </button>
         <span className="font-futura font-bold text-white">MWC</span>
