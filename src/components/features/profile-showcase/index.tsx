@@ -13,12 +13,13 @@ import {
   MessageSquare,
   Share2,
   CheckCircle2,
-  ChevronLeft, // Importei o ícone de voltar
+  ChevronLeft,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { ExpandableText } from "@/components/ExpandableText";
 
+// Tipagem flexível para aceitar o retorno do banco
 interface ProfessionalData {
   id: string;
   name: string | null;
@@ -31,8 +32,8 @@ interface ProfessionalData {
   hourlyRate: number | null;
   rating: number | null;
   skills: string[];
-  portfolio: any;
-  certificates: any;
+  portfolio: any; // Pode vir como string, null ou array
+  certificates: any; // Pode vir como string, null ou array
   socialGithub: string | null;
   socialLinkedin: string | null;
   createdAt: Date;
@@ -43,14 +44,35 @@ interface ProfileShowcaseProps {
   professional: ProfessionalData;
   isAuthenticated: boolean;
   isOwner?: boolean;
-  backHref?: string; // --- NOVO: Link para voltar ---
+  backHref?: string;
+}
+
+// --- FUNÇÃO AUXILIAR DE SEGURANÇA ---
+// Garante que o dado sempre vire um array, evitando erros de JSON
+function safeParseList(data: any): any[] {
+  if (!data) return []; // Se for null ou undefined, retorna array vazio
+
+  if (Array.isArray(data)) return data; // Se já for array, retorna ele mesmo
+
+  if (typeof data === "string") {
+    try {
+      // Tenta transformar texto em array
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error("Erro ao processar JSON:", error);
+      return [];
+    }
+  }
+
+  return []; // Fallback final
 }
 
 export function ProfileShowcase({
   professional,
   isAuthenticated,
   isOwner = false,
-  backHref, // Recebendo a prop
+  backHref,
 }: ProfileShowcaseProps) {
   const mainName =
     professional.displayName || professional.name || "Profissional";
@@ -64,16 +86,14 @@ export function ProfileShowcase({
     },
   );
 
-  const portfolioItems = Array.isArray(professional.portfolio)
-    ? professional.portfolio
-    : [];
-  const certificateItems = Array.isArray(professional.certificates)
-    ? professional.certificates
-    : [];
+  // --- APLICAÇÃO DA CORREÇÃO ---
+  // Usamos a função auxiliar para garantir que teremos listas válidas
+  const portfolioItems = safeParseList(professional.portfolio);
+  const certificateItems = safeParseList(professional.certificates);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 relative">
-      {/* --- BOTÃO DE VOLTAR MINIMALISTA --- */}
+      {/* Botão Voltar */}
       {backHref && (
         <div className="mb-2">
           <Link
@@ -210,15 +230,16 @@ export function ProfileShowcase({
                   Habilidades
                 </span>
                 <div className="flex flex-wrap gap-2">
-                  {professional.skills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="px-2.5 py-1 bg-slate-800/50 border border-white/10 rounded-md text-xs text-slate-300"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                  {professional.skills.length === 0 && (
+                  {professional.skills && professional.skills.length > 0 ? (
+                    professional.skills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="px-2.5 py-1 bg-slate-800/50 border border-white/10 rounded-md text-xs text-slate-300"
+                      >
+                        {skill}
+                      </span>
+                    ))
+                  ) : (
                     <span className="text-xs text-slate-600 italic">
                       Não informadas
                     </span>
@@ -281,6 +302,7 @@ export function ProfileShowcase({
             </div>
           </div>
 
+          {/* PORTFÓLIO */}
           {portfolioItems.length > 0 && (
             <div className="bg-card border border-border rounded-2xl p-8">
               <h2 className="text-xl font-bold text-white font-futura mb-6 flex items-center gap-2">
@@ -311,6 +333,7 @@ export function ProfileShowcase({
             </div>
           )}
 
+          {/* CERTIFICADOS */}
           {certificateItems.length > 0 && (
             <div className="bg-card border border-border rounded-2xl p-8">
               <h2 className="text-xl font-bold text-white font-futura mb-6 flex items-center gap-2">
