@@ -10,6 +10,8 @@ export async function getPublicProfile(userId: string) {
         id: true,
         name: true,
         displayName: true,
+        // --- ADICIONADO: Selecionamos os bytes para saber se tem foto ---
+        profileImageBytes: true,
         bio: true,
         city: true,
         state: true,
@@ -18,8 +20,8 @@ export async function getPublicProfile(userId: string) {
         hourlyRate: true,
         rating: true,
         skills: true,
-        portfolio: true, // Assumindo que é um JSON no banco
-        certificates: true, // Assumindo que é um JSON no banco
+        portfolio: true,
+        certificates: true,
         socialGithub: true,
         socialLinkedin: true,
         createdAt: true,
@@ -28,10 +30,21 @@ export async function getPublicProfile(userId: string) {
 
     if (!professional) return null;
 
-    // Opcional: Se quiser garantir que apenas PROFISSIONAIS apareçam:
-    // if (professional.userType !== "PROFESSIONAL") return null;
+    // --- LÓGICA DE TRANSFORMAÇÃO DA IMAGEM ---
+    // Se o campo de bytes não for nulo, criamos a URL para a API de imagens.
+    // Caso contrário, enviamos null (o frontend mostrará a inicial do nome).
+    const avatarUrl = professional.profileImageBytes
+      ? `/api/images/user/${professional.id}`
+      : null;
 
-    return professional;
+    // Removemos os dados binários pesados (profileImageBytes) do objeto
+    // antes de enviá-lo para o navegador, mantendo o resto.
+    const { profileImageBytes, ...rest } = professional;
+
+    return {
+      ...rest,
+      avatarUrl, // O frontend usará este campo
+    };
   } catch (error) {
     console.error("Erro ao buscar perfil público:", error);
     return null;

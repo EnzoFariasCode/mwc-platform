@@ -7,42 +7,14 @@ import { ActionResponse } from "@/types/user-types";
 import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
-// Interface auxiliar para os itens de lista (JSON)
-interface PortfolioItem {
-  title: string;
-  url: string;
-}
-
-// Interface completa com todos os campos
-interface UpdateProfileData {
-  name: string;
-  displayName: string;
-  birthDate: string;
-  bio?: string;
-  city?: string;
-  state?: string;
-  hourlyRate?: string;
-  jobTitle?: string;
-  skills?: string[];
-
-  // --- NOVOS CAMPOS ---
-  socialGithub?: string;
-  socialLinkedin?: string;
-  portfolio?: PortfolioItem[];
-  certificates?: PortfolioItem[];
-
-  // --- SEGURANÇA ---
-  currentPassword?: string;
-  newPassword?: string;
-}
-
+// Agora a função recebe FormData em vez de um objeto JSON
 export async function updateProfile(
-  data: UpdateProfileData
+  formData: FormData,
 ): Promise<ActionResponse> {
   try {
     const cookieStore = await cookies();
 
-    // --- SEGURANÇA (JWT) ---
+    // --- 1. SEGURANÇA (JWT) ---
     const token = cookieStore.get("session")?.value;
     const session = token ? await verifySession(token) : null;
     const userId = session?.sub as string;
@@ -51,7 +23,7 @@ export async function updateProfile(
       return { success: false, error: "Usuário não autenticado." };
     }
 
-    // 2. Busca usuário no banco
+    // --- 2. Busca usuário no banco ---
     const userInDb = await db.user.findUnique({
       where: { id: userId },
     });
@@ -60,63 +32,113 @@ export async function updateProfile(
       return { success: false, error: "Usuário não encontrado." };
     }
 
-    // 3. Lógica de Senha
-    let passwordHash = undefined;
+    // --- 3. Extração dos Dados do FormData ---
+    // FormData retorna tudo como string ou File, então precisamos converter
+    const name = formData.get("name") as string;
+    const displayName = formData.get("displayName") as string;
+    const birthDate = formData.get("birthDate") as string;
+    const bio = formData.get("bio") as string;
+    const city = formData.get("city") as string;
+    const state = formData.get("state") as string;
 
-    if (data.newPassword && data.newPassword.trim() !== "") {
-      if (!data.currentPassword) {
+    // Campos Profissionais
+    const jobTitle = formData.get("jobTitle") as string;
+    const hourlyRate = formData.get("hourlyRate") as string;
+    const yearsOfExperience = formData.get("yearsOfExperience") as string;
+
+    // Redes Sociais
+    const socialGithub = formData.get("socialGithub") as string;
+    const socialLinkedin = formData.get("socialLinkedin") as string;
+
+    // Arrays JSON (Skills, Portfolio, Certificados)
+    // O frontend envia como string JSON (JSON.stringify), então fazemos o parse aqui
+    const skillsString = formData.get("skills") as string;
+    const portfolioString = formData.get("portfolio") as string;
+    const certificatesString = formData.get("certificates") as string;
+
+    // Senha
+    const currentPassword = formData.get("currentPassword") as string;
+    const newPassword = formData.get("newPassword") as string;
+
+    // Arquivo de Imagem
+    const profileImage = formData.get("profileImage") as File | null;
+
+    // --- 4. Preparação do Objeto de Update ---
+    const updateData: any = {
+      name,
+      displayName,
+      birthDate: birthDate ? new Date(birthDate) : null,
+      bio: bio || null,
+      city: city || null,
+      state: state || null,
+
+      // Profissional
+      jobTitle: jobTitle || null,
+      hourlyRate: hourlyRate ? parseFloat(hourlyRate) : null,
+      yearsOfExperience: yearsOfExperience ? parseInt(yearsOfExperience) : null,
+
+      // Redes
+      socialGithub: socialGithub || null,
+      socialLinkedin: socialLinkedin || null,
+
+      // Arrays (com proteção contra erro de parse)
+      skills: skillsString ? JSON.parse(skillsString) : [],
+      portfolio: portfolioString ? JSON.parse(portfolioString) : [],
+      certificates: certificatesString ? JSON.parse(certificatesString) : [],
+    };
+
+    // --- 5. Lógica de Imagem (NOVO) ---
+    if (profileImage && profileImage.size > 0) {
+      // Converte o arquivo recebido para Buffer (Bytes) que o Prisma aceita
+      const arrayBuffer = await profileImage.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      updateData.profileImageBytes = buffer;
+      updateData.profileImageType = profileImage.type;
+    }
+
+    // --- 6. Lógica de Senha (Mantida a sua lógica original) ---
+    if (newPassword && newPassword.trim() !== "") {
+      if (!currentPassword) {
         return { success: false, error: "Informe a senha atual para alterar." };
       }
 
       const isPasswordValid = await bcrypt.compare(
-        data.currentPassword,
-        userInDb.password
+        currentPassword,
+        userInDb.password,
       );
 
       if (!isPasswordValid) {
         return { success: false, error: "Senha atual incorreta." };
       }
 
-      passwordHash = await bcrypt.hash(data.newPassword, 10);
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      updateData.password = passwordHash;
     }
 
-    // 4. Atualização no Banco de Dados
+    // --- 7. Atualização no Banco de Dados ---
     await db.user.update({
       where: { id: userId },
-      data: {
-        // Campos Básicos
-        name: data.name,
-        displayName: data.displayName,
-        birthDate: data.birthDate ? new Date(data.birthDate) : null,
-        bio: data.bio,
-        city: data.city, // <--- Isso vai preencher o campo e remover o Modal
-        state: data.state, // <--- Isso vai preencher o campo e remover o Modal
-
-        // Campos Profissionais
-        hourlyRate: data.hourlyRate ? parseFloat(data.hourlyRate) : null,
-        jobTitle: data.jobTitle,
-        skills: data.skills,
-
-        // --- NOVOS CAMPOS (Redes e JSONs) ---
-        socialGithub: data.socialGithub,
-        socialLinkedin: data.socialLinkedin,
-        portfolio: data.portfolio as any,
-        certificates: data.certificates as any,
-
-        // Senha (apenas se alterada)
-        ...(passwordHash && { password: passwordHash }),
-      },
+      data: updateData,
     });
 
-    // 5. ATUALIZAR O CACHE
-    // Importante: Revalidar a dashboard para que ela perceba que o perfil agora está completo
+    // --- 8. ATUALIZAR O CACHE ---
     revalidatePath("/dashboard/perfil");
-    revalidatePath("/dashboard/cliente"); // <--- ADICIONADO: Garante que o modal suma na hora
+    revalidatePath("/dashboard/cliente");
     revalidatePath("/", "layout");
 
     return { success: true };
   } catch (error) {
-    console.error("Erro ao atualizar perfil:", error);
-    return { success: false, error: "Erro interno ao atualizar perfil." };
+    // --- MELHORIA AQUI: Imprime o erro completo ---
+    console.error("Erro DETALHADO ao atualizar perfil:", error);
+
+    // Tenta pegar a mensagem de erro se ela existir
+    const errorMessage =
+      error instanceof Error ? error.message : "Erro desconhecido";
+
+    return {
+      success: false,
+      error: `Erro interno: ${errorMessage}`, // Retorna o detalhe para o front (só para testar)
+    };
   }
 }

@@ -32,6 +32,7 @@ interface PortfolioItem {
 
 // Interface robusta para alinhar com o Modal
 interface UserData {
+  id?: string;
   name: string | null;
   displayName: string | null;
   email: string | null;
@@ -45,6 +46,7 @@ interface UserData {
   hourlyRate?: number | null;
   rating?: number | null;
   jobTitle?: string | null;
+  yearsOfExperience?: number | null; // Adicionado para compatibilidade
   skills?: string[];
   socialGithub?: string | null;
   socialLinkedin?: string | null;
@@ -84,6 +86,7 @@ export default function PerfilView({ user }: { user: UserData }) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     if (user) setCurrentUser(user);
@@ -105,28 +108,70 @@ export default function PerfilView({ user }: { user: UserData }) {
       : "Brasil";
   const memberSinceText = getMemberSince(currentUser.createdAt);
 
-  const handleUpdateProfile = async (newData: any) => {
+  // --- MUDANÇA PRINCIPAL AQUI ---
+  // Agora aceita FormData vindo do Modal
+  const handleUpdateProfile = async (formData: FormData) => {
     setIsLoading(true);
 
-    // Update otimista
+    // 1. ATUALIZAÇÃO OTIMISTA (Visual - Texto)
+    const tempUpdates: any = {};
+    formData.forEach((value, key) => {
+      // Ignora arquivos e senhas no update visual local
+      if (
+        key === "profileImage" ||
+        key === "currentPassword" ||
+        key === "newPassword"
+      )
+        return;
+
+      if (["skills", "portfolio", "certificates"].includes(key)) {
+        try {
+          tempUpdates[key] = JSON.parse(value as string);
+        } catch (e) {
+          tempUpdates[key] = [];
+        }
+      } else {
+        tempUpdates[key] = value;
+      }
+    });
+
+    // --- NOVO: FORÇA A ATUALIZAÇÃO DA IMAGEM ---
+    // Se o usuário enviou uma imagem nova ('profileImage'),
+    // geramos uma URL nova com timestamp para quebrar o cache do navegador na hora.
+    let newAvatarUrl = currentUser.avatarUrl;
+    const imageFile = formData.get("profileImage");
+    if (imageFile && imageFile instanceof File && imageFile.size > 0) {
+      // Se já temos ID, montamos a URL. Se não (caso raro), usamos createObjectURL temporário
+      if (currentUser.id) {
+        newAvatarUrl = `/api/images/user/${currentUser.id}?timestamp=${Date.now()}`;
+      } else {
+        newAvatarUrl = URL.createObjectURL(imageFile);
+      }
+    }
+
+    // Atualiza estado local imediatamente
     setCurrentUser((prev) => ({
       ...prev,
-      ...newData,
-      hourlyRate: newData.hourlyRate ? parseFloat(newData.hourlyRate) : null,
+      ...tempUpdates,
+      avatarUrl: newAvatarUrl, // <--- Imagem nova aqui
+      hourlyRate: tempUpdates.hourlyRate
+        ? parseFloat(tempUpdates.hourlyRate)
+        : prev.hourlyRate,
+      yearsOfExperience: tempUpdates.yearsOfExperience
+        ? parseInt(tempUpdates.yearsOfExperience)
+        : prev.yearsOfExperience,
     }));
 
     try {
-      const response = await updateProfile({
-        ...newData,
-        socialGithub: newData.socialGithub || undefined,
-        socialLinkedin: newData.socialLinkedin || undefined,
-        portfolio: newData.portfolio || [],
-        certificates: newData.certificates || [],
-        bio: currentUser.bio || "",
-      });
+      // 2. ENVIA PARA O SERVIDOR
+      const response = await updateProfile(formData);
 
       if (!response.success) {
         alert(response.error);
+        // Opcional: Aqui você poderia reverter a imagem se deu erro
+      } else {
+        setIsEditModalOpen(false);
+        // O revalidatePath do servidor vai garantir que na próxima recarga (F5) a imagem venha oficial
       }
     } catch (error) {
       alert("Erro ao salvar perfil.");
@@ -135,31 +180,18 @@ export default function PerfilView({ user }: { user: UserData }) {
     }
   };
 
+  // Atualiza apenas a BIO (também convertido para FormData)
   const handleUpdateBio = async (newBio: string) => {
     setIsLoading(true);
     setCurrentUser((prev) => ({ ...prev, bio: newBio }));
     setIsBioModalOpen(false);
 
+    // Cria um FormData só com a bio
+    const formData = new FormData();
+    formData.append("bio", newBio);
+
     try {
-      await updateProfile({
-        name: currentUser.name || "",
-        displayName: currentUser.displayName || "",
-        birthDate: currentUser.birthDate
-          ? new Date(currentUser.birthDate).toISOString()
-          : "",
-        bio: newBio,
-        city: currentUser.city || "",
-        state: currentUser.state || "",
-        hourlyRate: currentUser.hourlyRate
-          ? currentUser.hourlyRate.toString()
-          : undefined,
-        jobTitle: currentUser.jobTitle || "",
-        skills: currentUser.skills,
-        portfolio: currentUser.portfolio,
-        certificates: currentUser.certificates,
-        socialGithub: currentUser.socialGithub || undefined,
-        socialLinkedin: currentUser.socialLinkedin || undefined,
-      });
+      await updateProfile(formData);
     } catch (error) {
       alert("Erro ao salvar a bio.");
     } finally {
@@ -170,8 +202,8 @@ export default function PerfilView({ user }: { user: UserData }) {
   const bioText = currentUser.bio
     ? currentUser.bio
     : isPro
-    ? "Sou um especialista apaixonado por criar soluções tecnológicas..."
-    : "Olá! Estou aqui em busca dos melhores profissionais...";
+      ? "Sou um especialista apaixonado por criar soluções tecnológicas..."
+      : "Olá! Estou aqui em busca dos melhores profissionais...";
 
   const portfolioItems = Array.isArray(currentUser.portfolio)
     ? currentUser.portfolio
@@ -186,7 +218,7 @@ export default function PerfilView({ user }: { user: UserData }) {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         user={currentUser}
-        onSave={handleUpdateProfile}
+        onSave={handleUpdateProfile} // Agora compatível com FormData
       />
 
       <EditBioModal
@@ -196,9 +228,9 @@ export default function PerfilView({ user }: { user: UserData }) {
         onSave={handleUpdateBio}
       />
 
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in pb-20">
         {/* HEADER */}
-        <div className="bg-card border border-border rounded-2xl overflow-hidden relative">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden relative shadow-lg shadow-black/20">
           <button
             onClick={() => setIsEditModalOpen(true)}
             className="absolute top-6 right-6 p-2 bg-background border border-border text-foreground rounded-xl hover:border-primary hover:text-primary transition-all shadow-sm z-10 cursor-pointer group"
@@ -210,15 +242,21 @@ export default function PerfilView({ user }: { user: UserData }) {
           <div className="p-8">
             <div className="flex flex-col md:flex-row gap-8 items-start">
               <div className="relative shrink-0">
-                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 border-4 border-background shadow-xl flex items-center justify-center text-4xl font-bold text-white select-none overflow-hidden">
-                  {currentUser.avatarUrl ? (
+                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 border-4 border-background shadow-xl flex items-center justify-center text-4xl font-bold text-white select-none overflow-hidden group relative">
+                  {currentUser.avatarUrl && !imageError ? (
                     <Image
                       src={currentUser.avatarUrl}
                       alt="Avatar"
                       fill
                       className="object-cover"
+                      unoptimized
+                      key={currentUser.avatarUrl} // Força recarregar se a URL mudar
+                      // --- O AJUSTE ESTÁ AQUI ---
+                      onError={() => setImageError(true)}
+                      // Se der erro (404), ativa o erro e mostra as iniciais abaixo
                     />
                   ) : (
+                    // Fallback: Mostra iniciais
                     <span>{initials}</span>
                   )}
                 </div>
@@ -248,7 +286,7 @@ export default function PerfilView({ user }: { user: UserData }) {
                   </div>
 
                   {/* Cargo do Usuário */}
-                  <p className="text-lg text-primary font-medium">
+                  <p className="text-lg text-[#d73cbe] font-medium">
                     {currentUser.jobTitle ? (
                       currentUser.jobTitle
                     ) : !isPro ? (
@@ -402,7 +440,7 @@ export default function PerfilView({ user }: { user: UserData }) {
               </SectionCard>
             </div>
 
-            {/* CERTIFICADOS - AQUI FOI A ALTERAÇÃO PRINCIPAL NA ALTURA */}
+            {/* CERTIFICADOS */}
             <div className={`relative ${!isPro ? "min-h-[260px]" : ""}`}>
               {!isPro && <ProFeatureLock title="Certificações" />}
               <SectionCard title="Certificações e Cursos">

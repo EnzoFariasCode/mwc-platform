@@ -653,3 +653,62 @@ DashboardHeader.tsx: A barra superior com o Switch (Cliente/Pro), notificações
 DashboardSidebar.tsx: O menu lateral de navegação.
 
 NotificationDropdown.tsx: O menu que abre ao clicar no sininho.
+
+# Changelog: Sistema de Imagens de Perfil e Navegação
+
+Resumo: Implementação completa do sistema de upload e exibição de fotos de perfil armazenadas diretamente no banco de dados (PostgreSQL), unificação da experiência de visualização de perfil e ajustes de infraestrutura no Next.js.
+
+1. Banco de Dados (Prisma Schema)
+   Atualização no modelo User para suportar armazenamento binário de imagens, eliminando necessidade de storage externo (AWS/Google) para o MVP.
+
+Novos Campos:
+
+profileImageBytes: Tipo Bytes (Armazena o arquivo bruto).
+
+profileImageType: Tipo String (Armazena o MIME type, ex: image/png).
+
+2. Back-end & API
+   Nova Rota de API (src/app/api/images/user/[id]/route.ts):
+
+Endpoint GET que busca os bytes no banco e retorna como um arquivo de imagem renderizável pelo navegador.
+
+Server Actions Atualizadas:
+
+getPublicProfile & getUserProfile: Agora verificam se existem bytes no banco. Se sim, geram e retornam uma string avatarUrl apontando para a API acima.
+
+updateProfile: Refatorado de JSON para FormData. Agora aceita envio de arquivos (File), converte para Buffer e salva no banco. Inclui validação de senha e atualização de campos de texto.
+
+3. Front-end (Componentes e UI)
+   Unificação de Rotas:
+
+Removida a página pública (landing)/profissional.
+
+Lógica de Acesso: Visualização de perfis centralizada no Dashboard. Visitantes na Landing Page são redirecionados para Login e, em seguida, para o perfil interno.
+
+Componente ProfileShowcase:
+
+Adicionado botão "Voltar" para navegação fluida.
+
+Tratamento de listas (Portfólio/Certificados) com safeParseList para evitar erros de JSON.
+
+Componente EditProfileModal:
+
+Adicionado input de arquivo (Upload de Imagem) com preview instantâneo.
+
+Lógica de envio alterada para FormData para suportar arquivos binários.
+
+Componente PerfilView (Meu Perfil):
+
+Fallback de Erro: Adicionado onError na tag de imagem. Se a API falhar ou não houver foto, exibe as iniciais do usuário automaticamente.
+
+Cache Busting: Implementado sistema de timestamp e key para forçar a atualização visual da imagem imediatamente após o upload.
+
+4. Configurações do Next.js (next.config.ts)
+   Ajustes para permitir uploads maiores e renderização de imagens locais.
+
+Server Actions: Limite de corpo (bodySizeLimit) aumentado para 10mb (padrão era 1mb).
+
+Otimização de Imagem: Uso da propriedade unoptimized nos componentes <Image /> de perfil para evitar conflitos de validação de rota local (localPatterns) do Next.js.
+
+5. Correções de UX (DashboardHeader)
+   Lógica "Sticky Mode": O header não muda mais automaticamente para "Modo Profissional" ao visualizar o perfil de outro usuário. A visualização de perfil foi classificada como rota compartilhada/neutra.

@@ -2,31 +2,21 @@
 
 import { cookies } from "next/headers";
 import { db } from "@/lib/prisma";
-import { verifySession } from "@/lib/auth"; // <--- Importamos a segurança
+import { verifySession } from "@/lib/auth";
 
 export async function getUserProfile() {
   try {
     const cookieStore = await cookies();
-
-    // 1. Pega o token seguro "session"
     const token = cookieStore.get("session")?.value;
 
-    // Se não tiver token, retorna null
-    if (!token) {
-      return null;
-    }
+    if (!token) return null;
 
-    // 2. Verifica a assinatura e abre o token
     const session = await verifySession(token);
 
-    // Se o token for falso ou não tiver ID, retorna null
-    if (!session || !session.sub) {
-      return null;
-    }
+    if (!session || !session.sub) return null;
 
-    const userId = session.sub as string; // O ID real vem daqui
+    const userId = session.sub as string;
 
-    // 3. Sua busca original (mantida exatamente igual)
     const user = await db.user.findUnique({
       where: { id: userId },
       select: {
@@ -48,10 +38,25 @@ export async function getUserProfile() {
         socialLinkedin: true,
         portfolio: true,
         certificates: true,
+        // --- ADICIONADO: Precisamos checar se existe imagem ---
+        profileImageBytes: true,
       },
     });
 
-    return user;
+    if (!user) return null;
+
+    // --- LÓGICA DA IMAGEM ---
+    const avatarUrl = user.profileImageBytes
+      ? `/api/images/user/${user.id}`
+      : null;
+
+    // Removemos o arquivo pesado antes de enviar para o front
+    const { profileImageBytes, ...rest } = user;
+
+    return {
+      ...rest,
+      avatarUrl, // O frontend vai usar isso
+    };
   } catch (error) {
     console.error("Erro ao buscar perfil:", error);
     return null;

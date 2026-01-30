@@ -26,12 +26,15 @@ import { useDashboard } from "@/context/DashboardContext";
 import { getUserProfile } from "@/actions/account/get-user-profile";
 import { logoutUser } from "@/actions/auth/logout-user";
 
+// --- ATUALIZAÇÃO 1: Adicionados campos id e avatarUrl na tipagem ---
 type UserData = {
+  id: string;
   name: string | null;
   displayName: string | null;
   email: string | null;
   userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
   jobTitle?: string | null;
+  avatarUrl?: string | null; // <--- Importante para a imagem
 };
 
 function UserMenu({ user }: { user: UserData | null }) {
@@ -104,9 +107,21 @@ function UserMenu({ user }: { user: UserData | null }) {
             : "bg-transparent border-transparent hover:bg-white/5 hover:border-white/5"
         }`}
       >
-        <div className="w-10 h-10 rounded-full bg-[#d73cbe] flex items-center justify-center text-white font-bold shrink-0 select-none">
-          {user ? initials : "..."}
+        {/* --- ATUALIZAÇÃO 2: Lógica de Exibição da Imagem --- */}
+        <div className="w-10 h-10 rounded-full bg-[#d73cbe] flex items-center justify-center text-white font-bold shrink-0 select-none overflow-hidden relative border border-white/10">
+          {user?.avatarUrl ? (
+            <Image
+              src={user.avatarUrl}
+              alt={displayName}
+              fill
+              className="object-cover"
+              unoptimized // Essencial para evitar erros na API local
+            />
+          ) : (
+            <span>{user ? initials : "..."}</span>
+          )}
         </div>
+
         <div className="flex-1 text-left min-w-0">
           <p className="font-bold text-sm text-white truncate">
             {user ? displayName : "Carregando..."}
@@ -145,9 +160,9 @@ export default function DashboardSidebar() {
       }
     }
     loadUser();
-  }, []);
+  }, []); // Nota: O sidebar carrega uma vez. Se mudar a foto no perfil, precisará de refresh ou navegação para atualizar aqui.
 
-  // --- LÓGICA DE PERSISTÊNCIA (A mesma do Header) ---
+  // --- LÓGICA DE PERSISTÊNCIA ---
   useEffect(() => {
     const exclusiveProfessionalRoutes = [
       "/dashboard/profissional",
@@ -161,8 +176,8 @@ export default function DashboardSidebar() {
       "/dashboard/cliente",
       "/dashboard/meus-projetos",
       "/dashboard/favoritos",
-      "/search", // Mantive aqui para compatibilidade
-      "/dashboard/encontrar-profissionais", // <--- ADICIONADO PARA IDENTIFICAR COMO ROTA DE CLIENTE
+      "/search",
+      "/dashboard/encontrar-profissionais",
     ];
 
     const isExclusivePro = exclusiveProfessionalRoutes.some((r) =>
@@ -220,11 +235,10 @@ export default function DashboardSidebar() {
   const clientLinks = [
     { icon: LayoutDashboard, label: "Visão Geral", href: "/dashboard/cliente" },
     { icon: MessageSquare, label: "Mensagens", href: "/dashboard/chat" },
-    // --- LINK ATUALIZADO AQUI ---
     {
       icon: Search,
       label: "Buscar Profissionais",
-      href: "/dashboard/encontrar-profissionais", // <--- ROTA INTERNA AGORA
+      href: "/dashboard/encontrar-profissionais",
     },
     {
       icon: Briefcase,

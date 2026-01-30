@@ -121,6 +121,7 @@ export function ProfileShowcase({
                     alt={mainName}
                     fill
                     className="object-cover"
+                    unoptimized
                   />
                 ) : (
                   <span className="text-slate-600">{initials}</span>

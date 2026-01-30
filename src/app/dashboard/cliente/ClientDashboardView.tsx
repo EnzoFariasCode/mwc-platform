@@ -80,7 +80,6 @@ export default function ClientDashboardView({
 
   return (
     <PageContainer>
-      {/* 1. Become Professional Modal (Atualizado) */}
       <BecomeProfessionalModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
@@ -114,7 +113,7 @@ export default function ClientDashboardView({
           </div>
 
           <div className="flex gap-3">
-            <Link href="/search">
+            <Link href="/dashboard/encontrar-profissionais">
               <button className="px-6 py-3 bg-slate-800 text-white hover:bg-slate-700 font-bold rounded-xl transition-all border border-slate-700 flex items-center gap-2 cursor-pointer">
                 <Search className="w-4 h-4" />
                 Buscar Profissionais

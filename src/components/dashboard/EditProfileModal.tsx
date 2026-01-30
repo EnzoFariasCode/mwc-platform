@@ -19,7 +19,9 @@ import {
   DollarSign,
   Loader2,
   Clock,
+  Camera, // <--- Importado para o ícone de foto
 } from "lucide-react";
+import Image from "next/image";
 
 // --- LISTA DE ESTADOS (IBGE) ---
 const BRAZIL_STATES = [
@@ -60,24 +62,8 @@ type PortfolioItem = {
 interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
-  user: {
-    name: string | null;
-    displayName: string | null;
-    email: string | null;
-    userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
-    birthDate?: string | Date | null;
-    city?: string | null;
-    state?: string | null;
-    hourlyRate?: number | null;
-    jobTitle?: string | null;
-    yearsOfExperience?: number | null; // <--- NOVO
-    skills?: string[];
-    socialGithub?: string | null;
-    socialLinkedin?: string | null;
-    portfolio?: any;
-    certificates?: any;
-  };
-  onSave: (data: any) => void;
+  user: any; // Flexibilizei para any para facilitar a integração com a action
+  onSave: (data: FormData) => void; // <--- Mudamos para FormData
 }
 
 interface CityIBGE {
@@ -93,8 +79,12 @@ export function EditProfileModal({
 }: EditProfileModalProps) {
   const isPro = user.userType === "PROFESSIONAL";
 
-  // --- REFS PARA O CLICK OUTSIDE ---
   const cityWrapperRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // <--- Ref para o input de arquivo
+
+  // --- ESTADOS DE IMAGEM ---
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -104,7 +94,7 @@ export function EditProfileModal({
     state: "",
     hourlyRate: "",
     jobTitle: "",
-    yearsOfExperience: "", // <--- NOVO (string para o input)
+    yearsOfExperience: "",
     skills: [] as string[],
     socialGithub: "",
     socialLinkedin: "",
@@ -115,7 +105,6 @@ export function EditProfileModal({
   const [portfolioList, setPortfolioList] = useState<PortfolioItem[]>([]);
   const [certificateList, setCertificateList] = useState<PortfolioItem[]>([]);
 
-  // --- ESTADOS DE CIDADE ---
   const [cities, setCities] = useState<CityIBGE[]>([]);
   const [showCityList, setShowCityList] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
@@ -124,7 +113,7 @@ export function EditProfileModal({
   const [newPortfolio, setNewPortfolio] = useState({ title: "", url: "" });
   const [error, setError] = useState<string | null>(null);
 
-  // Inicializa dados quando abre modal
+  // Inicializa dados
   useEffect(() => {
     if (isOpen) {
       let formattedDate = "";
@@ -132,8 +121,6 @@ export function EditProfileModal({
         const dateObj = new Date(user.birthDate);
         if (!isNaN(dateObj.getTime())) {
           formattedDate = dateObj.toISOString().split("T")[0];
-        } else if (typeof user.birthDate === "string") {
-          formattedDate = user.birthDate;
         }
       }
 
@@ -147,7 +134,7 @@ export function EditProfileModal({
         jobTitle: user.jobTitle || "",
         yearsOfExperience: user.yearsOfExperience
           ? user.yearsOfExperience.toString()
-          : "", // <--- Carrega do user
+          : "",
         skills: user.skills || [],
         socialGithub: user.socialGithub || "",
         socialLinkedin: user.socialLinkedin || "",
@@ -160,13 +147,18 @@ export function EditProfileModal({
         Array.isArray(user.certificates) ? user.certificates : [],
       );
 
+      // Reseta imagem
+      setSelectedFile(null);
+      // Se já tiver URL vindo do banco (pela nossa API), usa ela no preview inicial
+      setPreviewUrl(user.avatarUrl || null);
+
       setError(null);
       setNewSkill("");
       setShowCityList(false);
     }
   }, [isOpen, user]);
 
-  // Busca Cidades no IBGE
+  // IBGE Cidades
   useEffect(() => {
     if (formData.state && formData.state.length === 2) {
       setLoadingCities(true);
@@ -181,16 +173,13 @@ export function EditProfileModal({
           setCities(sortedCities);
           setLoadingCities(false);
         })
-        .catch((err) => {
-          console.error("Erro ao buscar cidades", err);
-          setLoadingCities(false);
-        });
+        .catch(() => setLoadingCities(false));
     } else {
       setCities([]);
     }
   }, [formData.state]);
 
-  // --- DETECTAR CLIQUE FORA DA LISTA DE CIDADES ---
+  // Click Outside Cities
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -201,12 +190,9 @@ export function EditProfileModal({
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- FILTRO DE CIDADES (AUTOCOMPLETE) ---
   const filteredCities =
     formData.city.length > 0
       ? cities.filter((c) =>
@@ -214,11 +200,25 @@ export function EditProfileModal({
         )
       : [];
 
+  // --- LÓGICA DE SELEÇÃO DE IMAGEM ---
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        // Limite 5MB
+        setError("A imagem deve ter no máximo 5MB.");
+        return;
+      }
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file)); // Preview local instantâneo
+    }
+  };
+
   const addItem = (
-    list: PortfolioItem[],
-    setList: (l: PortfolioItem[]) => void,
-    newItem: PortfolioItem,
-    setNewItem: (i: PortfolioItem) => void,
+    list: any[],
+    setList: any,
+    newItem: any,
+    setNewItem: any,
     limit: number,
   ) => {
     if (!newItem.title.trim() || !newItem.url.trim()) return;
@@ -231,25 +231,19 @@ export function EditProfileModal({
     setError(null);
   };
 
-  const removeItem = (
-    list: PortfolioItem[],
-    setList: (l: PortfolioItem[]) => void,
-    index: number,
-  ) => {
-    setList(list.filter((_, i) => i !== index));
+  const removeItem = (list: any[], setList: any, index: number) => {
+    setList(list.filter((_: any, i: number) => i !== index));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (isPro) {
-      if (!formData.jobTitle || formData.jobTitle.trim() === "") {
-        setError(
-          "O campo 'Cargo / Especialização' é obrigatório para profissionais.",
-        );
-        return;
-      }
+    if (isPro && (!formData.jobTitle || formData.jobTitle.trim() === "")) {
+      setError(
+        "O campo 'Cargo / Especialização' é obrigatório para profissionais.",
+      );
+      return;
     }
 
     if (formData.newPassword.trim() !== "") {
@@ -263,22 +257,42 @@ export function EditProfileModal({
       }
     }
 
-    const payload: any = {
-      ...formData,
-      skills: isPro ? formData.skills : [],
-      portfolio: isPro ? portfolioList : [],
-      certificates: isPro ? certificateList : [],
-      jobTitle: isPro ? formData.jobTitle : null,
-      hourlyRate: isPro ? formData.hourlyRate : null,
-      yearsOfExperience: isPro ? Number(formData.yearsOfExperience) : null, // <--- Converte e envia
-    };
+    // --- CRIAÇÃO DO FORM DATA PARA ENVIO DE ARQUIVO ---
+    const data = new FormData();
 
-    if (formData.newPassword) {
-      payload.currentPassword = formData.currentPassword;
-      payload.newPassword = formData.newPassword;
+    // Campos de Texto Simples
+    data.append("name", formData.name);
+    data.append("displayName", formData.displayName);
+    data.append("birthDate", formData.birthDate);
+    data.append("city", formData.city);
+    data.append("state", formData.state);
+    if (formData.currentPassword)
+      data.append("currentPassword", formData.currentPassword);
+    if (formData.newPassword) data.append("newPassword", formData.newPassword);
+
+    // Campos Profissionais
+    if (isPro) {
+      if (formData.jobTitle) data.append("jobTitle", formData.jobTitle);
+      if (formData.hourlyRate) data.append("hourlyRate", formData.hourlyRate);
+      if (formData.yearsOfExperience)
+        data.append("yearsOfExperience", formData.yearsOfExperience);
+      if (formData.socialGithub)
+        data.append("socialGithub", formData.socialGithub);
+      if (formData.socialLinkedin)
+        data.append("socialLinkedin", formData.socialLinkedin);
+
+      // Arrays precisam ir como JSON stringified para passar no FormData
+      data.append("skills", JSON.stringify(formData.skills));
+      data.append("portfolio", JSON.stringify(portfolioList));
+      data.append("certificates", JSON.stringify(certificateList));
     }
 
-    onSave(payload);
+    // --- ARQUIVO DE IMAGEM ---
+    if (selectedFile) {
+      data.append("profileImage", selectedFile);
+    }
+
+    onSave(data); // Envia o FormData para o pai
     onClose();
   };
 
@@ -311,6 +325,48 @@ export function EditProfileModal({
               {error}
             </div>
           )}
+
+          {/* --- UPLOAD DE IMAGEM --- */}
+          <div className="flex flex-col items-center justify-center mb-6">
+            <div
+              className="relative group cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div className="w-24 h-24 rounded-full border-4 border-slate-700 overflow-hidden bg-slate-800 relative">
+                {previewUrl ? (
+                  <Image
+                    src={previewUrl}
+                    alt="Preview"
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-slate-500 font-bold text-2xl">
+                    {formData.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+
+                {/* Overlay Hover */}
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <div className="absolute bottom-0 right-0 bg-indigo-600 rounded-full p-1.5 border-2 border-[#0f172a]">
+                <Plus className="w-3 h-3 text-white" />
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 mt-2">
+              Clique para alterar foto
+            </p>
+            {/* Input Escondido */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="image/png, image/jpeg, image/jpg"
+              onChange={handleFileChange}
+            />
+          </div>
 
           {/* DADOS BÁSICOS */}
           <div className="space-y-4">
@@ -347,7 +403,6 @@ export function EditProfileModal({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* --- CAMPO CARGO (PROFISSIONAIS) --- */}
               {isPro && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-300">
@@ -386,7 +441,6 @@ export function EditProfileModal({
               </div>
             </div>
 
-            {/* --- CAMPO EXPERIÊNCIA (NOVO PARA PROFISSIONAIS) --- */}
             {isPro && (
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-300">
@@ -404,7 +458,7 @@ export function EditProfileModal({
                     }
                     className="w-full pl-10 p-2.5 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-200 appearance-none cursor-pointer"
                   >
-                    <option value="" disabled className="text-slate-500">
+                    <option value="" disabled>
                       Selecione...
                     </option>
                     <option value="0">Menos de 1 ano</option>
@@ -428,7 +482,6 @@ export function EditProfileModal({
               </h3>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              {/* UF */}
               <div className="col-span-1 space-y-1.5">
                 <label className="text-xs font-medium text-slate-300">UF</label>
                 <select
@@ -451,7 +504,6 @@ export function EditProfileModal({
                 </select>
               </div>
 
-              {/* CIDADE CUSTOMIZADA */}
               <div
                 className="col-span-2 space-y-1.5 relative"
                 ref={cityWrapperRef}
@@ -464,7 +516,6 @@ export function EditProfileModal({
                     </span>
                   )}
                 </label>
-
                 <input
                   type="text"
                   placeholder={
@@ -481,13 +532,11 @@ export function EditProfileModal({
                   onFocus={() => {
                     if (formData.city.length > 0) setShowCityList(true);
                   }}
-                  className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
                   autoComplete="off"
                 />
-
-                {/* LISTA CUSTOMIZADA */}
                 {showCityList && filteredCities.length > 0 && (
-                  <ul className="absolute z-50 left-0 right-0 top-[calc(100%+4px)] bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-1">
+                  <ul className="absolute z-50 left-0 right-0 top-[calc(100%+4px)] bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto custom-scrollbar">
                     {filteredCities.map((city) => (
                       <li
                         key={city.id}
@@ -495,7 +544,7 @@ export function EditProfileModal({
                           setFormData({ ...formData, city: city.nome });
                           setShowCityList(false);
                         }}
-                        className="px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white cursor-pointer transition-colors"
+                        className="px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white cursor-pointer"
                       >
                         {city.nome}
                       </li>
@@ -527,10 +576,6 @@ export function EditProfileModal({
           </div>
 
           <div className="h-px bg-slate-800" />
-
-          {/* REDES SOCIAIS E OUTROS CAMPOS JÁ EXISTENTES */}
-          {/* ... (O resto do seu código de Redes Sociais, Skills e Portfólio continua aqui) ... */}
-          {/* Pode manter o código anterior daqui para baixo, pois não mexemos nessas seções */}
 
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
@@ -566,7 +611,6 @@ export function EditProfileModal({
             </div>
           </div>
 
-          {/* SKILLS E PORTFOLIO (PARA PROFISSIONAIS) */}
           {isPro && (
             <>
               <div className="h-px bg-slate-800" />
@@ -713,7 +757,6 @@ export function EditProfileModal({
 
           <div className="h-px bg-slate-800" />
 
-          {/* SEGURANÇA */}
           <div className="space-y-3 p-4 bg-slate-900/50 border border-slate-800 rounded-xl">
             <h3 className="text-xs font-bold text-slate-400 uppercase mb-2">
               Segurança (Opcional)
