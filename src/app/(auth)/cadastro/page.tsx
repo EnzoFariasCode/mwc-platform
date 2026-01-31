@@ -10,51 +10,66 @@ import {
   Smile,
   Loader2,
   CheckCircle2,
+  Briefcase, // Adicionado
+  Clock,     // Adicionado
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
+import { registerUser } from "@/actions/auth/register-user";
+import { toast } from "sonner";
 
 function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Captura contexto da URL
   const action = searchParams.get("action");
   const proId = searchParams.get("proId");
   const proName = searchParams.get("proName");
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isPro, setIsPro] = useState(false); // <--- ESTADO IMPORTANTE
 
-  // Cria a string de query para passar adiante se necessário
+  // Helper para links estáticos
   const queryParams = proId
     ? `?action=chat&proId=${proId}&proName=${encodeURIComponent(proName || "")}`
     : "";
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulação de Cadastro
-    setTimeout(() => {
-      if (action === "chat" && proId) {
-        // Redireciona para o chat com o profissional escolhido
-        router.push(`/dashboard/chat?newChat=${proId}`);
-      } else {
-        // Redireciona para o dashboard padrão
-        router.push("/dashboard");
-      }
-    }, 1500);
+    const formData = new FormData(e.currentTarget);
+    
+    // Adicionar log para debug se necessário
+    // console.log("Is Pro:", isPro);
+
+    const result = await registerUser(formData);
+
+    if (result?.error) {
+      toast.error(result.error);
+      setIsLoading(false);
+      return;
+    }
+
+    const params = new URLSearchParams();
+    params.set("registered", "true");
+
+    if (action === "chat" && proId) {
+      params.set("action", "chat");
+      params.set("proId", proId);
+      if (proName) params.set("proName", proName);
+    }
+
+    router.push(`/login?${params.toString()}`);
   };
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Cabeçalho */}
       <div className="text-center lg:text-left space-y-2">
         <h1 className="text-3xl font-bold text-foreground font-futura uppercase">
           Crie sua conta
         </h1>
 
-        {/* --- AVISO INTELIGENTE DE CONTEXTO --- */}
         {proName ? (
           <div className="mt-4 p-4 bg-primary/10 border border-primary/20 rounded-xl flex items-start gap-3 text-left animate-in slide-in-from-top-2 mb-4">
             <div className="p-1.5 bg-primary rounded-full mt-0.5 shrink-0">
@@ -74,7 +89,6 @@ function RegisterContent() {
           <p className="text-muted-foreground">
             Já tem uma conta?{" "}
             <Link
-              // Mantém o contexto ao ir para o login
               href={`/login${queryParams}`}
               className="text-primary hover:underline font-medium transition-all"
             >
@@ -85,7 +99,7 @@ function RegisterContent() {
       </div>
 
       <form className="space-y-5" onSubmit={handleRegister}>
-        {/* 1. Nome Completo */}
+        {/* Nome */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Nome Completo
@@ -95,6 +109,7 @@ function RegisterContent() {
               <User size={20} />
             </div>
             <input
+              name="name"
               type="text"
               placeholder="Seu nome civil completo"
               required
@@ -103,7 +118,7 @@ function RegisterContent() {
           </div>
         </div>
 
-        {/* 2. Como quer ser chamado */}
+        {/* Display Name */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Como quer ser chamado?
@@ -113,6 +128,7 @@ function RegisterContent() {
               <Smile size={20} />
             </div>
             <input
+              name="displayName"
               type="text"
               placeholder="Ex: João da Silva"
               required
@@ -121,7 +137,7 @@ function RegisterContent() {
           </div>
         </div>
 
-        {/* 3. Data de Nascimento */}
+        {/* Data Nascimento */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Data de Nascimento
@@ -131,6 +147,7 @@ function RegisterContent() {
               <Calendar size={20} />
             </div>
             <input
+              name="birthDate"
               type="date"
               required
               style={{ colorScheme: "dark" }}
@@ -139,7 +156,7 @@ function RegisterContent() {
           </div>
         </div>
 
-        {/* 4. Email */}
+        {/* Email */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Email Profissional
@@ -149,6 +166,7 @@ function RegisterContent() {
               <Mail size={20} />
             </div>
             <input
+              name="email"
               type="email"
               required
               placeholder="seu@email.com"
@@ -157,7 +175,7 @@ function RegisterContent() {
           </div>
         </div>
 
-        {/* 5. Senha */}
+        {/* Senha */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Senha
@@ -167,12 +185,83 @@ function RegisterContent() {
               <Lock size={20} />
             </div>
             <input
+              name="password"
               type="password"
               required
               placeholder="Mínimo 8 caracteres"
               className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground"
             />
           </div>
+        </div>
+
+        {/* Checkbox Tipo de Conta e Campos Condicionais */}
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              name="isPro"
+              id="isPro"
+              checked={isPro}
+              onChange={(e) => setIsPro(e.target.checked)} // <--- ATIVA/DESATIVA OS CAMPOS
+              className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer accent-primary"
+            />
+            <label
+              htmlFor="isPro"
+              className="text-sm font-medium text-foreground cursor-pointer select-none"
+            >
+              Cadastrar como Profissional
+            </label>
+          </div>
+
+          {/* --- AQUI ESTÁ A LÓGICA CONDICIONAL --- */}
+          {isPro && (
+            <div className="space-y-4 pl-4 border-l-2 border-primary/20 animate-in slide-in-from-top-2 fade-in duration-300">
+              
+              {/* Profissão (Job Title) */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Qual sua especialidade principal?
+                </label>
+                <div className="relative group">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
+                    <Briefcase size={18} />
+                  </div>
+                  <input
+                    name="jobTitle"
+                    type="text"
+                    required={isPro} // Obrigatório se for Pro
+                    placeholder="Ex: Eletricista, Advogado, Dev..."
+                    className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Tempo de Experiência (Select) */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Tempo de experiência
+                </label>
+                <div className="relative group">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
+                    <Clock size={18} />
+                  </div>
+                  <select
+                    name="experienceLevel"
+                    required={isPro} // Obrigatório se for Pro
+                    className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all text-sm appearance-none cursor-pointer"
+                  >
+                    <option value="" disabled selected className="text-muted-foreground">Selecione...</option>
+                    <option value="0">Menos de 1 ano</option>
+                    <option value="2">Entre 1 a 3 anos</option>
+                    <option value="5">Entre 3 a 5 anos</option>
+                    <option value="8">Mais de 5 anos</option>
+                    <option value="12">Mais de 10 anos</option>
+                  </select>
+                </div>
+              </div>
+
+            </div>
+          )}
         </div>
 
         {/* Termos */}
@@ -205,7 +294,6 @@ function RegisterContent() {
           </label>
         </div>
 
-        {/* Botão */}
         <button
           type="submit"
           disabled={isLoading}
@@ -224,7 +312,6 @@ function RegisterContent() {
         </button>
       </form>
 
-      {/* Divisor */}
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-border" />
@@ -236,9 +323,12 @@ function RegisterContent() {
         </div>
       </div>
 
-      {/* Social */}
+      {/* Botões Sociais */}
       <div className="grid grid-cols-2 gap-4">
-        <button className="flex items-center justify-center gap-2 bg-card hover:bg-muted border border-border hover:border-foreground/20 text-foreground py-2.5 rounded-xl transition-all">
+        <button
+          type="button"
+          className="flex cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all"
+        >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -259,7 +349,10 @@ function RegisterContent() {
           </svg>
           <span className="font-medium">Google</span>
         </button>
-        <button className="flex items-center justify-center gap-2 bg-card hover:bg-muted border border-border hover:border-foreground/20 text-foreground py-2.5 rounded-xl transition-all">
+        <button
+          type="button"
+          className="flex cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all"
+        >
           <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
             <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74s2.57-.99 3.87-.75c.68.03 2.19.47 3.12 1.87-3.02 1.63-2.5 5.8 1.12 7.15-.65 1.55-1.5 3.08-3.19 3.96zm-5.63-14c.48-2.62 2.4-4.5 4.58-4.28.34 2.89-3 6.06-4.58 4.28z" />
           </svg>
@@ -270,7 +363,6 @@ function RegisterContent() {
   );
 }
 
-// Wrapper Principal
 export default function RegisterPage() {
   return (
     <Suspense

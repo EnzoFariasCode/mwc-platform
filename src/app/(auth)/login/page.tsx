@@ -3,49 +3,85 @@
 import Link from "next/link";
 import { Mail, Lock, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect, useRef } from "react";
+import { loginUser } from "@/actions/auth/login-user";
+import { toast } from "sonner";
 
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Captura os dados da URL
   const action = searchParams.get("action");
   const proName = searchParams.get("proName");
   const proId = searchParams.get("proId");
+  const registered = searchParams.get("registered");
 
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // Lógica inteligente para o link de cadastro:
-  // Se estamos num fluxo de chat, o link de cadastro deve saber disso também.
+  // Ref para garantir que o toast só dispare uma vez
+  const toastShown = useRef(false);
+
+  useEffect(() => {
+    if (registered === "true" && !toastShown.current) {
+      toastShown.current = true; // Trava disparo duplo
+
+      toast.success("Conta criada com sucesso!", {
+        description: "Faça login para continuar.",
+        duration: 5000,
+      });
+
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete("registered");
+      router.replace(`/login?${newParams.toString()}`, { scroll: false });
+    }
+  }, [registered, router, searchParams]);
+
   const registerUrl = proId
     ? `/cadastro?action=chat&proId=${proId}&proName=${encodeURIComponent(
         proName || ""
       )}`
     : "/cadastro";
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMessage("");
 
-    setTimeout(() => {
+    const formData = new FormData(e.currentTarget);
+
+    // Chama a SUA action robusta (com Zod/JWT)
+    const result = await loginUser(formData);
+
+    if (result?.error) {
+      setErrorMessage(result.error);
+      toast.error(result.error);
+      setIsLoading(false); // Destrava para tentar de novo
+    } else {
+      toast.success("Login realizado!");
+
+      // --- CORREÇÃO DEFINITIVA DO "CARREGANDO..." ---
+      // Usamos window.location.href para forçar o navegador a ler o novo cookie
+      // router.push() as vezes falha em detectar cookies novos instantaneamente
+
       if (action === "chat" && proId) {
-        router.push(`/dashboard/chat?newChat=${proId}`);
+        window.location.href = `/dashboard/chat?newChat=${proId}`;
       } else {
-        router.push("/dashboard");
+        window.location.href = "/dashboard/cliente";
       }
-    }, 1500);
+
+      // Nota: Não setamos setIsLoading(false) aqui.
+      // Deixamos girando até a página recarregar.
+    }
   };
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Cabeçalho */}
       <div className="text-center lg:text-left space-y-2">
         <h1 className="text-3xl font-bold text-foreground font-futura">
           Bem-vindo de volta!
         </h1>
 
-        {/* AVISO INTELIGENTE (Se vier da busca) */}
         {proName && (
           <div className="mt-4 mb-4 p-4 bg-primary/10 border border-primary/20 rounded-xl flex items-start gap-3 text-left animate-in slide-in-from-top-2">
             <div className="p-1.5 bg-primary rounded-full mt-0.5 shrink-0">
@@ -63,11 +99,10 @@ function LoginContent() {
           </div>
         )}
 
-        {/* LINK DE CRIAR CONTA (AGORA SEMPRE VISÍVEL) */}
         <p className="text-gray-400">
           Não tem uma conta?{" "}
           <Link
-            href={registerUrl} // Agora leva o contexto junto!
+            href={registerUrl}
             className="text-primary hover:underline font-medium transition-all"
           >
             Crie gratuitamente
@@ -75,7 +110,12 @@ function LoginContent() {
         </p>
       </div>
 
-      {/* Formulário */}
+      {errorMessage && (
+        <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-500 text-sm text-center animate-in fade-in">
+          {errorMessage}
+        </div>
+      )}
+
       <form className="space-y-5" onSubmit={handleLogin}>
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-300 ml-1">
@@ -86,6 +126,7 @@ function LoginContent() {
               <Mail size={20} />
             </div>
             <input
+              name="email"
               type="email"
               required
               placeholder="seu@email.com"
@@ -109,6 +150,7 @@ function LoginContent() {
               <Lock size={20} />
             </div>
             <input
+              name="password"
               type="password"
               required
               placeholder="••••••••"
@@ -125,7 +167,7 @@ function LoginContent() {
           {isLoading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Entrando...
+              Verificando...
             </>
           ) : proName ? (
             "Entrar e Abrir Chat"
@@ -135,7 +177,6 @@ function LoginContent() {
         </button>
       </form>
 
-      {/* Divisor e Social Buttons (Mantidos iguais) */}
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-border" />

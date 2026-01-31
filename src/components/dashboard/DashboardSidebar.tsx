@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
+
 import {
   LayoutDashboard,
   Wallet,
@@ -12,21 +13,34 @@ import {
   Briefcase,
   Search,
   FileText,
-  Megaphone,
   MessageSquare,
   X,
   User,
   ChevronUp,
-  Heart, // Novo import
-  Store, // Novo import para Vitrine
+  Heart,
+  Store,
 } from "lucide-react";
 import Logo from "@/assets/images/landingPage/logo.png";
 import { useDashboard } from "@/context/DashboardContext";
 
-// --- SUB-COMPONENTE: Menu de Usuário (Dropdown) ---
-function UserMenu() {
+import { getUserProfile } from "@/actions/account/get-user-profile";
+import { logoutUser } from "@/actions/auth/logout-user";
+
+// --- ATUALIZAÇÃO 1: Adicionados campos id e avatarUrl na tipagem ---
+type UserData = {
+  id: string;
+  name: string | null;
+  displayName: string | null;
+  email: string | null;
+  userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
+  jobTitle?: string | null;
+  avatarUrl?: string | null; // <--- Importante para a imagem
+};
+
+function UserMenu({ user }: { user: UserData | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -37,6 +51,25 @@ function UserMenu() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleLogout = async () => {
+    await logoutUser();
+    router.push("/login");
+  };
+
+  const displayName = user?.displayName || user?.name || "Usuário";
+  const subTitle = user?.jobTitle
+    ? user.jobTitle
+    : user?.userType === "PROFESSIONAL"
+      ? "Profissional"
+      : "Cliente";
+
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(" ");
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+  const initials = getInitials(displayName);
 
   return (
     <div className="relative" ref={menuRef}>
@@ -56,14 +89,16 @@ function UserMenu() {
               </button>
             </Link>
             <div className="h-px bg-white/5 my-1" />
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-500/10 rounded-lg text-sm text-red-400 hover:text-red-300 transition-colors text-left cursor-pointer">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-500/10 rounded-lg text-sm text-red-400 hover:text-red-300 transition-colors text-left cursor-pointer"
+            >
               <LogOut className="w-4 h-4" />
               Sair da Conta
             </button>
           </div>
         </div>
       )}
-
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
@@ -72,12 +107,26 @@ function UserMenu() {
             : "bg-transparent border-transparent hover:bg-white/5 hover:border-white/5"
         }`}
       >
-        <div className="w-10 h-10 rounded-full bg-[#d73cbe] flex items-center justify-center text-white font-bold shrink-0">
-          JS
+        {/* --- ATUALIZAÇÃO 2: Lógica de Exibição da Imagem --- */}
+        <div className="w-10 h-10 rounded-full bg-[#d73cbe] flex items-center justify-center text-white font-bold shrink-0 select-none overflow-hidden relative border border-white/10">
+          {user?.avatarUrl ? (
+            <Image
+              src={user.avatarUrl}
+              alt={displayName}
+              fill
+              className="object-cover"
+              unoptimized // Essencial para evitar erros na API local
+            />
+          ) : (
+            <span>{user ? initials : "..."}</span>
+          )}
         </div>
+
         <div className="flex-1 text-left min-w-0">
-          <p className="font-bold text-sm text-white truncate">João Silva</p>
-          <p className="text-xs text-slate-400 truncate">Nível Starter</p>
+          <p className="font-bold text-sm text-white truncate">
+            {user ? displayName : "Carregando..."}
+          </p>
+          <p className="text-xs text-slate-400 truncate">{subTitle}</p>
         </div>
         <ChevronUp
           className={`w-4 h-4 text-slate-400 transition-transform ${
@@ -89,20 +138,77 @@ function UserMenu() {
   );
 }
 
-// --- COMPONENTE PRINCIPAL ---
+// --- MAIN COMPONENT ---
 export default function DashboardSidebar() {
   const pathname = usePathname();
-  const { userType, isMobileMenuOpen, closeMobileMenu } = useDashboard();
+  const { isMobileMenuOpen, closeMobileMenu } = useDashboard();
+  const [user, setUser] = useState<UserData | null>(null);
 
-  // --- MENU DO PROFISSIONAL (VITRINE + ATIVO) ---
+  // Estado local para controlar o menu exibido
+  const [viewMode, setViewMode] = useState<"CLIENT" | "PROFESSIONAL">("CLIENT");
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const data = await getUserProfile();
+        if (data) {
+          setUser(data as UserData);
+          if (data.userType === "CLIENT") setViewMode("CLIENT");
+        }
+      } catch (error) {
+        console.error("Erro ao carregar usuário no sidebar", error);
+      }
+    }
+    loadUser();
+  }, []); // Nota: O sidebar carrega uma vez. Se mudar a foto no perfil, precisará de refresh ou navegação para atualizar aqui.
+
+  // --- LÓGICA DE PERSISTÊNCIA ---
+  useEffect(() => {
+    const exclusiveProfessionalRoutes = [
+      "/dashboard/profissional",
+      "/dashboard/minhas-propostas",
+      "/dashboard/projetos-ativos",
+      "/dashboard/financeiro",
+      "/dashboard/encontrar-projetos",
+    ];
+
+    const exclusiveClientRoutes = [
+      "/dashboard/cliente",
+      "/dashboard/meus-projetos",
+      "/dashboard/favoritos",
+      "/search",
+      "/dashboard/encontrar-profissionais",
+    ];
+
+    const isExclusivePro = exclusiveProfessionalRoutes.some((r) =>
+      pathname.startsWith(r),
+    );
+    const isExclusiveClient = exclusiveClientRoutes.some((r) =>
+      pathname.startsWith(r),
+    );
+
+    if (isExclusivePro) {
+      setViewMode("PROFESSIONAL");
+    } else if (isExclusiveClient) {
+      setViewMode("CLIENT");
+    } else {
+      // Rotas compartilhadas: lemos do storage
+      const storedMode = localStorage.getItem("dashboardViewMode") as
+        | "CLIENT"
+        | "PROFESSIONAL";
+      if (storedMode) {
+        setViewMode(storedMode);
+      }
+    }
+  }, [pathname]);
+
   const professionalLinks = [
-    { icon: LayoutDashboard, label: "Visão Geral", href: "/dashboard" },
-    // A Vitrine é o mais importante agora
     {
-      icon: Store,
-      label: "Meu Perfil (Vitrine)",
-      href: "/dashboard/perfil",
+      icon: LayoutDashboard,
+      label: "Visão Geral",
+      href: "/dashboard/profissional",
     },
+    { icon: Store, label: "Minha Vitrine", href: "/dashboard/perfil" },
     {
       icon: MessageSquare,
       label: "Leads / Mensagens",
@@ -110,7 +216,7 @@ export default function DashboardSidebar() {
     },
     {
       icon: Search,
-      label: "Buscar Oportunidades", // Mudou de "Encontrar Projetos"
+      label: "Buscar Oportunidades",
       href: "/dashboard/encontrar-projetos",
     },
     {
@@ -126,16 +232,20 @@ export default function DashboardSidebar() {
     { icon: Wallet, label: "Financeiro", href: "/dashboard/financeiro" },
   ];
 
-  // --- MENU DO CLIENTE (HÍBRIDO) ---
   const clientLinks = [
-    { icon: LayoutDashboard, label: "Visão Geral", href: "/dashboard" },
+    { icon: LayoutDashboard, label: "Visão Geral", href: "/dashboard/cliente" },
     { icon: MessageSquare, label: "Mensagens", href: "/dashboard/chat" },
     {
+      icon: Search,
+      label: "Buscar Profissionais",
+      href: "/dashboard/encontrar-profissionais",
+    },
+    {
       icon: Briefcase,
-      label: "Meus Pedidos", // Mudou de "Meus Projetos"
+      label: "Meus Pedidos",
       href: "/dashboard/meus-projetos",
     },
-    { icon: Heart, label: "Favoritos", href: "/dashboard/favoritos" }, // Novo
+    { icon: Heart, label: "Favoritos", href: "/dashboard/favoritos" },
     {
       icon: Settings,
       label: "Configurações",
@@ -143,8 +253,7 @@ export default function DashboardSidebar() {
     },
   ];
 
-  const menuItems =
-    userType === "professional" ? professionalLinks : clientLinks;
+  const menuItems = viewMode === "CLIENT" ? clientLinks : professionalLinks;
 
   return (
     <>
@@ -156,11 +265,9 @@ export default function DashboardSidebar() {
       )}
 
       <aside
-        className={`
-          fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-white/5 flex flex-col transition-transform duration-300
-          ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} 
-          lg:static lg:translate-x-0 shrink-0
-        `}
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-white/5 flex flex-col transition-transform duration-300 ${
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:static lg:translate-x-0 shrink-0`}
       >
         <div className="h-20 flex items-center justify-between px-6 border-b border-white/5 shrink-0">
           <Link
@@ -189,12 +296,11 @@ export default function DashboardSidebar() {
 
         <nav className="flex-1 py-8 px-4 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
           <div className="px-4 mb-4 text-xs font-bold text-slate-500 uppercase tracking-widest opacity-50">
-            Menu {userType === "professional" ? "Profissional" : "Cliente"}
+            Menu {viewMode === "CLIENT" ? "Cliente" : "Profissional"}
           </div>
 
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
-
             return (
               <Link
                 key={item.href}
@@ -221,7 +327,7 @@ export default function DashboardSidebar() {
         </nav>
 
         <div className="p-4 border-t border-white/5 bg-slate-900 shrink-0">
-          <UserMenu />
+          <UserMenu user={user} />
         </div>
       </aside>
     </>

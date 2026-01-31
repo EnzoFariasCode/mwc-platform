@@ -2,11 +2,8 @@
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
-type UserType = "client" | "professional";
-
+// Removemos UserType e toggleUserType daqui porque agora a URL define isso
 interface DashboardContextType {
-  userType: UserType;
-  toggleUserType: () => void;
   isMobileMenuOpen: boolean;
   toggleMobileMenu: () => void;
   closeMobileMenu: () => void;
@@ -17,14 +14,7 @@ const DashboardContext = createContext<DashboardContextType | undefined>(
 );
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
-  const [userType, setUserType] = useState<UserType>("professional"); // Padrão
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const toggleUserType = () => {
-    setUserType((prev) =>
-      prev === "professional" ? "client" : "professional"
-    );
-  };
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
@@ -32,8 +22,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   return (
     <DashboardContext.Provider
       value={{
-        userType,
-        toggleUserType,
         isMobileMenuOpen,
         toggleMobileMenu,
         closeMobileMenu,
