@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Mail, Lock, CheckCircle2, Loader2 } from "lucide-react";
+import { Mail, Lock, CheckCircle2, Loader2, Eye, EyeOff } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense, useEffect, useRef } from "react";
 import { loginUser } from "@/actions/auth/login-user";
@@ -18,6 +18,7 @@ function LoginContent() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // <--- NOVO ESTADO
 
   // Ref para garantir que o toast só dispare uma vez
   const toastShown = useRef(false);
@@ -39,7 +40,7 @@ function LoginContent() {
 
   const registerUrl = proId
     ? `/cadastro?action=chat&proId=${proId}&proName=${encodeURIComponent(
-        proName || ""
+        proName || "",
       )}`
     : "/cadastro";
 
@@ -50,7 +51,7 @@ function LoginContent() {
 
     const formData = new FormData(e.currentTarget);
 
-    // Chama a SUA action robusta (com Zod/JWT)
+    // Chama a action
     const result = await loginUser(formData);
 
     if (result?.error) {
@@ -60,18 +61,12 @@ function LoginContent() {
     } else {
       toast.success("Login realizado!");
 
-      // --- CORREÇÃO DEFINITIVA DO "CARREGANDO..." ---
-      // Usamos window.location.href para forçar o navegador a ler o novo cookie
-      // router.push() as vezes falha em detectar cookies novos instantaneamente
-
+      // Redirecionamento forçado para garantir leitura de cookie
       if (action === "chat" && proId) {
         window.location.href = `/dashboard/chat?newChat=${proId}`;
       } else {
         window.location.href = "/dashboard/cliente";
       }
-
-      // Nota: Não setamos setIsLoading(false) aqui.
-      // Deixamos girando até a página recarregar.
     }
   };
 
@@ -117,6 +112,7 @@ function LoginContent() {
       )}
 
       <form className="space-y-5" onSubmit={handleLogin}>
+        {/* Email */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-300 ml-1">
             Email
@@ -135,11 +131,12 @@ function LoginContent() {
           </div>
         </div>
 
+        {/* Senha */}
         <div className="space-y-2">
           <div className="flex justify-between items-center ml-1">
             <label className="text-sm font-medium text-gray-300">Senha</label>
             <Link
-              href="/recuperar-senha"
+              href="/recuperarsenha"
               className="text-xs text-gray-500 hover:text-primary transition-colors"
             >
               Esqueceu a senha?
@@ -151,11 +148,19 @@ function LoginContent() {
             </div>
             <input
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"} // <--- TIPO DINÂMICO
               required
               placeholder="••••••••"
-              className="w-full bg-card/50 border border-input text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-gray-600"
+              className="w-full bg-card/50 border border-input text-foreground rounded-xl py-3 pl-10 pr-12 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-gray-600"
             />
+            {/* BOTÃO OLHINHO */}
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors cursor-pointer"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
         </div>
 

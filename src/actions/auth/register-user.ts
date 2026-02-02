@@ -15,15 +15,16 @@ export async function registerUser(
   const birthDateRaw = formData.get("birthDate")?.toString();
   const isPro = formData.get("isPro") === "on";
 
-  // [NOVO] Captura os dados profissionais
+  // Dados profissionais
   const jobTitle = formData.get("jobTitle")?.toString().trim();
   const experienceRaw = formData.get("experienceLevel")?.toString();
 
+  // 1. Validação Básica
   if (!name || !email || !password) {
     return { success: false, error: "Preencha todos os campos obrigatórios." };
   }
 
-  // [NOVO] Validação extra para profissionais
+  // 2. Validação Profissional
   if (isPro && !jobTitle) {
     return {
       success: false,
@@ -31,22 +32,30 @@ export async function registerUser(
     };
   }
 
+  // --- 3. VALIDAÇÃO DE SENHA (NOVA) ---
+  // Regras: 8-20 caracteres, Maiúscula, Minúscula, Número ou Símbolo
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).{8,20}$/;
+
+  if (!passwordRegex.test(password)) {
+    return {
+      success: false,
+      error:
+        "A senha deve ter entre 8 e 20 caracteres, incluir letra maiúscula, minúscula e número/símbolo.",
+    };
+  }
+  // ------------------------------------
+
   try {
-    // 1. Verifica existência via Service
     const userExists = await findUserByEmail(email);
 
     if (userExists) {
       return { success: false, error: "Este email já está em uso." };
     }
 
-    // 2. Prepara dados
     const hashedPassword = await bcrypt.hash(password, 10);
     const birthDate = birthDateRaw ? new Date(birthDateRaw) : null;
-
-    // [NOVO] Converte a experiência para número (se existir)
     const yearsOfExperience = experienceRaw ? parseInt(experienceRaw) : null;
 
-    // 3. Cria via Service
     await createUser({
       name,
       email,

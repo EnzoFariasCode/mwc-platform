@@ -1,14 +1,11 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { ActionResponse } from "@/types/user-types";
+import { deleteSession } from "@/lib/auth"; // Importa do centralizador
 
 export async function logoutUser(): Promise<ActionResponse> {
   try {
-    const cookieStore = await cookies();
-    //Deletamos o cookie "session" (onde fica o Token Seguro JWT)
-    cookieStore.delete("session");
-
+    await deleteSession(); // Usa a função padrão
     return { success: true };
   } catch (error) {
     console.error("Erro no logout:", error);

@@ -10,13 +10,32 @@ import {
   Smile,
   Loader2,
   CheckCircle2,
-  Briefcase, // Adicionado
-  Clock,     // Adicionado
+  Briefcase,
+  Clock,
+  Eye,
+  EyeOff,
+  XCircle,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { registerUser } from "@/actions/auth/register-user";
 import { toast } from "sonner";
+
+// Componente Auxiliar para o Checklist de Senha
+function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
+  return (
+    <div
+      className={`flex items-center gap-2 text-xs transition-colors ${met ? "text-green-500" : "text-muted-foreground"}`}
+    >
+      {met ? (
+        <CheckCircle2 size={12} />
+      ) : (
+        <div className="w-3 h-3 rounded-full border border-current" />
+      )}
+      <span>{text}</span>
+    </div>
+  );
+}
 
 function RegisterContent() {
   const router = useRouter();
@@ -27,22 +46,39 @@ function RegisterContent() {
   const proName = searchParams.get("proName");
 
   const [isLoading, setIsLoading] = useState(false);
-  const [isPro, setIsPro] = useState(false); // <--- ESTADO IMPORTANTE
+  const [isPro, setIsPro] = useState(false);
 
-  // Helper para links estáticos
+  // --- NOVOS ESTADOS ---
+  const [showPassword, setShowPassword] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordFocus, setPasswordFocus] = useState(false);
+
+  // --- VALIDAÇÃO DE SENHA EM TEMPO REAL ---
+  const reqs = {
+    length: password.length >= 8 && password.length <= 20, // Ajustado para máx 20 para ter folga (back valida 10 se quiser ser rígido)
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    numberOrSymbol: /[\d\W]/.test(password), // Número ou Símbolo
+  };
+
+  const isPasswordValid = Object.values(reqs).every(Boolean);
+
   const queryParams = proId
     ? `?action=chat&proId=${proId}&proName=${encodeURIComponent(proName || "")}`
     : "";
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    // Bloqueia envio se a senha não for forte
+    if (!isPasswordValid) {
+      toast.error("A senha não atende aos requisitos de segurança.");
+      return;
+    }
+
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    
-    // Adicionar log para debug se necessário
-    // console.log("Is Pro:", isPro);
-
     const result = await registerUser(formData);
 
     if (result?.error) {
@@ -175,7 +211,7 @@ function RegisterContent() {
           </div>
         </div>
 
-        {/* Senha */}
+        {/* --- SENHA REFORMULADA --- */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Senha
@@ -186,12 +222,39 @@ function RegisterContent() {
             </div>
             <input
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               required
-              placeholder="Mínimo 8 caracteres"
-              className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground"
+              placeholder="Crie uma senha forte"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setPasswordFocus(true)}
+              // onBlur={() => setPasswordFocus(false)} // Comentado para manter a lista visível se o usuário clicar fora mas ainda estiver inválido
+              className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-12 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground"
             />
+
+            {/* Botão Olhinho */}
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors cursor-pointer"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
+
+          {/* CHECKLIST DE REQUISITOS (Aparece ao digitar ou focar) */}
+          {(passwordFocus || password.length > 0) && (
+            <div className="grid grid-cols-2 gap-2 mt-2 p-3 bg-card border border-border rounded-lg animate-in fade-in slide-in-from-top-1">
+              <PasswordRequirement met={reqs.length} text="8 a 20 caracteres" />
+              <PasswordRequirement met={reqs.upper} text="Letra maiúscula" />
+              <PasswordRequirement met={reqs.lower} text="Letra minúscula" />
+              <PasswordRequirement
+                met={reqs.numberOrSymbol}
+                text="Número ou símbolo"
+              />
+            </div>
+          )}
         </div>
 
         {/* Checkbox Tipo de Conta e Campos Condicionais */}
@@ -202,7 +265,7 @@ function RegisterContent() {
               name="isPro"
               id="isPro"
               checked={isPro}
-              onChange={(e) => setIsPro(e.target.checked)} // <--- ATIVA/DESATIVA OS CAMPOS
+              onChange={(e) => setIsPro(e.target.checked)}
               className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer accent-primary"
             />
             <label
@@ -213,11 +276,9 @@ function RegisterContent() {
             </label>
           </div>
 
-          {/* --- AQUI ESTÁ A LÓGICA CONDICIONAL --- */}
           {isPro && (
             <div className="space-y-4 pl-4 border-l-2 border-primary/20 animate-in slide-in-from-top-2 fade-in duration-300">
-              
-              {/* Profissão (Job Title) */}
+              {/* Profissão */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
                   Qual sua especialidade principal?
@@ -229,14 +290,14 @@ function RegisterContent() {
                   <input
                     name="jobTitle"
                     type="text"
-                    required={isPro} // Obrigatório se for Pro
+                    required={isPro}
                     placeholder="Ex: Eletricista, Advogado, Dev..."
                     className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground text-sm"
                   />
                 </div>
               </div>
 
-              {/* Tempo de Experiência (Select) */}
+              {/* Tempo de Experiência */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
                   Tempo de experiência
@@ -247,10 +308,13 @@ function RegisterContent() {
                   </div>
                   <select
                     name="experienceLevel"
-                    required={isPro} // Obrigatório se for Pro
+                    required={isPro}
+                    defaultValue=""
                     className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all text-sm appearance-none cursor-pointer"
                   >
-                    <option value="" disabled selected className="text-muted-foreground">Selecione...</option>
+                    <option value="" disabled className="text-muted-foreground">
+                      Selecione...
+                    </option>
                     <option value="0">Menos de 1 ano</option>
                     <option value="2">Entre 1 a 3 anos</option>
                     <option value="5">Entre 3 a 5 anos</option>
@@ -259,7 +323,6 @@ function RegisterContent() {
                   </select>
                 </div>
               </div>
-
             </div>
           )}
         </div>
@@ -296,8 +359,8 @@ function RegisterContent() {
 
         <button
           type="submit"
-          disabled={isLoading}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2"
+          disabled={isLoading || !isPasswordValid} // Bloqueia se a senha for fraca
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>
@@ -312,6 +375,7 @@ function RegisterContent() {
         </button>
       </form>
 
+      {/* Rodapé e Sociais mantidos iguais */}
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-border" />
@@ -323,7 +387,6 @@ function RegisterContent() {
         </div>
       </div>
 
-      {/* Botões Sociais */}
       <div className="grid grid-cols-2 gap-4">
         <button
           type="button"

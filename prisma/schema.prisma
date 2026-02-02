@@ -39,164 +39,163 @@ enum ProposalStatus {
 // =========================================================
 
 model User {
-  id            String    @id @default(uuid())
-  name          String
-  displayName   String?
-  email         String    @unique
-  password      String
-  birthDate     DateTime?
-  userType      UserType  @default(CLIENT)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  name           String
+  displayName    String?
+  email          String    @unique
+  password       String
+  birthDate      DateTime?
+  userType       UserType  @default(CLIENT)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
   
   // --- Dados de Perfil ---
-  bio            String?   @db.Text
-  city           String?
-  state          String?
-  hourlyRate     Float?    
-  rating         Float     @default(5.0) 
+  bio             String?   @db.Text
+  city            String?
+  state           String?
+  hourlyRate      Float?    
+  rating          Float     @default(5.0) 
   
-  // [MODIFICADO] Campos Profissionais
-  jobTitle       String?           // Ex: Eletricista, Advogado
-  yearsOfExperience Int?           // [NOVO] Tempo de experiência
-  skills         String[]  @default([])
+  // Campos Profissionais
+  jobTitle        String?            // Ex: Eletricista, Advogado
+  yearsOfExperience Int?           // Tempo de experiência
+  skills          String[]  @default([])
   
-  socialGithub   String?
-  socialLinkedin String?
+  socialGithub    String?
+  socialLinkedin  String?
   
-  // [NOVO] Armazenamento de Imagem no Banco (Postgres BYTEA)
+  // Armazenamento de Imagem no Banco (Postgres BYTEA)
   profileImageBytes Bytes?   // O arquivo binário da imagem
-  profileImageType  String?  // O tipo do arquivo (ex: "image/jpeg", "image/png")
+  profileImageType  String?  // O tipo do arquivo (ex: "image/jpeg")
 
+  // --- NOVOS CAMPOS: RECUPERAÇÃO DE SENHA ---
+  resetCode       String?   // Código de 6 dígitos para reset
+  resetCodeExpiry DateTime? // Data de validade do código
+  
   // --- JSONs ---
-  portfolio      Json?     @default("[]") 
-  certificates   Json?     @default("[]")
+  portfolio       Json?     @default("[]") 
+  certificates    Json?     @default("[]")
 
   // --- Relacionamentos de Projetos ---
   projectsOwned    Project[] @relation("ClientProjects")
   projectsAssigned Project[] @relation("ProProjects")
 
   // --- Relacionamentos de Propostas e Entregas ---
-  proposals      Proposal[]    @relation("ProfessionalProposals")
-  deliverables   Deliverable[] @relation("UserDeliverables")      
+  proposals        Proposal[]    @relation("ProfessionalProposals")
+  deliverables     Deliverable[] @relation("UserDeliverables")       
 
   // --- Relacionamentos de Chat ---
   conversationsAsA Conversation[] @relation("ParticipantA")
   conversationsAsB Conversation[] @relation("ParticipantB")
   
-  sentMessages   Message[]        @relation("SentMessages")
+  sentMessages     Message[]         @relation("SentMessages")
 
   // --- Relacionamentos de Favoritos ---
-  favorites      Favorite[] @relation("UserFavorites")
-  favoritedBy    Favorite[] @relation("FavoritedBy")
+  favorites       Favorite[] @relation("UserFavorites")
+  favoritedBy     Favorite[] @relation("FavoritedBy")
 }
-
-// ... (O RESTANTE DO ARQUIVO PERMANECE IGUAL AO QUE VOCÊ ENVIOU) ...
-// ... Project, Proposal, Deliverable, Conversation, Message, Favorite ...
-// Vou ocultar para economizar espaço, pois não houve mudanças neles.
-// Apenas copie e mantenha o resto do arquivo igual.
 
 // =========================================================
-// 3. MODELO DE PROJETOS
-// ...
+// 3. MODELO DE PROJETOS E OUTROS
+// =========================================================
+
 model Project {
-  id          String    @id @default(uuid())
-  title       String
-  description String    @db.Text
-  category    String    
-  tags        String[] 
+  id           String    @id @default(uuid())
+  title        String
+  description  String    @db.Text
+  category     String    
+  tags         String[] 
   
-  budgetType  String    
-  budgetValue Float     
-  budgetLabel String    
+  budgetType   String    
+  budgetValue  Float      
+  budgetLabel  String    
   
-  agreedPrice Decimal? 
+  agreedPrice  Decimal? 
   
-  deadline    String    
+  deadline     String    
   
-  status      ProjectStatus @default(OPEN) 
+  status       ProjectStatus @default(OPEN) 
   
-  attachments Json?     @default("[]") 
+  attachments  Json?     @default("[]") 
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  ownerId        String
-  owner          User      @relation("ClientProjects", fields: [ownerId], references: [id])
+  ownerId         String
+  owner           User      @relation("ClientProjects", fields: [ownerId], references: [id])
   
-  professionalId String?
-  professional   User?     @relation("ProProjects", fields: [professionalId], references: [id])
+  professionalId  String?
+  professional    User?     @relation("ProProjects", fields: [professionalId], references: [id])
   
-  bidsCount      Int       @default(0)
+  bidsCount       Int       @default(0)
 
-  proposals      Proposal[]    
-  deliverables   Deliverable[] 
+  proposals       Proposal[]    
+  deliverables    Deliverable[] 
 }
 
-// ... Proposal, Deliverable, Conversation, Message, Favorite continuam iguais ...
 model Proposal {
-  id            String    @id @default(uuid())
-  price         Decimal  
-  estimatedDays Int      
-  coverLetter   String    @db.Text 
-  status        ProposalStatus @default(PENDING)
-  projectId     String
-  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id             String    @id @default(uuid())
+  price          Decimal  
+  estimatedDays  Int      
+  coverLetter    String    @db.Text 
+  status         ProposalStatus @default(PENDING)
+  projectId      String
+  project        Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   professionalId String
   professional   User    @relation("ProfessionalProposals", fields: [professionalId], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([projectId])
   @@index([professionalId])
 }
 
 model Deliverable {
-  id            String    @id @default(uuid())
-  description   String?  
-  fileUrl       String?  
-  link          String?  
-  projectId     String
-  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  senderId      String   
-  sender        User     @relation("UserDeliverables", fields: [senderId], references: [id])
-  createdAt     DateTime @default(now())
+  id             String    @id @default(uuid())
+  description    String?  
+  fileUrl        String?  
+  link           String?  
+  projectId      String
+  project        Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  senderId       String    
+  sender         User      @relation("UserDeliverables", fields: [senderId], references: [id])
+  createdAt      DateTime @default(now())
 }
 
 model Conversation {
-  id             String    @id @default(uuid())
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  lastMessageTime DateTime  @default(now()) 
-  lastMessage     String?   
-  participantAId String
-  participantA   User    @relation("ParticipantA", fields: [participantAId], references: [id])
-  participantBId String
-  participantB   User    @relation("ParticipantB", fields: [participantBId], references: [id])
-  unreadCountA Int @default(0) 
-  unreadCountB Int @default(0) 
-  deletedByIds String[] @default([]) 
-  messages        Message[]
+  id               String    @id @default(uuid())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastMessageTime  DateTime  @default(now()) 
+  lastMessage      String?    
+  participantAId   String
+  participantA     User    @relation("ParticipantA", fields: [participantAId], references: [id])
+  participantBId   String
+  participantB     User    @relation("ParticipantB", fields: [participantBId], references: [id])
+  unreadCountA     Int     @default(0) 
+  unreadCountB     Int     @default(0) 
+  deletedByIds     String[] @default([]) 
+  messages         Message[]
   @@unique([participantAId, participantBId])
 }
 
 model Message {
-  id             String       @id @default(uuid())
-  content        String       @db.Text
-  read           Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  senderId       String
-  sender         User         @relation("SentMessages", fields: [senderId], references: [id])
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  id               String       @id @default(uuid())
+  content          String       @db.Text
+  read             Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+  senderId         String
+  sender           User         @relation("SentMessages", fields: [senderId], references: [id])
+  conversationId   String
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 model Favorite {
-  id             String   @id @default(uuid())
-  createdAt      DateTime @default(now())
-  clientId       String
-  client         User     @relation("UserFavorites", fields: [clientId], references: [id], onDelete: Cascade)
-  professionalId String
-  professional   User     @relation("FavoritedBy", fields: [professionalId], references: [id], onDelete: Cascade)
+  id               String   @id @default(uuid())
+  createdAt        DateTime @default(now())
+  clientId         String
+  client           User     @relation("UserFavorites", fields: [clientId], references: [id], onDelete: Cascade)
+  professionalId   String
+  professional     User     @relation("FavoritedBy", fields: [professionalId], references: [id], onDelete: Cascade)
   @@unique([clientId, professionalId])
 }

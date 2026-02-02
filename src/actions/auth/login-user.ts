@@ -1,12 +1,10 @@
-// src/actions/auth/login-user.ts
 "use server";
 
 import bcrypt from "bcryptjs";
-import { cookies } from "next/headers";
 import { z } from "zod";
 import { findUserByEmail } from "@/services/user-service";
 import { ActionResponse } from "@/types/user-types";
-import { SignJWT } from "jose"; // <--- Importamos a lib de assinatura
+import { createSession } from "@/lib/auth"; // <--- USAMOS A FUNÇÃO CENTRALIZADA
 
 const LoginSchema = z.object({
   email: z.string().email("Formato de email inválido"),
@@ -29,29 +27,10 @@ export async function loginUser(formData: FormData): Promise<ActionResponse> {
       return { success: false, error: "Email ou senha incorretos." };
     }
 
-    // --- AQUI COMEÇA A MÁGICA DA SEGURANÇA (JWT) ---
-
-    // 1. Prepara a chave secreta
-    const secret = new TextEncoder().encode(process.env.AUTH_SECRET);
-
-    // 2. Cria o token assinado
-    // "sub" (subject) é o padrão para guardar o ID do usuário
-    const token = await new SignJWT({ sub: user.id, role: user.userType })
-      .setProtectedHeader({ alg: "HS256" }) // Algoritmo de criptografia
-      .setIssuedAt()
-      .setExpirationTime("7d") // Expira em 7 dias
-      .sign(secret); // Assina com sua senha mestra
-
-    // 3. Salva o TOKEN (não o ID) no cookie
-    const cookieStore = await cookies();
-    cookieStore.set("session", token, {
-      // Mudei o nome para 'session'
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-      sameSite: "lax",
-    });
+    // --- MUDANÇA AQUI ---
+    // Em vez de criar o cookie na mão, chamamos a função que configuramos
+    // para ser "Session Cookie" (apaga ao fechar o navegador).
+    await createSession(user.id);
 
     return { success: true };
   } catch (error) {
