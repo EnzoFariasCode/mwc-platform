@@ -48,9 +48,6 @@ export default function DashboardHeader() {
       "/dashboard/encontrar-profissionais", // Importante estar aqui
     ];
 
-    // --- CORREÇÃO AQUI ---
-    // Verifica se estamos vendo um perfil público (ex: /dashboard/profissional/UUID-DO-CARA)
-    // A regex verifica se tem algo depois de /profissional/
     const isProfileView = /^\/dashboard\/profissional\/[a-zA-Z0-9-]+$/.test(
       pathname,
     );

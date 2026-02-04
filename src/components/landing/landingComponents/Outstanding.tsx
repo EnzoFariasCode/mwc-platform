@@ -58,7 +58,7 @@ function Outstanding() {
             trigger: ".gsap-header",
             start: "top 85%",
           },
-        }
+        },
       );
 
       // 2. Cards dos Profissionais (Efeito Cascata / Stagger)
@@ -75,38 +75,35 @@ function Outstanding() {
             trigger: ".gsap-grid-container", // Gatilho no container dos cards
             start: "top 75%",
           },
-        }
+        },
       );
     },
-    { scope: containerRef }
+    { scope: containerRef },
   );
 
   return (
     <section
+      id="profissionais"
       ref={containerRef}
       className="relative py-24 px-4 bg-slate-950 border-b border-white/5 overflow-hidden"
     >
       {/* Container Principal */}
       <div className="max-w-7xl mx-auto flex flex-col items-center">
         {/* Cabeçalho da Seção */}
-        {/* Adicionei 'gsap-header' e 'opacity-0' */}
         <h2 className="gsap-header opacity-0 text-3xl md:text-5xl font-bold tracking-tight text-[#d73cbe] drop-shadow-lg mb-6 text-center font-futura uppercase">
           Profissionais em Destaque
         </h2>
 
-        {/* Adicionei 'gsap-header' e 'opacity-0' */}
         <p className="gsap-header opacity-0 text-slate-400 text-center max-w-3xl mb-16 text-lg leading-relaxed">
           Todos os nossos profissionais possuem verificação de dados e
           comprovação de capacitação. Segurança total para você fechar negócio.
         </p>
 
         {/* Grid de Cards */}
-        {/* Adicionei 'gsap-grid-container' para servir de gatilho */}
         <div className="gsap-grid-container flex flex-wrap justify-center gap-8 w-full">
           {data.map((item) => (
             <div
               key={item.id}
-              // Adicionei 'gsap-card' e 'opacity-0'
               className="gsap-card opacity-0 group relative w-full max-w-[300px] bg-[#1a1b26] rounded-[20px] p-6 flex flex-col items-center border border-white/5 hover:border-[#d73cbe]/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_0_30px_-10px_rgba(215,60,190,0.3)]"
             >
               {/* Categoria (Badge no topo) */}

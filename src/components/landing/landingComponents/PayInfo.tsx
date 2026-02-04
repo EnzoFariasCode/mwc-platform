@@ -31,11 +31,10 @@ function PayInfo() {
             trigger: containerRef.current,
             start: "top 75%",
           },
-        }
+        },
       );
 
       // 2. Ícones Flutuando (Animação Contínua em Loop)
-      // Isso roda independente do scroll, para dar "vida"
       gsap.to(".gsap-icon-float", {
         y: -10, // Sobe 10px
         duration: 2,
@@ -44,7 +43,7 @@ function PayInfo() {
         ease: "sine.inOut", // Movimento de onda suave
       });
     },
-    { scope: containerRef }
+    { scope: containerRef },
   );
 
   return (
@@ -57,9 +56,7 @@ function PayInfo() {
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
         {/* CARD 1: Formas de Pagamento */}
-        {/* Adicionei 'gsap-pay-card' e 'opacity-0' */}
         <div className="gsap-pay-card opacity-0 border border-white/10 bg-white/5 backdrop-blur-md rounded-2xl p-8 lg:p-12 flex flex-col items-start justify-center gap-6 hover:border-purple-500/30 transition-all duration-300 group">
-          {/* Adicionei 'gsap-icon-float' para flutuar */}
           <div className="gsap-icon-float w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
             <CreditCard className="w-6 h-6 text-purple-400" />
           </div>
@@ -98,7 +95,8 @@ function PayInfo() {
             </div>
           </div>
 
-          <Link href="/planos">
+          {/* LINK ATUALIZADO AQUI */}
+          <Link href="/beWorker#planos">
             <button className="bg-[#d73cbe] hover:bg-[#b0269a] cursor-pointer text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-purple-500/20 hover:translate-x-1">
               Ver Planos
             </button>
@@ -106,9 +104,7 @@ function PayInfo() {
         </div>
 
         {/* CARD 2: Segurança */}
-        {/* Adicionei 'gsap-pay-card' e 'opacity-0' */}
         <div className="gsap-pay-card opacity-0 border border-white/10 bg-gradient-to-br from-white/5 to-purple-900/10 backdrop-blur-md rounded-2xl p-8 lg:p-12 flex flex-col items-center text-center justify-center gap-6 hover:border-blue-500/30 transition-all duration-300 group">
-          {/* Adicionei 'gsap-icon-float' (Nota: delay manual no CSS ou apenas deixar sincrono, aqui deixei sincrono para simplificar o loop) */}
           <div className="gsap-icon-float w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-2 group-hover:rotate-12 transition-transform duration-500">
             <ShieldCheck className="w-8 h-8 text-blue-400" />
           </div>

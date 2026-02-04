@@ -97,6 +97,7 @@ function ServicesSection() {
 
   return (
     <section
+    id="servicesSection"
       ref={containerRef}
       className="relative py-24 px-4 bg-slate-950 overflow-hidden"
     >

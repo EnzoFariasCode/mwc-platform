@@ -31,13 +31,13 @@ const LandingHeader = () => {
               Como funciona
             </Link>
             <Link
-              href="#servicos"
+              href="/#servicesSection"
               className="hover:text-[#d73cbe] transition-colors cursor-pointer"
             >
               Serviços
             </Link>
             <Link
-              href="#profissionais"
+              href="/#profissionais"
               className="hover:text-[#d73cbe] transition-colors cursor-pointer"
             >
               Profissionais
