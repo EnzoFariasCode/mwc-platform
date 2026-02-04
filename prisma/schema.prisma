@@ -68,13 +68,31 @@ model User {
   profileImageBytes Bytes?   // O arquivo binário da imagem
   profileImageType  String?  // O tipo do arquivo (ex: "image/jpeg")
 
-  // --- NOVOS CAMPOS: RECUPERAÇÃO DE SENHA ---
+  // --- RECUPERAÇÃO DE SENHA ---
   resetCode       String?   // Código de 6 dígitos para reset
   resetCodeExpiry DateTime? // Data de validade do código
   
   // --- JSONs ---
   portfolio       Json?     @default("[]") 
   certificates    Json?     @default("[]")
+
+  // =========================================================
+  // [NOVO] INTEGRAÇÃO STRIPE (ASSINATURA DO PLANO)
+  // =========================================================
+  stripeCustomerId       String?   @unique // ID do cliente na Stripe
+  stripeSubscriptionId   String?   @unique // ID da assinatura recorrente
+  stripePriceId          String?           // Qual plano ele assina (Starter, Pro)
+  stripeCurrentPeriodEnd DateTime?         // Quando vence a assinatura
+
+  // =========================================================
+  // [NOVO] DADOS FINANCEIROS (RECEBIMENTO DE TRABALHO)
+  // =========================================================
+  walletBalance    Float     @default(0.0) // Saldo atual disponível para saque
+  pixKey           String?                 // Chave Pix para receber
+  pixKeyType       String?                 // CPF, EMAIL, PHONE, RANDOM
+  
+  // Relacionamento com as movimentações financeiras
+  transactions     Transaction[]
 
   // --- Relacionamentos de Projetos ---
   projectsOwned    Project[] @relation("ClientProjects")
@@ -96,7 +114,29 @@ model User {
 }
 
 // =========================================================
-// 3. MODELO DE PROJETOS E OUTROS
+// 3. MODELO DE TRANSAÇÕES FINANCEIRAS (NOVO)
+// =========================================================
+
+model Transaction {
+  id          String   @id @default(uuid())
+  
+  userId      String   // De quem é essa movimentação
+  user        User     @relation(fields: [userId], references: [id])
+  
+  amount      Float    // Valor da transação
+  type        String   // "CREDIT" (Recebeu de projeto) ou "DEBIT" (Sacou)
+  status      String   // "PENDING", "COMPLETED", "FAILED"
+  description String   // Ex: "Pagamento Projeto Landing Page", "Saque Pix"
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Opcional: Ligar a transação ao projeto que gerou o dinheiro (para rastreio)
+  projectId   String?
+}
+
+// =========================================================
+// 4. MODELO DE PROJETOS E OUTROS
 // =========================================================
 
 model Project {
