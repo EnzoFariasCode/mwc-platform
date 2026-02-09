@@ -3,13 +3,14 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation"; // Importado para navegação
 import {
   ShieldCheck,
   MessageSquare,
   Wallet,
   Zap,
   CheckCircle2,
-  Check, // Importado para a lista dos planos
+  Check,
 } from "lucide-react";
 
 // GSAP Imports
@@ -19,14 +20,19 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 // Assets
 import heroBg from "@/assets/images/howToBeWorker/hero-bg.jpg";
-import dashboard from "@/assets/images/howToBeWorker/dashboard-mockup.png"; // Certifique-se que esta imagem existe ou use um placeholder
+import dashboard from "@/assets/images/howToBeWorker/dashboard-mockup.png";
 import FooterContact from "@/components/ui/FooterContact";
+
+// Server Actions e Toast
+import { createCheckoutSession } from "@/actions/stripe/create-checkout-session";
+import { toast } from "sonner";
 
 gsap.registerPlugin(ScrollTrigger);
 
-// --- DADOS DOS PLANOS (Design Premium) ---
+// --- DADOS DOS PLANOS ---
 const plansData = [
   {
+    id: "free",
     title: "Iniciante",
     price: "Grátis",
     period: "",
@@ -43,6 +49,7 @@ const plansData = [
     popular: false,
   },
   {
+    id: "starter",
     title: "Starter",
     price: "R$ 14,99",
     period: "/mês",
@@ -60,6 +67,7 @@ const plansData = [
     popular: true,
   },
   {
+    id: "advanced",
     title: "Advanced",
     price: "R$ 24,99",
     period: "/mês",
@@ -80,7 +88,7 @@ const plansData = [
   },
 ];
 
-// --- NOVO COMPONENTE DE BOTÃO (Ajustado para 240px para dar padding) ---
+// --- COMPONENTE DE BOTÃO SVG (Hero) ---
 const SvgButton = ({
   text,
   href,
@@ -91,11 +99,9 @@ const SvgButton = ({
   className?: string;
 }) => {
   return (
-    // Largura fixada em 240px
     <div className={`relative w-[240px] h-[60px] group ${className}`}>
       <Link href={href} className="block w-full h-full relative z-10">
         <button className="w-full h-full cursor-pointer bg-transparent outline-none relative flex items-center justify-center">
-          {/* O SVG que faz a mágica da borda animada (Largura 240px) */}
           <svg
             width="240px"
             height="60px"
@@ -108,13 +114,9 @@ const SvgButton = ({
               group-hover:fill-[#d73cbe]/10
             `}
           >
-            {/* Points ajustados para largura 240 (239,1...) */}
             <polyline points="239,1 239,59 1,59 1,1 239,1" strokeWidth="2" />
           </svg>
-
-          {/* Borda estática fraquinha */}
           <div className="absolute inset-0 border border-white/20 pointer-events-none transition-opacity duration-500 group-hover:opacity-0"></div>
-
           <span className="text-white text-base font-bold tracking-widest uppercase relative z-20">
             {text}
           </span>
@@ -126,6 +128,54 @@ const SvgButton = ({
 
 export default function HowToBeWorkerPage() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter(); // Hook de navegação
+
+  const handleSubscribe = async (planId: string) => {
+    // 1. Free
+    if (planId === "free") {
+      router.push("/cadastro");
+      return;
+    }
+
+    const toastId = toast.loading("Processando...");
+
+    try {
+      const result = await createCheckoutSession(
+        planId as "starter" | "advanced",
+      );
+
+      // --- TRATAMENTO DE ERRO DE LOGIN ---
+      if (result.error === "unauthorized") {
+        toast.dismiss(toastId);
+        toast("Você precisa fazer login.", {
+          description: "Redirecionando para entrar na sua conta...",
+          action: {
+            label: "Entrar",
+            onClick: () => router.push("/login?callbackUrl=/beWorker"),
+          },
+        });
+        // Redireciona e avisa pra voltar pra cá depois
+        // Dica: Seu login precisaria ser ajustado para ler 'callbackUrl',
+        // mas por padrão vamos só jogar pro login simples por enquanto.
+        router.push("/login");
+        return;
+      }
+      // -----------------------------------
+
+      if (result.error) {
+        toast.dismiss(toastId);
+        toast.error(result.error);
+        return;
+      }
+
+      if (result.url) {
+        window.location.href = result.url;
+      }
+    } catch (error) {
+      toast.dismiss(toastId);
+      toast.error("Erro de conexão.");
+    }
+  };
 
   useGSAP(
     (context, contextSafe) => {
@@ -204,7 +254,7 @@ export default function HowToBeWorkerPage() {
         },
       );
 
-      // === 4. PLANOS PREMIUM ANIMATION (Entrada) ===
+      // === 4. PLANOS PREMIUM ANIMATION ===
       gsap.fromTo(
         ".gsap-plan-card-premium",
         { y: 60, opacity: 0, scale: 0.95 },
@@ -222,7 +272,7 @@ export default function HowToBeWorkerPage() {
         },
       );
 
-      // === 5. INTERAÇÃO DOS CARDS DE PLANOS (Hover Effects) ===
+      // === 5. HOVER EFFECTS ===
       const cards = gsap.utils.toArray<HTMLElement>(".gsap-plan-card-premium");
 
       cards.forEach((card) => {
@@ -233,7 +283,6 @@ export default function HowToBeWorkerPage() {
         const isHighlighted = card.dataset.highlighted === "true";
         const originalScale = 1;
 
-        /* HOVER IN */
         const onEnter =
           contextSafe &&
           contextSafe(() => {
@@ -264,7 +313,6 @@ export default function HowToBeWorkerPage() {
             }
           });
 
-        /* HOVER OUT */
         const onLeave =
           contextSafe &&
           contextSafe(() => {
@@ -313,7 +361,6 @@ export default function HowToBeWorkerPage() {
     >
       {/* === HERO SECTION === */}
       <section className="relative py-24 lg:py-32 overflow-hidden min-h-[650px] flex items-center">
-        {/* Background Fixed */}
         <div
           className="absolute inset-0 z-0 bg-no-repeat bg-cover bg-fixed bg-center-bottom opacity-60"
           style={{
@@ -323,8 +370,6 @@ export default function HowToBeWorkerPage() {
           role="img"
           aria-label="Mulher profissional sorrindo"
         />
-
-        {/* Gradiente sutil */}
         <div className="absolute inset-0 z-0 bg-gradient-to-t from-slate-950 via-slate-950/85 to-slate-900/70"></div>
 
         <div className="container mx-auto px-4 relative z-10 text-center flex flex-col items-center">
@@ -344,7 +389,6 @@ export default function HowToBeWorkerPage() {
             <div className="gsap-hero-btn opacity-0">
               <SvgButton text="Começar Agora" href="/login" />
             </div>
-
             <div className="gsap-hero-btn opacity-0">
               <SvgButton text="Ver Processo" href="#como-funciona" />
             </div>
@@ -424,7 +468,6 @@ export default function HowToBeWorkerPage() {
           <div className="gsap-dash-image opacity-0 flex-1 w-full h-64 md:h-96 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-white/10 flex items-center justify-center relative overflow-hidden group hover:border-[#d73cbe]/30 transition-colors duration-500">
             <div className="absolute inset-0 bg-[#d73cbe]/5 group-hover:bg-[#d73cbe]/10 transition-colors"></div>
             <div className="p-4 relative w-full h-full flex items-center justify-center">
-              {/* Imagem do Dashboard com fallback */}
               <Image
                 src={dashboard}
                 alt="Dashboard do Profissional"
@@ -435,7 +478,7 @@ export default function HowToBeWorkerPage() {
         </div>
       </section>
 
-      {/* === PLANOS PREMIUM (Substituindo os Cards Antigos) === */}
+      {/* === PLANOS PREMIUM === */}
       <section id="planos" className="py-24 relative bg-slate-900/20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
@@ -490,14 +533,14 @@ export default function HowToBeWorkerPage() {
                   ))}
                 </ul>
 
-                <Link href="/cadastro" className="block w-full">
-                  <button
-                    className={`gsap-cta-button cursor-pointer relative overflow-hidden w-full py-4 rounded-xl font-bold text-sm transition-transform active:scale-95 ${plan.buttonStyle}`}
-                  >
-                    <span className="relative z-10">{plan.buttonText}</span>
-                    <span className="cta-blur absolute inset-0 opacity-0 bg-white/20 backdrop-blur-sm" />
-                  </button>
-                </Link>
+                {/* BOTÃO ATUALIZADO COM LÓGICA DE CLICK */}
+                <button
+                  onClick={() => handleSubscribe(plan.id)}
+                  className={`gsap-cta-button cursor-pointer relative overflow-hidden w-full py-4 rounded-xl font-bold text-sm transition-transform active:scale-95 ${plan.buttonStyle}`}
+                >
+                  <span className="relative z-10">{plan.buttonText}</span>
+                  <span className="cta-blur absolute inset-0 opacity-0 bg-white/20 backdrop-blur-sm" />
+                </button>
               </div>
             ))}
           </div>

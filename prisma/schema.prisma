@@ -57,81 +57,73 @@ model User {
   rating          Float     @default(5.0) 
   
   // Campos Profissionais
-  jobTitle        String?            // Ex: Eletricista, Advogado
-  yearsOfExperience Int?           // Tempo de experiência
+  jobTitle        String?            
+  yearsOfExperience Int?           
   skills          String[]  @default([])
   
   socialGithub    String?
   socialLinkedin  String?
   
-  // Armazenamento de Imagem no Banco (Postgres BYTEA)
-  profileImageBytes Bytes?   // O arquivo binário da imagem
-  profileImageType  String?  // O tipo do arquivo (ex: "image/jpeg")
+  // Armazenamento de Imagem no Banco
+  profileImageBytes Bytes?   
+  profileImageType  String?  
 
   // --- RECUPERAÇÃO DE SENHA ---
-  resetCode       String?   // Código de 6 dígitos para reset
-  resetCodeExpiry DateTime? // Data de validade do código
+  resetCode       String?   
+  resetCodeExpiry DateTime? 
   
   // --- JSONs ---
   portfolio       Json?     @default("[]") 
   certificates    Json?     @default("[]")
 
   // =========================================================
-  // [NOVO] INTEGRAÇÃO STRIPE (ASSINATURA DO PLANO)
+  // [INTEGRAÇÃO STRIPE - ASSINATURA]
   // =========================================================
-  stripeCustomerId       String?   @unique // ID do cliente na Stripe
-  stripeSubscriptionId   String?   @unique // ID da assinatura recorrente
-  stripePriceId          String?           // Qual plano ele assina (Starter, Pro)
-  stripeCurrentPeriodEnd DateTime?         // Quando vence a assinatura
+  stripeCustomerId         String?   @unique // ID do cliente na Stripe
+  stripeSubscriptionId     String?   @unique // ID da assinatura
+  stripePriceId            String?           // ID do Plano (Starter/Pro)
+  stripeCurrentPeriodEnd   DateTime?         // Validade
+  stripeSubscriptionStatus String?           // [NOVO] active, past_due, trialing, canceled...
 
   // =========================================================
-  // [NOVO] DADOS FINANCEIROS (RECEBIMENTO DE TRABALHO)
+  // [DADOS FINANCEIROS - RECEBIMENTO DE TRABALHO]
   // =========================================================
-  walletBalance    Float     @default(0.0) // Saldo atual disponível para saque
-  pixKey           String?                 // Chave Pix para receber
-  pixKeyType       String?                 // CPF, EMAIL, PHONE, RANDOM
+  walletBalance    Float     @default(0.0) 
+  pixKey           String?                 
+  pixKeyType       String?                 
   
-  // Relacionamento com as movimentações financeiras
   transactions     Transaction[]
 
-  // --- Relacionamentos de Projetos ---
+  // --- Relacionamentos ---
   projectsOwned    Project[] @relation("ClientProjects")
   projectsAssigned Project[] @relation("ProProjects")
-
-  // --- Relacionamentos de Propostas e Entregas ---
   proposals        Proposal[]    @relation("ProfessionalProposals")
   deliverables     Deliverable[] @relation("UserDeliverables")       
-
-  // --- Relacionamentos de Chat ---
   conversationsAsA Conversation[] @relation("ParticipantA")
   conversationsAsB Conversation[] @relation("ParticipantB")
-  
   sentMessages     Message[]         @relation("SentMessages")
-
-  // --- Relacionamentos de Favoritos ---
   favorites       Favorite[] @relation("UserFavorites")
   favoritedBy     Favorite[] @relation("FavoritedBy")
 }
 
 // =========================================================
-// 3. MODELO DE TRANSAÇÕES FINANCEIRAS (NOVO)
+// 3. MODELO DE TRANSAÇÕES FINANCEIRAS
 // =========================================================
 
 model Transaction {
   id          String   @id @default(uuid())
   
-  userId      String   // De quem é essa movimentação
+  userId      String   
   user        User     @relation(fields: [userId], references: [id])
   
-  amount      Float    // Valor da transação
-  type        String   // "CREDIT" (Recebeu de projeto) ou "DEBIT" (Sacou)
+  amount      Float    
+  type        String   // "CREDIT" (Entrada) ou "DEBIT" (Saída)
   status      String   // "PENDING", "COMPLETED", "FAILED"
-  description String   // Ex: "Pagamento Projeto Landing Page", "Saque Pix"
+  description String   
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Opcional: Ligar a transação ao projeto que gerou o dinheiro (para rastreio)
   projectId   String?
 }
 

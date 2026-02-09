@@ -1,71 +1,91 @@
-"use client";
-
 import { PageContainer } from "@/components/dashboard/PageContainer";
-import { useState } from "react";
-import Link from "next/link"; // <--- IMPORT CORRETO AQUI NO TOPO
+import Link from "next/link";
 import {
   Wallet,
-  ArrowUpRight,
   ArrowDownLeft,
+  ArrowUpRight,
   Download,
   History,
   Landmark,
   AlertCircle,
   ChevronRight,
   DollarSign,
-  X,
 } from "lucide-react";
+import { db } from "@/lib/prisma";
+import { getUserSession } from "@/lib/get-session";
+import { redirect } from "next/navigation";
+import { WithdrawButton } from "@/components/dashboard/financeiro/WithdrawModal";
 
-// --- DADOS MOCKADOS (Troque para [] para testar o estado vazio) ---
-const TRANSACTIONS = [
-  {
-    id: 1,
-    type: "credit", // credit = recebeu, debit = sacou
-    label: "Pagamento: Landing Page Advogados",
-    date: "12/01/2026",
-    amount: "R$ 1.500,00",
-    status: "completed", // completed, processing, failed
-  },
-  {
-    id: 2,
-    type: "debit",
-    label: "Saque via PIX",
-    date: "10/01/2026",
-    amount: "R$ 800,00",
-    status: "completed",
-  },
-  {
-    id: 3,
-    type: "credit",
-    label: "Pagamento: Script Python",
-    date: "05/01/2026",
-    amount: "R$ 800,00",
-    status: "completed",
-  },
-  {
-    id: 4,
-    type: "credit",
-    label: "Pagamento: Edição Vídeo",
-    date: "02/01/2026",
-    amount: "R$ 200,00",
-    status: "processing", // Dinheiro entrando mas ainda não liberado
-  },
-];
+// Função auxiliar para formatar moeda
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+};
 
-// Mude para true para ver a tela de "Sem Movimentações"
-const IS_EMPTY_STATE = false;
+// Componente de Status
+function StatusText({ status }: { status: string }) {
+  const s = status.toUpperCase();
+  if (s === "COMPLETED")
+    return <span className="text-green-500">Concluído</span>;
+  if (s === "PENDING" || s === "PROCESSING")
+    return <span className="text-yellow-500">Em processamento</span>;
+  if (s === "FAILED") return <span className="text-red-500">Falhou</span>;
+  return <span className="text-muted-foreground">{status}</span>;
+}
 
-export default function FinanceiroPage() {
-  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+export default async function FinanceiroPage() {
+  // 1. Verificar Sessão
+  const session = await getUserSession();
+  if (!session) redirect("/login");
 
-  // Totais calculados (Mock)
-  const totalAvailable = "R$ 1.700,00";
-  const totalPending = "R$ 200,00"; // Dinheiro "A liberar"
-  const totalLifeTime = "R$ 3.300,00"; // Tudo que já ganhou na vida
+  // 2. Buscar Dados Reais no Banco
+  const user = await db.user.findUnique({
+    where: { id: session.id },
+    include: {
+      transactions: {
+        orderBy: { createdAt: "desc" }, // Mais recentes primeiro
+        take: 20, // Limitar a 20 últimos para não pesar a página inicial
+      },
+    },
+  });
+
+  if (!user) redirect("/login");
+
+  // 3. Cálculos Financeiros
+  const walletBalance = user.walletBalance || 0;
+
+  // Calcula total já ganho na vida (Soma de todos os CREDIT + COMPLETED)
+  const allCredits = await db.transaction.aggregate({
+    where: {
+      userId: user.id,
+      type: "CREDIT",
+      status: "COMPLETED",
+    },
+    _sum: { amount: true },
+  });
+  const totalLifetime = allCredits._sum.amount || 0;
+
+  // Calcula valores pendentes (Soma de CREDIT + PENDING)
+  const allPending = await db.transaction.aggregate({
+    where: {
+      userId: user.id,
+      type: "CREDIT",
+      status: "PENDING",
+    },
+    _sum: { amount: true },
+  });
+  const totalPending = allPending._sum.amount || 0;
+
+  const hasTransactions = user.transactions.length > 0;
+
+  // Tenta preencher o CPF com a pixKey se ela for do tipo CPF, senão deixa vazio
+  const userCpf = user.pixKeyType === "CPF" ? user.pixKey : "";
 
   return (
     <PageContainer>
-      <div className="space-y-8">
+      <div className="space-y-8 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -81,11 +101,10 @@ export default function FinanceiroPage() {
           </button>
         </div>
 
-        {/* --- CARDS PRINCIPAIS (Wallet) --- */}
+        {/* --- CARDS PRINCIPAIS --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Card 1: Saldo Principal (Destaque) */}
+          {/* Card 1: Saldo Principal */}
           <div className="lg:col-span-2 bg-gradient-to-br from-primary/20 to-purple-900/20 border border-primary/20 rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between min-h-[180px]">
-            {/* Background Decorativo */}
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <Wallet className="w-32 h-32 text-primary" />
             </div>
@@ -95,28 +114,23 @@ export default function FinanceiroPage() {
                 <Wallet className="w-4 h-4" /> Saldo Disponível
               </p>
               <h2 className="text-4xl font-bold text-foreground font-futura mt-2">
-                {IS_EMPTY_STATE ? "R$ 0,00" : totalAvailable}
+                {formatCurrency(walletBalance)}
               </h2>
               <p className="text-xs text-muted-foreground mt-1">
-                + {IS_EMPTY_STATE ? "R$ 0,00" : totalPending} a liberar em breve
+                + {formatCurrency(totalPending)} a liberar em breve
               </p>
             </div>
 
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => setIsWithdrawModalOpen(true)}
-                disabled={IS_EMPTY_STATE}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ArrowUpRight className="w-4 h-4" /> Sacar Valor
-              </button>
-              <button className="bg-card hover:bg-white/5 text-foreground border border-white/10 px-4 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer">
-                Cadastrar Chave Pix
-              </button>
+            <div className="mt-6">
+              {/* Componente Cliente para interatividade (Atualizado) */}
+              <WithdrawButton
+                balance={walletBalance}
+                userCpf={userCpf} // Passamos o CPF se já existir
+              />
             </div>
           </div>
 
-          {/* Card 2: Resumo e Dados Bancários */}
+          {/* Card 2: Resumo Financeiro */}
           <div className="bg-card border border-border rounded-2xl p-6 flex flex-col gap-6">
             {/* Total Ganho */}
             <div>
@@ -128,36 +142,48 @@ export default function FinanceiroPage() {
                   <DollarSign className="w-5 h-5" />
                 </div>
                 <span className="text-2xl font-bold text-foreground">
-                  {IS_EMPTY_STATE ? "R$ 0,00" : totalLifeTime}
+                  {formatCurrency(totalLifetime)}
                 </span>
               </div>
             </div>
 
             <div className="h-px bg-border w-full" />
 
-            {/* Conta Vinculada */}
+            {/* Conta Vinculada (Informativo Simples) */}
             <div>
               <div className="flex justify-between items-center mb-3">
                 <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">
-                  Conta de Recebimento
+                  Última Conta Usada
                 </p>
-                <button className="text-[10px] text-primary hover:underline cursor-pointer">
-                  Alterar
-                </button>
               </div>
-              <div className="flex items-center gap-3 bg-background/50 p-3 rounded-xl border border-border">
-                <div className="p-2 bg-slate-800 rounded-lg text-white">
-                  <Landmark className="w-4 h-4" />
+
+              {user.pixKey ? (
+                <div className="flex items-center gap-3 bg-background/50 p-3 rounded-xl border border-border">
+                  <div className="p-2 bg-slate-800 rounded-lg text-white">
+                    <Landmark className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Pix CPF</p>
+                    <p className="text-xs text-muted-foreground truncate max-w-[150px]">
+                      {user.pixKey}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">
-                    Nu Pagamentos S.A.
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Pix: ***.123.456-**
-                  </p>
+              ) : (
+                <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/10 opacity-70">
+                  <div className="p-2 bg-slate-800 rounded-lg text-slate-400">
+                    <AlertCircle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-400">
+                      Nenhum saque ainda
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Realize seu primeiro saque.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -169,10 +195,9 @@ export default function FinanceiroPage() {
             Histórico de Movimentações
           </h3>
 
-          {/* LISTA DE TRANSAÇÕES */}
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            {IS_EMPTY_STATE || TRANSACTIONS.length === 0 ? (
-              // --- EMPTY STATE (SEM DADOS) ---
+            {!hasTransactions ? (
+              // --- EMPTY STATE ---
               <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
                 <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
                   <AlertCircle className="w-8 h-8 text-muted-foreground" />
@@ -191,23 +216,23 @@ export default function FinanceiroPage() {
                 </Link>
               </div>
             ) : (
-              // --- LISTA COM DADOS ---
+              // --- LISTA DE DADOS REAIS ---
               <div className="divide-y divide-border">
-                {TRANSACTIONS.map((item) => (
+                {user.transactions.map((item) => (
                   <div
                     key={item.id}
                     className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-white/5 transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      {/* Icone Baseado no Tipo */}
+                      {/* Icone */}
                       <div
                         className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                          item.type === "credit"
+                          item.type === "CREDIT"
                             ? "bg-green-500/10 text-green-400"
                             : "bg-red-500/10 text-red-400"
                         }`}
                       >
-                        {item.type === "credit" ? (
+                        {item.type === "CREDIT" ? (
                           <ArrowDownLeft className="w-5 h-5" />
                         ) : (
                           <ArrowUpRight className="w-5 h-5" />
@@ -216,10 +241,14 @@ export default function FinanceiroPage() {
 
                       <div>
                         <p className="font-bold text-foreground text-sm">
-                          {item.label}
+                          {item.description}
                         </p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                          <span>{item.date}</span>
+                          <span>
+                            {new Date(item.createdAt).toLocaleDateString(
+                              "pt-BR",
+                            )}
+                          </span>
                           <span>•</span>
                           <StatusText status={item.status} />
                         </div>
@@ -229,12 +258,13 @@ export default function FinanceiroPage() {
                     <div className="flex items-center justify-between md:justify-end gap-6 pl-14 md:pl-0">
                       <span
                         className={`font-bold font-futura ${
-                          item.type === "credit"
+                          item.type === "CREDIT"
                             ? "text-green-400"
                             : "text-foreground"
                         }`}
                       >
-                        {item.type === "credit" ? "+" : "-"} {item.amount}
+                        {item.type === "CREDIT" ? "+" : "-"}{" "}
+                        {formatCurrency(item.amount)}
                       </span>
                       <button className="text-muted-foreground hover:text-foreground">
                         <ChevronRight className="w-4 h-4" />
@@ -246,82 +276,7 @@ export default function FinanceiroPage() {
             )}
           </div>
         </div>
-
-        {/* MODAL DE SAQUE (Visual) */}
-        {isWithdrawModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-              <div className="p-6 border-b border-border flex justify-between items-center">
-                <h3 className="font-bold text-lg text-foreground">
-                  Solicitar Saque
-                </h3>
-                <button
-                  onClick={() => setIsWithdrawModalOpen(false)}
-                  className="text-muted-foreground hover:text-foreground cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-4">
-                <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 text-center">
-                  <p className="text-xs text-primary/80 uppercase font-bold">
-                    Disponível para saque
-                  </p>
-                  <p className="text-2xl font-bold text-primary font-futura mt-1">
-                    {totalAvailable}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-2 block">
-                    Valor do saque
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">
-                      R$
-                    </span>
-                    <input
-                      type="number"
-                      placeholder="0,00"
-                      className="w-full bg-background border border-border rounded-xl py-3 pl-10 pr-4 text-foreground focus:border-primary focus:outline-none font-bold"
-                    />
-                  </div>
-                </div>
-
-                <div className="text-xs text-muted-foreground bg-background p-3 rounded-lg border border-border">
-                  <p className="mb-1">
-                    <strong>Destino:</strong> Nu Pagamentos S.A. (Pix ***.123)
-                  </p>
-                  <p>O valor cairá na sua conta em até 1 dia útil.</p>
-                </div>
-              </div>
-
-              <div className="p-4 border-t border-border bg-background/50 flex justify-end gap-3">
-                <button
-                  onClick={() => setIsWithdrawModalOpen(false)}
-                  className="px-4 py-2 text-sm font-bold text-muted-foreground hover:text-foreground cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button className="px-6 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-bold rounded-xl cursor-pointer shadow-lg shadow-primary/20">
-                  Confirmar Saque
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </PageContainer>
   );
-}
-
-// Componente de Texto de Status
-function StatusText({ status }: { status: string }) {
-  if (status === "completed")
-    return <span className="text-green-500">Concluído</span>;
-  if (status === "processing")
-    return <span className="text-yellow-500">Em processamento</span>;
-  if (status === "failed") return <span className="text-red-500">Falhou</span>;
-  return null;
 }
