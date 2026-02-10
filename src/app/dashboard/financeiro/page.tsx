@@ -1,5 +1,6 @@
 import { PageContainer } from "@/components/dashboard/PageContainer";
 import Link from "next/link";
+import { injectFakeMoney } from "@/actions/finance/inject-fake-money";
 import {
   Wallet,
   ArrowDownLeft,
@@ -85,6 +86,13 @@ export default async function FinanceiroPage() {
 
   return (
     <PageContainer>
+      {/*  BOTÃO DE INJEÇÃO DE DINHEIRO FALSO (APENAS PARA TESTES) - COMENTADO PARA NÃO APARECER NA INTERFACE FINAL */}
+
+      {/* <form action={injectFakeMoney} className="mb-4">
+        <button className="bg-emerald-500 text-white px-4 py-2 rounded text-xs font-bold uppercase tracking-widest hover:bg-emerald-600 transition-colors">
+          [DEV] Injetar R$ 150,00
+        </button>
+      </form> */}
       <div className="space-y-8 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

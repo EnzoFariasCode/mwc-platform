@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { PageContainer } from "@/components/dashboard/PageContainer";
 import Link from "next/link";
 import {
-  ArrowRight,
   DollarSign,
   Eye,
   FileText,
@@ -13,6 +12,7 @@ import {
   Search,
   UserCheck,
 } from "lucide-react";
+import { UpgradeBanner } from "@/components/dashboard/UpgradeBanner"; // <--- Importe aqui
 
 // Server Component (Async)
 export default async function ProfissionalDashboard() {
@@ -28,36 +28,38 @@ export default async function ProfissionalDashboard() {
   const userId = session.sub as string;
 
   // 2. Buscando dados reais em paralelo
-  const [conversationsCount, proposalsCount, completedProjects] =
+  const [conversationsCount, proposalsCount, completedProjects, currentUser] =
     await Promise.all([
-      // Leads Diretos: Conversas onde sou Participante A ou B
+      // Leads
       db.conversation.count({
         where: {
           OR: [{ participantAId: userId }, { participantBId: userId }],
         },
       }),
 
-      // Propostas Enviadas
+      // Propostas
       db.proposal.count({
-        where: {
-          professionalId: userId,
-        },
+        where: { professionalId: userId },
       }),
 
-      // Ganhos: Projetos FINALIZADOS onde fui o profissional
+      // Ganhos
       db.project.findMany({
         where: {
           professionalId: userId,
-          status: "COMPLETED", // Só conta dinheiro de projeto entregue
-          agreedPrice: { not: null }, // Garante que tem valor
+          status: "COMPLETED",
+          agreedPrice: { not: null },
         },
-        select: {
-          agreedPrice: true,
-        },
+        select: { agreedPrice: true },
+      }),
+
+      // --- NOVO: Buscar status do usuário para saber se é PRO ---
+      db.user.findUnique({
+        where: { id: userId },
+        select: { stripeSubscriptionStatus: true },
       }),
     ]);
 
-  // 3. Cálculo de Ganhos
+  // 3. Cálculos
   const totalEarnings = completedProjects.reduce((acc, project) => {
     return acc + (Number(project.agreedPrice) || 0);
   }, 0);
@@ -67,8 +69,10 @@ export default async function ProfissionalDashboard() {
     currency: "BRL",
   });
 
-  // * Visitas no Perfil: Mantido mockado pois ainda não temos analytics de profile views
   const profileVisits = 128;
+
+  // Verifica se é pro
+  const isPro = currentUser?.stripeSubscriptionStatus === "active";
 
   return (
     <PageContainer>
@@ -103,7 +107,7 @@ export default async function ProfissionalDashboard() {
           </div>
         </div>
 
-        {/* Cards Pro - Agora com DADOS REAIS */}
+        {/* Cards Pro */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             icon={Eye}
@@ -115,42 +119,27 @@ export default async function ProfissionalDashboard() {
           <StatCard
             icon={MessageCircle}
             label="Leads Diretos"
-            value={conversationsCount} // Dados reais do banco
+            value={conversationsCount}
             subtext="Conversas ativas"
             color="text-green-400"
           />
           <StatCard
             icon={FileText}
             label="Propostas Enviadas"
-            value={proposalsCount} // Dados reais do banco
+            value={proposalsCount}
             color="text-yellow-400"
           />
           <StatCard
             icon={DollarSign}
             label="Total Ganhos"
-            value={formattedEarnings} // Calculado com base em projetos COMPLETED
+            value={formattedEarnings}
             color="text-[#d73cbe]"
           />
         </div>
 
-        {/* Banner Motivacional */}
-        <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-8 border border-white/5 relative overflow-hidden group">
-          <div className="relative z-10 max-w-xl">
-            <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
-              Aumente sua visibilidade
-            </h2>
-            <p className="text-slate-400 mb-6">
-              Profissionais com foto de perfil e portfólio completo recebem 5x
-              mais contatos diretos de clientes.
-            </p>
-            <Link href="/dashboard/perfil">
-              <span className="text-[#d73cbe] font-bold hover:text-white transition-colors flex items-center gap-2 cursor-pointer">
-                Completar meu Perfil agora <ArrowRight className="w-4 h-4" />
-              </span>
-            </Link>
-          </div>
-          <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-[#d73cbe]/5 to-transparent pointer-events-none" />
-        </div>
+        {/* BANNER INTELIGENTE (PRO vs FREE) */}
+        {/* Removemos o banner antigo hardcoded e colocamos o componente novo */}
+        <UpgradeBanner isPro={isPro} />
       </div>
     </PageContainer>
   );

@@ -5,14 +5,13 @@ import { PageContainer } from "@/components/dashboard/PageContainer";
 import { ExpandableText } from "@/components/ExpandableText";
 import { EditProfileModal } from "@/components/dashboard/EditProfileModal";
 import { updateProfile } from "@/actions/account/update-profile";
+import { useRouter } from "next/navigation";
 import {
   MapPin,
   Edit3,
   Plus,
   ShieldCheck,
   Star,
-  Lock,
-  Image as ImageIcon,
   FileText,
   CalendarDays,
   Github,
@@ -21,8 +20,19 @@ import {
   ExternalLink,
   Save,
   X,
+  Zap, // Ícone para o Advanced
+  Rocket, // Ícone para o Starter
+  User, // Ícone para o Free
 } from "lucide-react";
 import Image from "next/image";
+
+// ==============================================================================
+// ⚠️ CONFIGURAÇÃO DOS IDs DOS PLANOS
+// ==============================================================================
+const PLAN_IDS = {
+  STARTER: "price_1Sz07x2LcuSkaNju6xEbd2cQ",
+  ADVANCED: "rice_1Sz08J2LcuSkaNjuvz3VIcUz",
+};
 
 // Tipagem dos itens de array
 interface PortfolioItem {
@@ -30,7 +40,7 @@ interface PortfolioItem {
   url: string;
 }
 
-// Interface robusta para alinhar com o Modal
+// Interface robusta
 interface UserData {
   id?: string;
   name: string | null;
@@ -46,28 +56,27 @@ interface UserData {
   hourlyRate?: number | null;
   rating?: number | null;
   jobTitle?: string | null;
-  yearsOfExperience?: number | null; // Adicionado para compatibilidade
+  yearsOfExperience?: number | null;
   skills?: string[];
   socialGithub?: string | null;
   socialLinkedin?: string | null;
   portfolio?: PortfolioItem[];
   certificates?: PortfolioItem[];
+
+  // Campos do Stripe
+  stripeSubscriptionStatus?: string | null;
+  stripePriceId?: string | null; // Necessário para saber qual badge mostrar
 }
 
-// Proteção contra data inválida (NaN)
 function getMemberSince(dateInput: Date | string | undefined) {
   if (!dateInput) return "Membro recente";
-
   const date = new Date(dateInput);
   if (isNaN(date.getTime())) return "Membro recente";
-
   const now = new Date();
   const diffMonths =
     (now.getFullYear() - date.getFullYear()) * 12 +
     (now.getMonth() - date.getMonth());
-
   if (isNaN(diffMonths)) return "Membro recente";
-
   if (diffMonths < 1) {
     return `Membro desde ${date.toLocaleDateString("pt-BR", {
       month: "short",
@@ -76,9 +85,51 @@ function getMemberSince(dateInput: Date | string | undefined) {
   }
   if (diffMonths === 1) return "Membro há 1 mês";
   if (diffMonths < 12) return `Membro há ${diffMonths} meses`;
-
   const years = Math.floor(diffMonths / 12);
   return years === 1 ? "Membro há 1 ano" : `Membro há ${years} anos`;
+}
+
+// --- COMPONENTE DE BADGE DO PLANO ---
+function PlanBadge({
+  priceId,
+  isActive,
+}: {
+  priceId?: string | null;
+  isActive: boolean;
+}) {
+  // 1. Se não estiver ativo (pagamento falhou ou cancelado) ou sem plano -> FREE
+  if (!isActive) {
+    return (
+      <span className="px-2 py-0.5 bg-slate-500/10 text-slate-400 text-xs font-bold uppercase rounded-md border border-slate-500/20 tracking-wide mb-1.5 flex items-center gap-1">
+        Free <User className="w-3 h-3" />
+      </span>
+    );
+  }
+
+  // 2. Se for o Plano Starter
+  if (priceId === PLAN_IDS.STARTER) {
+    return (
+      <span className="px-2 py-0.5 bg-[#d73cbe]/10 text-[#d73cbe] text-xs font-bold uppercase rounded-md border border-[#d73cbe]/20 tracking-wide mb-1.5 flex items-center gap-1">
+        Starter <Rocket className="w-3 h-3" />
+      </span>
+    );
+  }
+
+  // 3. Se for o Plano Advanced
+  if (priceId === PLAN_IDS.ADVANCED) {
+    return (
+      <span className="px-2 py-0.5 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 text-violet-400 text-xs font-bold uppercase rounded-md border border-violet-500/20 tracking-wide mb-1.5 flex items-center gap-1">
+        Advanced <Zap className="w-3 h-3" />
+      </span>
+    );
+  }
+
+  // Fallback (Se for ativo mas o ID não bater, mostra PRO genérico)
+  return (
+    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-xs font-bold uppercase rounded-md border border-emerald-500/20 tracking-wide mb-1.5 flex items-center gap-1">
+      Pro <ShieldCheck className="w-3 h-3" />
+    </span>
+  );
 }
 
 export default function PerfilView({ user }: { user: UserData }) {
@@ -87,12 +138,21 @@ export default function PerfilView({ user }: { user: UserData }) {
   const [isBioModalOpen, setIsBioModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (user) setCurrentUser(user);
   }, [user]);
 
-  const isPro = currentUser.userType === "PROFESSIONAL";
+  // --- LÓGICA DE NEGÓCIO ---
+
+  // 1. É Profissional? (Define se pode editar skills/portfolio)
+  // SE for "PROFESSIONAL", libera tudo. Não importa se paga.
+  const isProfessionalUser = currentUser.userType === "PROFESSIONAL";
+
+  // 2. É Assinante Ativo? (Define se ganha o selo verde na foto)
+  const isSubscriber = currentUser.stripeSubscriptionStatus === "active";
+
   const mainName =
     currentUser.name && currentUser.name.trim() !== ""
       ? currentUser.name
@@ -108,15 +168,10 @@ export default function PerfilView({ user }: { user: UserData }) {
       : "Brasil";
   const memberSinceText = getMemberSince(currentUser.createdAt);
 
-  // --- MUDANÇA PRINCIPAL AQUI ---
-  // Agora aceita FormData vindo do Modal
   const handleUpdateProfile = async (formData: FormData) => {
     setIsLoading(true);
-
-    // 1. ATUALIZAÇÃO OTIMISTA (Visual - Texto)
     const tempUpdates: any = {};
     formData.forEach((value, key) => {
-      // Ignora arquivos e senhas no update visual local
       if (
         key === "profileImage" ||
         key === "currentPassword" ||
@@ -135,13 +190,9 @@ export default function PerfilView({ user }: { user: UserData }) {
       }
     });
 
-    // --- NOVO: FORÇA A ATUALIZAÇÃO DA IMAGEM ---
-    // Se o usuário enviou uma imagem nova ('profileImage'),
-    // geramos uma URL nova com timestamp para quebrar o cache do navegador na hora.
     let newAvatarUrl = currentUser.avatarUrl;
     const imageFile = formData.get("profileImage");
     if (imageFile && imageFile instanceof File && imageFile.size > 0) {
-      // Se já temos ID, montamos a URL. Se não (caso raro), usamos createObjectURL temporário
       if (currentUser.id) {
         newAvatarUrl = `/api/images/user/${currentUser.id}?timestamp=${Date.now()}`;
       } else {
@@ -149,11 +200,10 @@ export default function PerfilView({ user }: { user: UserData }) {
       }
     }
 
-    // Atualiza estado local imediatamente
     setCurrentUser((prev) => ({
       ...prev,
       ...tempUpdates,
-      avatarUrl: newAvatarUrl, // <--- Imagem nova aqui
+      avatarUrl: newAvatarUrl,
       hourlyRate: tempUpdates.hourlyRate
         ? parseFloat(tempUpdates.hourlyRate)
         : prev.hourlyRate,
@@ -163,15 +213,11 @@ export default function PerfilView({ user }: { user: UserData }) {
     }));
 
     try {
-      // 2. ENVIA PARA O SERVIDOR
       const response = await updateProfile(formData);
-
       if (!response.success) {
         alert(response.error);
-        // Opcional: Aqui você poderia reverter a imagem se deu erro
       } else {
         setIsEditModalOpen(false);
-        // O revalidatePath do servidor vai garantir que na próxima recarga (F5) a imagem venha oficial
       }
     } catch (error) {
       alert("Erro ao salvar perfil.");
@@ -180,16 +226,12 @@ export default function PerfilView({ user }: { user: UserData }) {
     }
   };
 
-  // Atualiza apenas a BIO (também convertido para FormData)
   const handleUpdateBio = async (newBio: string) => {
     setIsLoading(true);
     setCurrentUser((prev) => ({ ...prev, bio: newBio }));
     setIsBioModalOpen(false);
-
-    // Cria um FormData só com a bio
     const formData = new FormData();
     formData.append("bio", newBio);
-
     try {
       await updateProfile(formData);
     } catch (error) {
@@ -201,7 +243,7 @@ export default function PerfilView({ user }: { user: UserData }) {
 
   const bioText = currentUser.bio
     ? currentUser.bio
-    : isPro
+    : isProfessionalUser
       ? "Sou um especialista apaixonado por criar soluções tecnológicas..."
       : "Olá! Estou aqui em busca dos melhores profissionais...";
 
@@ -218,7 +260,7 @@ export default function PerfilView({ user }: { user: UserData }) {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         user={currentUser}
-        onSave={handleUpdateProfile} // Agora compatível com FormData
+        onSave={handleUpdateProfile}
       />
 
       <EditBioModal
@@ -250,18 +292,20 @@ export default function PerfilView({ user }: { user: UserData }) {
                       fill
                       className="object-cover"
                       unoptimized
-                      key={currentUser.avatarUrl} // Força recarregar se a URL mudar
-                      // --- O AJUSTE ESTÁ AQUI ---
+                      key={currentUser.avatarUrl}
                       onError={() => setImageError(true)}
-                      // Se der erro (404), ativa o erro e mostra as iniciais abaixo
                     />
                   ) : (
-                    // Fallback: Mostra iniciais
                     <span>{initials}</span>
                   )}
                 </div>
-                {isPro && (
-                  <div className="absolute bottom-1 right-1 bg-green-500 text-white p-1.5 rounded-full border-4 border-card">
+
+                {/* LOGICA DA FOTO: SÓ MOSTRA SELO SE FOR ASSINANTE PAGO (Starter/Advanced) */}
+                {isSubscriber && (
+                  <div
+                    className="absolute bottom-1 right-1 bg-green-500 text-white p-1.5 rounded-full border-4 border-card shadow-lg animate-in zoom-in"
+                    title="Profissional Verificado (Assinante)"
+                  >
                     <ShieldCheck className="w-4 h-4" />
                   </div>
                 )}
@@ -278,9 +322,16 @@ export default function PerfilView({ user }: { user: UserData }) {
                         ({currentUser.displayName})
                       </span>
                     )}
-                    {!isPro && (
-                      <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-bold uppercase rounded-md border border-blue-500/20 tracking-wide mb-1.5">
-                        Cliente Ativo
+
+                    {/* LOGICA DOS BADGES AO LADO DO NOME */}
+                    {isProfessionalUser ? (
+                      <PlanBadge
+                        isActive={isSubscriber}
+                        priceId={currentUser.stripePriceId}
+                      />
+                    ) : (
+                      <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-bold uppercase rounded-md border border-blue-500/20 tracking-wide mb-1.5 flex items-center gap-1">
+                        Cliente
                       </span>
                     )}
                   </div>
@@ -289,7 +340,7 @@ export default function PerfilView({ user }: { user: UserData }) {
                   <p className="text-lg text-[#d73cbe] font-medium">
                     {currentUser.jobTitle ? (
                       currentUser.jobTitle
-                    ) : !isPro ? (
+                    ) : !isProfessionalUser ? (
                       "Cliente / Contratante"
                     ) : (
                       <span className="text-sm opacity-50 italic">
@@ -309,7 +360,8 @@ export default function PerfilView({ user }: { user: UserData }) {
                 </div>
               </div>
 
-              {isPro && (
+              {/* Status Financeiro (Aparece para todo Profissional) */}
+              {isProfessionalUser && (
                 <div className="bg-background/50 p-4 rounded-xl border border-border flex gap-6 mt-4 md:mt-0">
                   <div className="text-center min-w-[80px]">
                     <p className="text-xs text-muted-foreground uppercase font-bold">
@@ -359,17 +411,10 @@ export default function PerfilView({ user }: { user: UserData }) {
               </div>
             </SectionCard>
 
-            {/* HABILIDADES */}
-            <div className={`relative ${!isPro ? "min-h-[320px]" : ""}`}>
-              {!isPro && <ProFeatureLock title="Habilidades e Tecnologias" />}
+            {/* HABILIDADES - Liberado para editar se for Profissional (Pago ou Free) */}
+            <div className="relative">
               <SectionCard title="Habilidades e Tecnologias">
-                <div
-                  className={`flex flex-wrap gap-2 ${
-                    !isPro
-                      ? "blur-sm opacity-50 min-h-[200px] content-start"
-                      : ""
-                  }`}
-                >
+                <div className="flex flex-wrap gap-2">
                   {currentUser.skills && currentUser.skills.length > 0 ? (
                     currentUser.skills.map((skill) => (
                       <span
@@ -384,25 +429,23 @@ export default function PerfilView({ user }: { user: UserData }) {
                       Nenhuma habilidade adicionada.
                     </span>
                   )}
-                  <button
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="px-3 py-1.5 border border-dashed border-border text-muted-foreground rounded-lg text-sm flex items-center gap-1 hover:border-primary/50 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" /> Adicionar / Editar
-                  </button>
+
+                  {isProfessionalUser && (
+                    <button
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="px-3 py-1.5 border border-dashed border-border text-muted-foreground rounded-lg text-sm flex items-center gap-1 hover:border-primary/50 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" /> Adicionar / Editar
+                    </button>
+                  )}
                 </div>
               </SectionCard>
             </div>
 
-            {/* PORTFÓLIO */}
-            <div className={`relative ${!isPro ? "min-h-[320px]" : ""}`}>
-              {!isPro && <ProFeatureLock title="Portfólio Profissional" />}
+            {/* PORTFÓLIO - Liberado para editar se for Profissional (Pago ou Free) */}
+            <div className="relative">
               <SectionCard title="Portfólio e Anexos">
-                <div
-                  className={`grid grid-cols-2 sm:grid-cols-3 gap-4 ${
-                    !isPro ? "blur-sm select-none opacity-50 min-h-[200px]" : ""
-                  }`}
-                >
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {portfolioItems.map((item, index) => (
                     <a
                       key={index}
@@ -423,7 +466,8 @@ export default function PerfilView({ user }: { user: UserData }) {
                     </a>
                   ))}
 
-                  {portfolioItems.length < 3 && (
+                  {/* Todo profissional pode adicionar projetos (podemos limitar quantidade depois se quiser) */}
+                  {isProfessionalUser && (
                     <button
                       onClick={() => setIsEditModalOpen(true)}
                       className="aspect-square rounded-xl border border-dashed border-border flex flex-col items-center justify-center gap-2 hover:bg-slate-800/50 hover:border-primary/50 text-muted-foreground hover:text-primary transition-all cursor-pointer"
@@ -440,9 +484,8 @@ export default function PerfilView({ user }: { user: UserData }) {
               </SectionCard>
             </div>
 
-            {/* CERTIFICADOS */}
-            <div className={`relative ${!isPro ? "min-h-[260px]" : ""}`}>
-              {!isPro && <ProFeatureLock title="Certificações" />}
+            {/* CERTIFICADOS - Liberado para editar se for Profissional (Pago ou Free) */}
+            <div className="relative">
               <SectionCard title="Certificações e Cursos">
                 <div className="flex flex-col gap-3">
                   {certificateItems.length > 0 ? (
@@ -470,10 +513,11 @@ export default function PerfilView({ user }: { user: UserData }) {
                     ))
                   ) : (
                     <span className="text-sm text-slate-500 italic">
-                      Nenhum certificado adicionado.
+                      Nenhuma certificação adicionada.
                     </span>
                   )}
-                  {certificateItems.length < 5 && (
+
+                  {isProfessionalUser && (
                     <button
                       onClick={() => setIsEditModalOpen(true)}
                       className="w-full py-3 border border-dashed border-border rounded-xl text-sm text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors flex items-center justify-center gap-2"
@@ -517,7 +561,9 @@ export default function PerfilView({ user }: { user: UserData }) {
                       <p className="text-sm font-bold text-slate-400">Github</p>
                       <p className="text-xs text-slate-500">Conectar conta</p>
                     </div>
-                    <Plus className="w-4 h-4 text-slate-500" />
+                    {isProfessionalUser && (
+                      <Plus className="w-4 h-4 text-slate-500" />
+                    )}
                   </button>
                 )}
 
@@ -549,7 +595,9 @@ export default function PerfilView({ user }: { user: UserData }) {
                       </p>
                       <p className="text-xs text-slate-500">Conectar conta</p>
                     </div>
-                    <Plus className="w-4 h-4 text-slate-500" />
+                    {isProfessionalUser && (
+                      <Plus className="w-4 h-4 text-slate-500" />
+                    )}
                   </button>
                 )}
               </div>
@@ -561,7 +609,8 @@ export default function PerfilView({ user }: { user: UserData }) {
   );
 }
 
-// ... Auxiliares (SectionCard, ProFeatureLock, EditBioModal) ...
+// ... Auxiliares ...
+
 function SectionCard({
   title,
   children,
@@ -587,26 +636,6 @@ function SectionCard({
         )}
       </div>
       {children}
-    </div>
-  );
-}
-
-// CORREÇÃO: Fundo mais escuro (90%) e blur mais forte para não vazar o conteúdo de trás
-function ProFeatureLock({ title }: { title: string }) {
-  return (
-    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-6 bg-slate-950/90 backdrop-blur-sm rounded-2xl border border-white/5 animate-fade-in">
-      <div className="p-3 bg-slate-900 rounded-full border border-white/10 mb-3 shadow-xl">
-        <Lock className="w-6 h-6 text-[#d73cbe]" />
-      </div>
-      <h3 className="text-lg font-bold text-white mb-2 max-w-[260px] mx-auto leading-tight">
-        {title} é para Profissionais
-      </h3>
-      <p className="text-sm text-slate-300 max-w-[280px] mx-auto mb-4 leading-relaxed">
-        Ative seu perfil profissional para exibir seu portfólio.
-      </p>
-      <button className="px-5 py-2 bg-[#d73cbe] hover:bg-[#b0269a] text-white text-sm font-bold rounded-xl transition-all shadow-lg cursor-pointer">
-        Virar Profissional
-      </button>
     </div>
   );
 }

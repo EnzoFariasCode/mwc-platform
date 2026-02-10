@@ -2,52 +2,57 @@
 
 import { redirect } from "next/navigation";
 import Stripe from "stripe";
-import { getUserSession } from "@/lib/get-session"; // <--- Importe o helper
-import { db } from "@/lib/prisma"; // <--- Para buscar o email real
+import { getUserSession } from "@/lib/get-session";
+import { db } from "@/lib/prisma";
+import { createPortalSession } from "./create-portal-session"; // Vamos reaproveitar isso
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
 });
 
-export async function createCheckoutSession(planType: "starter" | "advanced") {
-  // 1. OBTER USUÁRIO REAL
+export async function createCheckoutSession(planId: "starter" | "advanced") {
   const session = await getUserSession();
 
-  // SE NÃO TIVER LOGADO: Retorna erro específico "unauthorized"
-  if (!session || !session.id) {
-    return { error: "unauthorized" };
+  if (!session?.id) {
+    return { error: "Você precisa estar logado para assinar." };
   }
 
-  // 2. BUSCAR DADOS COMPLETOS NO BANCO (Precisamos do Email para o Stripe)
   const user = await db.user.findUnique({
     where: { id: session.id },
-    select: { email: true, stripeCustomerId: true },
   });
 
   if (!user) {
     return { error: "Usuário não encontrado." };
   }
 
-  // 3. SELECIONAR PREÇO
-  const priceId =
-    planType === "starter"
-      ? process.env.STRIPE_PRICE_STARTER
-      : process.env.STRIPE_PRICE_ADVANCED;
+  // --- TRAVA DE SEGURANÇA ---
+  // Se o usuário já tem assinatura ativa, impedimos novo checkout
+  if (user.stripeSubscriptionStatus === "active") {
+    // Opcional: Podemos retornar um código específico para o front redirecionar pro portal
+    return {
+      error: "Você já possui uma assinatura ativa.",
+      redirectUrl: "/dashboard/profissional", // Ou manda direto pro portal
+    };
+  }
+  // --------------------------
+
+  // Defina seus Price IDs aqui (igual ao UpgradeBanner)
+  const prices = {
+    starter: process.env.STRIPE_PRICE_STARTER_ID!, // ex: price_1Q...
+    advanced: process.env.STRIPE_PRICE_ADVANCED_ID!, // ex: price_1Q...
+  };
+
+  const priceId = prices[planId];
 
   if (!priceId) {
-    return { error: "Erro interno: Preço não configurado." };
+    return { error: "Plano inválido ou não configurado." };
   }
 
   try {
-    // 4. CRIAR SESSÃO DE CHECKOUT
-    // Se o usuário já tiver um stripeCustomerId no banco, usamos ele para não duplicar clientes no painel da Stripe
-    const customerUpdate = user.stripeCustomerId
-      ? { customer: user.stripeCustomerId }
-      : { customer_email: user.email };
-
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
-      payment_method_types: ["card"],
+      customer: user.stripeCustomerId || undefined, // Reusa o customer se existir
+      customer_email: user.stripeCustomerId ? undefined : user.email!,
       line_items: [
         {
           price: priceId,
@@ -55,25 +60,24 @@ export async function createCheckoutSession(planType: "starter" | "advanced") {
         },
       ],
       metadata: {
-        userId: session.id,
-        planType: planType,
+        userId: user.id,
       },
-      // Lógica inteligente: Se já tem ID, usa ID. Se não, usa Email.
-      ...(user.stripeCustomerId
-        ? { customer: user.stripeCustomerId }
-        : { customer_email: user.email }),
-
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/financeiro?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/beWorker?canceled=true`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/profissional?success=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/beWorker`,
+      subscription_data: {
+        metadata: {
+          userId: user.id,
+        },
+      },
     });
 
     if (!checkoutSession.url) {
-      throw new Error("Stripe não retornou URL.");
+      throw new Error("Erro ao gerar URL do Stripe.");
     }
 
     return { url: checkoutSession.url };
   } catch (error) {
     console.error("Erro Stripe:", error);
-    return { error: "Erro ao iniciar pagamento." };
+    return { error: "Erro ao iniciar o pagamento." };
   }
 }
