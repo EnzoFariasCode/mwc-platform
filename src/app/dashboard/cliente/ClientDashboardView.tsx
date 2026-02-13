@@ -16,7 +16,7 @@ import { NewProjectModal } from "@/components/dashboard/NewProjectModal";
 import { becomeProfessional } from "@/actions/account/become-professional";
 import { BecomeProfessionalModal } from "@/components/dashboard/BecomeProfessionalModal";
 import { CompleteProfileModal } from "@/components/dashboard/CompleteProfileModal";
-import { toast } from "sonner"; // Importei para feedback visual
+import { toast } from "sonner";
 
 interface ClientDashboardViewProps {
   stats: {
@@ -25,7 +25,7 @@ interface ClientDashboardViewProps {
     ongoingProjects: number;
   };
   isProfileIncomplete: boolean;
-  user: any; // Adicionei user prop se precisar do ID, mas nossa action nova usa cookie
+  user: any; // User object containing { id, userType, ... }
 }
 
 export default function ClientDashboardView({
@@ -55,14 +55,11 @@ export default function ClientDashboardView({
     localStorage.setItem("profile_modal_seen", "true");
   };
 
-  // --- LÓGICA ATUALIZADA AQUI ---
-  // Agora recebe os dados do Modal
   const handleConfirmUpgrade = (data: {
     jobTitle: string;
     yearsOfExperience: number;
   }) => {
     startTransition(async () => {
-      // Chama a Server Action passando os dados
       const result = await becomeProfessional(data);
 
       if (result.success) {
@@ -83,8 +80,11 @@ export default function ClientDashboardView({
       <BecomeProfessionalModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
-        onConfirm={handleConfirmUpgrade} // Passa a função que aceita dados
+        onConfirm={handleConfirmUpgrade}
         isLoading={isPending}
+        // --- CORREÇÃO AQUI ---
+        // Passamos o userType do usuário logado para o modal saber qual tela mostrar
+        userType={user?.userType}
       />
 
       {/* 2. New Project Modal */}

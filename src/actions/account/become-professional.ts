@@ -6,7 +6,6 @@ import { revalidatePath } from "next/cache";
 import { UserType } from "@prisma/client";
 import { verifySession } from "@/lib/auth";
 
-// Interface dos dados que esperamos receber
 interface BecomeProfessionalData {
   jobTitle: string;
   yearsOfExperience: number;
@@ -15,8 +14,6 @@ interface BecomeProfessionalData {
 export async function becomeProfessional(data: BecomeProfessionalData) {
   try {
     const cookieStore = await cookies();
-
-    // 1. Pega o ID do usuário através da Sessão Segura (JWT)
     const token = cookieStore.get("session")?.value;
     const session = token ? await verifySession(token) : null;
     const userId = session?.sub as string;
@@ -25,23 +22,29 @@ export async function becomeProfessional(data: BecomeProfessionalData) {
       return { success: false, error: "Usuário não autenticado." };
     }
 
+    const existingUser = await db.user.findUnique({
+      where: { id: userId },
+      select: { userType: true },
+    });
+
+    if (existingUser?.userType === UserType.PROFESSIONAL) {
+      return { success: false, error: "Você já é um profissional cadastrado." };
+    }
+
     if (!data.jobTitle) {
       return { success: false, error: "Profissão é obrigatória." };
     }
 
-    // 2. Atualiza o usuário no Banco com os novos campos
     await db.user.update({
       where: { id: userId },
       data: {
         userType: UserType.PROFESSIONAL,
-        jobTitle: data.jobTitle, // <--- Salva o Cargo
-        yearsOfExperience: data.yearsOfExperience, // <--- Salva a Experiência
+        jobTitle: data.jobTitle,
+        yearsOfExperience: data.yearsOfExperience,
       },
     });
 
-    // 3. Atualiza as caches para o Header/Sidebar mudarem imediatamente
     revalidatePath("/", "layout");
-
     return { success: true };
   } catch (error) {
     console.error("Erro ao virar profissional:", error);

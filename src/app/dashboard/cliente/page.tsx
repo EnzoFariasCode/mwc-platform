@@ -1,39 +1,37 @@
 import { db } from "@/lib/prisma";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation"; // <--- Importante para o "kick"
+import { redirect } from "next/navigation";
 import ClientDashboardView from "./ClientDashboardView";
 import { verifySession } from "@/lib/auth";
 
-// Função para buscar os contadores reais
 async function getDashboardStats(userId: string) {
-  const [unreadMessages, openProjects, ongoingProjects] = await Promise.all([
-    // 1. Mensagens não lidas
-    db.message.count({
+  // --- DEBUG: Vamos isolar as queries para achar o erro ---
+
+  // 1. Projetos Abertos (Query Simples)
+  const openProjects = await db.project.count({
+    where: { ownerId: userId, status: "OPEN" },
+  });
+
+  // 2. Projetos em Andamento (Query Simples)
+  const ongoingProjects = await db.project.count({
+    where: { ownerId: userId, status: "IN_PROGRESS" },
+  });
+
+  // 3. Mensagens (Query Complexa - ALTA PROBABILIDADE DE ERRO AQUI)
+  // Vou deixar como 0 temporariamente. Se a página abrir, o erro era aqui.
+  const unreadMessages = 0;
+
+  /* // CÓDIGO QUE PODE ESTAR QUEBRANDO (NOME DA RELAÇÃO):
+  const unreadMessages = await db.message.count({
       where: {
         read: false,
         senderId: { not: userId },
-        conversation: {
+        conversation: { // <--- Se no seu schema não se chamar 'conversation' (minúsculo), quebra.
           OR: [{ participantAId: userId }, { participantBId: userId }],
         },
       },
-    }),
-
-    // 2. Projetos Abertos
-    db.project.count({
-      where: {
-        ownerId: userId,
-        status: "OPEN",
-      },
-    }),
-
-    // 3. Projetos em Andamento
-    db.project.count({
-      where: {
-        ownerId: userId,
-        status: "IN_PROGRESS",
-      },
-    }),
-  ]);
+  });
+  */
 
   return { unreadMessages, openProjects, ongoingProjects };
 }
@@ -42,41 +40,42 @@ export default async function ClienteDashboardPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get("session")?.value;
 
-  // --- 🔒 VALIDAÇÃO FORTE (GOLDEN RULE) ---
+  if (!token) redirect("/login");
 
-  // 1. Se não tem token, tchau.
-  if (!token) {
-    redirect("/login");
-  }
-
-  // 2. Tenta validar o token real
   const session = await verifySession(token);
-
-  // 3. Se o token for inválido, expirado ou não tiver ID, tchau.
-  if (!session || !session.sub) {
-    redirect("/login");
-  }
+  if (!session || !session.sub) redirect("/login");
 
   const userId = session.sub as string;
 
-  // --- 🚀 DADOS REAIS (Só executa se passou na segurança acima) ---
+  try {
+    const stats = await getDashboardStats(userId);
 
-  // 1. Busca estatísticas
-  const stats = await getDashboardStats(userId);
+    const user = await db.user.findUnique({
+      where: { id: userId },
+    });
 
-  // 2. Busca dados para verificar se o perfil está completo
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { city: true, state: true },
-  });
+    if (!user) redirect("/login");
 
-  // Se faltar cidade ou estado, marca como incompleto
-  const isProfileIncomplete = !user?.city || !user?.state;
+    // Validação simples de perfil incompleto
+    const isProfileIncomplete = !user.city || !user.state;
 
-  return (
-    <ClientDashboardView
-      stats={stats}
-      isProfileIncomplete={isProfileIncomplete}
-    />
-  );
+    return (
+      <ClientDashboardView
+        stats={stats}
+        isProfileIncomplete={isProfileIncomplete}
+        user={user}
+      />
+    );
+  } catch (error) {
+    console.error("ERRO CRÍTICO NO DASHBOARD:", error);
+    // Retorna uma div de erro para não ficar tela branca
+    return (
+      <div className="p-8 text-white">
+        <h1 className="text-xl font-bold text-red-500">
+          Erro ao carregar Dashboard
+        </h1>
+        <p>Verifique o terminal para ver o erro detalhado do Prisma.</p>
+      </div>
+    );
+  }
 }
