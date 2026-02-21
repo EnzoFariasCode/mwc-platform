@@ -69,14 +69,17 @@ function FeatureCard({
   );
 }
 
+// --- ADICIONADO userType AQUI ---
 interface BeWorkerClientProps {
   isLoggedIn: boolean;
   userStatus: "active" | "inactive" | null;
+  userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN" | null; 
 }
 
 export default function BeWorkerClient({
   isLoggedIn,
   userStatus,
+  userType, // --- ADICIONADO AQUI ---
 }: BeWorkerClientProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -345,8 +348,12 @@ export default function BeWorkerClient({
         </div>
       </section>
 
-      {/* Planos (Agora animados pois as classes estão lá) */}
-      <PricingSection isLoggedIn={isLoggedIn} userStatus={userStatus} />
+      {/* --- REPASSANDO O userType PARA O PRICING SECTION --- */}
+      <PricingSection 
+        isLoggedIn={isLoggedIn} 
+        userStatus={userStatus} 
+        userType={userType} 
+      />
     </div>
   );
 }
