@@ -8,50 +8,51 @@ import {
   Info,
   MessageSquare,
   AlertTriangle,
-  X,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 
-// Mock de dados (Simulando o Banco de Dados)
-const NOTIFICATIONS = [
-  {
-    id: 1,
-    type: "success", // success, info, warning, message
-    title: "Proposta Aceita!",
-    message: "O cliente Dr. Roberto aceitou sua proposta de Landing Page.",
-    time: "Há 5 min",
-    read: false,
-    link: "/dashboard/projetos-ativos",
-  },
-  {
-    id: 2,
-    type: "message",
-    title: "Nova Mensagem",
-    message: "Ana Design: 'Pode me enviar a logo em vetor?'",
-    time: "Há 1 hora",
-    read: false,
-    link: "/dashboard/chat",
-  },
-  {
-    id: 3,
-    type: "warning",
-    title: "Complete seu Perfil",
-    message: "Adicione suas habilidades para aparecer em mais buscas.",
-    time: "Há 1 dia",
-    read: true,
-    link: "/dashboard/perfil",
-  },
-];
+import { getNotifications } from "@/actions/notifications/get-notifications";
+
+type NotificationItem = {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  time: string;
+  read: boolean;
+  link: string;
+};
 
 export function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Calcula não lidas para a bolinha vermelha
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  // Fecha ao clicar fora
+  // 2. BUSCA OS DADOS REAIS AO CARREGAR O COMPONENTE
+  useEffect(() => {
+    async function fetchNotifications() {
+      setIsLoading(true);
+      try {
+        const data = await getNotifications();
+        setNotifications(data);
+      } catch (error) {
+        console.error("Erro ao carregar notificações", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchNotifications();
+
+    // Opcional: Você pode colocar um setInterval aqui para buscar a cada X minutos
+    // const interval = setInterval(fetchNotifications, 60000); // 1 minuto
+    // return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -62,22 +63,19 @@ export function NotificationDropdown() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Marcar como lida ao clicar
   const handleRead = (id: number) => {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
     setIsOpen(false);
   };
 
-  // Marcar todas como lidas
   const markAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
   return (
     <div className="relative" ref={menuRef}>
-      {/* Botão do Sino */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`relative text-slate-400 hover:text-white transition-colors cursor-pointer pl-4 border-l border-white/10 ${
@@ -86,31 +84,32 @@ export function NotificationDropdown() {
       >
         <Bell size={22} />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-primary rounded-full border-2 border-slate-900 animate-pulse"></span>
+          <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-[#d73cbe] rounded-full border-2 border-slate-900 animate-pulse"></span>
         )}
       </button>
 
-      {/* Dropdown Flutuante */}
       {isOpen && (
-        <div className="absolute top-full right-0 mt-4 w-80 md:w-96 bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-50">
-          {/* Header do Dropdown */}
-          <div className="p-4 border-b border-border flex justify-between items-center bg-background">
-            <h3 className="font-bold text-foreground text-sm">Notificações</h3>
+        <div className="absolute top-full right-0 mt-4 w-80 md:w-96 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-50">
+          <div className="p-4 border-b border-white/10 flex justify-between items-center bg-slate-950">
+            <h3 className="font-bold text-white text-sm">Notificações</h3>
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="text-[10px] text-primary hover:underline cursor-pointer font-bold"
+                className="text-[10px] text-[#d73cbe] hover:underline cursor-pointer font-bold"
               >
-                Marcar todas como lidas
+                Marcar como lidas
               </button>
             )}
           </div>
 
-          {/* Lista */}
           <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-            {notifications.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground text-sm">
-                Nenhuma notificação nova.
+            {isLoading ? (
+              <div className="p-8 flex justify-center items-center text-slate-400">
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 text-sm">
+                Nenhuma novidade por enquanto.
               </div>
             ) : (
               notifications.map((item) => (
@@ -120,11 +119,10 @@ export function NotificationDropdown() {
                   onClick={() => handleRead(item.id)}
                 >
                   <div
-                    className={`p-4 border-b border-border hover:bg-white/5 transition-colors cursor-pointer flex gap-3 ${
-                      !item.read ? "bg-primary/5" : ""
+                    className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer flex gap-3 ${
+                      !item.read ? "bg-[#d73cbe]/5" : ""
                     }`}
                   >
-                    {/* Ícone Baseado no Tipo */}
                     <div className="mt-1">
                       <NotificationIcon type={item.type} />
                     </div>
@@ -133,17 +131,17 @@ export function NotificationDropdown() {
                         <h4
                           className={`text-sm ${
                             !item.read
-                              ? "font-bold text-foreground"
-                              : "font-medium text-muted-foreground"
+                              ? "font-bold text-white"
+                              : "font-medium text-slate-400"
                           }`}
                         >
                           {item.title}
                         </h4>
                         {!item.read && (
-                          <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                          <span className="w-2 h-2 rounded-full bg-[#d73cbe] shrink-0" />
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                      <p className="text-xs text-slate-400 line-clamp-2 mb-2">
                         {item.message}
                       </p>
                       <span className="text-[10px] text-slate-500 flex items-center gap-1">
@@ -155,15 +153,6 @@ export function NotificationDropdown() {
               ))
             )}
           </div>
-
-          {/* Footer */}
-          <div className="p-2 border-t border-border bg-background text-center">
-            <Link href="/dashboard/configuracoes">
-              <button className="text-xs text-muted-foreground hover:text-foreground py-1">
-                Configurar notificações
-              </button>
-            </Link>
-          </div>
         </div>
       )}
     </div>
@@ -174,7 +163,7 @@ function NotificationIcon({ type }: { type: string }) {
   switch (type) {
     case "success":
       return (
-        <div className="p-1.5 bg-green-500/10 rounded-full text-green-400">
+        <div className="p-1.5 bg-emerald-500/10 rounded-full text-emerald-400">
           <Check className="w-4 h-4" />
         </div>
       );
