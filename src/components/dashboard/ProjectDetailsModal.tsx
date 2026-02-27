@@ -85,12 +85,17 @@ export function ProjectDetailsModal({
   const category = project.category || "Geral";
   const tags = project.tags || [];
 
-  // MOCK DE ENTREGA (Simulando dados do banco)
+  // ========================================================
+  // LÓGICA DE DADOS REAIS: Pega a última entrega do banco
+  // ========================================================
+  const realDeliverable = project.deliverables?.[0];
+
   const lastDeliverable = {
-    link: "https://github.com/mwc-project/delivery",
-    description:
-      "Olá! Segue o link com o código fonte finalizado e a documentação no README.",
-    date: new Date().toLocaleDateString("pt-BR"),
+    link: realDeliverable?.link || "Nenhum link fornecido.",
+    description: realDeliverable?.description || "Nenhuma descrição fornecida.",
+    date: realDeliverable?.createdAt
+      ? new Date(realDeliverable.createdAt).toLocaleDateString("pt-BR")
+      : "Data desconhecida",
   };
 
   return (
@@ -150,21 +155,30 @@ export function ProjectDetailsModal({
                     </div>
                     <div className="flex-1 space-y-2">
                       <p className="text-xs text-slate-500 uppercase font-bold">
-                        Arquivos / Link
+                        Arquivos / Link (Enviado em: {lastDeliverable.date})
                       </p>
-                      <a
-                        href={lastDeliverable.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium text-[#d73cbe] hover:underline break-all block"
-                      >
-                        {lastDeliverable.link}
-                      </a>
+
+                      {/* Tratamento para o Link (verificando se é URL válida) */}
+                      {lastDeliverable.link.startsWith("http") ? (
+                        <a
+                          href={lastDeliverable.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-[#d73cbe] hover:underline break-all block"
+                        >
+                          {lastDeliverable.link}
+                        </a>
+                      ) : (
+                        <p className="text-sm font-medium text-slate-300 break-all block">
+                          {lastDeliverable.link}
+                        </p>
+                      )}
+
                       <div className="h-px bg-white/5 my-2" />
                       <p className="text-xs text-slate-500 uppercase font-bold">
                         Comentário
                       </p>
-                      <p className="text-sm text-slate-300 italic">
+                      <p className="text-sm text-slate-300 italic whitespace-pre-wrap">
                         "{lastDeliverable.description}"
                       </p>
                     </div>
@@ -193,10 +207,9 @@ export function ProjectDetailsModal({
               </div>
             )}
 
-            {/* === CENÁRIO 4: PROJETO CONCLUÍDO (FIXO PARA SEMPRE) === */}
+            {/* === CENÁRIO 4: PROJETO CONCLUÍDO === */}
             {project.status === "COMPLETED" && (
               <div className="space-y-6">
-                {/* Mensagem de Sucesso */}
                 <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-6 text-center relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-1 h-full bg-green-500" />
                   <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-green-500/20">
@@ -210,7 +223,6 @@ export function ProjectDetailsModal({
                   </p>
                 </div>
 
-                {/* ARQUIVOS FINAIS (FIXOS) - O que você pediu */}
                 {isOwner && (
                   <div className="bg-slate-900 border border-white/5 rounded-2xl p-6">
                     <h4 className="text-sm text-slate-300 font-bold uppercase mb-4 flex items-center gap-2">
@@ -226,19 +238,25 @@ export function ProjectDetailsModal({
                           <p className="text-xs text-slate-500 uppercase font-bold">
                             Link de Acesso
                           </p>
-                          <a
-                            href={lastDeliverable.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm font-medium text-[#d73cbe] hover:underline break-all block"
-                          >
-                            {lastDeliverable.link}
-                          </a>
+                          {lastDeliverable.link.startsWith("http") ? (
+                            <a
+                              href={lastDeliverable.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-[#d73cbe] hover:underline break-all block"
+                            >
+                              {lastDeliverable.link}
+                            </a>
+                          ) : (
+                            <p className="text-sm font-medium text-slate-300 break-all block">
+                              {lastDeliverable.link}
+                            </p>
+                          )}
                           <div className="h-px bg-white/5 my-2" />
                           <p className="text-xs text-slate-500 uppercase font-bold">
                             Nota do Profissional
                           </p>
-                          <p className="text-sm text-slate-300 italic">
+                          <p className="text-sm text-slate-300 italic whitespace-pre-wrap">
                             "{lastDeliverable.description}"
                           </p>
                         </div>
@@ -335,8 +353,8 @@ export function ProjectDetailsModal({
                         {isLoadingProposals
                           ? "Atualizando lista..."
                           : proposals.length === 0
-                          ? "Nenhum profissional interessado ainda."
-                          : "Analise e escolha o melhor profissional."}
+                            ? "Nenhum profissional interessado ainda."
+                            : "Analise e escolha o melhor profissional."}
                       </p>
                     </div>
                   </div>
@@ -367,7 +385,6 @@ export function ProjectDetailsModal({
                           key={proposal.id}
                           className="bg-slate-900 border border-white/5 rounded-2xl p-5 hover:border-[#d73cbe]/40 transition-all shadow-lg hover:shadow-[#d73cbe]/5 group"
                         >
-                          {/* ... Card de Proposta ... */}
                           <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-5">
                             <div className="flex items-center gap-3">
                               <div className="w-12 h-12 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-lg font-bold text-slate-300 group-hover:border-[#d73cbe]/50 transition-colors">
@@ -399,7 +416,7 @@ export function ProjectDetailsModal({
                                   R${" "}
                                   {parseFloat(proposal.price).toLocaleString(
                                     "pt-BR",
-                                    { minimumFractionDigits: 2 }
+                                    { minimumFractionDigits: 2 },
                                   )}
                                 </p>
                               </div>

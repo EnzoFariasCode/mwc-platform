@@ -38,6 +38,11 @@ export default async function MeusProjetosPage({
       _count: {
         select: { proposals: true },
       },
+      //TRÁS O LINK E A MENSAGEM DA ENTREGA
+      deliverables: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
     },
   });
 
