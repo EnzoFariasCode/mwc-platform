@@ -1,7 +1,7 @@
 "use client";
 
 import { PageContainer } from "@/components/dashboard/PageContainer";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   MessageSquare,
@@ -12,7 +12,8 @@ import {
   Plus,
   Eye,
   Users,
-  Briefcase, // <--- ADICIONADO AQUI
+  Briefcase,
+  CheckCircle2, // <--- Importado para o Card de Sucesso
 } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -25,10 +26,12 @@ import { toast } from "sonner";
 
 interface MyProjectsViewProps {
   initialProjects: any[];
+  isSuccessPayment?: boolean; // <--- Nova propriedade
 }
 
 export default function MyProjectsView({
   initialProjects,
+  isSuccessPayment,
 }: MyProjectsViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -43,6 +46,13 @@ export default function MyProjectsView({
   const [projectToDelete, setProjectToDelete] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Limpa a URL se o pagamento foi sucesso (remove o ?success=true)
+  useEffect(() => {
+    if (isSuccessPayment) {
+      window.history.replaceState(null, "", "/dashboard/meus-projetos");
+    }
+  }, [isSuccessPayment]);
+
   useGSAP(
     () => {
       gsap.fromTo(
@@ -55,10 +65,10 @@ export default function MyProjectsView({
           duration: 0.5,
           stagger: 0.15,
           ease: "back.out(1.2)",
-        }
+        },
       );
     },
-    { scope: containerRef }
+    { scope: containerRef },
   );
 
   const handleOpenDetails = (project: any) => {
@@ -92,6 +102,25 @@ export default function MyProjectsView({
   return (
     <PageContainer>
       <div ref={containerRef} className="space-y-8">
+        {/* --- CARD DE NOTIFICAÇÃO DE SUCESSO DO STRIPE --- */}
+        {isSuccessPayment && (
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-in fade-in slide-in-from-top-4 shadow-lg shadow-emerald-900/10">
+            <div className="bg-emerald-500/20 p-3 rounded-full shrink-0">
+              <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-emerald-400 font-bold text-lg mb-1">
+                Pagamento Aprovado!
+              </h4>
+              <p className="text-emerald-200/80 text-sm leading-relaxed">
+                Seu pagamento foi processado com segurança pela Stripe. O
+                projeto já está em andamento e o profissional será notificado
+                para iniciar os trabalhos imediatamente.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -194,7 +223,7 @@ export default function MyProjectsView({
                         {project.agreedPrice
                           ? Number(project.agreedPrice).toLocaleString(
                               "pt-BR",
-                              { style: "currency", currency: "BRL" }
+                              { style: "currency", currency: "BRL" },
                             )
                           : project.budgetLabel}
                       </p>

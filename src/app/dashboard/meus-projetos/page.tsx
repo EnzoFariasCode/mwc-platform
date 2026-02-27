@@ -4,7 +4,11 @@ import { redirect } from "next/navigation";
 import MyProjectsView from "./MyProjectsView";
 import { verifySession } from "@/lib/auth";
 
-export default async function MeusProjetosPage() {
+export default async function MeusProjetosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const cookieStore = await cookies();
   const token = cookieStore.get("session")?.value;
   const session = token ? await verifySession(token) : null;
@@ -14,6 +18,10 @@ export default async function MeusProjetosPage() {
   }
 
   const userId = session.sub as string;
+
+  // Lê a URL para ver se o pagamento acabou de ser feito
+  const resolvedParams = await searchParams;
+  const isSuccessPayment = resolvedParams.success === "true";
 
   const myProjects = await db.project.findMany({
     where: {
@@ -26,12 +34,17 @@ export default async function MeusProjetosPage() {
       professional: {
         select: { name: true },
       },
-      // 👇 ADICIONE ISSO AQUI (Conta as propostas recebidas)
+      // Conta as propostas recebidas
       _count: {
         select: { proposals: true },
       },
     },
   });
 
-  return <MyProjectsView initialProjects={myProjects} />;
+  return (
+    <MyProjectsView
+      initialProjects={myProjects}
+      isSuccessPayment={isSuccessPayment}
+    />
+  );
 }

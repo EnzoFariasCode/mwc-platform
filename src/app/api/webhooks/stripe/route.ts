@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { db } from "@/lib/prisma";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-01-28.clover" as any, // Mantenha a versão do seu package.json
+  apiVersion: "2026-01-28.clover" as any,
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -26,48 +26,117 @@ export async function POST(req: Request) {
     return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 });
   }
 
-  const session = event.data.object as Stripe.Checkout.Session;
-  const subscription = event.data.object as Stripe.Subscription;
-
   // 2. Processar os Eventos
   try {
     switch (event.type) {
-      // CENÁRIO A: Primeira Assinatura (Checkout completado)
+      // =========================================================
+      // CHECKOUT COMPLETADO (Pode ser Assinatura OU Projeto)
+      // =========================================================
       case "checkout.session.completed": {
-        if (!session?.metadata?.userId) {
-          console.error("Webhook: UserId não encontrado nos metadados.");
-          break;
+        const session = event.data.object as Stripe.Checkout.Session;
+
+        // --- CENÁRIO A: PAGAMENTO DE PROJETO (ESCROW) ---
+        if (session.metadata?.type === "project_payment") {
+          const proposalId = session.metadata.proposalId;
+
+          if (!proposalId) {
+            console.error(
+              "Webhook: ProposalId não encontrado nos metadados do projeto.",
+            );
+            break;
+          }
+
+          const proposal = await db.proposal.findUnique({
+            where: { id: proposalId },
+            include: { project: true },
+          });
+
+          if (proposal) {
+            // Transação Atômica: Atualiza Proposta, Projeto e Gera o Saldo Retido
+            await db.$transaction([
+              db.proposal.update({
+                where: { id: proposalId },
+                data: { status: "ACCEPTED" },
+              }),
+
+              db.proposal.updateMany({
+                where: {
+                  projectId: proposal.projectId,
+                  id: { not: proposalId },
+                },
+                data: { status: "REJECTED" },
+              }),
+
+              db.project.update({
+                where: { id: proposal.projectId },
+                data: {
+                  status: "IN_PROGRESS",
+                  professionalId: proposal.professionalId,
+                  agreedPrice: proposal.price,
+                  deadline: new Date(
+                    Date.now() + proposal.estimatedDays * 24 * 60 * 60 * 1000,
+                  ).toLocaleDateString("pt-BR"),
+                },
+              }),
+
+              // Registra a retenção do dinheiro
+              db.transaction.create({
+                data: {
+                  userId: proposal.project.ownerId,
+                  amount: Number(proposal.price),
+                  type: "DEBIT",
+                  status: "COMPLETED",
+                  description: `Pagamento retido (Escrow) - Projeto: ${proposal.project.title}`,
+                  projectId: proposal.projectId,
+                },
+              }),
+            ]);
+            console.log(
+              `✅ Projeto ${proposal.projectId} iniciado com sucesso via Stripe!`,
+            );
+          }
+          break; // Sai do switch para não executar o código de assinatura abaixo
         }
 
-        // Recuperar detalhes completos da assinatura
-        // [CORREÇÃO AQUI]: Adicionado "as Stripe.Subscription"
-        const subscriptionDetails = (await stripe.subscriptions.retrieve(
-          session.subscription as string,
-        )) as Stripe.Subscription;
+        // --- CENÁRIO B: PRIMEIRA ASSINATURA DE PLANO ---
+        if (session.mode === "subscription") {
+          if (!session?.metadata?.userId) {
+            console.error(
+              "Webhook: UserId não encontrado nos metadados da assinatura.",
+            );
+            break;
+          }
 
-        await db.user.update({
-          where: { id: session.metadata.userId },
-          data: {
-            stripeSubscriptionId: subscriptionDetails.id,
-            stripeCustomerId: subscriptionDetails.customer as string,
-            stripePriceId: subscriptionDetails.items.data[0].price.id,
-            stripeCurrentPeriodEnd: new Date(
-              ((subscriptionDetails as any).current_period_end ?? 0) * 1000,
-            ),
-            stripeSubscriptionStatus: subscriptionDetails.status, // "active"
-          },
-        });
-        console.log(`✅ Usuário ${session.metadata.userId} agora é PRO!`);
+          const subscriptionDetails = (await stripe.subscriptions.retrieve(
+            session.subscription as string,
+          )) as Stripe.Subscription;
+
+          await db.user.update({
+            where: { id: session.metadata.userId },
+            data: {
+              stripeSubscriptionId: subscriptionDetails.id,
+              stripeCustomerId: subscriptionDetails.customer as string,
+              stripePriceId: subscriptionDetails.items.data[0].price.id,
+              stripeCurrentPeriodEnd: new Date(
+                ((subscriptionDetails as any).current_period_end ?? 0) * 1000,
+              ),
+              stripeSubscriptionStatus: subscriptionDetails.status,
+            },
+          });
+          console.log(`✅ Usuário ${session.metadata.userId} agora é PRO!`);
+        }
         break;
       }
 
-      // CENÁRIO B: Renovação Automática (Todo mês)
+      // =========================================================
+      // RENOVAÇÃO AUTOMÁTICA (Assinaturas)
+      // =========================================================
       case "invoice.payment_succeeded": {
-        // Aqui não temos metadata fácil, então buscamos pelo ID da assinatura
-        const subId = subscription.id || session.subscription;
+        const invoice = event.data.object as any;
+        const subId = invoice.subscription;
 
-        // Pega dados atualizados da assinatura
-        // [CORREÇÃO AQUI]: Adicionado "as Stripe.Subscription"
+        if (!subId) break;
+
         const subDetails = (await stripe.subscriptions.retrieve(
           subId as string,
         )) as Stripe.Subscription;
@@ -79,48 +148,54 @@ export async function POST(req: Request) {
             stripeCurrentPeriodEnd: new Date(
               (subDetails as any).current_period_end * 1000,
             ),
-            stripeSubscriptionStatus: subDetails.status, // "active"
+            stripeSubscriptionStatus: subDetails.status,
           },
         });
         console.log(`✅ Assinatura ${subId} renovada com sucesso.`);
         break;
       }
 
-      // CENÁRIO C: Falha no Pagamento (Cartão recusado/sem limite)
+      // =========================================================
+      // FALHA NO PAGAMENTO (Assinaturas)
+      // =========================================================
       case "invoice.payment_failed": {
-        const subId = subscription.id || session.subscription;
+        const invoice = event.data.object as any;
+        const subId = invoice.subscription;
+
+        if (!subId) break;
 
         await db.user.update({
           where: { stripeSubscriptionId: subId as string },
           data: {
-            stripeSubscriptionStatus: "past_due", // Ou "unpaid"
+            stripeSubscriptionStatus: "past_due",
           },
         });
         console.log(`⚠️ Falha no pagamento da assinatura ${subId}`);
         break;
       }
 
-      // CENÁRIO D: Atualização ou Cancelamento
+      // =========================================================
+      // CANCELAMENTO (Assinaturas)
+      // =========================================================
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
-        const subId = subscription.id;
+        const subscription = event.data.object as Stripe.Subscription;
 
-        // [CORREÇÃO AQUI]: Adicionado "as Stripe.Subscription"
         const subDetails = (await stripe.subscriptions.retrieve(
-          subId as string,
+          subscription.id as string,
         )) as Stripe.Subscription;
 
         await db.user.update({
-          where: { stripeSubscriptionId: subId },
+          where: { stripeSubscriptionId: subscription.id },
           data: {
-            stripeSubscriptionStatus: subDetails.status, // "canceled", "active", etc
+            stripeSubscriptionStatus: subDetails.status,
             stripeCurrentPeriodEnd: new Date(
               ((subDetails as any).current_period_end ?? 0) * 1000,
             ),
           },
         });
         console.log(
-          `🔄 Status da assinatura ${subId} atualizado para: ${subDetails.status}`,
+          `🔄 Status da assinatura ${subscription.id} atualizado para: ${subDetails.status}`,
         );
         break;
       }

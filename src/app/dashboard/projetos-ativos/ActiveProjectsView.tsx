@@ -112,7 +112,7 @@ export default function ActiveProjectsView({
                         {project.agreedPrice
                           ? Number(project.agreedPrice).toLocaleString(
                               "pt-BR",
-                              { style: "currency", currency: "BRL" }
+                              { style: "currency", currency: "BRL" },
                             )
                           : project.budgetLabel}
                       </p>
