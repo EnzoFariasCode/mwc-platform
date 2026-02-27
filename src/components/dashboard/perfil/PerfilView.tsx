@@ -23,12 +23,12 @@ import {
   Zap, // Ícone para o Advanced
   Rocket, // Ícone para o Starter
   User, // Ícone para o Free
+  Lock, // Ícone para o bloqueio
 } from "lucide-react";
 import Image from "next/image";
 
-// ==============================================================================
-// ⚠️ CONFIGURAÇÃO DOS IDs DOS PLANOS
-// ==============================================================================
+//CONFIGURAÇÃO DOS IDs DOS PLANOS
+
 const PLAN_IDS = {
   STARTER: "price_1Sz07x2LcuSkaNju6xEbd2cQ",
   ADVANCED: "rice_1Sz08J2LcuSkaNjuvz3VIcUz",
@@ -146,8 +146,7 @@ export default function PerfilView({ user }: { user: UserData }) {
 
   // --- LÓGICA DE NEGÓCIO ---
 
-  // 1. É Profissional? (Define se pode editar skills/portfolio)
-  // SE for "PROFESSIONAL", libera tudo. Não importa se paga.
+  // 1. É Profissional? (Define se pode editar e visualizar o conteúdo de skills/portfolio)
   const isProfessionalUser = currentUser.userType === "PROFESSIONAL";
 
   // 2. É Assinante Ativo? (Define se ganha o selo verde na foto)
@@ -300,7 +299,7 @@ export default function PerfilView({ user }: { user: UserData }) {
                   )}
                 </div>
 
-                {/* LOGICA DA FOTO: SÓ MOSTRA SELO SE FOR ASSINANTE PAGO (Starter/Advanced) */}
+                {/* LOGICA DA FOTO: SÓ MOSTRA SELO SE FOR ASSINANTE PAGO */}
                 {isSubscriber && (
                   <div
                     className="absolute bottom-1 right-1 bg-green-500 text-white p-1.5 rounded-full border-4 border-card shadow-lg animate-in zoom-in"
@@ -411,10 +410,25 @@ export default function PerfilView({ user }: { user: UserData }) {
               </div>
             </SectionCard>
 
-            {/* HABILIDADES - Liberado para editar se for Profissional (Pago ou Free) */}
+            {/* HABILIDADES COM TARJA DE BLOQUEIO */}
             <div className="relative">
+              {!isProfessionalUser && (
+                <div className="absolute inset-0 z-10 bg-background/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center border border-border p-4 overflow-hidden">
+                  <div className="p-2.5 bg-muted rounded-full mb-2 text-muted-foreground shrink-0">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm font-bold text-foreground text-center">
+                    Exclusivo para Profissionais
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1 px-2 text-center">
+                    Mude sua conta para expor suas habilidades.
+                  </p>
+                </div>
+              )}
               <SectionCard title="Habilidades e Tecnologias">
-                <div className="flex flex-wrap gap-2">
+                <div
+                  className={`flex flex-wrap gap-2 ${!isProfessionalUser ? "min-h-[110px]" : ""}`}
+                >
                   {currentUser.skills && currentUser.skills.length > 0 ? (
                     currentUser.skills.map((skill) => (
                       <span
@@ -442,10 +456,25 @@ export default function PerfilView({ user }: { user: UserData }) {
               </SectionCard>
             </div>
 
-            {/* PORTFÓLIO - Liberado para editar se for Profissional (Pago ou Free) */}
+            {/* PORTFÓLIO COM TARJA DE BLOQUEIO */}
             <div className="relative">
+              {!isProfessionalUser && (
+                <div className="absolute inset-0 z-10 bg-background/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center border border-border p-4 overflow-hidden">
+                  <div className="p-2.5 bg-muted rounded-full mb-2 text-muted-foreground shrink-0">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm font-bold text-foreground text-center">
+                    Exclusivo para Profissionais
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1 px-2 text-center">
+                    Mude sua conta para exibir seus trabalhos.
+                  </p>
+                </div>
+              )}
               <SectionCard title="Portfólio e Anexos">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div
+                  className={`grid grid-cols-2 sm:grid-cols-3 gap-4 ${!isProfessionalUser ? "min-h-[110px]" : ""}`}
+                >
                   {portfolioItems.map((item, index) => (
                     <a
                       key={index}
@@ -466,7 +495,6 @@ export default function PerfilView({ user }: { user: UserData }) {
                     </a>
                   ))}
 
-                  {/* Todo profissional pode adicionar projetos (podemos limitar quantidade depois se quiser) */}
                   {isProfessionalUser && (
                     <button
                       onClick={() => setIsEditModalOpen(true)}
@@ -484,10 +512,25 @@ export default function PerfilView({ user }: { user: UserData }) {
               </SectionCard>
             </div>
 
-            {/* CERTIFICADOS - Liberado para editar se for Profissional (Pago ou Free) */}
+            {/* CERTIFICADOS COM TARJA DE BLOQUEIO */}
             <div className="relative">
+              {!isProfessionalUser && (
+                <div className="absolute inset-0 z-10 bg-background/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center border border-border p-4 overflow-hidden">
+                  <div className="p-2.5 bg-muted rounded-full mb-2 text-muted-foreground shrink-0">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm font-bold text-foreground text-center">
+                    Exclusivo para Profissionais
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1 px-2 text-center">
+                    Mude sua conta para destacar suas qualificações.
+                  </p>
+                </div>
+              )}
               <SectionCard title="Certificações e Cursos">
-                <div className="flex flex-col gap-3">
+                <div
+                  className={`flex flex-col gap-3 ${!isProfessionalUser ? "min-h-[110px]" : ""}`}
+                >
                   {certificateItems.length > 0 ? (
                     certificateItems.map((cert, i) => (
                       <div
@@ -670,7 +713,7 @@ function EditBioModal({
         </div>
         <div className="p-6 space-y-4">
           <textarea
-            className="w-full min-h-[150px] bg-background border border-border rounded-xl p-3 text-foreground focus:ring-2 focus:ring-primary/50 outline-none resize-none"
+            className="w-full min-h-37.5 bg-background border border-border rounded-xl p-3 text-foreground focus:ring-2 focus:ring-primary/50 outline-none resize-none"
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             placeholder="Conte um pouco sobre você..."
