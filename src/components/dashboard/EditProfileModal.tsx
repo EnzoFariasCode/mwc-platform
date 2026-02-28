@@ -339,6 +339,7 @@ export function EditProfileModal({
                     alt="Preview"
                     fill
                     className="object-cover"
+                    unoptimized // <-- CORREÇÃO APLICADA AQUI
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-500 font-bold text-2xl">
