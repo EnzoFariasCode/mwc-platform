@@ -107,15 +107,6 @@ export default function DashboardHeader() {
         <span className="font-futura font-bold text-white">MWC</span>
       </div>
 
-      <div className="hidden lg:flex flex-1 max-w-md mx-8 relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
-        <input
-          type="text"
-          placeholder="Buscar projetos ou profissionais..."
-          className="w-full bg-slate-900 border border-white/10 rounded-full py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-[#d73cbe] transition-all placeholder:text-slate-500"
-        />
-      </div>
-
       <div className="flex items-center gap-4 lg:gap-6 ml-auto">
         <div className="hidden sm:flex bg-slate-950 rounded-full border border-white/10 relative overflow-hidden">
           <div

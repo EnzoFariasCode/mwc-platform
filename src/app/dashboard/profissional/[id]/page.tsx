@@ -4,6 +4,7 @@ import { ProfileShowcase } from "@/components/features/profile-showcase";
 import { PageContainer } from "@/components/dashboard/PageContainer";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
+import { db } from "@/lib/prisma"; // <--- IMPORTADO PARA ATUALIZAR O BANCO
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -23,6 +24,17 @@ export default async function DashboardProfilePage({ params }: PageProps) {
   const session = token ? await verifySession(token) : null;
 
   const isOwner = session?.sub === professional.id;
+
+  if (!isOwner) {
+    try {
+      await db.user.update({
+        where: { id: professional.id },
+        data: { profileViews: { increment: 1 } },
+      });
+    } catch (error) {
+      console.error("Erro ao registrar visualização de perfil:", error);
+    }
+  }
 
   return (
     <PageContainer>

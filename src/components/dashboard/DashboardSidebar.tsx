@@ -82,12 +82,7 @@ function UserMenu({ user }: { user: UserData | null }) {
                 Meu Perfil
               </button>
             </Link>
-            <Link href="/dashboard/configuracoes">
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 rounded-lg text-sm text-slate-200 transition-colors text-left group cursor-pointer">
-                <Settings className="w-4 h-4 text-slate-400 group-hover:text-[#d73cbe]" />
-                Configurações
-              </button>
-            </Link>
+
             <div className="h-px bg-white/5 my-1" />
             <button
               onClick={handleLogout}
@@ -246,11 +241,6 @@ export default function DashboardSidebar() {
       href: "/dashboard/meus-projetos",
     },
     { icon: Heart, label: "Favoritos", href: "/dashboard/favoritos" },
-    {
-      icon: Settings,
-      label: "Configurações",
-      href: "/dashboard/configuracoes",
-    },
   ];
 
   const menuItems = viewMode === "CLIENT" ? clientLinks : professionalLinks;

@@ -48,6 +48,8 @@ model User {
   userType       UserType  @default(CLIENT)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+
+  profileViews     Int       @default(0)
   
   // --- Dados de Perfil ---
   bio             String?   @db.Text

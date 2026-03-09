@@ -12,7 +12,7 @@ import {
   Search,
   UserCheck,
 } from "lucide-react";
-import { UpgradeBanner } from "@/components/dashboard/UpgradeBanner"; // <--- Importe aqui
+import { UpgradeBanner } from "@/components/dashboard/UpgradeBanner";
 
 // Server Component (Async)
 export default async function ProfissionalDashboard() {
@@ -30,19 +30,19 @@ export default async function ProfissionalDashboard() {
   // 2. Buscando dados reais em paralelo
   const [conversationsCount, proposalsCount, completedProjects, currentUser] =
     await Promise.all([
-      // Leads
+      // Leads (Conversas)
       db.conversation.count({
         where: {
           OR: [{ participantAId: userId }, { participantBId: userId }],
         },
       }),
 
-      // Propostas
+      // Propostas Enviadas
       db.proposal.count({
         where: { professionalId: userId },
       }),
 
-      // Ganhos
+      // Ganhos (Apenas de projetos completados)
       db.project.findMany({
         where: {
           professionalId: userId,
@@ -52,10 +52,13 @@ export default async function ProfissionalDashboard() {
         select: { agreedPrice: true },
       }),
 
-      // --- NOVO: Buscar status do usuário para saber se é PRO ---
+      // Buscar dados do usuário (Status Stripe e as Visitas reais)
       db.user.findUnique({
         where: { id: userId },
-        select: { stripeSubscriptionStatus: true },
+        select: {
+          stripeSubscriptionStatus: true,
+          profileViews: true, // <--- Lendo as visitas reais do banco
+        },
       }),
     ]);
 
@@ -69,7 +72,8 @@ export default async function ProfissionalDashboard() {
     currency: "BRL",
   });
 
-  const profileVisits = 128;
+  // Puxa as visitas reais (se for null ou indefinido, cai para 0)
+  const profileVisits = currentUser?.profileViews || 0;
 
   // Verifica se é pro
   const isPro = currentUser?.stripeSubscriptionStatus === "active";
@@ -113,7 +117,7 @@ export default async function ProfissionalDashboard() {
             icon={Eye}
             label="Visitas no Perfil"
             value={profileVisits}
-            subtext="Esta semana"
+            subtext="Total acumulado"
             color="text-blue-400"
           />
           <StatCard
@@ -138,7 +142,6 @@ export default async function ProfissionalDashboard() {
         </div>
 
         {/* BANNER INTELIGENTE (PRO vs FREE) */}
-        {/* Removemos o banner antigo hardcoded e colocamos o componente novo */}
         <UpgradeBanner isPro={isPro} />
       </div>
     </PageContainer>
