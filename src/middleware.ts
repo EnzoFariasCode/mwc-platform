@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 export default auth((request: NextRequest) => {
   const path = request.nextUrl.pathname;
   const isDashboardRoute = path.startsWith("/dashboard");
-  const isAuthRoute = ["/login", "/cadastro", "/recuperar-senha"].includes(path);
+  const isAuthRoute = ["/login", "/cadastro", "/recuperarsenha"].includes(path);
 
   const isLoggedIn = !!request.auth;
 

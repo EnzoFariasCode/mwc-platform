@@ -9,17 +9,17 @@ export async function approveProject(projectId: string) {
     const session = await verifySession();
     const userId = session?.sub as string;
 
-    if (!userId) return { success: false, error: "Não autorizado" };
+    if (!userId) return { success: false, error: "Nao autorizado" };
 
-    // 1. Verifica se o projeto existe e se o usuário é o dono
+    // 1. Verifica se o projeto existe e se o usuario e o dono
     const project = await db.project.findUnique({
       where: { id: projectId },
       include: {
-        professional: true, // Precisamos saber quem é o profissional para pagar a ele
+        professional: true,
       },
     });
 
-    if (!project) return { success: false, error: "Projeto não encontrado" };
+    if (!project) return { success: false, error: "Projeto nao encontrado" };
     if (project.ownerId !== userId) {
       return { success: false, error: "Apenas o dono pode aprovar a entrega." };
     }
@@ -27,7 +27,14 @@ export async function approveProject(projectId: string) {
     if (!project.professionalId || !project.agreedPrice) {
       return {
         success: false,
-        error: "Erro: Profissional ou valor não definidos neste projeto.",
+        error: "Erro: Profissional ou valor nao definidos neste projeto.",
+      };
+    }
+
+    if (project.status !== "UNDER_REVIEW") {
+      return {
+        success: false,
+        error: "Status invalido para aprovacao.",
       };
     }
 
@@ -48,7 +55,7 @@ export async function approveProject(projectId: string) {
         where: { id: project.professionalId },
         data: {
           walletBalance: {
-            increment: valorProfissional, // <-- CORRIGIDO AQUI: Passando só os 90%
+            increment: valorProfissional,
           },
         },
       }),
@@ -56,19 +63,18 @@ export async function approveProject(projectId: string) {
       db.transaction.create({
         data: {
           userId: project.professionalId,
-          amount: valorProfissional, // <-- CORRIGIDO AQUI: Passando só os 90%
+          amount: valorProfissional,
           type: "CREDIT",
           status: "COMPLETED",
-          description: `Pagamento (Taxa de 10% aplicada) - Projeto: ${project.title}`, // Aviso no extrato
+          description: `Pagamento (Taxa de 10% aplicada) - Projeto: ${project.title}`,
           projectId: project.id,
         },
       }),
     ]);
 
-    // Revalida as páginas para atualizar os dados em tempo real
     revalidatePath("/dashboard/meus-projetos");
     revalidatePath("/dashboard/projetos-ativos");
-    revalidatePath("/dashboard/financeiro"); // Adicionado para forçar o financeiro a ler o novo saldo
+    revalidatePath("/dashboard/financeiro");
 
     return { success: true };
   } catch (error) {

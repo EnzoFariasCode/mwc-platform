@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/prisma";
-import { Prisma, UserType } from "@prisma/client"; // Importe o Enum do seu schema
+import { Prisma } from "@prisma/client";
 
 interface SearchFilters {
   query?: string;
@@ -25,22 +25,18 @@ export async function getProfessionals({
   limit = 10,
 }: SearchFilters) {
   try {
-    // 1. Construir o filtro (Where)
     const where: Prisma.UserWhereInput = {
-      userType: "PROFESSIONAL", // <--- CORRIGIDO: userType ao invés de role
+      userType: "PROFESSIONAL",
 
-      // Filtro de Texto (Nome, Bio, Título do Cargo)
       ...(query && {
         OR: [
           { name: { contains: query, mode: "insensitive" } },
           { bio: { contains: query, mode: "insensitive" } },
-          { jobTitle: { contains: query, mode: "insensitive" } }, // <--- ADICIONADO: Busca pelo cargo
-          // Busca exata nas skills (Postgres Array)
+          { jobTitle: { contains: query, mode: "insensitive" } },
           { skills: { has: query } },
         ],
       }),
 
-      // Filtro de Localização
       ...(location && {
         OR: [
           { city: { contains: location, mode: "insensitive" } },
@@ -48,7 +44,6 @@ export async function getProfessionals({
         ],
       }),
 
-      // Filtro de Preço (Hourly Rate)
       ...((minPrice || maxPrice) && {
         hourlyRate: {
           gte: minPrice || 0,
@@ -56,9 +51,7 @@ export async function getProfessionals({
         },
       }),
 
-      // Filtro de Categoria (Se você usar 'jobTitle' ou uma skill específica como categoria)
       ...(category && {
-        // Exemplo: Se categoria for "Programação", busca quem tem essa skill ou titulo
         OR: [
           { jobTitle: { contains: category, mode: "insensitive" } },
           { skills: { has: category } },
@@ -66,7 +59,6 @@ export async function getProfessionals({
       }),
     };
 
-    // 2. Definir a Ordenação (OrderBy)
     let orderBy: Prisma.UserOrderByWithRelationInput = {};
 
     switch (sortBy) {
@@ -83,7 +75,6 @@ export async function getProfessionals({
         orderBy = { rating: "desc" };
     }
 
-    // 3. Buscar no Banco
     const skip = (page - 1) * limit;
 
     const [professionals, total] = await Promise.all([
@@ -95,16 +86,14 @@ export async function getProfessionals({
         select: {
           id: true,
           name: true,
-          email: true,
-          // image: true, // Se não tiver campo image no User, remova ou adicione no schema!
           bio: true,
           rating: true,
           hourlyRate: true,
           city: true,
           state: true,
           skills: true,
-          jobTitle: true, // <--- ADICIONADO
-          userType: true, // <--- CORRIGIDO
+          jobTitle: true,
+          userType: true,
         },
       }),
       db.user.count({ where }),

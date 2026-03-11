@@ -12,10 +12,10 @@ export async function createProjectCheckout(proposalId: string) {
   const session = await getUserSession();
 
   if (!session?.id) {
-    return { error: "Não autorizado. Faça login novamente." };
+    return { error: "Nao autorizado. Faca login novamente." };
   }
 
-  // Buscando o e-mail real do usuário no banco
+  // Buscando o e-mail real do usuario no banco
   const user = await db.user.findUnique({
     where: { id: session.id },
     select: { email: true },
@@ -31,22 +31,31 @@ export async function createProjectCheckout(proposalId: string) {
   });
 
   if (!proposal) {
-    return { error: "Proposta não encontrada." };
+    return { error: "Proposta nao encontrada." };
   }
 
-  // 2. Validação de Preço (Evita que valores zerados quebrem a Stripe)
+  if (proposal.project.ownerId !== session.id) {
+    return { error: "Voce nao pode pagar este projeto." };
+  }
+
+  if (proposal.status !== "PENDING") {
+    return { error: "Proposta nao esta disponivel para pagamento." };
+  }
+
+  if (proposal.project.status !== "OPEN") {
+    return { error: "Projeto nao esta aberto para pagamento." };
+  }
+
+  // 2. Validacao de preco (evita valores zerados quebrem a Stripe)
   const priceValue = Number(proposal.price);
   if (isNaN(priceValue) || priceValue <= 0) {
-    return { error: "O valor da proposta é inválido para pagamento." };
+    return { error: "O valor da proposta e invalido para pagamento." };
   }
   const unitAmountInCents = Math.floor(priceValue * 100);
 
   try {
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
-
-      // Sem forçar métodos específicos ou automáticos aqui.
-      // O Stripe vai assumir o modo padrão e mostrar o que estiver habilitado no seu painel.
 
       customer_email: user?.email || undefined,
       line_items: [
@@ -84,7 +93,6 @@ export async function createProjectCheckout(proposalId: string) {
 
     return { url: checkoutSession.url };
   } catch (error: any) {
-    // 🔍 SE DER ERRO, VAI MOSTRAR EXATAMENTE O MOTIVO NO SEU TERMINAL DO VS CODE
     console.error("--- ERRO NA STRIPE ---");
     console.error("Motivo:", error.raw?.message || error.message);
     console.error("----------------------");

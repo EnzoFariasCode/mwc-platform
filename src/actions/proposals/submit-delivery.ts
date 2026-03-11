@@ -13,23 +13,45 @@ export async function submitDelivery(
     const session = await verifySession();
     const userId = session?.sub as string;
 
-    if (!userId) return { success: false, error: "Não autorizado" };
+    if (!userId) return { success: false, error: "Nao autorizado" };
 
-    // 1. Cria o registro da entrega
-    await db.deliverable.create({
-      data: {
-        projectId,
-        link,
-        description,
-        senderId: userId, // <--- A CORREÇÃO ESTÁ AQUI (Adicionamos o ID de quem enviou)
-      },
-    });
-
-    // 2. Muda o status do projeto para 'Em Análise' (O cliente precisa aprovar)
-    await db.project.update({
+    const project = await db.project.findUnique({
       where: { id: projectId },
-      data: { status: "UNDER_REVIEW" },
+      select: { professionalId: true, status: true },
     });
+
+    if (!project) {
+      return { success: false, error: "Projeto nao encontrado." };
+    }
+
+    if (project.professionalId !== userId) {
+      return {
+        success: false,
+        error: "Voce nao tem permissao para entregar este projeto.",
+      };
+    }
+
+    if (project.status !== "IN_PROGRESS") {
+      return {
+        success: false,
+        error: "Status invalido para entrega.",
+      };
+    }
+
+    await db.$transaction([
+      db.deliverable.create({
+        data: {
+          projectId,
+          link,
+          description,
+          senderId: userId,
+        },
+      }),
+      db.project.update({
+        where: { id: projectId },
+        data: { status: "UNDER_REVIEW" },
+      }),
+    ]);
 
     revalidatePath("/dashboard/projetos-ativos");
     revalidatePath("/dashboard/meus-projetos");

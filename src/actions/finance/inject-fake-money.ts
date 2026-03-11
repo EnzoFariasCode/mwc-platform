@@ -6,6 +6,11 @@ import { revalidatePath } from "next/cache";
 
 // ADICIONADO: _formData para satisfazer a tipagem do <form action>
 export async function injectFakeMoney(_formData: FormData) {
+  const devToolsEnabled = process.env.ENABLE_DEV_TOOLS === "true";
+  if (!devToolsEnabled || process.env.NODE_ENV === "production") {
+    return { error: "Operacao indisponivel." };
+  }
+
   const session = await getUserSession();
 
   if (!session) {
@@ -13,6 +18,10 @@ export async function injectFakeMoney(_formData: FormData) {
     // mas para esse teste rápido, apenas console.error ou throw funciona.
     console.error("Sem usuário");
     return;
+  }
+
+  if (session.role !== "ADMIN") {
+    return { error: "Nao autorizado." };
   }
 
   await db.$transaction([

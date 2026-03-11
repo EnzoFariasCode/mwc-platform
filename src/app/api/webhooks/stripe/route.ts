@@ -15,7 +15,6 @@ export async function POST(req: Request) {
 
   let event: Stripe.Event;
 
-  // 1. Verificar se a requisição veio mesmo da Stripe
   try {
     if (!signature || !webhookSecret) {
       throw new Error("Missing signature or secret");
@@ -26,23 +25,17 @@ export async function POST(req: Request) {
     return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 });
   }
 
-  // 2. Processar os Eventos
   try {
     switch (event.type) {
-      // =========================================================
-      // CHECKOUT COMPLETADO (Pode ser Assinatura OU Projeto)
-      // =========================================================
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        // --- CENÁRIO A: PAGAMENTO DE PROJETO (ESCROW) ---
         if (session.metadata?.type === "project_payment") {
           const proposalId = session.metadata.proposalId;
+          const buyerId = session.metadata.buyerId;
 
-          if (!proposalId) {
-            console.error(
-              "Webhook: ProposalId não encontrado nos metadados do projeto.",
-            );
+          if (!proposalId || !buyerId) {
+            console.error("Webhook: Missing proposalId or buyerId.");
             break;
           }
 
@@ -51,64 +44,75 @@ export async function POST(req: Request) {
             include: { project: true },
           });
 
-          if (proposal) {
-            // Transação Atômica: Atualiza Proposta, Projeto e Gera o Saldo Retido
-            await db.$transaction([
-              db.proposal.update({
-                where: { id: proposalId },
-                data: { status: "ACCEPTED" },
-              }),
-
-              db.proposal.updateMany({
-                where: {
-                  projectId: proposal.projectId,
-                  id: { not: proposalId },
-                },
-                data: { status: "REJECTED" },
-              }),
-
-              db.project.update({
-                where: { id: proposal.projectId },
-                data: {
-                  status: "IN_PROGRESS",
-                  professionalId: proposal.professionalId,
-                  agreedPrice: proposal.price,
-                  deadline: new Date(
-                    Date.now() + proposal.estimatedDays * 24 * 60 * 60 * 1000,
-                  ).toLocaleDateString("pt-BR"),
-                },
-              }),
-
-              // Registra a retenção do dinheiro
-              db.transaction.create({
-                data: {
-                  userId: proposal.project.ownerId,
-                  amount: Number(proposal.price),
-                  type: "DEBIT",
-                  status: "COMPLETED",
-                  description: `Pagamento retido (Escrow) - Projeto: ${proposal.project.title}`,
-                  projectId: proposal.projectId,
-                },
-              }),
-            ]);
-            console.log(
-              `✅ Projeto ${proposal.projectId} iniciado com sucesso via Stripe!`,
-            );
+          if (!proposal) {
+            console.error("Webhook: Proposal not found.");
+            break;
           }
-          break; // Sai do switch para não executar o código de assinatura abaixo
+
+          if (proposal.project.ownerId !== buyerId) {
+            console.error("Webhook: Buyer does not own the project.");
+            break;
+          }
+
+          if (
+            proposal.status !== "PENDING" ||
+            proposal.project.status !== "OPEN"
+          ) {
+            console.log("Webhook: Payment already processed or invalid state.");
+            break;
+          }
+
+          await db.$transaction([
+            db.proposal.update({
+              where: { id: proposalId },
+              data: { status: "ACCEPTED" },
+            }),
+
+            db.proposal.updateMany({
+              where: {
+                projectId: proposal.projectId,
+                id: { not: proposalId },
+              },
+              data: { status: "REJECTED" },
+            }),
+
+            db.project.update({
+              where: { id: proposal.projectId },
+              data: {
+                status: "IN_PROGRESS",
+                professionalId: proposal.professionalId,
+                agreedPrice: proposal.price,
+                deadline: new Date(
+                  Date.now() + proposal.estimatedDays * 24 * 60 * 60 * 1000
+                ).toLocaleDateString("pt-BR"),
+              },
+            }),
+
+            db.transaction.create({
+              data: {
+                userId: proposal.project.ownerId,
+                amount: Number(proposal.price),
+                type: "DEBIT",
+                status: "COMPLETED",
+                description: `Pagamento retido (Escrow) - Projeto: ${proposal.project.title}`,
+                projectId: proposal.projectId,
+              },
+            }),
+          ]);
+          console.log(
+            `Project ${proposal.projectId} started successfully via Stripe.`
+          );
+          break;
         }
 
-        // --- CENÁRIO B: PRIMEIRA ASSINATURA DE PLANO ---
         if (session.mode === "subscription") {
           if (!session?.metadata?.userId) {
-            console.error(
-              "Webhook: UserId não encontrado nos metadados da assinatura.",
-            );
+            console.error("Webhook: Missing userId in subscription metadata.");
             break;
           }
 
           const subscriptionDetails = (await stripe.subscriptions.retrieve(
-            session.subscription as string,
+            session.subscription as string
           )) as Stripe.Subscription;
 
           await db.user.update({
@@ -118,19 +122,16 @@ export async function POST(req: Request) {
               stripeCustomerId: subscriptionDetails.customer as string,
               stripePriceId: subscriptionDetails.items.data[0].price.id,
               stripeCurrentPeriodEnd: new Date(
-                ((subscriptionDetails as any).current_period_end ?? 0) * 1000,
+                ((subscriptionDetails as any).current_period_end ?? 0) * 1000
               ),
               stripeSubscriptionStatus: subscriptionDetails.status,
             },
           });
-          console.log(`✅ Usuário ${session.metadata.userId} agora é PRO!`);
+          console.log(`User ${session.metadata.userId} is now PRO.`);
         }
         break;
       }
 
-      // =========================================================
-      // RENOVAÇÃO AUTOMÁTICA (Assinaturas)
-      // =========================================================
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as any;
         const subId = invoice.subscription;
@@ -138,7 +139,7 @@ export async function POST(req: Request) {
         if (!subId) break;
 
         const subDetails = (await stripe.subscriptions.retrieve(
-          subId as string,
+          subId as string
         )) as Stripe.Subscription;
 
         await db.user.update({
@@ -146,18 +147,15 @@ export async function POST(req: Request) {
           data: {
             stripePriceId: subDetails.items.data[0].price.id,
             stripeCurrentPeriodEnd: new Date(
-              (subDetails as any).current_period_end * 1000,
+              (subDetails as any).current_period_end * 1000
             ),
             stripeSubscriptionStatus: subDetails.status,
           },
         });
-        console.log(`✅ Assinatura ${subId} renovada com sucesso.`);
+        console.log(`Subscription ${subId} renewed successfully.`);
         break;
       }
 
-      // =========================================================
-      // FALHA NO PAGAMENTO (Assinaturas)
-      // =========================================================
       case "invoice.payment_failed": {
         const invoice = event.data.object as any;
         const subId = invoice.subscription;
@@ -170,19 +168,16 @@ export async function POST(req: Request) {
             stripeSubscriptionStatus: "past_due",
           },
         });
-        console.log(`⚠️ Falha no pagamento da assinatura ${subId}`);
+        console.log(`Subscription payment failed for ${subId}.`);
         break;
       }
 
-      // =========================================================
-      // CANCELAMENTO (Assinaturas)
-      // =========================================================
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
 
         const subDetails = (await stripe.subscriptions.retrieve(
-          subscription.id as string,
+          subscription.id as string
         )) as Stripe.Subscription;
 
         await db.user.update({
@@ -190,12 +185,12 @@ export async function POST(req: Request) {
           data: {
             stripeSubscriptionStatus: subDetails.status,
             stripeCurrentPeriodEnd: new Date(
-              ((subDetails as any).current_period_end ?? 0) * 1000,
+              ((subDetails as any).current_period_end ?? 0) * 1000
             ),
           },
         });
         console.log(
-          `🔄 Status da assinatura ${subscription.id} atualizado para: ${subDetails.status}`,
+          `Subscription ${subscription.id} status updated to: ${subDetails.status}`
         );
         break;
       }

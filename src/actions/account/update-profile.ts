@@ -6,30 +6,38 @@ import { ActionResponse } from "@/types/user-types";
 import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
-// Agora a função recebe FormData em vez de um objeto JSON
+function safeJsonArray(value: string | null, fieldName: string) {
+  if (!value) return { ok: true, value: [] as unknown[] };
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      return { ok: false, error: `${fieldName} invalido.` };
+    }
+    return { ok: true, value: parsed };
+  } catch {
+    return { ok: false, error: `${fieldName} invalido.` };
+  }
+}
+
 export async function updateProfile(
-  formData: FormData,
+  formData: FormData
 ): Promise<ActionResponse> {
   try {
-    // --- 1. SEGURANÇA (NEXTAUTH) ---
     const session = await verifySession();
     const userId = session?.sub as string;
 
     if (!userId) {
-      return { success: false, error: "Usuário não autenticado." };
+      return { success: false, error: "Usuario nao autenticado." };
     }
 
-    // --- 2. Busca usuário no banco ---
     const userInDb = await db.user.findUnique({
       where: { id: userId },
     });
 
     if (!userInDb) {
-      return { success: false, error: "Usuário não encontrado." };
+      return { success: false, error: "Usuario nao encontrado." };
     }
 
-    // --- 3. Extração dos Dados do FormData ---
-    // FormData retorna tudo como string ou File, então precisamos converter
     const name = formData.get("name") as string;
     const displayName = formData.get("displayName") as string;
     const birthDate = formData.get("birthDate") as string;
@@ -37,29 +45,31 @@ export async function updateProfile(
     const city = formData.get("city") as string;
     const state = formData.get("state") as string;
 
-    // Campos Profissionais
     const jobTitle = formData.get("jobTitle") as string;
     const hourlyRate = formData.get("hourlyRate") as string;
     const yearsOfExperience = formData.get("yearsOfExperience") as string;
 
-    // Redes Sociais
     const socialGithub = formData.get("socialGithub") as string;
     const socialLinkedin = formData.get("socialLinkedin") as string;
 
-    // Arrays JSON (Skills, Portfolio, Certificados)
-    // O frontend envia como string JSON (JSON.stringify), então fazemos o parse aqui
     const skillsString = formData.get("skills") as string;
     const portfolioString = formData.get("portfolio") as string;
     const certificatesString = formData.get("certificates") as string;
 
-    // Senha
     const currentPassword = formData.get("currentPassword") as string;
     const newPassword = formData.get("newPassword") as string;
 
-    // Arquivo de Imagem
     const profileImage = formData.get("profileImage") as File | null;
 
-    // --- 4. Preparação do Objeto de Update ---
+    const skillsParsed = safeJsonArray(skillsString, "skills");
+    if (!skillsParsed.ok) return { success: false, error: skillsParsed.error };
+    const portfolioParsed = safeJsonArray(portfolioString, "portfolio");
+    if (!portfolioParsed.ok)
+      return { success: false, error: portfolioParsed.error };
+    const certificatesParsed = safeJsonArray(certificatesString, "certificates");
+    if (!certificatesParsed.ok)
+      return { success: false, error: certificatesParsed.error };
+
     const updateData: any = {
       name,
       displayName,
@@ -68,24 +78,21 @@ export async function updateProfile(
       city: city || null,
       state: state || null,
 
-      // Profissional
       jobTitle: jobTitle || null,
       hourlyRate: hourlyRate ? parseFloat(hourlyRate) : null,
-      yearsOfExperience: yearsOfExperience ? parseInt(yearsOfExperience) : null,
+      yearsOfExperience: yearsOfExperience
+        ? parseInt(yearsOfExperience)
+        : null,
 
-      // Redes
       socialGithub: socialGithub || null,
       socialLinkedin: socialLinkedin || null,
 
-      // Arrays (com proteção contra erro de parse)
-      skills: skillsString ? JSON.parse(skillsString) : [],
-      portfolio: portfolioString ? JSON.parse(portfolioString) : [],
-      certificates: certificatesString ? JSON.parse(certificatesString) : [],
+      skills: skillsParsed.value,
+      portfolio: portfolioParsed.value,
+      certificates: certificatesParsed.value,
     };
 
-    // --- 5. Lógica de Imagem (NOVO) ---
     if (profileImage && profileImage.size > 0) {
-      // Converte o arquivo recebido para Buffer (Bytes) que o Prisma aceita
       const arrayBuffer = await profileImage.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
@@ -93,7 +100,6 @@ export async function updateProfile(
       updateData.profileImageType = profileImage.type;
     }
 
-    // --- 6. Lógica de Senha (Mantida a sua lógica original) ---
     if (newPassword && newPassword.trim() !== "") {
       if (!currentPassword) {
         return { success: false, error: "Informe a senha atual para alterar." };
@@ -108,7 +114,7 @@ export async function updateProfile(
 
       const isPasswordValid = await bcrypt.compare(
         currentPassword,
-        userInDb.password,
+        userInDb.password
       );
 
       if (!isPasswordValid) {
@@ -119,29 +125,21 @@ export async function updateProfile(
       updateData.password = passwordHash;
     }
 
-    // --- 7. Atualização no Banco de Dados ---
     await db.user.update({
       where: { id: userId },
       data: updateData,
     });
 
-    // --- 8. ATUALIZAR O CACHE ---
     revalidatePath("/dashboard/perfil");
     revalidatePath("/dashboard/cliente");
     revalidatePath("/", "layout");
 
     return { success: true };
   } catch (error) {
-    // --- MELHORIA AQUI: Imprime o erro completo ---
-    console.error("Erro DETALHADO ao atualizar perfil:", error);
-
-    // Tenta pegar a mensagem de erro se ela existir
-    const errorMessage =
-      error instanceof Error ? error.message : "Erro desconhecido";
-
+    console.error("Erro ao atualizar perfil:", error);
     return {
       success: false,
-      error: `Erro interno: ${errorMessage}`, // Retorna o detalhe para o front (só para testar)
+      error: "Erro interno ao atualizar perfil.",
     };
   }
 }

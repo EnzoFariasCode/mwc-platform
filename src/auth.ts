@@ -6,9 +6,9 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  debug: true,
+  debug: process.env.NODE_ENV === "development",
   adapter: PrismaAdapter(db),
-  session: { strategy: "jwt" }, // Obrigatório ser JWT usando Credentials
+  session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
   },
@@ -50,7 +50,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Quando o usuário faz login, injetamos os dados dele no token JWT
       if (user) {
         token.id = user.id;
         token.role = user.userType || "CLIENT";
@@ -58,12 +57,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      // Passamos os dados do token para a sessão que vai pro Front-end
       if (token && session.user) {
         session.user.id = token.id as string;
-
-        // CORREÇÃO DO TYPESCRIPT AQUI:
-        // Avisamos ao TypeScript que essa variável é estritamente um dos três tipos permitidos
         session.user.role = token.role as "CLIENT" | "PROFESSIONAL" | "ADMIN";
       }
       return session;
