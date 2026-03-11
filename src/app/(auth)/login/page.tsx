@@ -4,8 +4,8 @@ import Link from "next/link";
 import { Mail, Lock, CheckCircle2, Loader2, Eye, EyeOff } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense, useEffect, useRef } from "react";
-import { loginUser } from "@/actions/auth/login-user";
 import { toast } from "sonner";
+import { signIn } from "next-auth/react"; // <--- Importação correta para Client Components
 
 function LoginContent() {
   const router = useRouter();
@@ -18,7 +18,7 @@ function LoginContent() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [showPassword, setShowPassword] = useState(false); // <--- NOVO ESTADO
+  const [showPassword, setShowPassword] = useState(false);
 
   // Ref para garantir que o toast só dispare uma vez
   const toastShown = useRef(false);
@@ -44,30 +44,39 @@ function LoginContent() {
       )}`
     : "/cadastro";
 
+  const callbackUrl =
+    action === "chat" && proId
+      ? `/dashboard/chat?newChat=${proId}`
+      : "/dashboard/cliente";
+
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMessage("");
 
     const formData = new FormData(e.currentTarget);
+    const email = formData.get("email")?.toString() ?? "";
+    const password = formData.get("password")?.toString() ?? "";
 
-    // Chama a action
-    const result = await loginUser(formData);
+    const result = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
 
     if (result?.error) {
-      setErrorMessage(result.error);
-      toast.error(result.error);
-      setIsLoading(false); // Destrava para tentar de novo
-    } else {
-      toast.success("Login realizado!");
-
-      // Redirecionamento forçado para garantir leitura de cookie
-      if (action === "chat" && proId) {
-        window.location.href = `/dashboard/chat?newChat=${proId}`;
-      } else {
-        window.location.href = "/dashboard/cliente";
-      }
+      const message =
+        result.error === "CredentialsSignin"
+          ? "Email ou senha incorretos."
+          : "Erro ao autenticar.";
+      setErrorMessage(message);
+      toast.error(message);
+      setIsLoading(false);
+      return;
     }
+
+    toast.success("Login realizado!");
+    window.location.href = callbackUrl;
   };
 
   return (
@@ -148,12 +157,12 @@ function LoginContent() {
             </div>
             <input
               name="password"
-              type={showPassword ? "text" : "password"} // <--- TIPO DINÂMICO
+              type={showPassword ? "text" : "password"}
               required
               placeholder="••••••••"
               className="w-full bg-card/50 border border-input text-foreground rounded-xl py-3 pl-10 pr-12 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-gray-600"
             />
-            {/* BOTÃO OLHINHO */}
+            {/* BOTAO OLHINHO */}
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
@@ -192,7 +201,13 @@ function LoginContent() {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <button className="flex cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all">
+        <button
+          type="button"
+          onClick={() =>
+            signIn("google", { callbackUrl: callbackUrl || "/dashboard" })
+          }
+          className="flex cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all"
+        >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -213,7 +228,10 @@ function LoginContent() {
           </svg>
           <span className="font-medium">Google</span>
         </button>
-        <button className="flex cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all">
+        <button
+          type="button"
+          className="flex cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all"
+        >
           <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
             <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74s2.57-.99 3.87-.75c.68.03 2.19.47 3.12 1.87-3.02 1.63-2.5 5.8 1.12 7.15-.65 1.55-1.5 3.08-3.19 3.96zm-5.63-14c.48-2.62 2.4-4.5 4.58-4.28.34 2.89-3 6.06-4.58 4.28z" />
           </svg>

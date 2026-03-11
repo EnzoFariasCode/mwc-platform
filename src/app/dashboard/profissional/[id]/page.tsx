@@ -2,7 +2,6 @@ import { getPublicProfile } from "@/actions/public/get-public-profile";
 import { verifySession } from "@/lib/auth";
 import { ProfileShowcase } from "@/components/features/profile-showcase";
 import { PageContainer } from "@/components/dashboard/PageContainer";
-import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/prisma"; // <--- IMPORTADO PARA ATUALIZAR O BANCO
 
@@ -19,9 +18,7 @@ export default async function DashboardProfilePage({ params }: PageProps) {
     return notFound();
   }
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("session")?.value;
-  const session = token ? await verifySession(token) : null;
+  const session = await verifySession();
 
   const isOwner = session?.sub === professional.id;
 

@@ -1,5 +1,4 @@
 import { db } from "@/lib/prisma";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import ClientDashboardView from "./ClientDashboardView";
 import { verifySession } from "@/lib/auth";
@@ -26,12 +25,7 @@ async function getDashboardStats(userId: string) {
 }
 
 export default async function ClienteDashboardPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("session")?.value;
-
-  if (!token) redirect("/login");
-
-  const session = await verifySession(token);
+  const session = await verifySession();
   if (!session || !session.sub) redirect("/login");
 
   const userId = session.sub as string;

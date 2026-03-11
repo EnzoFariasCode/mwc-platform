@@ -1,7 +1,6 @@
 import { db } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import { verifySession } from "@/lib/auth";
-import { cookies } from "next/headers";
 import ProjectDetailsView from "./ProjectDetailsView";
 
 export default async function ProjectPage({
@@ -9,9 +8,7 @@ export default async function ProjectPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("session")?.value;
-  const session = token ? await verifySession(token) : null;
+  const session = await verifySession();
 
   if (!session || !session.sub) redirect("/login");
 

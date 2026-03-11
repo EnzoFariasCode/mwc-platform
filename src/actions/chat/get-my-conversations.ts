@@ -2,12 +2,9 @@
 
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
-import { cookies } from "next/headers";
 
 export async function getMyConversations() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("session")?.value;
-  const session = await verifySession(token);
+  const session = await verifySession();
   const userId = session?.sub as string;
 
   if (!userId) return [];

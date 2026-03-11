@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { db } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { ActionResponse } from "@/types/user-types";
@@ -12,11 +11,8 @@ export async function updateProfile(
   formData: FormData,
 ): Promise<ActionResponse> {
   try {
-    const cookieStore = await cookies();
-
-    // --- 1. SEGURANÇA (JWT) ---
-    const token = cookieStore.get("session")?.value;
-    const session = token ? await verifySession(token) : null;
+    // --- 1. SEGURANÇA (NEXTAUTH) ---
+    const session = await verifySession();
     const userId = session?.sub as string;
 
     if (!userId) {
@@ -101,6 +97,13 @@ export async function updateProfile(
     if (newPassword && newPassword.trim() !== "") {
       if (!currentPassword) {
         return { success: false, error: "Informe a senha atual para alterar." };
+      }
+
+      if (!userInDb.password) {
+        return {
+          success: false,
+          error: "Conta sem senha cadastrada. Use login social.",
+        };
       }
 
       const isPasswordValid = await bcrypt.compare(

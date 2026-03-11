@@ -1,7 +1,6 @@
 "use server";
 
 import { db } from "@/lib/prisma";
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { UserType } from "@prisma/client";
 import { verifySession } from "@/lib/auth";
@@ -13,9 +12,7 @@ interface BecomeProfessionalData {
 
 export async function becomeProfessional(data: BecomeProfessionalData) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("session")?.value;
-    const session = token ? await verifySession(token) : null;
+    const session = await verifySession();
     const userId = session?.sub as string;
 
     if (!userId) {

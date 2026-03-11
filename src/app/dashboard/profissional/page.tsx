@@ -1,6 +1,5 @@
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { PageContainer } from "@/components/dashboard/PageContainer";
 import Link from "next/link";
@@ -17,9 +16,7 @@ import { UpgradeBanner } from "@/components/dashboard/UpgradeBanner";
 // Server Component (Async)
 export default async function ProfissionalDashboard() {
   // 1. Autenticação
-  const cookieStore = await cookies();
-  const token = cookieStore.get("session")?.value;
-  const session = token ? await verifySession(token) : null;
+  const session = await verifySession();
 
   if (!session || !session.sub) {
     redirect("/login");

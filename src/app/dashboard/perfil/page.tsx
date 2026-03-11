@@ -1,14 +1,11 @@
 import { verifySession } from "@/lib/auth";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/prisma";
 import PerfilView from "@/components/dashboard/perfil/PerfilView";
 
 export default async function PerfilPage() {
   // 1. Autenticação
-  const cookieStore = await cookies();
-  const token = cookieStore.get("session")?.value;
-  const session = token ? await verifySession(token) : null;
+  const session = await verifySession();
 
   if (!session || !session.sub) {
     redirect("/login");

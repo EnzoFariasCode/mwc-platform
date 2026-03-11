@@ -1,7 +1,6 @@
 "use server";
 
 import { db } from "@/lib/prisma";
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { verifySession } from "@/lib/auth"; // <--- Importante: Importar a função de segurança
 
@@ -18,11 +17,8 @@ interface CreateProjectData {
 
 export async function createProject(data: CreateProjectData) {
   try {
-    const cookieStore = await cookies();
-
-    // --- LÓGICA NOVA DE AUTH (JWT) ---
-    const token = cookieStore.get("session")?.value;
-    const session = token ? await verifySession(token) : null;
+    // --- LÓGICA NOVA DE AUTH (NEXTAUTH) ---
+    const session = await verifySession();
     const userId = session?.sub as string; // Extrai o ID do token assinado
 
     if (!userId) {

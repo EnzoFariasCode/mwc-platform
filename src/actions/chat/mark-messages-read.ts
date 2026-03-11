@@ -2,14 +2,11 @@
 
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 export async function markMessagesAsRead(targetUserId: string) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("session")?.value;
-    const session = await verifySession(token);
+    const session = await verifySession();
     const myId = session?.sub as string;
 
     if (!myId) return { success: false };

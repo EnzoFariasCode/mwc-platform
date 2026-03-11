@@ -1,6 +1,5 @@
 import { db } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { UserType } from "@prisma/client";
 import { verifySession } from "@/lib/auth"; // <--- Importante: Importar a função de segurança
 
@@ -9,13 +8,9 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ newChat?: string }>; // Next.js 15: params são Promises agora
 }) {
-  const cookieStore = await cookies();
   const { newChat } = await searchParams; // Resolvemos a promise dos params
 
-  // 1. ANTES: const userId = cookieStore.get("userId")?.value;
-  // 2. AGORA: Pegamos o token "session" e verificamos a assinatura
-  const token = cookieStore.get("session")?.value;
-  const session = token ? await verifySession(token) : null;
+  const session = await verifySession();
 
   // Se o token for inválido, falso ou não tiver ID -> Login
   if (!session || !session.sub) {

@@ -2,14 +2,11 @@
 
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 export async function acceptProposalAndStartProject(proposalId: string) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("session")?.value;
-    const session = token ? await verifySession(token) : null;
+    const session = await verifySession();
     const userId = session?.sub as string;
 
     if (!userId) return { success: false, error: "Não autorizado" };

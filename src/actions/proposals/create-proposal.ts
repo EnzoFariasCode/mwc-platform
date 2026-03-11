@@ -2,7 +2,6 @@
 
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth"; // Certifique-se que o verifySession está sendo exportado do seu lib/auth
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 // 👇 ESSA PARTE É OBRIGATÓRIA PARA O ERRO SUMIR
@@ -15,9 +14,7 @@ interface CreateProposalData {
 
 export async function createProposal(data: CreateProposalData) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("session")?.value;
-    const session = token ? await verifySession(token) : null;
+    const session = await verifySession();
     const userId = session?.sub as string;
 
     if (!userId) {

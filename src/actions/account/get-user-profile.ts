@@ -1,17 +1,11 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 
 export async function getUserProfile() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("session")?.value;
-
-    if (!token) return null;
-
-    const session = await verifySession(token);
+    const session = await verifySession();
 
     if (!session || !session.sub) return null;
 

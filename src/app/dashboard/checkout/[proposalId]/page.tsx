@@ -1,6 +1,5 @@
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
-import { cookies } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import CheckoutView from "./CheckoutView"; // Importa o arquivo visual novo
 
@@ -9,9 +8,7 @@ export default async function CheckoutPage({
 }: {
   params: Promise<{ proposalId: string }>;
 }) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("session")?.value;
-  const session = token ? await verifySession(token) : null;
+  const session = await verifySession();
 
   if (!session || !session.sub) {
     redirect("/login");

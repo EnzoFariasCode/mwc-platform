@@ -1,10 +1,8 @@
 "use server";
 
-import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { findUserByEmail } from "@/services/user-service";
 import { ActionResponse } from "@/types/user-types";
-import { createSession } from "@/lib/auth"; // <--- USAMOS A FUNÇÃO CENTRALIZADA
+import { signIn } from "@/auth";
 
 const LoginSchema = z.object({
   email: z.string().email("Formato de email inválido"),
@@ -21,16 +19,15 @@ export async function loginUser(formData: FormData): Promise<ActionResponse> {
   const { email, password } = validation.data;
 
   try {
-    const user = await findUserByEmail(email);
+    const result = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (result && "error" in result && result.error) {
       return { success: false, error: "Email ou senha incorretos." };
     }
-
-    // --- MUDANÇA AQUI ---
-    // Em vez de criar o cookie na mão, chamamos a função que configuramos
-    // para ser "Session Cookie" (apaga ao fechar o navegador).
-    await createSession(user.id);
 
     return { success: true };
   } catch (error) {

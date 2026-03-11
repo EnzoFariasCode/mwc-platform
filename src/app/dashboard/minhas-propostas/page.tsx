@@ -1,13 +1,10 @@
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import MyProposalsView from "./MyProposalsView"; // <--- Importa a View correta que criamos
 
 export default async function MinhasPropostasPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("session")?.value;
-  const session = token ? await verifySession(token) : null;
+  const session = await verifySession();
 
   if (!session || !session.sub) {
     redirect("/login");
