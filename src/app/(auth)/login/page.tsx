@@ -17,6 +17,7 @@ function LoginContent() {
   const registered = searchParams.get("registered");
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isSocialLoading, setIsSocialLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
@@ -51,6 +52,7 @@ function LoginContent() {
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSocialLoading) return;
     setIsLoading(true);
     setErrorMessage("");
 
@@ -81,6 +83,14 @@ function LoginContent() {
 
   return (
     <div className="space-y-8 animate-fade-in">
+      {isSocialLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-lg">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <span className="text-sm text-foreground">Entrando...</span>
+          </div>
+        </div>
+      )}
       <div className="text-center lg:text-left space-y-2">
         <h1 className="text-3xl font-bold text-foreground font-futura">
           Bem-vindo de volta!
@@ -175,7 +185,7 @@ function LoginContent() {
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || isSocialLoading}
           className="w-full bg-primary cursor-pointer hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2"
         >
           {isLoading ? (
@@ -203,10 +213,13 @@ function LoginContent() {
       <div className="grid grid-cols-2 gap-4">
         <button
           type="button"
-          onClick={() =>
-            signIn("google", { callbackUrl: callbackUrl || "/dashboard" })
-          }
-          className="flex cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all"
+          disabled={isSocialLoading || isLoading}
+          onClick={() => {
+            setIsSocialLoading(true);
+            setErrorMessage("");
+            signIn("google", { callbackUrl: callbackUrl || "/dashboard" });
+          }}
+          className="flex cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all disabled:opacity-70 disabled:cursor-wait"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -230,7 +243,8 @@ function LoginContent() {
         </button>
         <button
           type="button"
-          className="flex cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all"
+          disabled={isSocialLoading || isLoading}
+          className="flex cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all disabled:opacity-70 disabled:cursor-wait"
         >
           <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
             <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74s2.57-.99 3.87-.75c.68.03 2.19.47 3.12 1.87-3.02 1.63-2.5 5.8 1.12 7.15-.65 1.55-1.5 3.08-3.19 3.96zm-5.63-14c.48-2.62 2.4-4.5 4.58-4.28.34 2.89-3 6.06-4.58 4.28z" />

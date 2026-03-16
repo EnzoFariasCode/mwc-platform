@@ -1,23 +1,5 @@
 import type { NextConfig } from "next";
 
-const isProd = process.env.NODE_ENV === "production";
-const allowedImageHosts = (process.env.NEXT_PUBLIC_IMAGE_HOSTS ?? "")
-  .split(",")
-  .map((host) => host.trim())
-  .filter(Boolean);
-
-const remotePatterns = isProd
-  ? allowedImageHosts.map((hostname) => ({
-      protocol: "https" as const,
-      hostname,
-    }))
-  : [
-      {
-        protocol: "https",
-        hostname: "**",
-      },
-    ];
-
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
@@ -25,7 +7,13 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
-    remotePatterns,
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com", // Libera APENAS as fotos de perfil do Google
+      },
+    ],
+    domains: [],
   },
 };
 
