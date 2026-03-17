@@ -16,9 +16,21 @@ export default async function ProjetosAtivosPage() {
   const activeProjects = await db.project.findMany({
     where: {
       professionalId: userId, // Eu fui o contratado
-      status: {
-        in: ["IN_PROGRESS", "WAITING_PAYMENT", "UNDER_REVIEW", "DISPUTE"],
-      },
+      OR: [
+        {
+          status: {
+            in: ["IN_PROGRESS", "WAITING_PAYMENT", "UNDER_REVIEW", "DISPUTE"],
+          },
+        },
+        {
+          status: "COMPLETED",
+          reviews: {
+            none: {
+              authorId: userId,
+            },
+          },
+        },
+      ],
     },
     orderBy: {
       updatedAt: "desc",
@@ -31,6 +43,10 @@ export default async function ProjetosAtivosPage() {
           name: true,
           // avatarUrl: true // Se tiver no futuro
         },
+      },
+      reviews: {
+        where: { authorId: userId },
+        select: { id: true },
       },
     },
   });

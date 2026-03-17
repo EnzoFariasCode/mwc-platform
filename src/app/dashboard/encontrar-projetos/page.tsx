@@ -13,6 +13,7 @@ export default async function EncontrarProjetosPage() {
           city: true,
           state: true,
           rating: true, // Se tiver rating de cliente
+          ratingCount: true,
         },
       },
     },

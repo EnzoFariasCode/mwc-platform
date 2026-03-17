@@ -31,6 +31,7 @@ interface ProfessionalData {
   jobTitle: string | null;
   hourlyRate: number | null;
   rating: number | null;
+  ratingCount: number | null;
   skills: string[];
   portfolio: any; // Pode vir como string, null ou array
   certificates: any; // Pode vir como string, null ou array
@@ -38,6 +39,13 @@ interface ProfessionalData {
   socialLinkedin: string | null;
   createdAt: Date;
   userType: string;
+  reviewsReceived?: {
+    id: string;
+    rating: number;
+    comment: string | null;
+    createdAt: Date;
+    author: { name: string | null };
+  }[];
 }
 
 interface ProfileShowcaseProps {
@@ -90,6 +98,7 @@ export function ProfileShowcase({
   // Usamos a função auxiliar para garantir que teremos listas válidas
   const portfolioItems = safeParseList(professional.portfolio);
   const certificateItems = safeParseList(professional.certificates);
+  const recentReviews = professional.reviewsReceived || [];
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 relative">
@@ -143,7 +152,9 @@ export function ProfileShowcase({
                 <div>
                   <h1 className="text-3xl md:text-4xl font-bold text-white font-futura mb-1 flex items-center gap-2">
                     {mainName}
-                    {professional.rating && professional.rating >= 4.8 && (
+                    {professional.ratingCount &&
+                      professional.rating &&
+                      professional.rating >= 4.8 && (
                       <CheckCircle2 className="w-6 h-6 text-blue-400 fill-blue-500/20" />
                     )}
                   </h1>
@@ -219,11 +230,16 @@ export function ProfileShowcase({
                 <span className="text-slate-400 text-sm">Avaliação</span>
                 <div className="flex items-center gap-1.5">
                   <span className="text-xl font-bold text-white">
-                    {professional.rating
+                    {professional.ratingCount && professional.rating
                       ? professional.rating.toFixed(1)
-                      : "5.0"}
+                      : "Novo"}
                   </span>
                   <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                  {professional.ratingCount ? (
+                    <span className="text-xs text-slate-500">
+                      ({professional.ratingCount} avaliaÃ§Ãµes)
+                    </span>
+                  ) : null}
                 </div>
               </div>
               <div className="pt-2">
@@ -302,6 +318,49 @@ export function ProfileShowcase({
               />
             </div>
           </div>
+
+          {recentReviews.length > 0 && (
+            <div className="bg-card border border-border rounded-2xl p-8">
+              <h2 className="text-xl font-bold text-white font-futura mb-6">
+                Avaliações Recentes
+              </h2>
+              <div className="space-y-4">
+                {recentReviews.map((review) => {
+                  const reviewerName = review.author?.name || "Cliente";
+                  const reviewDate = new Date(
+                    review.createdAt
+                  ).toLocaleDateString("pt-BR");
+
+                  return (
+                    <div
+                      key={review.id}
+                      className="bg-slate-900/40 border border-white/5 rounded-xl p-4"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 text-yellow-500">
+                          <Star className="w-4 h-4 fill-current" />
+                          <span className="text-sm font-bold">
+                            {review.rating.toFixed(1)}
+                          </span>
+                        </div>
+                        <span className="text-xs text-slate-500">
+                          {reviewDate}
+                        </span>
+                      </div>
+                      {review.comment && (
+                        <p className="text-sm text-slate-300 italic leading-relaxed">
+                          "{review.comment}"
+                        </p>
+                      )}
+                      <p className="text-xs text-slate-500 mt-2">
+                        — {reviewerName}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* PORTFÓLIO */}
           {portfolioItems.length > 0 && (

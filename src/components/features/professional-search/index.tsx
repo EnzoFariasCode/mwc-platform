@@ -278,7 +278,7 @@ export function ProfessionalSearch({
                         <div>
                           <h2 className="text-xl font-bold text-white flex items-center gap-2">
                             {pro.name}
-                            {pro.rating >= 4.5 && (
+                            {pro.ratingCount > 0 && pro.rating >= 4.5 && (
                               <span title="Profissional Top">
                                 <CheckCircle2 className="w-5 h-5 text-blue-400" />
                               </span>
@@ -301,8 +301,15 @@ export function ProfessionalSearch({
                         <div className="flex items-center gap-1 text-yellow-400">
                           <Star className="w-4 h-4 fill-current" />
                           <span className="font-bold">
-                            {pro.rating?.toFixed(1) || "5.0"}
+                            {pro.ratingCount > 0 && pro.rating
+                              ? pro.rating.toFixed(1)
+                              : "Novo"}
                           </span>
+                          {pro.ratingCount > 0 && (
+                            <span className="text-slate-500 text-xs">
+                              ({pro.ratingCount} avaliaÃ§Ãµes)
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1">
                           <MapPin className="w-4 h-4" />

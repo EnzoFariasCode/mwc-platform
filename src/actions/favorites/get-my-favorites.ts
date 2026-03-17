@@ -19,6 +19,7 @@ export async function getMyFavorites() {
             name: true,
             displayName: true,
             rating: true,
+            ratingCount: true,
             jobTitle: true,
             hourlyRate: true,
             // Adicione avatarUrl aqui se tiver no seu schema User
@@ -32,6 +33,7 @@ export async function getMyFavorites() {
       name: fav.professional.displayName || fav.professional.name,
       jobTitle: fav.professional.jobTitle || "Profissional",
       rating: fav.professional.rating,
+      ratingCount: fav.professional.ratingCount,
       hourlyRate: fav.professional.hourlyRate,
       avatarUrl: null, // Placeholder ou campo real
     }));

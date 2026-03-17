@@ -55,6 +55,7 @@ interface UserData {
   state?: string | null;
   hourlyRate?: number | null;
   rating?: number | null;
+  ratingCount?: number | null;
   jobTitle?: string | null;
   yearsOfExperience?: number | null;
   skills?: string[];
@@ -383,11 +384,16 @@ export default function PerfilView({ user }: { user: UserData }) {
                     </p>
                     <div className="flex items-center gap-1 justify-center">
                       <span className="text-xl font-bold text-foreground">
-                        {currentUser.rating
+                        {currentUser.ratingCount && currentUser.rating
                           ? currentUser.rating.toFixed(1)
-                          : "5.0"}
+                          : "Novo"}
                       </span>
                       <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                      {currentUser.ratingCount ? (
+                        <span className="text-xs text-slate-500">
+                          ({currentUser.ratingCount} avaliaÃ§Ãµes)
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>

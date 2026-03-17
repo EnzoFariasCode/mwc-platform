@@ -10,9 +10,12 @@ import {
   MoreVertical,
   Briefcase,
   UploadCloud, // <--- Ícone Novo
+  Star,
 } from "lucide-react";
 import { ProjectDetailsModal } from "@/components/dashboard/ProjectDetailsModal";
 import { DeliverProjectModal } from "@/components/dashboard/DeliverProjectModal"; // <--- Import Novo
+import { ReviewModal } from "@/components/dashboard/ReviewModal";
+import { submitReview } from "@/actions/reviews/submit-review";
 
 interface ActiveProjectsViewProps {
   projects: any[];
@@ -30,6 +33,8 @@ export default function ActiveProjectsView({
   // Estado para Entrega (Novo)
   const [projectToDeliver, setProjectToDeliver] = useState<any>(null);
   const [isDeliverModalOpen, setIsDeliverModalOpen] = useState(false);
+  const [projectToReview, setProjectToReview] = useState<any>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
   const handleOpenDetails = (project: any) => {
     setSelectedProject(project);
@@ -39,6 +44,18 @@ export default function ActiveProjectsView({
   const handleOpenDelivery = (project: any) => {
     setProjectToDeliver(project);
     setIsDeliverModalOpen(true);
+  };
+
+  const handleOpenReview = (project: any) => {
+    setProjectToReview(project);
+    setIsReviewModalOpen(true);
+  };
+
+  const handleSubmitReview = async (rating: number, comment?: string) => {
+    if (!projectToReview?.id) {
+      return { success: false, error: "Projeto invalido." };
+    }
+    return submitReview(projectToReview.id, rating, comment);
   };
 
   return (
@@ -51,7 +68,7 @@ export default function ActiveProjectsView({
               Projetos Ativos
             </h1>
             <p className="text-slate-400 text-sm">
-              Trabalhos em andamento. Mantenha os prazos e a comunicação em dia.
+              Trabalhos em andamento e finalizados aguardando avaliação.
             </p>
           </div>
         </div>
@@ -133,6 +150,17 @@ export default function ActiveProjectsView({
                     </button>
                   )}
 
+                  {project.status === "COMPLETED" &&
+                    (!project.reviews || project.reviews.length === 0) && (
+                      <button
+                        onClick={() => handleOpenReview(project)}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 text-xs font-bold transition-all border border-yellow-500/20 cursor-pointer animate-in fade-in"
+                      >
+                        <Star className="w-4 h-4" />
+                        Avaliar Cliente
+                      </button>
+                    )}
+
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => handleOpenDetails(project)}
@@ -184,6 +212,17 @@ export default function ActiveProjectsView({
           projectId={projectToDeliver?.id}
           projectTitle={projectToDeliver?.title}
         />
+
+        <ReviewModal
+          isOpen={isReviewModalOpen}
+          onClose={() => setIsReviewModalOpen(false)}
+          title="Avalie o Cliente"
+          subtitle={`Como foi trabalhar com ${
+            projectToReview?.owner?.name || "este cliente"
+          }?`}
+          confirmLabel="Enviar Avaliacao"
+          onConfirm={handleSubmitReview}
+        />
       </div>
     </PageContainer>
   );
@@ -215,6 +254,15 @@ function StatusBadge({ status }: { status: string }) {
       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
         <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wide">
           Em Revisão
+        </span>
+      </div>
+    );
+  }
+  if (status === "COMPLETED") {
+    return (
+      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20">
+        <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide">
+          Concluído
         </span>
       </div>
     );

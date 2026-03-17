@@ -58,7 +58,8 @@ model User {
   city            String?
   state           String?
   hourlyRate      Float?    
-  rating          Float     @default(5.0) 
+  rating          Float     @default(0) 
+  ratingCount     Int       @default(0)
   
   // Campos Profissionais
   jobTitle        String?            
@@ -108,6 +109,8 @@ model User {
   sentMessages     Message[]         @relation("SentMessages")
   favorites       Favorite[] @relation("UserFavorites")
   favoritedBy     Favorite[] @relation("FavoritedBy")
+  reviewsWritten  Review[]   @relation("ReviewsAuthored")
+  reviewsReceived Review[]   @relation("ReviewsReceived")
   accounts        Account[]
   sessions        Session[]
 }
@@ -169,6 +172,24 @@ model Project {
 
   proposals       Proposal[]    
   deliverables    Deliverable[] 
+  reviews         Review[]
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int
+  comment   String?  @db.Text
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("ReviewsAuthored", fields: [authorId], references: [id])
+  targetId  String
+  target    User     @relation("ReviewsReceived", fields: [targetId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, authorId])
+  @@index([targetId])
+  @@index([projectId])
 }
 
 model Proposal {

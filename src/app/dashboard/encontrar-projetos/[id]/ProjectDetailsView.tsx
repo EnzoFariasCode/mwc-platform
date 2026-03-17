@@ -44,6 +44,7 @@ interface ProjectDetailsProps {
       city: string | null;
       state: string | null;
       rating: number | null;
+      ratingCount?: number | null;
       createdAt: Date;
     };
   };
@@ -254,8 +255,15 @@ export default function ProjectDetailsView({
                   <div className="flex items-center gap-1 text-yellow-500 text-xs">
                     <Star className="w-3 h-3 fill-current" />
                     <span className="font-bold">
-                      {project.owner.rating?.toFixed(1) || "5.0"}
+                      {project.owner.ratingCount && project.owner.rating
+                        ? project.owner.rating.toFixed(1)
+                        : "Novo"}
                     </span>
+                    {project.owner.ratingCount ? (
+                      <span className="text-slate-500">
+                        ({project.owner.ratingCount} avaliaÃ§Ãµes)
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               </div>

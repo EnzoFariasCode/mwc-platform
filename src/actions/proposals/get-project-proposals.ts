@@ -31,6 +31,7 @@ export async function getProjectProposals(projectId: string) {
             id: true,
             name: true,
             rating: true,
+            ratingCount: true,
             userType: true,
             // avatarUrl: true, // Se tiver campo de foto, adicione aqui (ou delete se não tiver)
           },

@@ -293,8 +293,15 @@ export default function ProjectListView({
                       <Star className="w-3 h-3 fill-current" />
                     </div>
                     <span className="text-slate-400">
-                      {project.owner?.rating?.toFixed(1) || "Novo"}
+                      {project.owner?.ratingCount && project.owner?.rating
+                        ? project.owner.rating.toFixed(1)
+                        : "Novo"}
                     </span>
+                    {project.owner?.ratingCount ? (
+                      <span className="text-slate-500">
+                        ({project.owner.ratingCount} avaliaÃ§Ãµes)
+                      </span>
+                    ) : null}
                   </div>
                   <div className="ml-auto flex items-center gap-2 cursor-pointer hover:text-[#d73cbe] transition-colors group/save">
                     <Heart className="w-3 h-3 group-hover/save:fill-current" />{" "}

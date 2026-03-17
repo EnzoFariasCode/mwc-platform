@@ -26,6 +26,7 @@ export async function getUserProfile() {
         createdAt: true,
         hourlyRate: true,
         rating: true,
+        ratingCount: true,
         jobTitle: true,
         skills: true,
         socialGithub: true,

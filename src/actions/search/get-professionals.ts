@@ -59,20 +59,22 @@ export async function getProfessionals({
       }),
     };
 
-    let orderBy: Prisma.UserOrderByWithRelationInput = {};
+    let orderBy:
+      | Prisma.UserOrderByWithRelationInput
+      | Prisma.UserOrderByWithRelationInput[] = {};
 
     switch (sortBy) {
       case "menor_preco":
         orderBy = { hourlyRate: "asc" };
         break;
       case "avaliacao":
-        orderBy = { rating: "desc" };
+        orderBy = [{ ratingCount: "desc" }, { rating: "desc" }];
         break;
       case "experiencia":
         orderBy = { createdAt: "asc" };
         break;
       default:
-        orderBy = { rating: "desc" };
+        orderBy = [{ ratingCount: "desc" }, { rating: "desc" }];
     }
 
     const skip = (page - 1) * limit;
@@ -88,6 +90,7 @@ export async function getProfessionals({
           name: true,
           bio: true,
           rating: true,
+          ratingCount: true,
           hourlyRate: true,
           city: true,
           state: true,

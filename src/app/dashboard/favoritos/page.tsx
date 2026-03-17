@@ -22,6 +22,7 @@ type FavoritePro = {
   name: string;
   jobTitle: string | null;
   rating: number; // Agora vem do banco (padrão 5.0 ou calculado)
+  ratingCount?: number;
   hourlyRate: number | null;
   avatarUrl: string | null;
 };
@@ -144,9 +145,16 @@ export default function FavoritosPage() {
                   {/* Nota */}
                   <div className="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded-lg border border-yellow-500/20 shrink-0">
                     <span className="text-yellow-500 font-bold text-sm">
-                      {fav.rating ? fav.rating.toFixed(1) : "5.0"}
+                      {fav.ratingCount && fav.rating
+                        ? fav.rating.toFixed(1)
+                        : "Novo"}
                     </span>
                     <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                    {fav.ratingCount ? (
+                      <span className="text-xs text-slate-500">
+                        ({fav.ratingCount} avaliaÃ§Ãµes)
+                      </span>
+                    ) : null}
                   </div>
                 </div>
 

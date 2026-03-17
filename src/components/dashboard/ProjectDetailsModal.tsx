@@ -26,6 +26,7 @@ import { getProjectProposals } from "@/actions/proposals/get-project-proposals";
 import { approveProject } from "@/actions/proposals/approve-project";
 import { toast } from "sonner";
 import Link from "next/link";
+import { ReviewModal } from "@/components/dashboard/ReviewModal";
 
 interface ProjectDetailsModalProps {
   isOpen: boolean;
@@ -46,7 +47,7 @@ export function ProjectDetailsModal({
   const [proposals, setProposals] = useState<any[]>([]);
   const [isLoadingProposals, setIsLoadingProposals] = useState(false);
   const [showProposals, setShowProposals] = useState(false);
-  const [isApproving, setIsApproving] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen && isOwner && project?.id && project?.status === "OPEN") {
@@ -65,17 +66,14 @@ export function ProjectDetailsModal({
     }
   }, [isOpen, isOwner, project]);
 
-  const handleApprove = async () => {
-    setIsApproving(true);
-    const result = await approveProject(project.id);
+  const handleApprove = async (rating: number, comment?: string) => {
+    const result = await approveProject(project.id, rating, comment);
 
     if (result.success) {
-      toast.success("Projeto finalizado com sucesso!");
       onClose();
-    } else {
-      toast.error(result.error || "Erro ao aprovar.");
     }
-    setIsApproving(false);
+
+    return result;
   };
 
   if (!isOpen || !project) return null;
@@ -191,17 +189,12 @@ export function ProjectDetailsModal({
                     <ThumbsDown className="w-4 h-4" /> Solicitar Revisão
                   </button>
                   <button
-                    onClick={handleApprove}
-                    disabled={isApproving}
+                    onClick={() => setIsReviewModalOpen(true)}
                     className="flex items-center justify-center gap-2 py-3 rounded-xl bg-green-500 hover:bg-green-400 text-black font-bold text-xs transition-all shadow-lg shadow-green-900/20 transform hover:-translate-y-0.5 cursor-pointer disabled:opacity-50"
                   >
-                    {isApproving ? (
-                      <>Processando...</>
-                    ) : (
-                      <>
-                        <ThumbsUp className="w-4 h-4" /> Aprovar e Finalizar
-                      </>
-                    )}
+                    <>
+                      <ThumbsUp className="w-4 h-4" /> Aprovar e Finalizar
+                    </>
                   </button>
                 </div>
               </div>
@@ -397,9 +390,16 @@ export function ProjectDetailsModal({
                                 <div className="flex items-center gap-1.5 text-xs bg-slate-800/50 px-2 py-0.5 rounded-md w-fit mt-1">
                                   <Star className="w-3 h-3 text-yellow-500 fill-current" />
                                   <span className="text-yellow-500 font-bold">
-                                    {proposal.professional.rating?.toFixed(1) ||
-                                      "5.0"}
+                                    {proposal.professional.ratingCount &&
+                                    proposal.professional.rating
+                                      ? proposal.professional.rating.toFixed(1)
+                                      : "Novo"}
                                   </span>
+                                  {proposal.professional.ratingCount ? (
+                                    <span className="text-slate-600">
+                                      ({proposal.professional.ratingCount} avaliaÃ§Ãµes)
+                                    </span>
+                                  ) : null}
                                   <span className="text-slate-600">|</span>
                                   <span className="text-slate-400">
                                     Profissional
@@ -532,6 +532,19 @@ export function ProjectDetailsModal({
         budgetType={project.budgetType}
         budgetValue={project.budgetValue || 0}
         budgetLabel={project.budgetLabel}
+      />
+
+      <ReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        title="Avalie o Profissional"
+        subtitle={`Como foi trabalhar com ${
+          project.professional?.name || "este profissional"
+        }?`}
+        confirmLabel="Aprovar e Finalizar"
+        successMessage="Projeto finalizado com sucesso!"
+        errorMessage="Erro ao aprovar."
+        onConfirm={handleApprove}
       />
     </>
   );

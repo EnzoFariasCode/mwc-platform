@@ -26,6 +26,7 @@ export default async function ProjectPage({
           city: true,
           state: true,
           rating: true,
+          ratingCount: true,
           createdAt: true,
         },
       },

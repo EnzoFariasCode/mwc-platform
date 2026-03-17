@@ -19,12 +19,27 @@ export async function getPublicProfile(userId: string) {
         jobTitle: true,
         hourlyRate: true,
         rating: true,
+        ratingCount: true,
         skills: true,
         portfolio: true,
         certificates: true,
         socialGithub: true,
         socialLinkedin: true,
         createdAt: true,
+        reviewsReceived: {
+          where: {
+            comment: { not: null },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            createdAt: true,
+            author: { select: { name: true } },
+          },
+        },
       },
     });
 
