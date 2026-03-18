@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 // Importe do local onde criamos no passo 1
-import { ProfessionalSearch } from "@/components/features/professional-search";
+import { ProfessionalSearch } from "@/modules/search/components/professional-search";
 
 export default function SearchPage() {
   return (

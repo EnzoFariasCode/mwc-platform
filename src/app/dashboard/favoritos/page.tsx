@@ -1,6 +1,6 @@
 "use client";
 
-import { PageContainer } from "@/components/dashboard/PageContainer";
+import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import {
   MessageCircle,
   Star,
@@ -10,11 +10,12 @@ import {
   Loader2,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 
 // Importando as Actions Reais
-import { getMyFavorites } from "@/actions/favorites/get-my-favorites";
-import { toggleFavorite } from "@/actions/favorites/toggle-favorite";
+import { getMyFavorites } from "@/modules/favorites/actions/get-my-favorites";
+import { toggleFavorite } from "@/modules/favorites/actions/toggle-favorite";
 
 // Definição do Tipo baseado no retorno do banco
 type FavoritePro = {
@@ -38,7 +39,6 @@ export default function FavoritosPage() {
       try {
         setIsLoading(true);
         const data = await getMyFavorites();
-        // @ts-ignore - garantindo a tipagem do retorno da action
         setFavoritos(data);
       } catch (error) {
         console.error("Erro ao carregar favoritos", error);
@@ -123,9 +123,11 @@ export default function FavoritosPage() {
                     {/* Avatar Lógica: Imagem ou Iniciais */}
                     <div className="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center text-xl font-bold text-white border border-white/10 overflow-hidden shrink-0">
                       {fav.avatarUrl ? (
-                        <img
+                        <Image
                           src={fav.avatarUrl}
                           alt={fav.name}
+                          width={56}
+                          height={56}
                           className="w-full h-full object-cover"
                         />
                       ) : (

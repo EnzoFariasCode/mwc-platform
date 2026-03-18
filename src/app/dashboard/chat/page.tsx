@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Send,
@@ -14,17 +15,17 @@ import {
   Briefcase, // Icone para o projeto
 } from "lucide-react";
 
-import { getMyConversations } from "@/actions/chat/get-my-conversations";
-import { getConversationMessages } from "@/actions/chat/get-conversation-messages";
-import { sendMessage } from "@/actions/chat/send-message";
-import { toggleFavorite } from "@/actions/favorites/toggle-favorite";
-import { markMessagesAsRead } from "@/actions/chat/mark-messages-read";
-import { deleteConversation } from "@/actions/chat/delete-conversation";
+import { getMyConversations } from "@/modules/chat/actions/get-my-conversations";
+import { getConversationMessages } from "@/modules/chat/actions/get-conversation-messages";
+import { sendMessage } from "@/modules/chat/actions/send-message";
+import { toggleFavorite } from "@/modules/favorites/actions/toggle-favorite";
+import { markMessagesAsRead } from "@/modules/chat/actions/mark-messages-read";
+import { deleteConversation } from "@/modules/chat/actions/delete-conversation";
 // NOVAS ACTIONS:
 import {
   getProjectContext,
   getBasicUserInfo,
-} from "@/actions/chat/get-chat-context";
+} from "@/modules/chat/actions/get-chat-context";
 
 // Tipos
 type ConversationSummary = {
@@ -45,7 +46,7 @@ type Message = {
   time: Date;
 };
 
-export default function ChatPage() {
+function ChatPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -245,7 +246,6 @@ export default function ChatPage() {
               ? {
                   ...msg,
                   id: result.message!.id,
-                  // @ts-ignore
                   time: new Date(result.message!.createdAt),
                 }
               : msg
@@ -507,7 +507,7 @@ export default function ChatPage() {
                     <>
                       <p>
                         Inicie a conversa sobre{" "}
-                        <strong>"{projectContext.title}"</strong>.
+                        <strong>&quot;{projectContext.title}&quot;</strong>.
                       </p>
                       <p className="text-xs">
                         Seja profissional e tire suas dúvidas!
@@ -597,5 +597,19 @@ export default function ChatPage() {
         )}
       </section>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-full w-full items-center justify-center text-slate-500">
+          Carregando...
+        </div>
+      }
+    >
+      <ChatPageInner />
+    </Suspense>
   );
 }

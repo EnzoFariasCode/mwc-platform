@@ -1,7 +1,8 @@
-import { getPublicProfile } from "@/actions/public/get-public-profile";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { getPublicProfile } from "@/modules/users/actions/get-public-profile";
 import { verifySession } from "@/lib/auth";
-import { ProfileShowcase } from "@/components/features/profile-showcase";
-import { PageContainer } from "@/components/dashboard/PageContainer";
+import { ProfileShowcase } from "@/modules/users/components/profile-showcase";
+import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/prisma"; // <--- IMPORTADO PARA ATUALIZAR O BANCO
 

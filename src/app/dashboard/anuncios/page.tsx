@@ -1,13 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { PageContainer } from "@/components/dashboard/PageContainer";
+import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { useRef, useState } from "react";
 import {
   Eye,
   MoreHorizontal,
   Calendar,
   Users,
-  ExternalLink,
   DollarSign,
   Plus,
   Megaphone,
@@ -15,8 +15,8 @@ import {
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { useDashboard } from "@/context/DashboardContext";
-import { NewProjectModal } from "@/components/dashboard/NewProjectModal";
-import { EditProjectModal } from "@/components/dashboard/EditProjectModal"; // Importe o novo modal
+import { NewProjectModal } from "@/modules/projects/components/NewProjectModal";
+import { EditProjectModal } from "@/modules/projects/components/EditProjectModal"; // Importe o novo modal
 
 // --- DADOS MOCKADOS (Anúncios Abertos / Recebendo Propostas) ---
 const OPEN_ADS = [
@@ -51,7 +51,7 @@ const OPEN_ADS = [
 
 export default function MeusAnunciosPage() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { userType } = useDashboard();
+  const { viewMode } = useDashboard();
 
   // Estados dos Modais
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
@@ -83,7 +83,7 @@ export default function MeusAnunciosPage() {
   };
 
   // Se for Profissional, não deveria ver isso (proteção simples)
-  if (userType === "professional") {
+  if (viewMode === "PROFESSIONAL") {
     return (
       <div className="h-[60vh] flex flex-col items-center justify-center text-center">
         <h2 className="text-xl font-bold text-white mb-2">Acesso Restrito</h2>

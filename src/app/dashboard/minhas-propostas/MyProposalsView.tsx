@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { PageContainer } from "@/components/dashboard/PageContainer";
+import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import Link from "next/link";
 import {
   Search,
@@ -83,7 +84,7 @@ export default function MyProposalsView({ proposals }: MyProposalsViewProps) {
                   {/* Carta de Apresentação (Resumo) */}
                   <div className="p-3 bg-slate-950/50 rounded-xl border border-white/5 mb-4">
                     <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed h-[3.6em] italic">
-                      "{proposal.coverLetter}"
+                      &quot;{proposal.coverLetter}&quot;
                     </p>
                   </div>
 

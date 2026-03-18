@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { PageContainer } from "@/components/dashboard/PageContainer";
+import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import {
@@ -12,10 +13,10 @@ import {
   Zap,
   Loader2,
 } from "lucide-react";
-import { NewProjectModal } from "@/components/dashboard/NewProjectModal";
-import { becomeProfessional } from "@/actions/account/become-professional";
-import { BecomeProfessionalModal } from "@/components/dashboard/BecomeProfessionalModal";
-import { CompleteProfileModal } from "@/components/dashboard/CompleteProfileModal";
+import { NewProjectModal } from "@/modules/projects/components/NewProjectModal";
+import { becomeProfessional } from "@/modules/users/actions/become-professional";
+import { BecomeProfessionalModal } from "@/modules/users/components/BecomeProfessionalModal";
+import { CompleteProfileModal } from "@/modules/users/components/CompleteProfileModal";
 import { toast } from "sonner";
 
 interface ClientDashboardViewProps {

@@ -51,7 +51,5 @@ export default async function ProjetosAtivosPage() {
     },
   });
 
-  return (
-    <ActiveProjectsView projects={activeProjects} currentUserId={userId} />
-  );
+  return <ActiveProjectsView projects={activeProjects} />;
 }

@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "lh3.googleusercontent.com", // Libera APENAS as fotos de perfil do Google
       },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
     ],
     domains: [],
   },

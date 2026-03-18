@@ -4,7 +4,7 @@ import { db } from "@/lib/prisma";
 // Componentes
 import StandardHeader from "@/components/ui/StandardHeader";
 import FooterContact from "@/components/ui/FooterContact";
-import BeWorkerClient from "@/components/landing/worker/BeWorkerClient";
+import BeWorkerClient from "@/modules/landing/worker/BeWorkerClient";
 
 export default async function HowToBeWorkerPage() {
   // 1. Busca dados do usuário (Servidor)

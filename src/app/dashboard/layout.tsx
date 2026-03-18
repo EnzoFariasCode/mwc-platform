@@ -1,7 +1,7 @@
 "use client";
 
-import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import DashboardSidebar from "@/modules/dashboard/components/DashboardSidebar";
+import DashboardHeader from "@/modules/dashboard/components/DashboardHeader";
 import { DashboardProvider } from "@/context/DashboardContext";
 
 export default function DashboardLayout({

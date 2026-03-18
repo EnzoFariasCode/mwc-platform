@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import LandingHeader from "@/components/landing/landingComponents/LandingHeader"; // Ajuste o caminho se necessário
+import LandingHeader from "@/modules/landing/landingComponents/LandingHeader"; // Ajuste o caminho se necessário
 import FooterContact from "@/components/ui/FooterContact";
 // import Footer from '@/components/Footer'; // Se tiver footer, importe aqui
 

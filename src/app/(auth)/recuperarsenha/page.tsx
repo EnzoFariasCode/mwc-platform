@@ -10,14 +10,13 @@ import {
   Loader2,
   Eye,
   EyeOff,
-  CheckCircle2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   requestResetCode,
   verifyResetCode,
   resetPasswordWithCode,
-} from "@/actions/auth/password-reset";
+} from "@/modules/auth/actions/password-reset";
 import { toast } from "sonner";
 
 export default function ForgotPasswordPage() {

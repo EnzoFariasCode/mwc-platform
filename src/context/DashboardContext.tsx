@@ -7,6 +7,8 @@ interface DashboardContextType {
   isMobileMenuOpen: boolean;
   toggleMobileMenu: () => void;
   closeMobileMenu: () => void;
+  viewMode: "CLIENT" | "PROFESSIONAL";
+  setViewMode: React.Dispatch<React.SetStateAction<"CLIENT" | "PROFESSIONAL">>;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(
@@ -15,6 +17,7 @@ const DashboardContext = createContext<DashboardContextType | undefined>(
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"CLIENT" | "PROFESSIONAL">("CLIENT");
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
@@ -25,6 +28,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         isMobileMenuOpen,
         toggleMobileMenu,
         closeMobileMenu,
+        viewMode,
+        setViewMode,
       }}
     >
       {children}

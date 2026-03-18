@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { PageContainer } from "@/components/dashboard/PageContainer";
+import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -12,19 +13,17 @@ import {
   UploadCloud, // <--- Ícone Novo
   Star,
 } from "lucide-react";
-import { ProjectDetailsModal } from "@/components/dashboard/ProjectDetailsModal";
-import { DeliverProjectModal } from "@/components/dashboard/DeliverProjectModal"; // <--- Import Novo
-import { ReviewModal } from "@/components/dashboard/ReviewModal";
-import { submitReview } from "@/actions/reviews/submit-review";
+import { ProjectDetailsModal } from "@/modules/projects/components/ProjectDetailsModal";
+import { DeliverProjectModal } from "@/modules/projects/components/DeliverProjectModal"; // <--- Import Novo
+import { ReviewModal } from "@/modules/reviews/components/ReviewModal";
+import { submitReview } from "@/modules/reviews/actions/submit-review";
 
 interface ActiveProjectsViewProps {
   projects: any[];
-  currentUserId: string;
 }
 
 export default function ActiveProjectsView({
   projects,
-  currentUserId,
 }: ActiveProjectsViewProps) {
   // Estado para Detalhes
   const [selectedProject, setSelectedProject] = useState<any>(null);

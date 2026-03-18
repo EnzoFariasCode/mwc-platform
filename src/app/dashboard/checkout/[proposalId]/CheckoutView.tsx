@@ -1,6 +1,6 @@
 "use client";
 
-import { PageContainer } from "@/components/dashboard/PageContainer";
+import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import {
   ArrowLeft,
   Lock,
@@ -17,14 +17,13 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
-import { createProjectCheckout } from "@/actions/stripe/create-project-checkout";
+import { createProjectCheckout } from "@/modules/stripe/actions/create-project-checkout";
 
 interface CheckoutViewProps {
   proposalId: string;
   projectTitle: string;
   professionalName: string;
   price: number;
-  deadline: number;
 }
 
 export default function CheckoutView({
@@ -32,7 +31,6 @@ export default function CheckoutView({
   projectTitle,
   professionalName,
   price,
-  deadline,
 }: CheckoutViewProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -65,7 +63,7 @@ export default function CheckoutView({
       } else if (result.url) {
         window.location.href = result.url; // Vai para a Stripe
       }
-    } catch (error) {
+    } catch {
       toast.error("Ocorreu um erro ao preparar o ambiente seguro.");
       setIsRedirecting(false);
       setIsLoading(false);

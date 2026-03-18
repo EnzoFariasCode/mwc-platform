@@ -2,6 +2,7 @@ import { db } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import MyProjectsView from "./MyProjectsView";
 import { verifySession } from "@/lib/auth";
+import { confirmProjectPayment } from "@/modules/stripe/actions/confirm-project-payment";
 
 export default async function MeusProjetosPage({
   searchParams,
@@ -19,6 +20,16 @@ export default async function MeusProjetosPage({
   // Lê a URL para ver se o pagamento acabou de ser feito
   const resolvedParams = await searchParams;
   const isSuccessPayment = resolvedParams.success === "true";
+  const sessionId =
+    typeof resolvedParams.session_id === "string"
+      ? resolvedParams.session_id
+      : undefined;
+
+  let isPaymentConfirmed = isSuccessPayment;
+  if (isSuccessPayment && sessionId) {
+    const confirmResult = await confirmProjectPayment(sessionId);
+    isPaymentConfirmed = confirmResult.success;
+  }
 
   const myProjects = await db.project.findMany({
     where: {
@@ -46,7 +57,7 @@ export default async function MeusProjetosPage({
   return (
     <MyProjectsView
       initialProjects={myProjects}
-      isSuccessPayment={isSuccessPayment}
+      isSuccessPayment={isPaymentConfirmed}
     />
   );
 }

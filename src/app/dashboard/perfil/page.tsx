@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { verifySession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/prisma";
-import PerfilView from "@/components/dashboard/perfil/PerfilView";
+import PerfilView from "@/modules/users/components/PerfilView";
 
 export default async function PerfilPage() {
   // 1. Autenticação

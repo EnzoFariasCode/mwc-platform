@@ -8,8 +8,8 @@ type RateLimitResult = {
   remaining: number;
 };
 
-function getClientIp() {
-  const h = headers();
+async function getClientIp() {
+  const h = await headers();
   const forwarded = h.get("x-forwarded-for");
   if (forwarded) {
     const first = forwarded.split(",")[0]?.trim();
@@ -19,8 +19,8 @@ function getClientIp() {
   return realIp || "unknown";
 }
 
-export function getRateLimitKeys(prefix: string, identifier?: string) {
-  const ip = getClientIp();
+export async function getRateLimitKeys(prefix: string, identifier?: string) {
+  const ip = await getClientIp();
   const keys = [`${prefix}:ip:${ip}`];
   if (identifier) {
     keys.push(`${prefix}:id:${identifier.toLowerCase()}`);

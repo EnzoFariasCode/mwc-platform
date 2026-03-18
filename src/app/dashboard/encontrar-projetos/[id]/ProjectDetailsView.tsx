@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { PageContainer } from "@/components/dashboard/PageContainer";
+import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -19,7 +20,7 @@ import {
 import { useRef, useState } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { SendProposalModal } from "@/components/dashboard/SendProposalModal";
+import { SendProposalModal } from "@/modules/proposals/components/SendProposalModal";
 
 // 👇 AQUI ESTAVA O ERRO: Adicionamos hasProposed na interface
 interface ProjectDetailsProps {
@@ -212,7 +213,7 @@ export default function ProjectDetailsView({
                   <p className="text-white font-bold mb-1">Proposta Enviada</p>
                   <p className="text-xs text-slate-400 mb-4">
                     Você já aplicou para este projeto. <br />
-                    Acompanhe em "Minhas Propostas".
+                    Acompanhe em &quot;Minhas Propostas&quot;.
                   </p>
                   <Link href="/dashboard/minhas-propostas">
                     <button className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors border border-white/5 cursor-pointer">

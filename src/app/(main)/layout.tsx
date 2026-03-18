@@ -1,5 +1,5 @@
 import StandardHeader from '@/components/ui/StandardHeader';
-// import FooterContact from '@/components/landing/landingComponents/FooterContact'; // Podemos reutilizar o footer se quiser
+// import FooterContact from '@/modules/landing/landingComponents/FooterContact'; // Podemos reutilizar o footer se quiser
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (

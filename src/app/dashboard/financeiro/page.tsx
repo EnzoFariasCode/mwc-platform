@@ -1,6 +1,5 @@
-import { PageContainer } from "@/components/dashboard/PageContainer";
+import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import Link from "next/link";
-import { injectFakeMoney } from "@/actions/finance/inject-fake-money";
 import {
   Wallet,
   ArrowDownLeft,
@@ -15,7 +14,7 @@ import {
 import { db } from "@/lib/prisma";
 import { getUserSession } from "@/lib/get-session";
 import { redirect } from "next/navigation";
-import { WithdrawButton } from "@/components/dashboard/financeiro/WithdrawModal";
+import { WithdrawButton } from "@/modules/finance/components/WithdrawModal";
 
 // Função auxiliar para formatar moeda
 const formatCurrency = (value: number) => {

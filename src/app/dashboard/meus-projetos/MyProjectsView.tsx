@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { PageContainer } from "@/components/dashboard/PageContainer";
+import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -17,10 +18,10 @@ import {
 } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { NewProjectModal } from "@/components/dashboard/NewProjectModal";
-import { ProjectDetailsModal } from "@/components/dashboard/ProjectDetailsModal";
-import { DelMyProjectsModal } from "@/components/dashboard/DelMyProjectsModal";
-import { deleteProject } from "@/actions/projects/delete-project";
+import { NewProjectModal } from "@/modules/projects/components/NewProjectModal";
+import { ProjectDetailsModal } from "@/modules/projects/components/ProjectDetailsModal";
+import { DelMyProjectsModal } from "@/modules/projects/components/DelMyProjectsModal";
+import { deleteProject } from "@/modules/projects/actions/delete-project";
 import Link from "next/link";
 import { toast } from "sonner";
 

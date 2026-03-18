@@ -40,7 +40,6 @@ export default async function CheckoutPage({
       projectTitle={proposal.project.title}
       professionalName={proposal.professional.name || "Profissional MWC"}
       price={Number(proposal.price)} // Converte Decimal para Number
-      deadline={proposal.estimatedDays}
     />
   );
 }

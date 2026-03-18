@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { PageContainer } from "@/components/dashboard/PageContainer";
+import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import Link from "next/link";
 import {
   DollarSign,
@@ -11,7 +12,7 @@ import {
   Search,
   UserCheck,
 } from "lucide-react";
-import { UpgradeBanner } from "@/components/dashboard/UpgradeBanner";
+import { UpgradeBanner } from "@/modules/billing/components/UpgradeBanner";
 
 // Server Component (Async)
 export default async function ProfissionalDashboard() {

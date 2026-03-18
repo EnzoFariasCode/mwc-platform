@@ -1,8 +1,8 @@
 "use client";
 
-import { PageContainer } from "@/components/dashboard/PageContainer"; // Seu container padrão
+import { PageContainer } from "@/modules/dashboard/components/PageContainer"; // Seu container padrão
 import { Suspense } from "react";
-import { ProfessionalSearch } from "@/components/features/professional-search";
+import { ProfessionalSearch } from "@/modules/search/components/professional-search";
 
 export default function DashboardSearchPage() {
   return (
