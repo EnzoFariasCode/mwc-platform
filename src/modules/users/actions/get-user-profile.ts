@@ -2,12 +2,15 @@
 
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
-export async function getUserProfile() {
+export async function getUserProfile(): Promise<ActionResponse<any>> {
   try {
     const session = await verifySession();
 
-    if (!session || !session.sub) return null;
+    if (!session || !session.sub) {
+      return { success: false, error: "Nao autorizado." };
+    }
 
     const userId = session.sub as string;
 
@@ -38,7 +41,7 @@ export async function getUserProfile() {
       },
     });
 
-    if (!user) return null;
+    if (!user) return { success: false, error: "Usuario nao encontrado." };
 
     // --- LÓGICA DA IMAGEM ---
     const avatarUrl = user.profileImageBytes
@@ -50,11 +53,14 @@ export async function getUserProfile() {
     void _profileImageBytes;
 
     return {
+      success: true,
+      data: {
       ...rest,
       avatarUrl, // O frontend vai usar isso
+      },
     };
   } catch (error) {
     console.error("Erro ao buscar perfil:", error);
-    return null;
+    return { success: false, error: "Erro ao buscar perfil." };
   }
 }

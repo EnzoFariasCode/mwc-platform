@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
 interface SearchFilters {
   query?: string;
@@ -23,7 +24,13 @@ export async function getProfessionals({
   sortBy = "relevancia",
   page = 1,
   limit = 10,
-}: SearchFilters) {
+}: SearchFilters): Promise<
+  ActionResponse<{
+    professionals: any[];
+    total: number;
+    totalPages: number;
+  }>
+> {
   try {
     const where: Prisma.UserWhereInput = {
       userType: "PROFESSIONAL",
@@ -104,12 +111,17 @@ export async function getProfessionals({
 
     return {
       success: true,
-      data: professionals,
-      total,
-      totalPages: Math.ceil(total / limit),
+      data: {
+        professionals,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   } catch (error) {
     console.error("Erro ao buscar profissionais:", error);
-    return { success: false, data: [], total: 0, totalPages: 0 };
+    return {
+      success: false,
+      error: "Erro ao buscar profissionais.",
+    };
   }
 }

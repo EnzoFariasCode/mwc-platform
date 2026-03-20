@@ -4,16 +4,19 @@ import Stripe from "stripe";
 import { getUserSession } from "@/lib/get-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from "@/lib/prisma";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
 });
 
-export async function createPortalSession() {
+export async function createPortalSession(): Promise<
+  ActionResponse<{ url: string }>
+> {
   const session = await getUserSession();
 
   if (!session?.id) {
-    return { error: "Não autorizado" };
+    return { success: false, error: "Não autorizado" };
   }
 
   // 1. Buscar o Customer ID no banco
@@ -23,7 +26,10 @@ export async function createPortalSession() {
   });
 
   if (!user || !user.stripeCustomerId) {
-    return { error: "Nenhuma assinatura encontrada para gerenciar." };
+    return {
+      success: false,
+      error: "Nenhuma assinatura encontrada para gerenciar.",
+    };
   }
 
   try {
@@ -33,9 +39,9 @@ export async function createPortalSession() {
       return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/profissional`, // Para onde ele volta
     });
 
-    return { url: portalSession.url };
+    return { success: true, data: { url: portalSession.url } };
   } catch (error) {
     console.error("Erro ao criar portal:", error);
-    return { error: "Erro ao abrir painel financeiro." };
+    return { success: false, error: "Erro ao abrir painel financeiro." };
   }
 }

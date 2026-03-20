@@ -1,14 +1,17 @@
 "use server";
 
 import Stripe from "stripe";
-import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
+import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
 });
 
-export async function confirmProjectPayment(sessionId: string) {
+export async function confirmProjectPayment(
+  sessionId: string
+): Promise<ActionResponse> {
   const session = await verifySession();
   const userId = session?.sub as string;
 
@@ -37,74 +40,15 @@ export async function confirmProjectPayment(sessionId: string) {
     return { success: false, error: "Nao autorizado." };
   }
 
-  const proposal = await db.proposal.findUnique({
-    where: { id: proposalId },
-    include: { project: true },
+  const result = await finalizeProjectPayment({
+    proposalId,
+    buyerId,
+    source: "confirm",
   });
 
-  if (!proposal) {
-    return { success: false, error: "Proposta nao encontrada." };
+  if (!result.success) {
+    return { success: false, error: result.error };
   }
-
-  if (proposal.project.ownerId !== buyerId) {
-    return { success: false, error: "Usuario nao e dono do projeto." };
-  }
-
-  if (
-    ["IN_PROGRESS", "UNDER_REVIEW", "COMPLETED"].includes(
-      proposal.project.status
-    ) &&
-    proposal.status === "ACCEPTED"
-  ) {
-    return { success: true };
-  }
-
-  const proposalStatusOk = ["PENDING", "ACCEPTED"].includes(proposal.status);
-  const projectStatusOk = ["OPEN", "WAITING_PAYMENT"].includes(
-    proposal.project.status
-  );
-
-  if (!proposalStatusOk || !projectStatusOk) {
-    return { success: false, error: "Estado invalido para confirmacao." };
-  }
-
-  await db.$transaction([
-    db.proposal.update({
-      where: { id: proposalId },
-      data: { status: "ACCEPTED" },
-    }),
-
-    db.proposal.updateMany({
-      where: {
-        projectId: proposal.projectId,
-        id: { not: proposalId },
-      },
-      data: { status: "REJECTED" },
-    }),
-
-    db.project.update({
-      where: { id: proposal.projectId },
-      data: {
-        status: "IN_PROGRESS",
-        professionalId: proposal.professionalId,
-        agreedPrice: proposal.price,
-        deadline: new Date(
-          Date.now() + proposal.estimatedDays * 24 * 60 * 60 * 1000
-        ).toLocaleDateString("pt-BR"),
-      },
-    }),
-
-    db.transaction.create({
-      data: {
-        userId: proposal.project.ownerId,
-        amount: Number(proposal.price),
-        type: "DEBIT",
-        status: "COMPLETED",
-        description: `Pagamento retido (Escrow) - Projeto: ${proposal.project.title}`,
-        projectId: proposal.projectId,
-      },
-    }),
-  ]);
 
   return { success: true };
 }

@@ -2,31 +2,43 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { X, Save, Trash2, Lock } from "lucide-react";
+import { X, Save, Trash2, Lock, Loader2 } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
+import { toast } from "sonner";
+import { deleteProject } from "@/modules/projects/actions/delete-project";
+import { updateProjectBudget } from "@/modules/projects/actions/update-project-budget";
 
 interface EditProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   project: any; // Recebe os dados do projeto clicado
+  onUpdated?: () => void;
 }
 
 export function EditProjectModal({
   isOpen,
   onClose,
   project,
+  onUpdated,
 }: EditProjectModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [price, setPrice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Atualiza o preço quando o projeto muda
   useEffect(() => {
     if (project) {
-      // Remove R$ e formata simples para o input
-      const cleanPrice = project.budget.replace(/[^0-9,]/g, "");
+      if (typeof project.budgetValue === "number") {
+        setPrice(project.budgetValue.toFixed(2).replace(".", ","));
+        return;
+      }
+
+      const label = project.budgetLabel || project.budget || "";
+      const cleanPrice = label.replace(/[^0-9,]/g, "");
       setPrice(cleanPrice);
     }
   }, [project]);
@@ -53,6 +65,54 @@ export function EditProjectModal({
   }, [isOpen]);
 
   if (!project) return null;
+
+  const parseCurrency = (value: string) => {
+    const normalized = value
+      .replace(/[^\d,.-]/g, "")
+      .replace(/\./g, "")
+      .replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const handleSave = async () => {
+    const parsed = parseCurrency(price);
+
+    if (!parsed || parsed <= 0) {
+      toast.error("Informe um valor valido.");
+      return;
+    }
+
+    setIsSaving(true);
+    const result = await updateProjectBudget(project.id, parsed);
+    setIsSaving(false);
+
+    if (result.success) {
+      toast.success("Orcamento atualizado.");
+      onUpdated?.();
+      onClose();
+      return;
+    }
+
+    toast.error(result.error || "Erro ao atualizar.");
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Tem certeza que deseja cancelar este projeto?")) return;
+
+    setIsDeleting(true);
+    const result = await deleteProject(project.id);
+    setIsDeleting(false);
+
+    if (result.success) {
+      toast.success("Projeto cancelado.");
+      onUpdated?.();
+      onClose();
+      return;
+    }
+
+    toast.error(result.error || "Erro ao cancelar.");
+  };
 
   return (
     <div
@@ -106,7 +166,10 @@ export function EditProjectModal({
               </label>
               <textarea
                 rows={3}
-                value="Descrição completa do projeto que não pode ser alterada para garantir a integridade das propostas já recebidas..."
+                value={
+                  project.description ||
+                  "Descrição completa do projeto."
+                }
                 disabled
                 className="w-full bg-slate-200 border border-slate-300 rounded-lg p-3 text-slate-600 cursor-not-allowed resize-none"
               />
@@ -144,8 +207,16 @@ export function EditProjectModal({
 
         {/* Footer Actions */}
         <div className="p-6 border-t border-slate-100 bg-white flex justify-between items-center shrink-0">
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-red-500 hover:bg-red-50 text-sm font-bold transition-colors">
-            <Trash2 className="w-4 h-4" />
+          <button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-red-500 hover:bg-red-50 text-sm font-bold transition-colors disabled:opacity-60"
+          >
+            {isDeleting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
             Cancelar Projeto
           </button>
 
@@ -156,8 +227,16 @@ export function EditProjectModal({
             >
               Voltar
             </button>
-            <button className="px-6 py-2.5 rounded-lg bg-[#d73cbe] hover:bg-[#b0269a] text-white font-bold shadow-lg shadow-purple-200 transition-all flex items-center gap-2">
-              <Save className="w-4 h-4" />
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="px-6 py-2.5 rounded-lg bg-[#d73cbe] hover:bg-[#b0269a] text-white font-bold shadow-lg shadow-purple-200 transition-all flex items-center gap-2 disabled:opacity-60"
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
               Salvar Novo Valor
             </button>
           </div>

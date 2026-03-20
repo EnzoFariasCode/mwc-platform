@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { UserType } from "@prisma/client";
 import { findUserByEmail, createUser } from "@/modules/users/services/user-service";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { validatePassword } from "@/modules/auth/lib/password";
 
 export async function registerUser(
   formData: FormData,
@@ -32,18 +33,10 @@ export async function registerUser(
     };
   }
 
-  // --- 3. VALIDAÇÃO DE SENHA (NOVA) ---
-  // Regras: 8-20 caracteres, Maiúscula, Minúscula, Número ou Símbolo
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).{8,20}$/;
-
-  if (!passwordRegex.test(password)) {
-    return {
-      success: false,
-      error:
-        "A senha deve ter entre 8 e 20 caracteres, incluir letra maiúscula, minúscula e número/símbolo.",
-    };
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.valid) {
+    return { success: false, error: passwordValidation.error };
   }
-  // ------------------------------------
 
   try {
     const userExists = await findUserByEmail(email);

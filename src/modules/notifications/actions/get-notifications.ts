@@ -4,12 +4,25 @@ import { db } from "@/lib/prisma";
 import { getUserSession } from "@/lib/get-session";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
-export async function getNotifications() {
+type NotificationItem = {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  time: string;
+  read: boolean;
+  link: string;
+};
+
+export async function getNotifications(): Promise<
+  ActionResponse<NotificationItem[]>
+> {
   const session = await getUserSession();
 
   if (!session?.id) {
-    return [];
+    return { success: false, error: "Nao autorizado." };
   }
 
   const userId = session.id;
@@ -118,5 +131,5 @@ export async function getNotifications() {
   }
 
   // Ordena por "ID" inverso (ou poderia ser por data real se tivéssemos um campo de data em todas)
-  return notifications.reverse();
+  return { success: true, data: notifications.reverse() };
 }

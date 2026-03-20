@@ -205,6 +205,14 @@ export default function MyProjectsView({
                         Aguardando propostas...
                       </div>
                     )}
+
+                    {project.status === "WAITING_PAYMENT" && (
+                      <div className="mt-3 flex items-center gap-2 p-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 text-yellow-200 text-xs">
+                        <AlertCircle className="w-4 h-4 text-yellow-400" />
+                        Pagamento pendente. Abra os detalhes para retomar o
+                        pagamento ou escolher outra proposta.
+                      </div>
+                    )}
                   </div>
 
                   <div className="mb-6 grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
@@ -241,7 +249,9 @@ export default function MyProjectsView({
                     }`}
                   >
                     <Eye className="w-3 h-3" />
-                    Ver Detalhes
+                    {project.status === "WAITING_PAYMENT"
+                      ? "Ver Propostas"
+                      : "Ver Detalhes"}
                   </button>
 
                   {/* Link do Chat (Só se tiver profissional) */}

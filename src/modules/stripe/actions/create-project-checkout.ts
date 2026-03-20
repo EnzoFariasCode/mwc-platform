@@ -4,16 +4,19 @@ import Stripe from "stripe";
 import { getUserSession } from "@/lib/get-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from "@/lib/prisma";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
 });
 
-export async function createProjectCheckout(proposalId: string) {
+export async function createProjectCheckout(
+  proposalId: string
+): Promise<ActionResponse<{ url: string }>> {
   const session = await getUserSession();
 
   if (!session?.id) {
-    return { error: "Nao autorizado. Faca login novamente." };
+    return { success: false, error: "Nao autorizado. Faca login novamente." };
   }
 
   // Buscando o e-mail real do usuario no banco
@@ -32,25 +35,31 @@ export async function createProjectCheckout(proposalId: string) {
   });
 
   if (!proposal) {
-    return { error: "Proposta nao encontrada." };
+    return { success: false, error: "Proposta nao encontrada." };
   }
 
   if (proposal.project.ownerId !== session.id) {
-    return { error: "Voce nao pode pagar este projeto." };
+    return { success: false, error: "Voce nao pode pagar este projeto." };
   }
 
   if (proposal.status !== "PENDING") {
-    return { error: "Proposta nao esta disponivel para pagamento." };
+    return {
+      success: false,
+      error: "Proposta nao esta disponivel para pagamento.",
+    };
   }
 
   if (!["OPEN", "WAITING_PAYMENT"].includes(proposal.project.status)) {
-    return { error: "Projeto nao esta aberto para pagamento." };
+    return { success: false, error: "Projeto nao esta aberto para pagamento." };
   }
 
   // 2. Validacao de preco (evita valores zerados quebrem a Stripe)
   const priceValue = Number(proposal.price);
   if (isNaN(priceValue) || priceValue <= 0) {
-    return { error: "O valor da proposta e invalido para pagamento." };
+    return {
+      success: false,
+      error: "O valor da proposta e invalido para pagamento.",
+    };
   }
   const unitAmountInCents = Math.floor(priceValue * 100);
 
@@ -85,7 +94,7 @@ export async function createProjectCheckout(proposalId: string) {
         type: "project_payment",
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/meus-projetos?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/checkout/${proposalId}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/checkout/${proposalId}?canceled=true`,
     });
 
     if (!checkoutSession.url) {
@@ -99,12 +108,15 @@ export async function createProjectCheckout(proposalId: string) {
       });
     }
 
-    return { url: checkoutSession.url };
+    return { success: true, data: { url: checkoutSession.url } };
   } catch (error: any) {
     console.error("--- ERRO NA STRIPE ---");
     console.error("Motivo:", error.raw?.message || error.message);
     console.error("----------------------");
 
-    return { error: "Erro ao conectar com o provedor de pagamento." };
+    return {
+      success: false,
+      error: "Erro ao conectar com o provedor de pagamento.",
+    };
   }
 }

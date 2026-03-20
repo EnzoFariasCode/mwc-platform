@@ -13,11 +13,13 @@ interface PageProps {
 export default async function DashboardProfilePage({ params }: PageProps) {
   const { id } = await params;
 
-  const professional = await getPublicProfile(id);
+  const result = await getPublicProfile(id);
 
-  if (!professional) {
+  if (!result.success || !result.data) {
     return notFound();
   }
+
+  const professional = result.data;
 
   const session = await verifySession();
 

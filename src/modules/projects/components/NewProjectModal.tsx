@@ -18,9 +18,14 @@ import { createProject } from "@/modules/projects/actions/create-project";
 interface NewProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onCreated?: () => void;
 }
 
-export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
+export function NewProjectModal({
+  isOpen,
+  onClose,
+  onCreated,
+}: NewProjectModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -119,6 +124,7 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
         setTags([]);
         setAttachments([]);
         handleClose();
+        onCreated?.();
       } else {
         alert(response.error);
       }

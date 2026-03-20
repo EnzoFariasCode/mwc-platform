@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { ActionResponse } from "@/modules/users/types/user-types";
 import { verifySession } from "@/lib/auth"; // <--- Importante: Importar a função de segurança
 
 interface CreateProjectData {
@@ -15,7 +16,9 @@ interface CreateProjectData {
   attachments: string[];
 }
 
-export async function createProject(data: CreateProjectData) {
+export async function createProject(
+  data: CreateProjectData
+): Promise<ActionResponse> {
   try {
     // --- LÓGICA NOVA DE AUTH (NEXTAUTH) ---
     const session = await verifySession();

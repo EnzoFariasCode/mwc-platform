@@ -4,15 +4,18 @@
 import { db } from "@/lib/prisma";
 import { getUserSession } from "@/lib/get-session";
 import { revalidatePath } from "next/cache";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
-export async function requestWithdrawal(formData: FormData) {
+export async function requestWithdrawal(
+  formData: FormData
+): Promise<ActionResponse<string>> {
   const session = await getUserSession();
-  if (!session) return { error: "Não autorizado." };
+  if (!session) return { success: false, error: "Não autorizado." };
 
   const cpfPix = formData.get("cpfPix") as string;
 
   if (!cpfPix || cpfPix.length < 11) {
-    return { error: "CPF inválido. Digite apenas números." };
+    return { success: false, error: "CPF inválido. Digite apenas números." };
   }
 
   // Usamos transaction do Prisma para garantir que não haja erro no meio do caminho
@@ -54,8 +57,14 @@ export async function requestWithdrawal(formData: FormData) {
     });
 
     revalidatePath("/dashboard/financeiro");
-    return { success: "Solicitação enviada! Pagamento em até 24h úteis." };
+    return {
+      success: true,
+      data: "Solicitação enviada! Pagamento em até 24h úteis.",
+    };
   } catch (error: any) {
-    return { error: error.message || "Erro ao processar saque." };
+    return {
+      success: false,
+      error: error.message || "Erro ao processar saque.",
+    };
   }
 }

@@ -7,7 +7,9 @@ export default auth((request: NextRequest & { auth?: unknown }) => {
   const isDashboardRoute = path.startsWith("/dashboard");
   const isAuthRoute = ["/login", "/cadastro", "/recuperarsenha"].includes(path);
 
-  const isLoggedIn = !!request.auth;
+  const isLoggedIn = Boolean(
+    (request.auth as { user?: { id?: string } } | null)?.user?.id
+  );
 
   if (isDashboardRoute && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", request.nextUrl));

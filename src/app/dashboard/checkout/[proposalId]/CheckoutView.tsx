@@ -18,6 +18,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { createProjectCheckout } from "@/modules/stripe/actions/create-project-checkout";
+import { cancelProjectPayment } from "@/modules/stripe/actions/cancel-project-payment";
+import { useSearchParams, useRouter } from "next/navigation";
 
 interface CheckoutViewProps {
   proposalId: string;
@@ -32,9 +34,14 @@ export default function CheckoutView({
   professionalName,
   price,
 }: CheckoutViewProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [countdown, setCountdown] = useState(5);
+  const [isCanceling, setIsCanceling] = useState(false);
+
+  const canceled = searchParams.get("canceled") === "true";
 
   const SCOPE_ITEMS = [
     "Entrega de projeto completo",
@@ -56,18 +63,32 @@ export default function CheckoutView({
     try {
       const result = await createProjectCheckout(proposalId);
 
-      if (result.error) {
+      if (!result.success) {
         toast.error(result.error);
         setIsRedirecting(false);
         setIsLoading(false);
-      } else if (result.url) {
-        window.location.href = result.url; // Vai para a Stripe
+      } else if (result.data?.url) {
+        window.location.href = result.data.url; // Vai para a Stripe
       }
     } catch {
       toast.error("Ocorreu um erro ao preparar o ambiente seguro.");
       setIsRedirecting(false);
       setIsLoading(false);
     }
+  };
+
+  const handleCancel = async () => {
+    setIsCanceling(true);
+    const result = await cancelProjectPayment(proposalId);
+    setIsCanceling(false);
+
+    if (result.success) {
+      toast.success("Anuncio reaberto. Voce pode escolher outra proposta.");
+      router.push("/dashboard/meus-projetos");
+      return;
+    }
+
+    toast.error(result.error || "Erro ao cancelar pagamento.");
   };
 
   return (
@@ -101,6 +122,23 @@ export default function CheckoutView({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           {/* === COLUNA ESQUERDA (2/3): INFORMAÇÕES === */}
           <div className="lg:col-span-2 space-y-6">
+            {canceled && (
+              <div className="w-full bg-red-500/10 border border-red-500/20 rounded-xl p-6 flex gap-4 items-start animate-in fade-in slide-in-from-top-2">
+                <div className="p-3 bg-red-500/20 rounded-full shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-red-400" />
+                </div>
+                <div>
+                  <h4 className="text-red-400 font-bold text-lg mb-1">
+                    Pagamento cancelado
+                  </h4>
+                  <p className="text-sm text-red-200/80 leading-relaxed">
+                    O projeto ficou aguardando pagamento. Voce pode tentar de
+                    novo ou reabrir o anuncio para escolher outra proposta.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Aviso de Retenção (Escrow) */}
             <div className="w-full bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-6 flex gap-4 items-start animate-in fade-in slide-in-from-top-2">
               <div className="p-3 bg-yellow-500/20 rounded-full shrink-0">
@@ -222,7 +260,7 @@ export default function CheckoutView({
                 </div>
               </div>
 
-              {/* Botão de Pagar e Overlay de Redirecionamento */}
+              {/* Botões de Pagamento / Cancelamento */}
               {isRedirecting ? (
                 <div className="w-full py-4 bg-slate-800 border border-slate-700 rounded-xl flex flex-col items-center justify-center gap-2 text-white animate-in zoom-in-95">
                   <Loader2 className="w-6 h-6 animate-spin text-[#d73cbe]" />
@@ -234,15 +272,33 @@ export default function CheckoutView({
                   </span>
                 </div>
               ) : (
-                <button
-                  onClick={handlePayment}
-                  disabled={isLoading}
-                  className="w-full py-4 bg-green-500 hover:bg-green-400 text-black font-bold rounded-xl shadow-lg shadow-green-900/20 transition-all hover:-translate-y-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
-                >
-                  <Lock className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  Ir para Pagamento Seguro{" "}
-                  <ExternalLink className="w-4 h-4 ml-1 opacity-50" />
-                </button>
+                <div className="space-y-3">
+                  <button
+                    onClick={handlePayment}
+                    disabled={isLoading || isCanceling}
+                    className="w-full py-4 bg-green-500 hover:bg-green-400 text-black font-bold rounded-xl shadow-lg shadow-green-900/20 transition-all hover:-translate-y-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
+                  >
+                    <Lock className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    {canceled ? "Tentar Pagamento Novamente" : "Ir para Pagamento Seguro"}{" "}
+                    <ExternalLink className="w-4 h-4 ml-1 opacity-50" />
+                  </button>
+                  {canceled && (
+                    <button
+                      onClick={handleCancel}
+                      disabled={isCanceling || isLoading}
+                      className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl border border-white/10 transition-colors disabled:opacity-50"
+                    >
+                      {isCanceling ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Reabrindo anuncio...
+                        </span>
+                      ) : (
+                        "Reabrir Anuncio"
+                      )}
+                    </button>
+                  )}
+                </div>
               )}
 
               <div className="mt-4 text-center">

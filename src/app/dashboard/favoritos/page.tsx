@@ -38,8 +38,12 @@ export default function FavoritosPage() {
     async function loadData() {
       try {
         setIsLoading(true);
-        const data = await getMyFavorites();
-        setFavoritos(data);
+        const result = await getMyFavorites();
+        if (result.success) {
+          setFavoritos(result.data || []);
+        } else {
+          console.error(result.error);
+        }
       } catch (error) {
         console.error("Erro ao carregar favoritos", error);
       } finally {

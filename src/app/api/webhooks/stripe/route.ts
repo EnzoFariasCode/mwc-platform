@@ -2,6 +2,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
 import { db } from "@/lib/prisma";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -27,78 +28,24 @@ export async function POST(req: Request) {
   }
 
   const handleProjectPayment = async (proposalId: string, buyerId: string) => {
-    if (!proposalId || !buyerId) {
-      console.error("Webhook: Missing proposalId or buyerId.");
-      return;
-    }
-
-    const proposal = await db.proposal.findUnique({
-      where: { id: proposalId },
-      include: { project: true },
+    const result = await finalizeProjectPayment({
+      proposalId,
+      buyerId,
+      source: "webhook",
     });
 
-    if (!proposal) {
-      console.error("Webhook: Proposal not found.");
+    if (!result.success) {
+      console.error("Webhook: Payment processing failed.", result.error);
       return;
     }
 
-    if (proposal.project.ownerId !== buyerId) {
-      console.error("Webhook: Buyer does not own the project.");
+    if (result.alreadyProcessed) {
+      console.log("Webhook: Payment already processed.");
       return;
     }
-
-    const proposalStatusOk = ["PENDING", "ACCEPTED"].includes(
-      proposal.status
-    );
-    const projectStatusOk = ["OPEN", "WAITING_PAYMENT"].includes(
-      proposal.project.status
-    );
-
-    if (!proposalStatusOk || !projectStatusOk) {
-      console.log("Webhook: Payment already processed or invalid state.");
-      return;
-    }
-
-    await db.$transaction([
-      db.proposal.update({
-        where: { id: proposalId },
-        data: { status: "ACCEPTED" },
-      }),
-
-      db.proposal.updateMany({
-        where: {
-          projectId: proposal.projectId,
-          id: { not: proposalId },
-        },
-        data: { status: "REJECTED" },
-      }),
-
-      db.project.update({
-        where: { id: proposal.projectId },
-        data: {
-          status: "IN_PROGRESS",
-          professionalId: proposal.professionalId,
-          agreedPrice: proposal.price,
-          deadline: new Date(
-            Date.now() + proposal.estimatedDays * 24 * 60 * 60 * 1000
-          ).toLocaleDateString("pt-BR"),
-        },
-      }),
-
-      db.transaction.create({
-        data: {
-          userId: proposal.project.ownerId,
-          amount: Number(proposal.price),
-          type: "DEBIT",
-          status: "COMPLETED",
-          description: `Pagamento retido (Escrow) - Projeto: ${proposal.project.title}`,
-          projectId: proposal.projectId,
-        },
-      }),
-    ]);
 
     console.log(
-      `Project ${proposal.projectId} started successfully via Stripe.`
+      `Project payment processed successfully for proposal ${proposalId}.`
     );
   };
 

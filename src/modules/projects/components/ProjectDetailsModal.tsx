@@ -51,7 +51,12 @@ export function ProjectDetailsModal({
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
   useEffect(() => {
-    if (isOpen && isOwner && project?.id && project?.status === "OPEN") {
+    if (
+      isOpen &&
+      isOwner &&
+      project?.id &&
+      ["OPEN", "WAITING_PAYMENT"].includes(project?.status)
+    ) {
       const fetchProposals = async () => {
         setIsLoadingProposals(true);
         const res = await getProjectProposals(project.id);
@@ -311,7 +316,9 @@ export function ProjectDetailsModal({
             )}
 
             {/* === CENÁRIO 3: PROJETO EM ABERTO (LISTA DE PROPOSTAS) === */}
-            {isOwner && project.status === "OPEN" && (
+            {isOwner &&
+              (project.status === "OPEN" ||
+                project.status === "WAITING_PAYMENT") && (
               <div className="relative">
                 <button
                   onClick={() => setShowProposals(!showProposals)}
@@ -561,6 +568,10 @@ function StatusBadge({ status }: { status: string }) {
     IN_PROGRESS: {
       label: "Em Andamento",
       class: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+    },
+    WAITING_PAYMENT: {
+      label: "Pagamento Pendente",
+      class: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
     },
     UNDER_REVIEW: {
       label: "Em Análise",

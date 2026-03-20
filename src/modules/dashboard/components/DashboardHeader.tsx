@@ -19,10 +19,10 @@ export default function DashboardHeader() {
   // 1. Carrega o Perfil
   useEffect(() => {
     async function checkRole() {
-      const user = await getUserProfile();
-      if (user) {
-        setUserRole(user.userType);
-        if (user.userType === "CLIENT") setViewMode("CLIENT");
+      const result = await getUserProfile();
+      if (result.success && result.data) {
+        setUserRole(result.data.userType);
+        if (result.data.userType === "CLIENT") setViewMode("CLIENT");
       }
     }
     checkRole();

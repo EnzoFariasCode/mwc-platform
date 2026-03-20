@@ -56,8 +56,12 @@ export function ProfessionalSearch({
   // 1. Busca Categorias
   useEffect(() => {
     async function loadCategories() {
-      const cats = await getCategories();
-      setDbCategories(cats);
+      const result = await getCategories();
+      if (result.success) {
+        setDbCategories(result.data || []);
+      } else {
+        setDbCategories([]);
+      }
     }
     loadCategories();
   }, []);
@@ -83,10 +87,14 @@ export function ProfessionalSearch({
         limit: ITEMS_PER_PAGE,
       });
 
-      if (res.success) {
-        setProfessionals(res.data);
-        setTotalResults(res.total);
-        setTotalPages(res.totalPages);
+      if (res.success && res.data) {
+        setProfessionals(res.data.professionals || []);
+        setTotalResults(res.data.total || 0);
+        setTotalPages(res.data.totalPages || 1);
+      } else {
+        setProfessionals([]);
+        setTotalResults(0);
+        setTotalPages(1);
       }
 
       setIsLoading(false);

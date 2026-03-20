@@ -2,12 +2,26 @@
 
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
-export async function getMyConversations() {
+type ConversationSummary = {
+  id: string;
+  otherUserId: string;
+  name: string;
+  jobTitle: string | null;
+  lastMessage: string;
+  lastMessageTime: Date;
+  avatar: string | null;
+  unreadCount: number;
+};
+
+export async function getMyConversations(): Promise<
+  ActionResponse<ConversationSummary[]>
+> {
   const session = await verifySession();
   const userId = session?.sub as string;
 
-  if (!userId) return [];
+  if (!userId) return { success: false, error: "Nao autorizado." };
 
   const conversations = await db.conversation.findMany({
     where: {
@@ -42,7 +56,7 @@ export async function getMyConversations() {
     orderBy: { lastMessageTime: "desc" },
   });
 
-  return conversations.map((conv) => {
+  const data = conversations.map((conv) => {
     // Descobre quem sou eu
     const isImParticipantA = conv.participantAId === userId;
 
@@ -70,4 +84,6 @@ export async function getMyConversations() {
       unreadCount: myUnreadCount,
     };
   });
+
+  return { success: true, data };
 }

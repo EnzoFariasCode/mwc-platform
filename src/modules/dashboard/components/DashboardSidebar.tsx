@@ -143,10 +143,10 @@ export default function DashboardSidebar() {
   useEffect(() => {
     async function loadUser() {
       try {
-        const data = await getUserProfile();
-        if (data) {
-          setUser(data as UserData);
-          if (data.userType === "CLIENT") setViewMode("CLIENT");
+        const result = await getUserProfile();
+        if (result.success && result.data) {
+          setUser(result.data as UserData);
+          if (result.data.userType === "CLIENT") setViewMode("CLIENT");
         }
       } catch (error) {
         console.error("Erro ao carregar usuário no sidebar", error);

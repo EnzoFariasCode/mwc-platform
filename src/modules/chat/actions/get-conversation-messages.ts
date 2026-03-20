@@ -2,13 +2,32 @@
 
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
-export async function getConversationMessages(targetUserId: string) {
+type ConversationMessages = {
+  conversationId: string;
+  messages: {
+    id: string;
+    text: string;
+    sender: "me" | "other";
+    time: Date;
+  }[];
+  otherUser: {
+    id: string;
+    name: string;
+    jobTitle: string | null;
+    isFavorite: boolean;
+  };
+};
+
+export async function getConversationMessages(
+  targetUserId: string
+): Promise<ActionResponse<ConversationMessages | null>> {
   try {
     const session = await verifySession();
     const myId = session?.sub as string;
 
-    if (!myId) return null;
+    if (!myId) return { success: false, error: "Nao autorizado." };
 
     // Busca conversa onde EU e o ALVO estamos
     const conversation = await db.conversation.findFirst({
@@ -32,7 +51,7 @@ export async function getConversationMessages(targetUserId: string) {
       },
     });
 
-    if (!conversation) return null;
+    if (!conversation) return { success: true, data: null };
 
     // Verifica favorito
     const isFavorite = await db.favorite.findUnique({
@@ -50,7 +69,7 @@ export async function getConversationMessages(targetUserId: string) {
         ? conversation.participantB
         : conversation.participantA;
 
-    return {
+    const data = {
       conversationId: conversation.id,
       messages: conversation.messages.map((msg) => ({
         id: msg.id,
@@ -65,8 +84,9 @@ export async function getConversationMessages(targetUserId: string) {
         isFavorite: !!isFavorite,
       },
     };
+    return { success: true, data };
   } catch (error) {
     console.error("Erro ao buscar mensagens:", error);
-    return null;
+    return { success: false, error: "Erro interno." };
   }
 }

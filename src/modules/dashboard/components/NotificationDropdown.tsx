@@ -37,8 +37,13 @@ export function NotificationDropdown() {
     async function fetchNotifications() {
       setIsLoading(true);
       try {
-        const data = await getNotifications();
-        setNotifications(data);
+        const result = await getNotifications();
+        if (result.success) {
+          setNotifications(result.data || []);
+        } else {
+          console.error(result.error);
+          setNotifications([]);
+        }
       } catch (error) {
         console.error("Erro ao carregar notificações", error);
       } finally {

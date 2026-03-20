@@ -3,11 +3,12 @@
 import { db } from "@/lib/prisma";
 import { getUserSession } from "@/lib/get-session";
 import { revalidatePath } from "next/cache";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
-export async function injectFakeMoney() {
+export async function injectFakeMoney(): Promise<ActionResponse> {
   const devToolsEnabled = process.env.ENABLE_DEV_TOOLS === "true";
   if (!devToolsEnabled || process.env.NODE_ENV === "production") {
-    return { error: "Operacao indisponivel." };
+    return { success: false, error: "Operacao indisponivel." };
   }
 
   const session = await getUserSession();
@@ -16,11 +17,11 @@ export async function injectFakeMoney() {
     // Em actions de form, idealmente não retornamos objeto se não usarmos useFormState,
     // mas para esse teste rápido, apenas console.error ou throw funciona.
     console.error("Sem usuário");
-    return;
+    return { success: false, error: "Nao autorizado." };
   }
 
   if (session.role !== "ADMIN") {
-    return { error: "Nao autorizado." };
+    return { success: false, error: "Nao autorizado." };
   }
 
   await db.$transaction([
@@ -40,5 +41,7 @@ export async function injectFakeMoney() {
   ]);
 
   revalidatePath("/dashboard/financeiro");
-  // Não precisamos retornar nada aqui para o form funcionar
+  // Retornamos sucesso apenas para padronizar o ActionResponse.
+  return { success: true };
 }
+

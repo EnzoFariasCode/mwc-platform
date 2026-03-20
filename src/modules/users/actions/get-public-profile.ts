@@ -1,8 +1,9 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
-export async function getPublicProfile(userId: string) {
+export async function getPublicProfile(userId: string): Promise<ActionResponse<any>> {
   try {
     const professional = await db.user.findUnique({
       where: { id: userId },
@@ -43,7 +44,9 @@ export async function getPublicProfile(userId: string) {
       },
     });
 
-    if (!professional) return null;
+    if (!professional) {
+      return { success: false, error: "Perfil nao encontrado." };
+    }
 
     // --- LÓGICA DE TRANSFORMAÇÃO DA IMAGEM ---
     // Se o campo de bytes não for nulo, criamos a URL para a API de imagens.
@@ -58,11 +61,15 @@ export async function getPublicProfile(userId: string) {
     void _profileImageBytes;
 
     return {
-      ...rest,
-      avatarUrl, // O frontend usará este campo
+      success: true,
+      data: {
+        ...rest,
+        avatarUrl, // O frontend usará este campo
+      },
     };
   } catch (error) {
     console.error("Erro ao buscar perfil público:", error);
-    return null;
+    return { success: false, error: "Erro ao buscar perfil." };
   }
 }
+

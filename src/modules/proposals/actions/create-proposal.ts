@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth"; // Certifique-se que o verifySession está sendo exportado do seu lib/auth
 import { revalidatePath } from "next/cache";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
 // 👇 ESSA PARTE É OBRIGATÓRIA PARA O ERRO SUMIR
 interface CreateProposalData {
@@ -12,7 +13,9 @@ interface CreateProposalData {
   coverLetter: string;
 }
 
-export async function createProposal(data: CreateProposalData) {
+export async function createProposal(
+  data: CreateProposalData
+): Promise<ActionResponse> {
   try {
     const session = await verifySession();
     const userId = session?.sub as string;

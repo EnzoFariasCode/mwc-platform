@@ -4,16 +4,19 @@ import Stripe from "stripe";
 import { getUserSession } from "@/lib/get-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from "@/lib/prisma";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
 });
 
-export async function createCheckoutSession(planId: "starter" | "advanced") {
+export async function createCheckoutSession(
+  planId: "starter" | "advanced"
+): Promise<ActionResponse<{ url: string }>> {
   const session = await getUserSession();
 
   if (!session?.id) {
-    return { error: "Você precisa estar logado para assinar." };
+    return { success: false, error: "Você precisa estar logado para assinar." };
   }
 
   const user = await db.user.findUnique({
@@ -21,7 +24,7 @@ export async function createCheckoutSession(planId: "starter" | "advanced") {
   });
 
   if (!user) {
-    return { error: "Usuário não encontrado." };
+    return { success: false, error: "Usuário não encontrado." };
   }
 
   // --- TRAVA DE SEGURANÇA ---
@@ -29,8 +32,9 @@ export async function createCheckoutSession(planId: "starter" | "advanced") {
   if (user.stripeSubscriptionStatus === "active") {
     // Opcional: Podemos retornar um código específico para o front redirecionar pro portal
     return {
+      success: false,
       error: "Você já possui uma assinatura ativa.",
-      redirectUrl: "/dashboard/profissional", // Ou manda direto pro portal
+      data: { url: "/dashboard/profissional" },
     };
   }
   // --------------------------
@@ -44,7 +48,7 @@ export async function createCheckoutSession(planId: "starter" | "advanced") {
   const priceId = prices[planId];
 
   if (!priceId) {
-    return { error: "Plano inválido ou não configurado." };
+    return { success: false, error: "Plano inválido ou não configurado." };
   }
 
   try {
@@ -74,9 +78,9 @@ export async function createCheckoutSession(planId: "starter" | "advanced") {
       throw new Error("Erro ao gerar URL do Stripe.");
     }
 
-    return { url: checkoutSession.url };
+    return { success: true, data: { url: checkoutSession.url } };
   } catch (error) {
     console.error("Erro Stripe:", error);
-    return { error: "Erro ao iniciar o pagamento." };
+    return { success: false, error: "Erro ao iniciar o pagamento." };
   }
 }

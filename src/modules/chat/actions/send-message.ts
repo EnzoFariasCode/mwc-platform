@@ -3,8 +3,12 @@
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
-export async function sendMessage(receiverId: string, content: string) {
+export async function sendMessage(
+  receiverId: string,
+  content: string
+): Promise<ActionResponse<{ id: string; createdAt: Date }>> {
   try {
     const session = await verifySession();
     const senderId = session?.sub as string;
@@ -65,7 +69,7 @@ export async function sendMessage(receiverId: string, content: string) {
     });
 
     revalidatePath("/dashboard/chat");
-    return { success: true, message: newMessage };
+    return { success: true, data: newMessage };
   } catch (error) {
     console.error("Erro ao enviar mensagem:", error);
     return { success: false, error: "Erro ao enviar" };

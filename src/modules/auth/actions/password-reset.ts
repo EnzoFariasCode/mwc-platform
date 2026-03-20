@@ -2,9 +2,11 @@
 
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import { Resend } from "resend";
 import { db } from "@/lib/prisma";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { getRateLimitKeys, rateLimit } from "@/lib/rate-limit";
+import { validatePassword } from "@/modules/auth/lib/password";
 
 const RESET_TTL_MINUTES = 15;
 const RESET_REQUEST_LIMIT_EMAIL = 3;
@@ -17,6 +19,17 @@ const RESET_VERIFY_WINDOW_MS = 15 * 60 * 1000;
 
 function hashResetCode(code: string) {
   return crypto.createHash("sha256").update(code).digest("hex");
+}
+
+function buildResetEmailText(code: string) {
+  return [
+    "Recebemos uma solicitação para redefinir sua senha.",
+    "",
+    `Seu código de verificação é: ${code}`,
+    "",
+    "Esse código expira em 15 minutos.",
+    "Se você não solicitou, ignore este e-mail.",
+  ].join("\n");
 }
 
 // 1. Solicitar codigo
@@ -54,11 +67,41 @@ export async function requestResetCode(email: string): Promise<ActionResponse> {
     });
 
     const devToolsEnabled = process.env.ENABLE_DEV_TOOLS === "true";
-    if (devToolsEnabled && process.env.NODE_ENV !== "production") {
-      console.log(`RESET CODE FOR ${email}: ${code}`);
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const resendFrom =
+      process.env.RESEND_FROM_EMAIL || "dani.ecko07@gmail.com";
+
+    if (!resendApiKey) {
+      if (process.env.NODE_ENV === "production") {
+        return {
+          success: false,
+          error: "Serviço de e-mail não configurado.",
+        };
+      }
+
+      if (devToolsEnabled) {
+        console.log(`RESET CODE FOR ${email}: ${code}`);
+      }
+
+      return { success: true };
     }
 
-    return { success: true };
+    try {
+      const resend = new Resend(resendApiKey);
+      await resend.emails.send({
+        from: resendFrom,
+        to: email,
+        subject: "Seu código de recuperação de senha",
+        text: buildResetEmailText(code),
+      });
+      return { success: true };
+    } catch (error) {
+      console.error("Erro ao enviar e-mail de recuperação:", error);
+      return {
+        success: false,
+        error: "Erro ao enviar e-mail. Tente novamente.",
+      };
+    }
   } catch {
     return { success: false, error: "Erro interno." };
   }
@@ -148,9 +191,12 @@ export async function resetPasswordWithCode(
       return { success: false, error: "Codigo invalido ou expirado." };
     }
 
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).{8,20}$/;
-    if (!passwordRegex.test(newPassword)) {
-      return { success: false, error: "A senha nao atende aos requisitos." };
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.valid) {
+      return {
+        success: false,
+        error: passwordValidation.error || "A senha nao atende aos requisitos.",
+      };
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);

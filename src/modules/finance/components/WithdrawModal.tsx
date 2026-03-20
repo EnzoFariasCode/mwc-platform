@@ -42,12 +42,13 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
 
     setIsLoading(false);
 
-    if (result.error) {
+    if (!result.success) {
       toast.error(result.error);
-    } else {
-      toast.success(result.success);
-      setIsOpen(false);
+      return;
     }
+
+    toast.success(result.data || "Solicitação enviada!");
+    setIsOpen(false);
   }
 
   return (

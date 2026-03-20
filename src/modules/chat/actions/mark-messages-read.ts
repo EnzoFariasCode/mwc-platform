@@ -3,13 +3,16 @@
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
-export async function markMessagesAsRead(targetUserId: string) {
+export async function markMessagesAsRead(
+  targetUserId: string
+): Promise<ActionResponse> {
   try {
     const session = await verifySession();
     const myId = session?.sub as string;
 
-    if (!myId) return { success: false };
+    if (!myId) return { success: false, error: "Nao autorizado." };
 
     // Busca a conversa
     const conversation = await db.conversation.findFirst({
@@ -21,7 +24,9 @@ export async function markMessagesAsRead(targetUserId: string) {
       },
     });
 
-    if (!conversation) return { success: false };
+    if (!conversation) {
+      return { success: false, error: "Conversa nao encontrada." };
+    }
 
     // Se eu sou o A, zero o unreadCountA. Se sou B, zero o unreadCountB.
     const isImParticipantA = conversation.participantAId === myId;
@@ -49,6 +54,6 @@ export async function markMessagesAsRead(targetUserId: string) {
     return { success: true };
   } catch (error) {
     console.error("Erro ao marcar como lida:", error);
-    return { success: false };
+    return { success: false, error: "Erro ao atualizar conversa." };
   }
 }

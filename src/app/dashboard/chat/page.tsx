@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { Suspense, useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Send,
@@ -71,43 +71,131 @@ function ChatPageInner() {
 
   // --- Effects ---
 
-  // 1. Polling da Sidebar
-  useEffect(() => {
-    loadConversations();
-    const interval = setInterval(loadConversations, 5000);
-    return () => clearInterval(interval);
+  const loadConversations = useCallback(async () => {
+    try {
+      const result = await getMyConversations();
+      if (!result.success) {
+        setConversations([]);
+        return;
+      }
+      const formatted: ConversationSummary[] = (result.data || []).map((c: any) => ({
+        id: c.id || "",
+        otherUserId: c.otherUserId || "",
+        name: c.name || "Usuário",
+        jobTitle: c.jobTitle || null,
+        lastMessage: c.lastMessage || "",
+        lastMessageTime: new Date(c.lastMessageTime),
+        avatar: c.avatar || null,
+        unreadCount: c.unreadCount || 0,
+      }));
+      setConversations(formatted);
+    } catch (error) {
+      console.error("Erro ao carregar conversas:", error);
+    }
   }, []);
 
-  // 2. Polling das Mensagens
+  // 1. Polling da Sidebar (reduzido quando aba estiver oculta)
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    let stopped = false;
+    let isFetching = false;
+
+    const schedule = (immediate = false) => {
+      if (stopped) return;
+      const delay = immediate
+        ? 0
+        : document.visibilityState === "visible"
+          ? 5000
+          : 15000;
+
+      timeout = setTimeout(async () => {
+        if (stopped) return;
+        if (isFetching) {
+          schedule();
+          return;
+        }
+        isFetching = true;
+        try {
+          await loadConversations();
+        } finally {
+          isFetching = false;
+          schedule();
+        }
+      }, delay);
+    };
+
+    const onVisibility = () => schedule(true);
+
+    schedule(true);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      stopped = true;
+      if (timeout) clearTimeout(timeout);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [loadConversations]);
+
+  // 2. Polling das Mensagens (reduzido quando aba estiver oculta)
   useEffect(() => {
     if (!activeChatId) return;
 
-    const silentReload = async () => {
-      try {
-        const data = await getConversationMessages(activeChatId);
-        if (data) {
-          const formattedMessages: Message[] = data.messages.map((m: any) => ({
-            id: m.id,
-            text: m.text,
-            time: new Date(m.time),
-            sender: m.sender as "me" | "other",
-          }));
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    let stopped = false;
+    let isFetching = false;
 
-          setMessages((prev) => {
-            if (prev.length !== formattedMessages.length) {
-              markMessagesAsRead(activeChatId);
-              return formattedMessages;
-            }
-            return prev;
-          });
+    const schedule = (immediate = false) => {
+      if (stopped) return;
+      const delay = immediate
+        ? 0
+        : document.visibilityState === "visible"
+          ? 3000
+          : 10000;
+
+      timeout = setTimeout(async () => {
+        if (stopped) return;
+        if (isFetching) {
+          schedule();
+          return;
         }
-      } catch (error) {
-        console.error("Silent reload error:", error);
-      }
+        isFetching = true;
+        try {
+          const result = await getConversationMessages(activeChatId);
+          if (result.success && result.data) {
+            const formattedMessages: Message[] = result.data.messages.map((m: any) => ({
+              id: m.id,
+              text: m.text,
+              time: new Date(m.time),
+              sender: m.sender as "me" | "other",
+            }));
+
+            setMessages((prev) => {
+              if (prev.length !== formattedMessages.length) {
+                markMessagesAsRead(activeChatId);
+                return formattedMessages;
+              }
+              return prev;
+            });
+          }
+        } catch (error) {
+          console.error("Silent reload error:", error);
+        } finally {
+          isFetching = false;
+          schedule();
+        }
+      }, delay);
     };
 
-    const interval = setInterval(silentReload, 3000);
-    return () => clearInterval(interval);
+    const onVisibility = () => schedule(true);
+
+    schedule(true);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      stopped = true;
+      if (timeout) clearTimeout(timeout);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [activeChatId]);
 
   // 3. Redirecionamento via URL (?newChat=ID&projectId=ID)
@@ -120,8 +208,10 @@ function ChatPageInner() {
 
       // Se tiver projeto na URL, busca o contexto
       if (projectIdTarget) {
-        getProjectContext(projectIdTarget).then((data) => {
-          setProjectContext(data);
+        getProjectContext(projectIdTarget).then((result) => {
+          if (result.success) {
+            setProjectContext(result.data);
+          }
         });
       } else {
         setProjectContext(null);
@@ -145,11 +235,11 @@ function ChatPageInner() {
 
       try {
         // Tenta buscar mensagens
-        const data = await getConversationMessages(activeChatId!);
+        const result = await getConversationMessages(activeChatId!);
 
-        if (data && data.otherUser) {
+        if (result.success && result.data && result.data.otherUser) {
           // CENÁRIO 1: Já existe conversa
-          const formattedMessages: Message[] = data.messages.map((m: any) => ({
+          const formattedMessages: Message[] = result.data.messages.map((m: any) => ({
             id: m.id,
             text: m.text,
             time: new Date(m.time),
@@ -157,7 +247,7 @@ function ChatPageInner() {
           }));
 
           setMessages(formattedMessages);
-          setActiveChatData(data.otherUser); // Define os dados do usuário
+          setActiveChatData(result.data.otherUser); // Define os dados do usuário
           await markMessagesAsRead(activeChatId!);
         } else {
           // CENÁRIO 2: Chat Novo ou Retorno Nulo (Bug do Spinner)
@@ -166,10 +256,10 @@ function ChatPageInner() {
           // AQUI ESTÁ A CORREÇÃO:
           // Se não veio user data do getConversationMessages, buscamos manual
           const basicUser = await getBasicUserInfo(activeChatId!);
-          if (basicUser) {
+          if (basicUser.success && basicUser.data) {
             setActiveChatData({
-              name: basicUser.name,
-              jobTitle: basicUser.jobTitle,
+              name: basicUser.data.name,
+              jobTitle: basicUser.data.jobTitle,
               isFavorite: false, // Default
             });
           } else {
@@ -197,24 +287,7 @@ function ChatPageInner() {
 
   // --- Funções ---
 
-  async function loadConversations() {
-    try {
-      const data = await getMyConversations();
-      const formatted: ConversationSummary[] = data.map((c: any) => ({
-        id: c.id || "",
-        otherUserId: c.otherUserId || "",
-        name: c.name || "Usuário",
-        jobTitle: c.jobTitle || null,
-        lastMessage: c.lastMessage || "",
-        lastMessageTime: new Date(c.lastMessageTime),
-        avatar: c.avatar || null,
-        unreadCount: c.unreadCount || 0,
-      }));
-      setConversations(formatted);
-    } catch (error) {
-      console.error("Erro ao carregar conversas:", error);
-    }
-  }
+  // loadConversations agora é useCallback acima
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,14 +312,14 @@ function ChatPageInner() {
       // 2. Envia
       const result = await sendMessage(activeChatId, text);
 
-      if (result.success && result.message) {
+      if (result.success && result.data) {
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === tempId
               ? {
                   ...msg,
-                  id: result.message!.id,
-                  time: new Date(result.message!.createdAt),
+                  id: result.data.id,
+                  time: new Date(result.data.createdAt),
                 }
               : msg
           )

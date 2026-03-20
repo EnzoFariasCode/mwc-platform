@@ -3,8 +3,11 @@
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
-export async function deleteProject(projectId: string) {
+export async function deleteProject(
+  projectId: string
+): Promise<ActionResponse> {
   try {
     const session = await verifySession();
     const userId = session?.sub as string;

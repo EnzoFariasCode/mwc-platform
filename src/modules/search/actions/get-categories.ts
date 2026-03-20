@@ -1,8 +1,9 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
-export async function getCategories() {
+export async function getCategories(): Promise<ActionResponse<string[]>> {
   try {
     // Busca todos os usuários profissionais que têm um cargo definido
     const professionals = await db.user.findMany({
@@ -21,9 +22,9 @@ export async function getCategories() {
       .map((p) => p.jobTitle)
       .filter((title): title is string => !!title && title.trim() !== "");
 
-    return categories.sort(); // Retorna em ordem alfabética
+    return { success: true, data: categories.sort() };
   } catch (error) {
     console.error("Erro ao buscar categorias:", error);
-    return [];
+    return { success: false, error: "Erro ao buscar categorias." };
   }
 }

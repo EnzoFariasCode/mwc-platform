@@ -2,8 +2,11 @@
 
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
+import { ActionResponse } from "@/modules/users/types/user-types";
 
-export async function getProjectProposals(projectId: string) {
+export async function getProjectProposals(
+  projectId: string
+): Promise<ActionResponse<any[]>> {
   try {
     const session = await verifySession();
     const userId = session?.sub as string;

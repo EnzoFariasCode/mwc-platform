@@ -71,11 +71,12 @@ export function UpgradeBanner({ isPro }: { isPro: boolean }) {
       const result = await createCheckoutSession(
         planId as "starter" | "advanced",
       );
-      if (result.error) {
+      if (!result.success) {
         toast.error(result.error);
         if (result.error.includes("logado")) router.push("/login");
-      } else if (result.url) {
-        window.location.href = result.url;
+        if (result.data?.url) router.push(result.data.url);
+      } else if (result.data?.url) {
+        window.location.href = result.data.url;
       }
     } catch {
       toast.error("Erro ao iniciar pagamento.");
@@ -89,10 +90,10 @@ export function UpgradeBanner({ isPro }: { isPro: boolean }) {
     setIsPortalLoading(true);
     try {
       const result = await createPortalSession();
-      if (result.error) {
+      if (!result.success) {
         toast.error(result.error);
-      } else if (result.url) {
-        window.location.href = result.url;
+      } else if (result.data?.url) {
+        window.location.href = result.data.url;
       }
     } catch {
       toast.error("Erro ao abrir configurações.");
