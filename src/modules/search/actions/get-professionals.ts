@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, UserType } from "@prisma/client";
 import { ActionResponse } from "@/modules/users/types/user-types";
 
 interface SearchFilters {
@@ -27,6 +27,20 @@ function normalizeText(value: string | undefined, maxLength: number) {
   return trimmed.slice(0, maxLength);
 }
 
+type ProfessionalSummary = {
+  id: string;
+  name: string | null;
+  bio: string | null;
+  rating: number;
+  ratingCount: number;
+  hourlyRate: number | null;
+  city: string | null;
+  state: string | null;
+  skills: string[];
+  jobTitle: string | null;
+  userType: UserType;
+};
+
 export async function getProfessionals({
   query,
   location,
@@ -38,7 +52,7 @@ export async function getProfessionals({
   limit = 10,
 }: SearchFilters): Promise<
   ActionResponse<{
-    professionals: any[];
+    professionals: ProfessionalSummary[];
     total: number;
     totalPages: number;
   }>

@@ -196,7 +196,7 @@ function ChatPageInner() {
       if (timeout) clearTimeout(timeout);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [activeChatId]);
+  }, [activeChatId, loadConversations]);
 
   // 3. Redirecionamento via URL (?newChat=ID&projectId=ID)
   useEffect(() => {
@@ -276,7 +276,7 @@ function ChatPageInner() {
     }
 
     initialLoad();
-  }, [activeChatId]);
+  }, [activeChatId, loadConversations]);
 
   // 5. Auto-scroll
   useEffect(() => {

@@ -2,10 +2,41 @@
 
 import { db } from "@/lib/prisma";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { Prisma, UserType } from "@prisma/client";
+
+type PublicReview = {
+  id: string;
+  rating: number;
+  comment: string;
+  createdAt: Date;
+  author: { name: string };
+};
+
+type PublicProfile = {
+  id: string;
+  name: string | null;
+  displayName: string | null;
+  bio: string | null;
+  city: string | null;
+  state: string | null;
+  userType: UserType;
+  jobTitle: string | null;
+  hourlyRate: number | null;
+  rating: number;
+  ratingCount: number;
+  skills: string[];
+  portfolio: Prisma.JsonValue | null;
+  certificates: Prisma.JsonValue | null;
+  socialGithub: string | null;
+  socialLinkedin: string | null;
+  createdAt: Date;
+  reviewsReceived: PublicReview[];
+  avatarUrl: string | null;
+};
 
 export async function getPublicProfile(
   userId: string
-): Promise<ActionResponse<any>> {
+): Promise<ActionResponse<PublicProfile>> {
   try {
     const professional = await db.user.findUnique({
       where: { id: userId },

@@ -3,8 +3,32 @@
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { Prisma, UserType } from "@prisma/client";
 
-export async function getUserProfile(): Promise<ActionResponse<any>> {
+type PrivateUserProfile = {
+  id: string;
+  name: string | null;
+  displayName: string | null;
+  email: string | null;
+  birthDate: Date | null;
+  userType: UserType;
+  bio: string | null;
+  city: string | null;
+  state: string | null;
+  createdAt: Date;
+  hourlyRate: number | null;
+  rating: number;
+  ratingCount: number;
+  jobTitle: string | null;
+  skills: string[];
+  socialGithub: string | null;
+  socialLinkedin: string | null;
+  portfolio: Prisma.JsonValue | null;
+  certificates: Prisma.JsonValue | null;
+  avatarUrl: string | null;
+};
+
+export async function getUserProfile(): Promise<ActionResponse<PrivateUserProfile>> {
   try {
     const session = await verifySession();
 

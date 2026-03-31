@@ -7,7 +7,7 @@ import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
 import { ActionResponse } from "@/modules/users/types/user-types";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-01-28.clover" as any,
+  apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
 });
 
 async function validateCheckoutAmount(

@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { Menu, Lock } from "lucide-react";
@@ -26,7 +25,7 @@ export default function DashboardHeader() {
       }
     }
     checkRole();
-  }, []);
+  }, [setViewMode]);
 
   // 2. Lógica Inteligente de Persistência (COM CORREÇÃO PARA PERFIL)
   useEffect(() => {
@@ -76,7 +75,7 @@ export default function DashboardHeader() {
         if (userRole === "PROFESSIONAL") setViewMode("PROFESSIONAL");
       }
     }
-  }, [pathname, userRole]);
+  }, [pathname, setViewMode, userRole]);
 
   const handleSwitch = (targetType: "client" | "professional") => {
     if (targetType === "client") {

@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import Link from "next/link";
@@ -153,7 +152,7 @@ export default function DashboardSidebar() {
       }
     }
     loadUser();
-  }, []); // Nota: O sidebar carrega uma vez. Se mudar a foto no perfil, precisará de refresh ou navegação para atualizar aqui.
+  }, [setViewMode]); // Nota: O sidebar carrega uma vez. Se mudar a foto no perfil, precisará de refresh ou navegação para atualizar aqui.
 
   // --- LÓGICA DE PERSISTÊNCIA ---
   useEffect(() => {
@@ -193,7 +192,7 @@ export default function DashboardSidebar() {
         setViewMode(storedMode);
       }
     }
-  }, [pathname]);
+  }, [pathname, setViewMode]);
 
   const professionalLinks = [
     {
@@ -321,3 +320,4 @@ export default function DashboardSidebar() {
     </>
   );
 }
+

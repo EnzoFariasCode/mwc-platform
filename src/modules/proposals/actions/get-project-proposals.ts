@@ -3,10 +3,30 @@
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { ProposalStatus, UserType } from "@prisma/client";
+
+type ProposalListItem = {
+  id: string;
+  price: number;
+  estimatedDays: number;
+  coverLetter: string;
+  status: ProposalStatus;
+  projectId: string;
+  professionalId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  professional: {
+    id: string;
+    name: string | null;
+    rating: number;
+    ratingCount: number;
+    userType: UserType;
+  };
+};
 
 export async function getProjectProposals(
   projectId: string
-): Promise<ActionResponse<any[]>> {
+): Promise<ActionResponse<ProposalListItem[]>> {
   try {
     const session = await verifySession();
     const userId = session?.sub as string;

@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Calendar,
@@ -31,7 +30,7 @@ export default function MeusAnunciosPage() {
   const [ads, setAds] = useState<MyAd[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadAds = async () => {
+  const loadAds = useCallback(async () => {
     setIsLoading(true);
     const result = await getMyOpenAds();
     if (result.success) {
@@ -40,11 +39,12 @@ export default function MeusAnunciosPage() {
       setAds([]);
     }
     setIsLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAds();
-  }, []);
+  }, [loadAds]);
 
   useEffect(() => {
     if (!containerRef.current) return;
