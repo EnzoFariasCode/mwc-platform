@@ -47,59 +47,98 @@ export async function updateProfile(
       return { success: false, error: "Usuário não encontrado." };
     }
 
-    const name = formData.get("name") as string;
-    const displayName = formData.get("displayName") as string;
-    const birthDate = formData.get("birthDate") as string;
-    const bio = formData.get("bio") as string;
-    const city = formData.get("city") as string;
-    const state = formData.get("state") as string;
+    const updateData: any = {};
 
-    const jobTitle = formData.get("jobTitle") as string;
-    const hourlyRate = formData.get("hourlyRate") as string;
-    const yearsOfExperience = formData.get("yearsOfExperience") as string;
+    if (formData.has("name")) {
+      const name = formData.get("name") as string;
+      if (!name || name.trim() === "") {
+        return { success: false, error: "Nome é obrigatório." };
+      }
+      updateData.name = name;
+    }
 
-    const socialGithub = formData.get("socialGithub") as string;
-    const socialLinkedin = formData.get("socialLinkedin") as string;
+    if (formData.has("displayName")) {
+      const displayName = formData.get("displayName") as string;
+      updateData.displayName = displayName || null;
+    }
 
-    const skillsString = formData.get("skills") as string;
-    const portfolioString = formData.get("portfolio") as string;
-    const certificatesString = formData.get("certificates") as string;
+    if (formData.has("birthDate")) {
+      const birthDate = formData.get("birthDate") as string;
+      updateData.birthDate = birthDate ? new Date(birthDate) : null;
+    }
+
+    if (formData.has("bio")) {
+      const bio = formData.get("bio") as string;
+      updateData.bio = bio || null;
+    }
+
+    if (formData.has("city")) {
+      const city = formData.get("city") as string;
+      updateData.city = city || null;
+    }
+
+    if (formData.has("state")) {
+      const state = formData.get("state") as string;
+      updateData.state = state || null;
+    }
+
+    if (formData.has("jobTitle")) {
+      const jobTitle = formData.get("jobTitle") as string;
+      updateData.jobTitle = jobTitle || null;
+    }
+
+    if (formData.has("hourlyRate")) {
+      const hourlyRate = formData.get("hourlyRate") as string;
+      updateData.hourlyRate = hourlyRate
+        ? new Prisma.Decimal(hourlyRate)
+        : null;
+    }
+
+    if (formData.has("yearsOfExperience")) {
+      const yearsOfExperience = formData.get("yearsOfExperience") as string;
+      updateData.yearsOfExperience = yearsOfExperience
+        ? parseInt(yearsOfExperience)
+        : null;
+    }
+
+    if (formData.has("socialGithub")) {
+      const socialGithub = formData.get("socialGithub") as string;
+      updateData.socialGithub = socialGithub || null;
+    }
+
+    if (formData.has("socialLinkedin")) {
+      const socialLinkedin = formData.get("socialLinkedin") as string;
+      updateData.socialLinkedin = socialLinkedin || null;
+    }
+
+    if (formData.has("skills")) {
+      const skillsString = formData.get("skills") as string;
+      const skillsParsed = safeJsonArray(skillsString, "skills");
+      if (!skillsParsed.ok)
+        return { success: false, error: skillsParsed.error };
+      updateData.skills = skillsParsed.value;
+    }
+
+    if (formData.has("portfolio")) {
+      const portfolioString = formData.get("portfolio") as string;
+      const portfolioParsed = safeJsonArray(portfolioString, "portfolio");
+      if (!portfolioParsed.ok)
+        return { success: false, error: portfolioParsed.error };
+      updateData.portfolio = portfolioParsed.value;
+    }
+
+    if (formData.has("certificates")) {
+      const certificatesString = formData.get("certificates") as string;
+      const certificatesParsed = safeJsonArray(certificatesString, "certificates");
+      if (!certificatesParsed.ok)
+        return { success: false, error: certificatesParsed.error };
+      updateData.certificates = certificatesParsed.value;
+    }
 
     const currentPassword = formData.get("currentPassword") as string;
     const newPassword = formData.get("newPassword") as string;
 
     const profileImage = formData.get("profileImage") as File | null;
-
-    const skillsParsed = safeJsonArray(skillsString, "skills");
-    if (!skillsParsed.ok) return { success: false, error: skillsParsed.error };
-    const portfolioParsed = safeJsonArray(portfolioString, "portfolio");
-    if (!portfolioParsed.ok)
-      return { success: false, error: portfolioParsed.error };
-    const certificatesParsed = safeJsonArray(certificatesString, "certificates");
-    if (!certificatesParsed.ok)
-      return { success: false, error: certificatesParsed.error };
-
-    const updateData: any = {
-      name,
-      displayName,
-      birthDate: birthDate ? new Date(birthDate) : null,
-      bio: bio || null,
-      city: city || null,
-      state: state || null,
-
-      jobTitle: jobTitle || null,
-      hourlyRate: hourlyRate ? new Prisma.Decimal(hourlyRate) : null,
-      yearsOfExperience: yearsOfExperience
-        ? parseInt(yearsOfExperience)
-        : null,
-
-      socialGithub: socialGithub || null,
-      socialLinkedin: socialLinkedin || null,
-
-      skills: skillsParsed.value,
-      portfolio: portfolioParsed.value,
-      certificates: certificatesParsed.value,
-    };
 
     const isProfessional = userInDb.userType === "PROFESSIONAL";
     if (!isProfessional) {

@@ -229,7 +229,10 @@ export default function PerfilView({ user }: { user: UserData }) {
     const formData = new FormData();
     formData.append("bio", newBio);
     try {
-      await updateProfile(formData);
+      const response = await updateProfile(formData);
+      if (!response.success) {
+        alert(response.error);
+      }
     } catch {
       alert("Erro ao salvar a bio.");
     } finally {
