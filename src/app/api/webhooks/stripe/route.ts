@@ -11,6 +11,77 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
+async function validateProjectPaymentAmount(
+  proposalId: string,
+  amountInCents: number | null | undefined,
+  currency: string | null | undefined
+) {
+  if (!proposalId) {
+    return { ok: false, error: "Missing proposalId" };
+  }
+
+  if (!amountInCents || amountInCents <= 0) {
+    return { ok: false, error: "Missing or invalid amount" };
+  }
+
+  if (!currency || currency.toLowerCase() !== "brl") {
+    return { ok: false, error: "Invalid currency" };
+  }
+
+  const proposal = await db.proposal.findUnique({
+    where: { id: proposalId },
+    select: { price: true },
+  });
+
+  if (!proposal) {
+    return { ok: false, error: "Proposal not found" };
+  }
+
+  const expectedCents = proposal.price
+    .mul(100)
+    .toDecimalPlaces(0)
+    .toNumber();
+
+  if (amountInCents !== expectedCents) {
+    return {
+      ok: false,
+      error: `Amount mismatch. Expected ${expectedCents}, got ${amountInCents}`,
+    };
+  }
+
+  return { ok: true };
+}
+
+async function reopenProjectOnCheckoutExpired(
+  proposalId: string,
+  buyerId?: string | null
+) {
+  if (!proposalId) return;
+
+  const proposal = await db.proposal.findUnique({
+    where: { id: proposalId },
+    select: {
+      status: true,
+      projectId: true,
+      project: { select: { status: true, ownerId: true } },
+    },
+  });
+
+  if (!proposal) return;
+
+  if (buyerId && proposal.project.ownerId !== buyerId) {
+    return;
+  }
+
+  if (proposal.project.status !== "WAITING_PAYMENT") return;
+  if (proposal.status !== "PENDING") return;
+
+  await db.project.update({
+    where: { id: proposal.projectId },
+    data: { status: "OPEN" },
+  });
+}
+
 export async function POST(req: Request) {
   const body = await req.text();
   const signature = (await headers()).get("Stripe-Signature") as string;
@@ -55,11 +126,25 @@ export async function POST(req: Request) {
         const session = event.data.object as Stripe.Checkout.Session;
 
         if (session.metadata?.type === "project_payment") {
+          const amountValidation = await validateProjectPaymentAmount(
+            session.metadata.proposalId,
+            session.amount_total ?? undefined,
+            session.currency ?? undefined
+          );
+
+          if (!amountValidation.ok) {
+            console.error(
+              "Webhook: Invalid project payment amount.",
+              amountValidation.error
+            );
+            return new NextResponse("Invalid payment amount", { status: 400 });
+          }
+
           await handleProjectPayment(
             session.metadata.proposalId,
             session.metadata.buyerId
           );
-          break;
+          return new NextResponse(null, { status: 200 });
         }
 
         if (session.mode === "subscription") {
@@ -86,19 +171,47 @@ export async function POST(req: Request) {
           });
           console.log(`User ${session.metadata.userId} is now PRO.`);
         }
-        break;
+        return new NextResponse(null, { status: 200 });
+      }
+
+      case "checkout.session.expired": {
+        const session = event.data.object as Stripe.Checkout.Session;
+
+        if (session.metadata?.type === "project_payment") {
+          await reopenProjectOnCheckoutExpired(
+            session.metadata.proposalId,
+            session.metadata.buyerId
+          );
+        }
+
+        return new NextResponse(null, { status: 200 });
       }
 
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
 
         if (paymentIntent.metadata?.type === "project_payment") {
+          const amount = paymentIntent.amount_received || paymentIntent.amount;
+          const amountValidation = await validateProjectPaymentAmount(
+            paymentIntent.metadata.proposalId,
+            amount ?? undefined,
+            paymentIntent.currency ?? undefined
+          );
+
+          if (!amountValidation.ok) {
+            console.error(
+              "Webhook: Invalid project payment amount (payment_intent).",
+              amountValidation.error
+            );
+            return new NextResponse("Invalid payment amount", { status: 400 });
+          }
+
           await handleProjectPayment(
             paymentIntent.metadata.proposalId,
             paymentIntent.metadata.buyerId
           );
         }
-        break;
+        return new NextResponse(null, { status: 200 });
       }
 
       case "invoice.payment_succeeded": {
@@ -122,7 +235,7 @@ export async function POST(req: Request) {
           },
         });
         console.log(`Subscription ${subId} renewed successfully.`);
-        break;
+        return new NextResponse(null, { status: 200 });
       }
 
       case "invoice.payment_failed": {
@@ -138,7 +251,7 @@ export async function POST(req: Request) {
           },
         });
         console.log(`Subscription payment failed for ${subId}.`);
-        break;
+        return new NextResponse(null, { status: 200 });
       }
 
       case "customer.subscription.updated":
@@ -161,7 +274,7 @@ export async function POST(req: Request) {
         console.log(
           `Subscription ${subscription.id} status updated to: ${subDetails.status}`
         );
-        break;
+        return new NextResponse(null, { status: 200 });
       }
     }
   } catch (error) {

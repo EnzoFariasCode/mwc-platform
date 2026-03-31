@@ -54,9 +54,15 @@ export default async function MeusProjetosPage({
     },
   });
 
+  const safeProjects = myProjects.map((project) => ({
+    ...project,
+    budgetValue: project.budgetValue.toNumber(),
+    agreedPrice: project.agreedPrice ? project.agreedPrice.toNumber() : null,
+  }));
+
   return (
     <MyProjectsView
-      initialProjects={myProjects}
+      initialProjects={safeProjects}
       isSuccessPayment={isPaymentConfirmed}
     />
   );

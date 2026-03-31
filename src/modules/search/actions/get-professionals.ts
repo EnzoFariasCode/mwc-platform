@@ -15,6 +15,18 @@ interface SearchFilters {
   limit?: number;
 }
 
+const MAX_LIMIT = 50;
+const MAX_QUERY_LENGTH = 100;
+const MAX_LOCATION_LENGTH = 100;
+const MAX_CATEGORY_LENGTH = 100;
+
+function normalizeText(value: string | undefined, maxLength: number) {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return trimmed.slice(0, maxLength);
+}
+
 export async function getProfessionals({
   query,
   location,
@@ -32,36 +44,68 @@ export async function getProfessionals({
   }>
 > {
   try {
+    const safeQuery = normalizeText(query, MAX_QUERY_LENGTH);
+    const safeLocation = normalizeText(location, MAX_LOCATION_LENGTH);
+    const safeCategory = normalizeText(category, MAX_CATEGORY_LENGTH);
+
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+    const safeLimit = Number.isFinite(limit)
+      ? Math.min(MAX_LIMIT, Math.max(1, Math.floor(limit)))
+      : 10;
+
+    let safeMinPrice = Number.isFinite(minPrice)
+      ? Math.max(0, minPrice as number)
+      : undefined;
+    let safeMaxPrice = Number.isFinite(maxPrice)
+      ? Math.max(0, maxPrice as number)
+      : undefined;
+
+    if (
+      safeMinPrice !== undefined &&
+      safeMaxPrice !== undefined &&
+      safeMinPrice > safeMaxPrice
+    ) {
+      [safeMinPrice, safeMaxPrice] = [safeMaxPrice, safeMinPrice];
+    }
+
+    const allowedSorts = new Set([
+      "relevancia",
+      "menor_preco",
+      "avaliacao",
+      "experiencia",
+    ]);
+    const safeSortBy = allowedSorts.has(sortBy) ? sortBy : "relevancia";
+
     const where: Prisma.UserWhereInput = {
       userType: "PROFESSIONAL",
 
-      ...(query && {
+      ...(safeQuery && {
         OR: [
-          { name: { contains: query, mode: "insensitive" } },
-          { bio: { contains: query, mode: "insensitive" } },
-          { jobTitle: { contains: query, mode: "insensitive" } },
-          { skills: { has: query } },
+          { name: { contains: safeQuery, mode: "insensitive" } },
+          { bio: { contains: safeQuery, mode: "insensitive" } },
+          { jobTitle: { contains: safeQuery, mode: "insensitive" } },
+          { skills: { has: safeQuery } },
         ],
       }),
 
-      ...(location && {
+      ...(safeLocation && {
         OR: [
-          { city: { contains: location, mode: "insensitive" } },
-          { state: { contains: location, mode: "insensitive" } },
+          { city: { contains: safeLocation, mode: "insensitive" } },
+          { state: { contains: safeLocation, mode: "insensitive" } },
         ],
       }),
 
-      ...((minPrice || maxPrice) && {
+      ...((safeMinPrice !== undefined || safeMaxPrice !== undefined) && {
         hourlyRate: {
-          gte: minPrice || 0,
-          lte: maxPrice || 10000,
+          gte: safeMinPrice ?? 0,
+          lte: safeMaxPrice ?? 10000,
         },
       }),
 
-      ...(category && {
+      ...(safeCategory && {
         OR: [
-          { jobTitle: { contains: category, mode: "insensitive" } },
-          { skills: { has: category } },
+          { jobTitle: { contains: safeCategory, mode: "insensitive" } },
+          { skills: { has: safeCategory } },
         ],
       }),
     };
@@ -70,7 +114,7 @@ export async function getProfessionals({
       | Prisma.UserOrderByWithRelationInput
       | Prisma.UserOrderByWithRelationInput[] = {};
 
-    switch (sortBy) {
+    switch (safeSortBy) {
       case "menor_preco":
         orderBy = { hourlyRate: "asc" };
         break;
@@ -84,13 +128,13 @@ export async function getProfessionals({
         orderBy = [{ ratingCount: "desc" }, { rating: "desc" }];
     }
 
-    const skip = (page - 1) * limit;
+    const skip = (safePage - 1) * safeLimit;
 
     const [professionals, total] = await Promise.all([
       db.user.findMany({
         where,
         orderBy,
-        take: limit,
+        take: safeLimit,
         skip,
         select: {
           id: true,
@@ -109,12 +153,17 @@ export async function getProfessionals({
       db.user.count({ where }),
     ]);
 
+    const safeProfessionals = professionals.map((pro) => ({
+      ...pro,
+      hourlyRate: pro.hourlyRate ? pro.hourlyRate.toNumber() : null,
+    }));
+
     return {
       success: true,
       data: {
-        professionals,
+        professionals: safeProfessionals,
         total,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total / safeLimit),
       },
     };
   } catch (error) {

@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getUserSession } from "@/lib/get-session";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
@@ -27,12 +28,12 @@ export async function injectFakeMoney(): Promise<ActionResponse> {
   await db.$transaction([
     db.user.update({
       where: { id: session.id },
-      data: { walletBalance: { increment: 150 } },
+      data: { walletBalance: { increment: new Prisma.Decimal(150) } },
     }),
     db.transaction.create({
       data: {
         userId: session.id,
-        amount: 150,
+        amount: new Prisma.Decimal(150),
         type: "CREDIT",
         status: "COMPLETED",
         description: "Projeto Teste (Dinheiro Falso)",

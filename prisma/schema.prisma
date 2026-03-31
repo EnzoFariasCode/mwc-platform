@@ -57,7 +57,7 @@ model User {
   bio             String?   @db.Text
   city            String?
   state           String?
-  hourlyRate      Float?    
+  hourlyRate      Decimal?    
   rating          Float     @default(0) 
   ratingCount     Int       @default(0)
   
@@ -93,7 +93,7 @@ model User {
   // =========================================================
   // [DADOS FINANCEIROS - RECEBIMENTO DE TRABALHO]
   // =========================================================
-  walletBalance    Float     @default(0.0) 
+  walletBalance    Decimal   @default(0) 
   pixKey           String?                 
   pixKeyType       String?                 
   
@@ -125,7 +125,7 @@ model Transaction {
   userId      String   
   user        User     @relation(fields: [userId], references: [id])
   
-  amount      Float    
+  amount      Decimal   
   type        String   // "CREDIT" (Entrada) ou "DEBIT" (Saída)
   status      String   // "PENDING", "COMPLETED", "FAILED"
   description String   
@@ -148,7 +148,7 @@ model Project {
   tags         String[] 
   
   budgetType   String    
-  budgetValue  Float      
+  budgetValue  Decimal      
   budgetLabel  String    
   
   agreedPrice  Decimal? 

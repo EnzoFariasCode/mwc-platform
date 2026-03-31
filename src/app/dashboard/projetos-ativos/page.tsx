@@ -51,5 +51,11 @@ export default async function ProjetosAtivosPage() {
     },
   });
 
-  return <ActiveProjectsView projects={activeProjects} />;
+  const safeProjects = activeProjects.map((project) => ({
+    ...project,
+    budgetValue: project.budgetValue.toNumber(),
+    agreedPrice: project.agreedPrice ? project.agreedPrice.toNumber() : null,
+  }));
+
+  return <ActiveProjectsView projects={safeProjects} />;
 }

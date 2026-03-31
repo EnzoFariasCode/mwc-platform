@@ -54,14 +54,17 @@ export async function createProjectCheckout(
   }
 
   // 2. Validacao de preco (evita valores zerados quebrem a Stripe)
-  const priceValue = Number(proposal.price);
-  if (isNaN(priceValue) || priceValue <= 0) {
+  const priceValue = proposal.price;
+  if (priceValue.lessThanOrEqualTo(0)) {
     return {
       success: false,
       error: "O valor da proposta e invalido para pagamento.",
     };
   }
-  const unitAmountInCents = Math.floor(priceValue * 100);
+  const unitAmountInCents = priceValue
+    .mul(100)
+    .toDecimalPlaces(0)
+    .toNumber();
 
   try {
     const checkoutSession = await stripe.checkout.sessions.create({

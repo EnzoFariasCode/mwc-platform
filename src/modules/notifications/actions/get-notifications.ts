@@ -96,7 +96,7 @@ export async function getNotifications(): Promise<
     select: { walletBalance: true },
   });
 
-  if (user && user.walletBalance > 0) {
+  if (user && user.walletBalance.greaterThan(0)) {
     notifications.push({
       id: idCounter++,
       type: "success",

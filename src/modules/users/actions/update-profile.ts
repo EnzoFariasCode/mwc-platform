@@ -3,9 +3,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
 
 function safeJsonArray(value: string | null, fieldName: string) {
   if (!value) return { ok: true, value: [] as unknown[] };
@@ -80,7 +88,7 @@ export async function updateProfile(
       state: state || null,
 
       jobTitle: jobTitle || null,
-      hourlyRate: hourlyRate ? parseFloat(hourlyRate) : null,
+      hourlyRate: hourlyRate ? new Prisma.Decimal(hourlyRate) : null,
       yearsOfExperience: yearsOfExperience
         ? parseInt(yearsOfExperience)
         : null,
@@ -94,7 +102,27 @@ export async function updateProfile(
     };
 
     if (profileImage && profileImage.size > 0) {
+      if (profileImage.size > MAX_PROFILE_IMAGE_BYTES) {
+        return {
+          success: false,
+          error: "Imagem muito grande. Limite de 2MB.",
+        };
+      }
+
+      if (!ALLOWED_IMAGE_TYPES.has(profileImage.type)) {
+        return {
+          success: false,
+          error: "Formato de imagem invalido. Use JPG, PNG, WEBP ou GIF.",
+        };
+      }
+
       const arrayBuffer = await profileImage.arrayBuffer();
+      if (arrayBuffer.byteLength > MAX_PROFILE_IMAGE_BYTES) {
+        return {
+          success: false,
+          error: "Imagem muito grande. Limite de 2MB.",
+        };
+      }
       const buffer = Buffer.from(arrayBuffer);
 
       updateData.profileImageBytes = buffer;

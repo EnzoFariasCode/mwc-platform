@@ -3,7 +3,9 @@
 import { db } from "@/lib/prisma";
 import { ActionResponse } from "@/modules/users/types/user-types";
 
-export async function getPublicProfile(userId: string): Promise<ActionResponse<any>> {
+export async function getPublicProfile(
+  userId: string
+): Promise<ActionResponse<any>> {
   try {
     const professional = await db.user.findUnique({
       where: { id: userId },
@@ -55,15 +57,25 @@ export async function getPublicProfile(userId: string): Promise<ActionResponse<a
       ? `/api/images/user/${professional.id}`
       : null;
 
+    const hourlyRate = professional.hourlyRate
+      ? professional.hourlyRate.toNumber()
+      : null;
+
     // Removemos os dados binários pesados (profileImageBytes) do objeto
     // antes de enviá-lo para o navegador, mantendo o resto.
-    const { profileImageBytes: _profileImageBytes, ...rest } = professional;
+    const {
+      profileImageBytes: _profileImageBytes,
+      hourlyRate: _hourlyRate,
+      ...rest
+    } = professional;
     void _profileImageBytes;
+    void _hourlyRate;
 
     return {
       success: true,
       data: {
         ...rest,
+        hourlyRate,
         avatarUrl, // O frontend usará este campo
       },
     };
@@ -72,4 +84,3 @@ export async function getPublicProfile(userId: string): Promise<ActionResponse<a
     return { success: false, error: "Erro ao buscar perfil." };
   }
 }
-

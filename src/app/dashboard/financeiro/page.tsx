@@ -54,7 +54,9 @@ export default async function FinanceiroPage() {
   if (!user) redirect("/login");
 
   // 3. Cálculos Financeiros
-  const walletBalance = user.walletBalance || 0;
+  const walletBalance = user.walletBalance
+    ? user.walletBalance.toNumber()
+    : 0;
 
   // Calcula total já ganho na vida (Soma de todos os CREDIT + COMPLETED)
   const allCredits = await db.transaction.aggregate({
@@ -65,7 +67,9 @@ export default async function FinanceiroPage() {
     },
     _sum: { amount: true },
   });
-  const totalLifetime = allCredits._sum.amount || 0;
+  const totalLifetime = allCredits._sum.amount
+    ? allCredits._sum.amount.toNumber()
+    : 0;
 
   // Calcula valores pendentes (Soma de CREDIT + PENDING)
   const allPending = await db.transaction.aggregate({
@@ -76,7 +80,9 @@ export default async function FinanceiroPage() {
     },
     _sum: { amount: true },
   });
-  const totalPending = allPending._sum.amount || 0;
+  const totalPending = allPending._sum.amount
+    ? allPending._sum.amount.toNumber()
+    : 0;
 
   const hasTransactions = user.transactions.length > 0;
 
@@ -271,7 +277,7 @@ export default async function FinanceiroPage() {
                         }`}
                       >
                         {item.type === "CREDIT" ? "+" : "-"}{" "}
-                        {formatCurrency(item.amount)}
+                        {formatCurrency(item.amount.toNumber())}
                       </span>
                       <button className="text-muted-foreground hover:text-foreground">
                         <ChevronRight className="w-4 h-4" />

@@ -19,5 +19,10 @@ export default async function EncontrarProjetosPage() {
     },
   });
 
-  return <ProjectListView initialProjects={projects} />;
+  const safeProjects = projects.map((project) => ({
+    ...project,
+    budgetValue: project.budgetValue.toNumber(),
+  }));
+
+  return <ProjectListView initialProjects={safeProjects} />;
 }

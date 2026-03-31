@@ -48,15 +48,23 @@ export async function getUserProfile(): Promise<ActionResponse<any>> {
       ? `/api/images/user/${user.id}`
       : null;
 
+    const hourlyRate = user.hourlyRate ? user.hourlyRate.toNumber() : null;
+
     // Removemos o arquivo pesado antes de enviar para o front
-    const { profileImageBytes: _profileImageBytes, ...rest } = user;
+    const {
+      profileImageBytes: _profileImageBytes,
+      hourlyRate: _hourlyRate,
+      ...rest
+    } = user;
     void _profileImageBytes;
+    void _hourlyRate;
 
     return {
       success: true,
       data: {
-      ...rest,
-      avatarUrl, // O frontend vai usar isso
+        ...rest,
+        hourlyRate,
+        avatarUrl, // O frontend vai usar isso
       },
     };
   } catch (error) {

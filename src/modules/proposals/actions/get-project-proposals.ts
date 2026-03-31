@@ -43,7 +43,12 @@ export async function getProjectProposals(
       orderBy: { createdAt: "desc" },
     });
 
-    return { success: true, data: proposals };
+    const safeProposals = proposals.map((proposal) => ({
+      ...proposal,
+      price: proposal.price.toNumber(),
+    }));
+
+    return { success: true, data: safeProposals };
   } catch (error) {
     console.error("Erro ao buscar propostas:", error);
     return { success: false, error: "Erro interno." };

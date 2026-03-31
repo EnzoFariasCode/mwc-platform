@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { verifySession } from "@/lib/auth"; // <--- Importante: Importar a função de segurança
@@ -42,7 +43,7 @@ export async function createProject(
         category: data.category,
         tags: data.tags,
         budgetType: data.budgetType,
-        budgetValue: data.budgetValue,
+        budgetValue: new Prisma.Decimal(data.budgetValue.toFixed(2)),
         budgetLabel: budgetLabel,
         deadline: data.deadline,
         ownerId: userId, // Usa o ID seguro

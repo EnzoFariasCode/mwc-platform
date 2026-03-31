@@ -30,6 +30,8 @@ export default async function PerfilPage() {
   // Criamos um objeto limpo para o front-end
   const userDataForFrontend = {
     ...user,
+    hourlyRate: user.hourlyRate ? user.hourlyRate.toNumber() : null,
+    walletBalance: user.walletBalance ? user.walletBalance.toNumber() : 0,
     // Se tiver bytes no banco, a URL é a rota da API. Se não, é null.
     avatarUrl: hasImage
       ? `/api/images/user/${user.id}?t=${user.updatedAt.getTime()}`
@@ -42,3 +44,4 @@ export default async function PerfilPage() {
   // 4. Renderiza a view passando os dados tratados
   return <PerfilView user={userDataForFrontend as any} />;
 }
+

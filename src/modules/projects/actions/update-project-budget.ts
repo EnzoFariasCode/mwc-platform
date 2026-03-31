@@ -2,7 +2,7 @@
 
 import { verifySession } from "@/lib/auth";
 import { db } from "@/lib/prisma";
-import { ProjectStatus } from "@prisma/client";
+import { ProjectStatus, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 
@@ -45,7 +45,7 @@ export async function updateProjectBudget(
     await db.project.update({
       where: { id: projectId },
       data: {
-        budgetValue,
+        budgetValue: new Prisma.Decimal(budgetValue.toFixed(2)),
         budgetLabel,
       },
     });

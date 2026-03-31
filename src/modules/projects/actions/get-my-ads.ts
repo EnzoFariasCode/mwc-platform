@@ -43,7 +43,7 @@ export async function getMyOpenAds(): Promise<ActionResponse<MyAd[]>> {
       title: ad.title,
       description: ad.description,
       budgetLabel: ad.budgetLabel,
-      budgetValue: ad.budgetValue,
+      budgetValue: ad.budgetValue.toNumber(),
       status: ad.status,
       createdAt: ad.createdAt.toISOString(),
       proposalsCount: ad._count.proposals,

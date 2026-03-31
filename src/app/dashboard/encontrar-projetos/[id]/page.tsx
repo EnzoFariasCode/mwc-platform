@@ -49,9 +49,15 @@ export default async function ProjectPage({
   const hasProposed = !!myProposal; // Converte para boolean (true/false)
 
   // 3. Passa tudo para a View
+  const safeProject = {
+    ...project,
+    budgetValue: project.budgetValue.toNumber(),
+    agreedPrice: project.agreedPrice ? project.agreedPrice.toNumber() : null,
+  };
+
   return (
     <ProjectDetailsView
-      project={project}
+      project={safeProject}
       currentUserId={userId}
       hasProposed={hasProposed}
     />

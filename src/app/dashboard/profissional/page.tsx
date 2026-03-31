@@ -13,6 +13,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { UpgradeBanner } from "@/modules/billing/components/UpgradeBanner";
+import { Prisma } from "@prisma/client";
 
 // Server Component (Async)
 export default async function ProfissionalDashboard() {
@@ -62,10 +63,10 @@ export default async function ProfissionalDashboard() {
 
   // 3. Cálculos
   const totalEarnings = completedProjects.reduce((acc, project) => {
-    return acc + (Number(project.agreedPrice) || 0);
-  }, 0);
+    return acc.plus(project.agreedPrice ?? 0);
+  }, new Prisma.Decimal(0));
 
-  const formattedEarnings = totalEarnings.toLocaleString("pt-BR", {
+  const formattedEarnings = totalEarnings.toNumber().toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
   });

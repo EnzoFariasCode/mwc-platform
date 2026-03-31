@@ -45,7 +45,9 @@ export async function getMyFavorites(): Promise<ActionResponse<FavoriteItem[]>> 
       jobTitle: fav.professional.jobTitle || "Profissional",
       rating: fav.professional.rating,
       ratingCount: fav.professional.ratingCount,
-      hourlyRate: fav.professional.hourlyRate,
+      hourlyRate: fav.professional.hourlyRate
+        ? fav.professional.hourlyRate.toNumber()
+        : null,
       avatarUrl: null, // Placeholder ou campo real
     }));
 

@@ -118,7 +118,7 @@ export async function finalizeProjectPayment({
       await tx.transaction.create({
         data: {
           userId: proposal.project.ownerId,
-          amount: Number(proposal.price),
+          amount: proposal.price,
           type: "DEBIT",
           status: "COMPLETED",
           description: `Pagamento retido (Escrow) - Projeto: ${proposal.project.title} (${source})`,

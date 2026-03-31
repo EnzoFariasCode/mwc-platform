@@ -2,6 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getUserSession } from "@/lib/get-session";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
@@ -28,7 +29,7 @@ export async function requestWithdrawal(
         select: { walletBalance: true },
       });
 
-      if (!user || user.walletBalance < 50) {
+      if (!user || user.walletBalance.lessThan(50)) {
         throw new Error("Saldo insuficiente (Mínimo R$ 50,00).");
       }
 
@@ -49,7 +50,7 @@ export async function requestWithdrawal(
       await tx.user.update({
         where: { id: session.id },
         data: {
-          walletBalance: 0, // Saca tudo
+          walletBalance: new Prisma.Decimal(0), // Saca tudo
           pixKey: cpfPix, // Salva o CPF como última chave usada
           pixKeyType: "CPF",
         },
@@ -68,3 +69,5 @@ export async function requestWithdrawal(
     };
   }
 }
+
+

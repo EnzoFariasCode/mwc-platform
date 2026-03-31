@@ -46,6 +46,8 @@ export default async function ClienteDashboardPage() {
   // Removemos o peso morto da imagem antes de enviar para o cliente
   const userSafe = {
     ...user,
+    hourlyRate: user.hourlyRate ? user.hourlyRate.toNumber() : null,
+    walletBalance: user.walletBalance ? user.walletBalance.toNumber() : 0,
     profileImageBytes: undefined, // <--- Remove os dados binários pesados
     // Se quiser que a foto apareça no header/dashboard, gere a URL igual fizemos no perfil:
     avatarUrl: user.profileImageBytes
@@ -61,3 +63,4 @@ export default async function ClienteDashboardPage() {
     />
   );
 }
+
