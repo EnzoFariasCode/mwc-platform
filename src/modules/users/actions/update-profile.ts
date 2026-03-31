@@ -20,11 +20,11 @@ function safeJsonArray(value: string | null, fieldName: string) {
   try {
     const parsed = JSON.parse(value);
     if (!Array.isArray(parsed)) {
-      return { ok: false, error: `${fieldName} invalido.` };
+      return { ok: false, error: `${fieldName} inválido.` };
     }
     return { ok: true, value: parsed };
   } catch {
-    return { ok: false, error: `${fieldName} invalido.` };
+    return { ok: false, error: `${fieldName} inválido.` };
   }
 }
 
@@ -36,7 +36,7 @@ export async function updateProfile(
     const userId = session?.sub as string;
 
     if (!userId) {
-      return { success: false, error: "Usuario nao autenticado." };
+      return { success: false, error: "Usuário não autenticado." };
     }
 
     const userInDb = await db.user.findUnique({
@@ -44,7 +44,7 @@ export async function updateProfile(
     });
 
     if (!userInDb) {
-      return { success: false, error: "Usuario nao encontrado." };
+      return { success: false, error: "Usuário não encontrado." };
     }
 
     const name = formData.get("name") as string;
@@ -101,6 +101,16 @@ export async function updateProfile(
       certificates: certificatesParsed.value,
     };
 
+    const isProfessional = userInDb.userType === "PROFESSIONAL";
+    if (!isProfessional) {
+      delete updateData.jobTitle;
+      delete updateData.hourlyRate;
+      delete updateData.yearsOfExperience;
+      delete updateData.skills;
+      delete updateData.portfolio;
+      delete updateData.certificates;
+    }
+
     if (profileImage && profileImage.size > 0) {
       if (profileImage.size > MAX_PROFILE_IMAGE_BYTES) {
         return {
@@ -112,7 +122,7 @@ export async function updateProfile(
       if (!ALLOWED_IMAGE_TYPES.has(profileImage.type)) {
         return {
           success: false,
-          error: "Formato de imagem invalido. Use JPG, PNG, WEBP ou GIF.",
+          error: "Formato de imagem inválido. Use JPG, PNG, WEBP ou GIF.",
         };
       }
 

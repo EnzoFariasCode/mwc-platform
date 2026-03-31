@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
@@ -249,6 +249,64 @@ export default function PerfilView({ user }: { user: UserData }) {
     ? currentUser.certificates
     : [];
 
+  const baseProgressItems = [
+    {
+      label: "Foto",
+      done: Boolean(currentUser.avatarUrl),
+    },
+    {
+      label: "Cidade",
+      done: Boolean(currentUser.city && currentUser.state),
+    },
+    {
+      label: "Bio",
+      done: Boolean(currentUser.bio && currentUser.bio.trim().length > 0),
+    },
+    {
+      label: "Nascimento",
+      done: Boolean(currentUser.birthDate),
+    },
+  ];
+
+  const professionalProgressItems = [
+    ...baseProgressItems,
+    {
+      label: "Cargo",
+      done: Boolean(currentUser.jobTitle && currentUser.jobTitle.trim().length > 0),
+    },
+    {
+      label: "Valor/Hora",
+      done: currentUser.hourlyRate !== null && currentUser.hourlyRate !== undefined,
+    },
+    {
+      label: "Habilidades",
+      done: Boolean(currentUser.skills && currentUser.skills.length > 0),
+    },
+    {
+      label: "Portfólio",
+      done: portfolioItems.length > 0,
+    },
+    {
+      label: "GitHub",
+      done: Boolean(
+        currentUser.socialGithub && currentUser.socialGithub.trim().length > 0
+      ),
+    },
+    {
+      label: "LinkedIn",
+      done: Boolean(
+        currentUser.socialLinkedin && currentUser.socialLinkedin.trim().length > 0
+      ),
+    },
+  ];
+
+  const progressItems = isProfessionalUser
+    ? professionalProgressItems
+    : baseProgressItems;
+  const progressTotal = progressItems.length || 1;
+  const progressDone = progressItems.filter((item) => item.done).length;
+  const progressPercent = Math.round((progressDone / progressTotal) * 100);
+
   return (
     <PageContainer>
       <EditProfileModal
@@ -386,7 +444,7 @@ export default function PerfilView({ user }: { user: UserData }) {
                       <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
                       {currentUser.ratingCount ? (
                         <span className="text-xs text-slate-500">
-                          ({currentUser.ratingCount} avaliaÃ§Ãµes)
+                          ({currentUser.ratingCount} avaliações)
                         </span>
                       ) : null}
                     </div>
@@ -579,71 +637,95 @@ export default function PerfilView({ user }: { user: UserData }) {
             <div className="bg-card border border-border rounded-2xl p-6">
               <h3 className="font-bold text-foreground mb-4">Redes Sociais</h3>
               <div className="space-y-3">
-                {/* GITHUB */}
-                {currentUser.socialGithub ? (
-                  <a
-                    href={currentUser.socialGithub}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left group/social hover:bg-slate-800"
-                  >
-                    <Github className="w-5 h-5 text-white group-hover/social:text-primary transition-colors" />
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-white">Github</p>
-                      <p className="text-xs text-green-400 flex items-center gap-1">
-                        Conectado <ExternalLink className="w-3 h-3" />
-                      </p>
-                    </div>
-                  </a>
-                ) : (
-                  <button
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left opacity-70 hover:opacity-100"
-                  >
-                    <Github className="w-5 h-5 text-slate-400" />
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-slate-400">Github</p>
-                      <p className="text-xs text-slate-500">Conectar conta</p>
-                    </div>
-                    {isProfessionalUser && (
+                  {/* GITHUB */}
+                  {currentUser.socialGithub ? (
+                    <a
+                      href={currentUser.socialGithub}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left group/social hover:bg-slate-800"
+                    >
+                      <Github className="w-5 h-5 text-white group-hover/social:text-primary transition-colors" />
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-white">Github</p>
+                        <p className="text-xs text-green-400 flex items-center gap-1">
+                          Conectado <ExternalLink className="w-3 h-3" />
+                        </p>
+                      </div>
+                    </a>
+                  ) : (
+                    <button
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left opacity-70 hover:opacity-100"
+                    >
+                      <Github className="w-5 h-5 text-slate-400" />
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-slate-400">
+                          Github
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Conectar conta
+                        </p>
+                      </div>
                       <Plus className="w-4 h-4 text-slate-500" />
-                    )}
-                  </button>
-                )}
+                    </button>
+                  )}
 
-                {/* LINKEDIN */}
-                {currentUser.socialLinkedin ? (
-                  <a
-                    href={currentUser.socialLinkedin}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left group/social hover:bg-slate-800"
-                  >
-                    <Linkedin className="w-5 h-5 text-blue-400" />
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-white">LinkedIn</p>
-                      <p className="text-xs text-green-400 flex items-center gap-1">
-                        Conectado <ExternalLink className="w-3 h-3" />
-                      </p>
-                    </div>
-                  </a>
-                ) : (
-                  <button
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left opacity-70 hover:opacity-100"
-                  >
-                    <Linkedin className="w-5 h-5 text-slate-400" />
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-slate-400">
-                        LinkedIn
-                      </p>
-                      <p className="text-xs text-slate-500">Conectar conta</p>
-                    </div>
-                    {isProfessionalUser && (
+                  {/* LINKEDIN */}
+                  {currentUser.socialLinkedin ? (
+                    <a
+                      href={currentUser.socialLinkedin}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left group/social hover:bg-slate-800"
+                    >
+                      <Linkedin className="w-5 h-5 text-blue-400" />
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-white">LinkedIn</p>
+                        <p className="text-xs text-green-400 flex items-center gap-1">
+                          Conectado <ExternalLink className="w-3 h-3" />
+                        </p>
+                      </div>
+                    </a>
+                  ) : (
+                    <button
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="w-full flex items-center gap-3 p-3 bg-background border border-border rounded-xl hover:border-primary/50 transition-colors cursor-pointer text-left opacity-70 hover:opacity-100"
+                    >
+                      <Linkedin className="w-5 h-5 text-slate-400" />
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-slate-400">
+                          LinkedIn
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Conectar conta
+                        </p>
+                      </div>
                       <Plus className="w-4 h-4 text-slate-500" />
-                    )}
-                  </button>
-                )}
+                    </button>
+                  )}
+                </div>
+
+              <div className="mt-5 pt-4 border-t border-border">
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                  <span>Progresso do Perfil</span>
+                  <span>{progressPercent}%</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                  <div
+                    className="h-full bg-[#d73cbe] transition-all"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-2">
+                  {progressDone}/{progressTotal} itens completos
+                </p>
+                <button
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="mt-3 w-full py-2 bg-primary text-primary-foreground text-xs font-bold rounded-lg hover:brightness-110 transition-all"
+                >
+                  Concluir
+                </button>
               </div>
             </div>
           </div>
@@ -738,3 +820,4 @@ function EditBioModal({
     </div>
   );
 }
+

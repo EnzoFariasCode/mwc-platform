@@ -25,6 +25,14 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 
+const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
 // --- LISTA DE ESTADOS (IBGE) ---
 const BRAZIL_STATES = [
   { sigla: "AC", nome: "Acre" },
@@ -206,9 +214,12 @@ export function EditProfileModal({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        // Limite 5MB
-        setError("A imagem deve ter no máximo 5MB.");
+      if (file.size > MAX_PROFILE_IMAGE_BYTES) {
+        setError("A imagem deve ter no máximo 2MB.");
+        return;
+      }
+      if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+        setError("Formato inválido. Use JPG, PNG, WEBP ou GIF.");
         return;
       }
       setSelectedFile(file);
@@ -272,16 +283,17 @@ export function EditProfileModal({
       data.append("currentPassword", formData.currentPassword);
     if (formData.newPassword) data.append("newPassword", formData.newPassword);
 
+    if (formData.socialGithub)
+      data.append("socialGithub", formData.socialGithub);
+    if (formData.socialLinkedin)
+      data.append("socialLinkedin", formData.socialLinkedin);
+
     // Campos Profissionais
     if (isPro) {
       if (formData.jobTitle) data.append("jobTitle", formData.jobTitle);
       if (formData.hourlyRate) data.append("hourlyRate", formData.hourlyRate);
       if (formData.yearsOfExperience)
         data.append("yearsOfExperience", formData.yearsOfExperience);
-      if (formData.socialGithub)
-        data.append("socialGithub", formData.socialGithub);
-      if (formData.socialLinkedin)
-        data.append("socialLinkedin", formData.socialLinkedin);
 
       // Arrays precisam ir como JSON stringified para passar no FormData
       data.append("skills", JSON.stringify(formData.skills));
@@ -366,7 +378,7 @@ export function EditProfileModal({
               type="file"
               ref={fileInputRef}
               className="hidden"
-              accept="image/png, image/jpeg, image/jpg"
+              accept="image/png, image/jpeg, image/jpg, image/webp, image/gif"
               onChange={handleFileChange}
             />
           </div>
@@ -432,14 +444,15 @@ export function EditProfileModal({
                 </label>
                 <div className="relative">
                   <Calendar className="w-4 h-4 absolute left-3 top-3 text-slate-500 pointer-events-none" />
-                  <input
-                    type="date"
-                    value={formData.birthDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, birthDate: e.target.value })
-                    }
-                    className="w-full pl-10 p-2.5 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-200"
-                  />
+                <input
+                  type="date"
+                  lang="pt-BR"
+                  value={formData.birthDate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, birthDate: e.target.value })
+                  }
+                  className="w-full pl-10 p-2.5 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-200"
+                />
                 </div>
               </div>
             </div>
@@ -585,20 +598,18 @@ export function EditProfileModal({
               <LinkIcon className="w-4 h-4" /> Redes Sociais
             </h3>
             <div className="grid grid-cols-1 gap-3">
-              {isPro && (
-                <div className="relative">
-                  <Github className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="URL do GitHub"
-                    value={formData.socialGithub}
-                    onChange={(e) =>
-                      setFormData({ ...formData, socialGithub: e.target.value })
-                    }
-                    className="w-full pl-10 p-2.5 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-200"
-                  />
-                </div>
-              )}
+              <div className="relative">
+                <Github className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="URL do GitHub"
+                  value={formData.socialGithub}
+                  onChange={(e) =>
+                    setFormData({ ...formData, socialGithub: e.target.value })
+                  }
+                  className="w-full pl-10 p-2.5 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-200"
+                />
+              </div>
               <div className="relative">
                 <Linkedin className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
                 <input
@@ -606,7 +617,10 @@ export function EditProfileModal({
                   placeholder="URL do LinkedIn"
                   value={formData.socialLinkedin}
                   onChange={(e) =>
-                    setFormData({ ...formData, socialLinkedin: e.target.value })
+                    setFormData({
+                      ...formData,
+                      socialLinkedin: e.target.value,
+                    })
                   }
                   className="w-full pl-10 p-2.5 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-200"
                 />
@@ -805,3 +819,5 @@ export function EditProfileModal({
     </div>
   );
 }
+
+
