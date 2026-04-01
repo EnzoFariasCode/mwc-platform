@@ -14,7 +14,7 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 async function validateProjectPaymentAmount(
   proposalId: string,
   amountInCents: number | null | undefined,
-  currency: string | null | undefined
+  currency: string | null | undefined,
 ) {
   if (!proposalId) {
     return { ok: false, error: "Missing proposalId" };
@@ -37,10 +37,7 @@ async function validateProjectPaymentAmount(
     return { ok: false, error: "Proposal not found" };
   }
 
-  const expectedCents = proposal.price
-    .mul(100)
-    .toDecimalPlaces(0)
-    .toNumber();
+  const expectedCents = proposal.price.mul(100).toDecimalPlaces(0).toNumber();
 
   if (amountInCents !== expectedCents) {
     return {
@@ -54,7 +51,7 @@ async function validateProjectPaymentAmount(
 
 async function reopenProjectOnCheckoutExpired(
   proposalId: string,
-  buyerId?: string | null
+  buyerId?: string | null,
 ) {
   if (!proposalId) return;
 
@@ -116,7 +113,7 @@ export async function POST(req: Request) {
     }
 
     console.log(
-      `Project payment processed successfully for proposal ${proposalId}.`
+      `Project payment processed successfully for proposal ${proposalId}.`,
     );
   };
 
@@ -129,20 +126,20 @@ export async function POST(req: Request) {
           const amountValidation = await validateProjectPaymentAmount(
             session.metadata.proposalId,
             session.amount_total ?? undefined,
-            session.currency ?? undefined
+            session.currency ?? undefined,
           );
 
           if (!amountValidation.ok) {
             console.error(
               "Webhook: Invalid project payment amount.",
-              amountValidation.error
+              amountValidation.error,
             );
             return new NextResponse("Invalid payment amount", { status: 400 });
           }
 
           await handleProjectPayment(
             session.metadata.proposalId,
-            session.metadata.buyerId
+            session.metadata.buyerId,
           );
           return new NextResponse(null, { status: 200 });
         }
@@ -154,7 +151,7 @@ export async function POST(req: Request) {
           }
 
           const subscriptionDetails = (await stripe.subscriptions.retrieve(
-            session.subscription as string
+            session.subscription as string,
           )) as Stripe.Subscription;
 
           await db.user.update({
@@ -164,7 +161,7 @@ export async function POST(req: Request) {
               stripeCustomerId: subscriptionDetails.customer as string,
               stripePriceId: subscriptionDetails.items.data[0].price.id,
               stripeCurrentPeriodEnd: new Date(
-                ((subscriptionDetails as any).current_period_end ?? 0) * 1000
+                ((subscriptionDetails as any).current_period_end ?? 0) * 1000,
               ),
               stripeSubscriptionStatus: subscriptionDetails.status,
             },
@@ -180,7 +177,7 @@ export async function POST(req: Request) {
         if (session.metadata?.type === "project_payment") {
           await reopenProjectOnCheckoutExpired(
             session.metadata.proposalId,
-            session.metadata.buyerId
+            session.metadata.buyerId,
           );
         }
 
@@ -195,20 +192,20 @@ export async function POST(req: Request) {
           const amountValidation = await validateProjectPaymentAmount(
             paymentIntent.metadata.proposalId,
             amount ?? undefined,
-            paymentIntent.currency ?? undefined
+            paymentIntent.currency ?? undefined,
           );
 
           if (!amountValidation.ok) {
             console.error(
               "Webhook: Invalid project payment amount (payment_intent).",
-              amountValidation.error
+              amountValidation.error,
             );
             return new NextResponse("Invalid payment amount", { status: 400 });
           }
 
           await handleProjectPayment(
             paymentIntent.metadata.proposalId,
-            paymentIntent.metadata.buyerId
+            paymentIntent.metadata.buyerId,
           );
         }
         return new NextResponse(null, { status: 200 });
@@ -221,7 +218,7 @@ export async function POST(req: Request) {
         if (!subId) break;
 
         const subDetails = (await stripe.subscriptions.retrieve(
-          subId as string
+          subId as string,
         )) as Stripe.Subscription;
 
         await db.user.update({
@@ -229,7 +226,7 @@ export async function POST(req: Request) {
           data: {
             stripePriceId: subDetails.items.data[0].price.id,
             stripeCurrentPeriodEnd: new Date(
-              (subDetails as any).current_period_end * 1000
+              (subDetails as any).current_period_end * 1000,
             ),
             stripeSubscriptionStatus: subDetails.status,
           },
@@ -259,7 +256,7 @@ export async function POST(req: Request) {
         const subscription = event.data.object as Stripe.Subscription;
 
         const subDetails = (await stripe.subscriptions.retrieve(
-          subscription.id as string
+          subscription.id as string,
         )) as Stripe.Subscription;
 
         await db.user.update({
@@ -267,12 +264,12 @@ export async function POST(req: Request) {
           data: {
             stripeSubscriptionStatus: subDetails.status,
             stripeCurrentPeriodEnd: new Date(
-              ((subDetails as any).current_period_end ?? 0) * 1000
+              ((subDetails as any).current_period_end ?? 0) * 1000,
             ),
           },
         });
         console.log(
-          `Subscription ${subscription.id} status updated to: ${subDetails.status}`
+          `Subscription ${subscription.id} status updated to: ${subDetails.status}`,
         );
         return new NextResponse(null, { status: 200 });
       }

@@ -14,9 +14,18 @@ import {
 } from "lucide-react";
 import { UpgradeBanner } from "@/modules/billing/components/UpgradeBanner";
 import { Prisma } from "@prisma/client";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2026-01-28.clover" as any,
+});
 
 // Server Component (Async)
-export default async function ProfissionalDashboard() {
+export default async function ProfissionalDashboard({
+  searchParams,
+}: {
+  searchParams?: { success?: string; session_id?: string };
+}) {
   // 1. Autenticação
   const session = await verifySession();
 
@@ -25,6 +34,41 @@ export default async function ProfissionalDashboard() {
   }
 
   const userId = session.sub as string;
+
+  const sessionId = searchParams?.session_id;
+  if (searchParams?.success === "true" && sessionId) {
+    try {
+      const checkoutSession = await stripe.checkout.sessions.retrieve(
+        sessionId,
+        { expand: ["subscription"] }
+      );
+
+      if (
+        checkoutSession.mode === "subscription" &&
+        checkoutSession.metadata?.userId === userId
+      ) {
+        const subscription = checkoutSession.subscription as Stripe.Subscription;
+
+        if (subscription?.id) {
+          await db.user.update({
+            where: { id: userId },
+            data: {
+              stripeSubscriptionId: subscription.id,
+              stripeCustomerId: subscription.customer as string,
+              stripePriceId: subscription.items.data[0]?.price?.id ?? null,
+              stripeCurrentPeriodEnd: new Date(
+                ((subscription as any).current_period_end ?? 0) * 1000
+              ),
+              stripeSubscriptionStatus: subscription.status,
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao sincronizar assinatura:", error);
+    }
+    redirect("/dashboard/profissional");
+  }
 
   // 2. Buscando dados reais em paralelo
   const [conversationsCount, proposalsCount, completedProjects, currentUser] =
@@ -56,6 +100,9 @@ export default async function ProfissionalDashboard() {
         where: { id: userId },
         select: {
           stripeSubscriptionStatus: true,
+          stripeSubscriptionId: true,
+          stripeCustomerId: true,
+          stripePriceId: true,
           profileViews: true, // <--- Lendo as visitas reais do banco
         },
       }),
@@ -75,7 +122,16 @@ export default async function ProfissionalDashboard() {
   const profileVisits = currentUser?.profileViews || 0;
 
   // Verifica se é pro
-  const isPro = currentUser?.stripeSubscriptionStatus === "active";
+  const subscriptionStatus = currentUser?.stripeSubscriptionStatus ?? null;
+  const hasSubscription = Boolean(
+    currentUser?.stripeSubscriptionId ||
+      currentUser?.stripeCustomerId ||
+      currentUser?.stripePriceId
+  );
+  const isPro = subscriptionStatus
+    ? subscriptionStatus !== "canceled" &&
+      subscriptionStatus !== "incomplete_expired"
+    : hasSubscription;
 
   return (
     <PageContainer>

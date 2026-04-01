@@ -11,7 +11,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 export async function createCheckoutSession(
-  planId: "starter" | "advanced"
+  planId: "starter" | "advanced",
 ): Promise<ActionResponse<{ url: string }>> {
   const session = await getUserSession();
 
@@ -65,7 +65,7 @@ export async function createCheckoutSession(
       metadata: {
         userId: user.id,
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/profissional?success=true`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/profissional?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/beWorker`,
       subscription_data: {
         metadata: {
