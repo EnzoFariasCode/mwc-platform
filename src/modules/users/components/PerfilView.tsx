@@ -723,12 +723,18 @@ export default function PerfilView({ user }: { user: UserData }) {
                 <p className="text-[11px] text-slate-500 mt-2">
                   {progressDone}/{progressTotal} itens completos
                 </p>
-                <button
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="mt-3 w-full py-2 bg-primary text-primary-foreground text-xs font-bold rounded-lg hover:brightness-110 transition-all"
-                >
-                  Concluir
-                </button>
+                {progressDone < progressTotal ? (
+                  <button
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="mt-3 w-full py-2 bg-primary text-primary-foreground text-xs font-bold rounded-lg hover:brightness-110 transition-all"
+                  >
+                    Concluir
+                  </button>
+                ) : (
+                  <div className="mt-3 w-full py-2 text-center text-xs font-bold text-emerald-400 border border-emerald-500/30 rounded-lg bg-emerald-500/10">
+                    Perfil completo
+                  </div>
+                )}
               </div>
             </div>
           </div>
