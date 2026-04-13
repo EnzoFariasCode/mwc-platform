@@ -19,7 +19,7 @@ export function WelcomeModal() {
     setIsMounted(true);
     const timer = setTimeout(() => {
       handleClose();
-    }, 3500);
+    }, 5000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -50,7 +50,7 @@ export function WelcomeModal() {
         </div>
 
         <h2 className="text-2xl font-bold text-foreground font-futura mb-2">
-          Bem-vindo à MWC!
+          Bem-vindo à Maximus World Click!
         </h2>
         <p className="text-gray-400 text-sm mb-8">
           Conectando você aos melhores profissionais.
