@@ -5,6 +5,7 @@ import { Mail, Lock, CheckCircle2, Loader2, Eye, EyeOff } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { WelcomeModal } from "./components/LoginModal";
 import { signIn } from "next-auth/react"; // <--- Importação correta para Client Components
 
 function LoginContent() {
@@ -258,10 +259,15 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={<div className="text-center text-gray-500">Carregando...</div>}
-    >
-      <LoginContent />
-    </Suspense>
+    <>
+      <WelcomeModal />
+      <Suspense
+        fallback={
+          <div className="text-center text-gray-500">Carregando...</div>
+        }
+      >
+        <LoginContent />
+      </Suspense>
+    </>
   );
 }
