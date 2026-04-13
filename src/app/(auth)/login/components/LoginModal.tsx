@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import logoImg from "@/assets/images/landingPage/logo.png";
 
 export function WelcomeModal() {
+  const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
 
@@ -14,15 +16,16 @@ export function WelcomeModal() {
   };
 
   useEffect(() => {
+    setIsMounted(true);
     const timer = setTimeout(() => {
       handleClose();
     }, 3500);
     return () => clearTimeout(timer);
   }, []);
 
-  if (!isOpen) return null;
+  if (!isMounted || !isOpen) return null;
 
-  return (
+  const modal = (
     <div
       className={`fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm transition-opacity duration-300 ${
         isClosing ? "opacity-0" : "animate-in fade-in"
@@ -62,4 +65,6 @@ export function WelcomeModal() {
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }
