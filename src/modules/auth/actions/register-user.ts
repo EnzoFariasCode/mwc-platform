@@ -1,8 +1,11 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { UserType } from "@prisma/client";
-import { findUserByEmail, createUser } from "@/modules/users/services/user-service";
+import { UserType, Industry } from "@prisma/client"; // Adicionado Industry aqui
+import {
+  findUserByEmail,
+  createUser,
+} from "@/modules/users/services/user-service";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { validatePassword } from "@/modules/auth/lib/password";
 
@@ -19,6 +22,7 @@ export async function registerUser(
   // Dados profissionais
   const jobTitle = formData.get("jobTitle")?.toString().trim();
   const experienceRaw = formData.get("experienceLevel")?.toString();
+  const industryRaw = formData.get("industry")?.toString(); // Extraindo o novo campo
 
   // 1. Validação Básica
   if (!name || !email || !password) {
@@ -26,11 +30,19 @@ export async function registerUser(
   }
 
   // 2. Validação Profissional
-  if (isPro && !jobTitle) {
-    return {
-      success: false,
-      error: "Profissionais precisam informar sua especialidade.",
-    };
+  if (isPro) {
+    if (!jobTitle) {
+      return {
+        success: false,
+        error: "Profissionais precisam informar sua especialidade.",
+      };
+    }
+    if (!industryRaw) {
+      return {
+        success: false,
+        error: "Profissionais precisam selecionar a área de atuação.",
+      };
+    }
   }
 
   const passwordValidation = validatePassword(password);
@@ -49,6 +61,10 @@ export async function registerUser(
     const birthDate = birthDateRaw ? new Date(birthDateRaw) : null;
     const yearsOfExperience = experienceRaw ? parseInt(experienceRaw) : null;
 
+    // Define o setor: Se for PRO e marcou HEALTH, salva HEALTH. O resto vira TECH.
+    const industry =
+      isPro && industryRaw === "HEALTH" ? Industry.HEALTH : Industry.TECH;
+
     await createUser({
       name,
       email,
@@ -56,6 +72,7 @@ export async function registerUser(
       displayName: displayName || name,
       birthDate,
       userType: isPro ? UserType.PROFESSIONAL : UserType.CLIENT,
+      industry, // Enviando o campo para o banco
       jobTitle: isPro ? jobTitle : null,
       yearsOfExperience: isPro ? yearsOfExperience : null,
     });

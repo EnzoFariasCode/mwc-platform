@@ -277,6 +277,30 @@ function RegisterContent() {
 
           {isPro && (
             <div className="space-y-4 pl-4 border-l-2 border-primary/20 animate-in slide-in-from-top-2 fade-in duration-300">
+              {/* --- NOVO CAMPO: ÁREA DE ATUAÇÃO (TECH ou HEALTH) --- */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Área de atuação principal
+                </label>
+                <div className="relative group">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
+                    <Briefcase size={18} />
+                  </div>
+                  <select
+                    name="industry"
+                    required={isPro}
+                    defaultValue=""
+                    className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all text-sm appearance-none cursor-pointer"
+                  >
+                    <option value="" disabled className="text-muted-foreground">
+                      Selecione o seu setor...
+                    </option>
+                    <option value="TECH">Tecnologia, Design & Negócios</option>
+                    <option value="HEALTH">Saúde, Terapia & Bem-estar</option>
+                  </select>
+                </div>
+              </div>
+
               {/* Profissão */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
@@ -290,7 +314,7 @@ function RegisterContent() {
                     name="jobTitle"
                     type="text"
                     required={isPro}
-                    placeholder="Ex: Eletricista, Advogado, Dev..."
+                    placeholder="Ex: Desenvolvedor, Psicólogo, Designer..."
                     className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground text-sm"
                   />
                 </div>
