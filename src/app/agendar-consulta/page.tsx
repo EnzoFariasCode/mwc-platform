@@ -18,11 +18,18 @@ import FooterContact from "@/components/ui/FooterContact";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useSession } from "next-auth/react";
 
 gsap.registerPlugin(ScrollTrigger);
 
 export default function AgendarConsultaPage() {
   const pageRef = useRef<HTMLDivElement>(null);
+  const { data: session, status } = useSession();
+  const isAuthenticated = status === "authenticated";
+  const isLoading = status === "loading";
+
+  // Pega o primeiro nome do usuário para ficar amigável (ex: "Olá, João")
+  const firstName = session?.user?.name?.split(" ")[0] || "Meu Perfil";
 
   // Animações GSAP da nova seção "Cuide da sua saúde"
   useGSAP(
@@ -126,7 +133,7 @@ export default function AgendarConsultaPage() {
         <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-[#d73cbe]/5 rounded-full blur-[150px]" />
       </div>
 
-      {/* HEADER MINIMALISTA */}
+      {/* HEADER MINIMALISTA E INTELIGENTE */}
       <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#020617]/80 backdrop-blur-md">
         <div className="container mx-auto max-w-7xl px-4 h-20 flex items-center justify-between">
           <Link
@@ -138,6 +145,7 @@ export default function AgendarConsultaPage() {
               MWC <span className="text-[#d73cbe]">Health</span>
             </span>
           </Link>
+
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
             <Link
               href="/agendar-consulta"
@@ -145,25 +153,57 @@ export default function AgendarConsultaPage() {
             >
               Início
             </Link>
+            {/* Redirecionamento inteligente: se logado vai pro historico, se não, vai pro login com ordem de voltar pra cá */}
             <Link
-              href="/agendar-consulta/historico"
+              href={
+                isAuthenticated
+                  ? "/agendar-consulta/historico"
+                  : "/login?callbackUrl=/agendar-consulta/historico"
+              }
               className="hover:text-[#d73cbe] transition-colors"
             >
               Minhas Consultas
             </Link>
           </nav>
-          <div className="flex items-center gap-3 cursor-pointer group">
-            <div className="w-10 h-10 rounded-full bg-[#1e293b] border border-white/10 flex items-center justify-center text-slate-300 group-hover:border-[#d73cbe]/50 transition-colors">
-              <User className="w-5 h-5" />
+
+          {/* ÁREA DO USUÁRIO */}
+          {isLoading ? (
+            // Skeleton loading para evitar que os botões pisquem na tela
+            <div className="w-32 h-10 rounded-xl bg-slate-800/50 animate-pulse" />
+          ) : isAuthenticated ? (
+            // Usuário Logado - Mostra o Perfil
+            <div className="flex items-center gap-3 cursor-pointer group">
+              <div className="w-10 h-10 rounded-full bg-[#1e293b] border border-white/10 flex items-center justify-center text-slate-300 group-hover:border-[#d73cbe]/50 overflow-hidden transition-colors">
+                {session.user?.image ? (
+                  <img
+                    src={session.user.image}
+                    alt={firstName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-5 h-5" />
+                )}
+              </div>
+              <div className="hidden sm:flex flex-col items-start">
+                <span className="text-sm font-semibold leading-none text-white">
+                  {firstName}
+                </span>
+                <span className="text-xs text-[#d73cbe] mt-1 font-medium">
+                  Paciente
+                </span>
+              </div>
+              <ChevronDown className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors ml-1" />
             </div>
-            <div className="hidden sm:flex flex-col items-start">
-              <span className="text-sm font-semibold leading-none">
-                Meu Perfil
-              </span>
-              <span className="text-xs text-slate-500 mt-1">Paciente</span>
-            </div>
-            <ChevronDown className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors ml-1" />
-          </div>
+          ) : (
+            // Usuário Deslogado - Botão de Fazer Login
+            <Link
+              href="/login?callbackUrl=/agendar-consulta"
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#d73cbe]/10 text-[#d73cbe] rounded-xl hover:bg-[#d73cbe] hover:text-white transition-all font-medium border border-[#d73cbe]/20 hover:border-[#d73cbe] shadow-lg shadow-purple-900/10"
+            >
+              <User className="w-4 h-4" />
+              Canal do Paciente
+            </Link>
+          )}
         </div>
       </header>
 

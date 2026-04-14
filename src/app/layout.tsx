@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins, Orbitron } from "next/font/google";
 import { Toaster } from "sonner"; // <--- 1. IMPORTANTE: Importar aqui
 import "./globals.css";
+import { AuthProvider } from "@/providers/AuthProvider";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -31,7 +32,7 @@ export default function RootLayout({
         suppressHydrationWarning={true}
         className={`${poppins.className} ${orbitron.variable} antialiased bg-slate-950 text-slate-50`}
       >
-        {children}
+        <AuthProvider>{children}</AuthProvider>
 
         {/* 2. ADICIONE ISSO AQUI (Fora do children, mas dentro do body) */}
         <Toaster richColors theme="dark" position="top-center" closeButton />
