@@ -17,6 +17,12 @@ enum UserType {
   ADMIN
 }
 
+// [NOVO] Diferencia os "mundos" dentro da plataforma
+enum Industry {
+  TECH      // Desenvolvedores, Designers, Freelancers (Padrão atual)
+  HEALTH    // Psicólogos, Nutricionistas, Personal Trainers
+}
+
 enum ProjectStatus {
   OPEN             // Aberto para receber propostas
   WAITING_PAYMENT  // Cliente aceitou proposta, aguardando pagamento (Escrow)
@@ -34,26 +40,37 @@ enum ProposalStatus {
   WITHDRAWN
 }
 
+// [NOVO] Status das consultas na área da saúde
+enum AppointmentStatus {
+  SCHEDULED // Marcada
+  COMPLETED // Realizada
+  CANCELED  // Cancelada
+}
+
 // =========================================================
 // 2. MODELO DE USUÁRIO (Principal)
 // =========================================================
 
 model User {
-  id             String    @id @default(uuid())
-  name           String
-  displayName    String?
-  email          String    @unique
-  emailVerified  DateTime?
-  image          String?
-  password       String?
-  birthDate      DateTime?
-  userType       UserType  @default(CLIENT)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  profileViews     Int       @default(0)
+  id              String    @id @default(uuid())
+  name            String
+  displayName     String?
+  email           String    @unique
+  emailVerified   DateTime?
+  image           String?
+  password        String?
+  birthDate       DateTime?
+  userType        UserType  @default(CLIENT)
   
-  // --- Dados de Perfil ---
+  // [NOVO] Campo que define de qual "setor" o usuário é
+  industry        Industry  @default(TECH) 
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  profileViews    Int       @default(0)
+  
+  // --- Dados de Perfil Gerais ---
   bio             String?   @db.Text
   city            String?
   state           String?
@@ -61,34 +78,41 @@ model User {
   rating          Float     @default(0) 
   ratingCount     Int       @default(0)
   
-  // Campos Profissionais
-  jobTitle        String?            
-  yearsOfExperience Int?           
-  skills          String[]  @default([])
-  
-  socialGithub    String?
-  socialLinkedin  String?
-  
+  // =========================================================
+  // [CAMPOS PROFISSIONAIS - SETOR TECH]
+  // =========================================================
+  jobTitle          String?            
+  yearsOfExperience Int?               
+  skills            String[]  @default([])
+  socialGithub      String?
+  socialLinkedin    String?
+  portfolio         Json?     @default("[]") 
+  certificates      Json?     @default("[]")
+
+  // =========================================================
+  // [CAMPOS PROFISSIONAIS - SETOR HEALTH]
+  // =========================================================
+  documentReg       String?   // Para CRM, CRP, CREF, etc. (Ex: "CRP 06/12345")
+  approach          String?   // Abordagem clínica (Ex: "TCC", "Psicanálise")
+  consultationFee   Decimal?  // Valor fixo da consulta
+  availability      Json?     @default("{}") // JSON para guardar a grade de horários disponíveis
+
   // Armazenamento de Imagem no Banco
   profileImageBytes Bytes?   
   profileImageType  String?  
 
   // --- RECUPERAÇÃO DE SENHA ---
-  resetCode       String?   
-  resetCodeExpiry DateTime? 
+  resetCode         String?   
+  resetCodeExpiry   DateTime? 
   
-  // --- JSONs ---
-  portfolio       Json?     @default("[]") 
-  certificates    Json?     @default("[]")
-
   // =========================================================
   // [INTEGRAÇÃO STRIPE - ASSINATURA]
   // =========================================================
-  stripeCustomerId         String?   @unique // ID do cliente na Stripe
-  stripeSubscriptionId     String?   @unique // ID da assinatura
-  stripePriceId            String?           // ID do Plano (Starter/Pro)
-  stripeCurrentPeriodEnd   DateTime?         // Validade
-  stripeSubscriptionStatus String?           // [NOVO] active, past_due, trialing, canceled...
+  stripeCustomerId         String?   @unique 
+  stripeSubscriptionId     String?   @unique 
+  stripePriceId            String?             
+  stripeCurrentPeriodEnd   DateTime?         
+  stripeSubscriptionStatus String?            
 
   // =========================================================
   // [DADOS FINANCEIROS - RECEBIMENTO DE TRABALHO]
@@ -99,45 +123,30 @@ model User {
   
   transactions     Transaction[]
 
-  // --- Relacionamentos ---
+  // --- Relacionamentos Tech ---
   projectsOwned    Project[] @relation("ClientProjects")
   projectsAssigned Project[] @relation("ProProjects")
   proposals        Proposal[]    @relation("ProfessionalProposals")
   deliverables     Deliverable[] @relation("UserDeliverables")       
+  
+  // --- Relacionamentos Health [NOVO] ---
+  patientAppointments Appointment[] @relation("PatientAppointments")
+  proAppointments     Appointment[] @relation("ProAppointments")
+
+  // --- Relacionamentos Gerais ---
   conversationsAsA Conversation[] @relation("ParticipantA")
   conversationsAsB Conversation[] @relation("ParticipantB")
   sentMessages     Message[]         @relation("SentMessages")
-  favorites       Favorite[] @relation("UserFavorites")
-  favoritedBy     Favorite[] @relation("FavoritedBy")
-  reviewsWritten  Review[]   @relation("ReviewsAuthored")
-  reviewsReceived Review[]   @relation("ReviewsReceived")
-  accounts        Account[]
-  sessions        Session[]
+  favorites        Favorite[] @relation("UserFavorites")
+  favoritedBy      Favorite[] @relation("FavoritedBy")
+  reviewsWritten   Review[]   @relation("ReviewsAuthored")
+  reviewsReceived  Review[]   @relation("ReviewsReceived")
+  accounts         Account[]
+  sessions         Session[]
 }
 
 // =========================================================
-// 3. MODELO DE TRANSAÇÕES FINANCEIRAS
-// =========================================================
-
-model Transaction {
-  id          String   @id @default(uuid())
-  
-  userId      String   
-  user        User     @relation(fields: [userId], references: [id])
-  
-  amount      Decimal   
-  type        String   // "CREDIT" (Entrada) ou "DEBIT" (Saída)
-  status      String   // "PENDING", "COMPLETED", "FAILED"
-  description String   
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  projectId   String?
-}
-
-// =========================================================
-// 4. MODELO DE PROJETOS E OUTROS
+// 3. MODELOS DE NEGÓCIO - TECH (PROJETOS)
 // =========================================================
 
 model Project {
@@ -175,23 +184,6 @@ model Project {
   reviews         Review[]
 }
 
-model Review {
-  id        String   @id @default(uuid())
-  rating    Int
-  comment   String?  @db.Text
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User     @relation("ReviewsAuthored", fields: [authorId], references: [id])
-  targetId  String
-  target    User     @relation("ReviewsReceived", fields: [targetId], references: [id])
-  createdAt DateTime @default(now())
-
-  @@unique([projectId, authorId])
-  @@index([targetId])
-  @@index([projectId])
-}
-
 model Proposal {
   id             String    @id @default(uuid())
   price          Decimal  
@@ -216,9 +208,75 @@ model Deliverable {
   link           String?  
   projectId      String
   project        Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  senderId       String    
+  senderId       String   
   sender         User      @relation("UserDeliverables", fields: [senderId], references: [id])
   createdAt      DateTime @default(now())
+}
+
+// =========================================================
+// [NOVO] 4. MODELOS DE NEGÓCIO - HEALTH (CONSULTAS)
+// =========================================================
+
+model Appointment {
+  id              String            @id @default(uuid())
+  date            DateTime          // Dia e hora da consulta agendada
+  status          AppointmentStatus @default(SCHEDULED)
+  meetLink        String?           // Link da videochamada gerado (Google Meet/Zoom)
+  price           Decimal           // Valor cobrado na consulta
+  notes           String?           @db.Text // Anotações do paciente para o profissional
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relacionamento com quem contratou (Paciente)
+  patientId       String
+  patient         User              @relation("PatientAppointments", fields: [patientId], references: [id])
+  
+  // Relacionamento com quem atende (Médico/Terapeuta)
+  professionalId  String
+  professional    User              @relation("ProAppointments", fields: [professionalId], references: [id])
+
+  @@index([patientId])
+  @@index([professionalId])
+}
+
+// =========================================================
+// 5. INFRAESTRUTURA COMPARTILHADA (FINANCEIRO, CHAT E AUTH)
+// =========================================================
+
+model Transaction {
+  id          String   @id @default(uuid())
+  
+  userId      String   
+  user        User     @relation(fields: [userId], references: [id])
+  
+  amount      Decimal  
+  type        String   // "CREDIT" (Entrada) ou "DEBIT" (Saída)
+  status      String   // "PENDING", "COMPLETED", "FAILED"
+  description String   
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projectId   String?
+  // Poderíamos ter appointmentId String? aqui no futuro para rastrear transações de saúde
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int
+  comment   String?  @db.Text
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("ReviewsAuthored", fields: [authorId], references: [id])
+  targetId  String
+  target    User     @relation("ReviewsReceived", fields: [targetId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, authorId])
+  @@index([targetId])
+  @@index([projectId])
 }
 
 model Conversation {
@@ -259,6 +317,7 @@ model Favorite {
   @@unique([clientId, professionalId])
 }
 
+// Modelos do NextAuth (Não mexer)
 model Account {
   id                String  @id @default(uuid())
   userId            String
