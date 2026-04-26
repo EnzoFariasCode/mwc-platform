@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Star, MapPin, Video, ChevronRight, ChevronLeft } from "lucide-react";
+import { Star, Video, ChevronRight, ChevronLeft } from "lucide-react";
 
 // Mock de dados - Isso virá do seu Back-end depois
 const professionals = [

@@ -6,7 +6,6 @@ import Image from "next/image";
 import logoImg from "@/assets/images/landingPage/logo.png";
 
 export function WelcomeModal() {
-  const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
 
@@ -16,14 +15,13 @@ export function WelcomeModal() {
   };
 
   useEffect(() => {
-    setIsMounted(true);
     const timer = setTimeout(() => {
       handleClose();
     }, 5000);
     return () => clearTimeout(timer);
   }, []);
 
-  if (!isMounted || !isOpen) return null;
+  if (typeof document === "undefined" || !isOpen) return null;
 
   const modal = (
     <div

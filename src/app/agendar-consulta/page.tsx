@@ -173,12 +173,14 @@ export default function AgendarConsultaPage() {
           ) : isAuthenticated ? (
             // Usuário Logado - Mostra o Perfil
             <div className="flex items-center gap-3 cursor-pointer group">
-              <div className="w-10 h-10 rounded-full bg-[#1e293b] border border-white/10 flex items-center justify-center text-slate-300 group-hover:border-[#d73cbe]/50 overflow-hidden transition-colors">
+              <div className="relative w-10 h-10 rounded-full bg-[#1e293b] border border-white/10 flex items-center justify-center text-slate-300 group-hover:border-[#d73cbe]/50 overflow-hidden transition-colors">
                 {session.user?.image ? (
-                  <img
+                  <Image
                     src={session.user.image}
                     alt={firstName}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
+                    unoptimized
                   />
                 ) : (
                   <User className="w-5 h-5" />
