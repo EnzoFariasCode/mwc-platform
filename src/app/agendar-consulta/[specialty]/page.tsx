@@ -156,7 +156,7 @@ export default function SpecialtyPage({
 
                 <div className="mt-4 text-center">
                   <Link
-                    href={`/perfil/${pro.id}`}
+                    href={`/agendar-consulta/perfil/${pro.id}`}
                     className="text-xs text-slate-400 hover:text-white transition-colors underline decoration-white/20 underline-offset-4"
                   >
                     Ver perfil completo
