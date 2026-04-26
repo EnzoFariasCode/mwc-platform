@@ -20,7 +20,6 @@ import { useState, Suspense } from "react";
 import { registerUser } from "@/modules/auth/actions/register-user";
 import { toast } from "sonner";
 
-// Componente Auxiliar para o Checklist de Senha
 function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
   return (
     <div
@@ -46,18 +45,19 @@ function RegisterContent() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isPro, setIsPro] = useState(false);
+  const [selectedIndustry, setSelectedIndustry] = useState<
+    "" | "TECH" | "HEALTH"
+  >("");
 
-  // --- NOVOS ESTADOS ---
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordFocus, setPasswordFocus] = useState(false);
 
-  // --- VALIDAÇÃO DE SENHA EM TEMPO REAL ---
   const reqs = {
-    length: password.length >= 8 && password.length <= 20, // Ajustado para máx 20 para ter folga (back valida 10 se quiser ser rígido)
+    length: password.length >= 8 && password.length <= 20,
     upper: /[A-Z]/.test(password),
     lower: /[a-z]/.test(password),
-    numberOrSymbol: /[\d\W]/.test(password), // Número ou Símbolo
+    numberOrSymbol: /[\d\W]/.test(password),
   };
 
   const isPasswordValid = Object.values(reqs).every(Boolean);
@@ -69,7 +69,6 @@ function RegisterContent() {
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Bloqueia envio se a senha não for forte
     if (!isPasswordValid) {
       toast.error("A senha não atende aos requisitos de segurança.");
       return;
@@ -134,7 +133,6 @@ function RegisterContent() {
       </div>
 
       <form className="space-y-5" onSubmit={handleRegister}>
-        {/* Nome */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Nome Completo
@@ -153,7 +151,6 @@ function RegisterContent() {
           </div>
         </div>
 
-        {/* Display Name */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Como quer ser chamado?
@@ -172,7 +169,6 @@ function RegisterContent() {
           </div>
         </div>
 
-        {/* Data Nascimento */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Data de Nascimento
@@ -191,7 +187,6 @@ function RegisterContent() {
           </div>
         </div>
 
-        {/* Email */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Email Profissional
@@ -210,7 +205,6 @@ function RegisterContent() {
           </div>
         </div>
 
-        {/* --- SENHA REFORMULADA --- */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground ml-1">
             Senha
@@ -227,11 +221,9 @@ function RegisterContent() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onFocus={() => setPasswordFocus(true)}
-              // onBlur={() => setPasswordFocus(false)} // Comentado para manter a lista visível se o usuário clicar fora mas ainda estiver inválido
               className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-12 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground"
             />
 
-            {/* Botão Olhinho */}
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
@@ -242,7 +234,6 @@ function RegisterContent() {
             </button>
           </div>
 
-          {/* CHECKLIST DE REQUISITOS (Aparece ao digitar ou focar) */}
           {(passwordFocus || password.length > 0) && (
             <div className="grid grid-cols-2 gap-2 mt-2 p-3 bg-card border border-border rounded-lg animate-in fade-in slide-in-from-top-1">
               <PasswordRequirement met={reqs.length} text="8 a 20 caracteres" />
@@ -256,7 +247,6 @@ function RegisterContent() {
           )}
         </div>
 
-        {/* Checkbox Tipo de Conta e Campos Condicionais */}
         <div className="space-y-4 pt-2">
           <div className="flex items-center gap-3">
             <input
@@ -264,7 +254,13 @@ function RegisterContent() {
               name="isPro"
               id="isPro"
               checked={isPro}
-              onChange={(e) => setIsPro(e.target.checked)}
+              onChange={(e) => {
+                const nextIsPro = e.target.checked;
+                setIsPro(nextIsPro);
+                if (!nextIsPro) {
+                  setSelectedIndustry("");
+                }
+              }}
               className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer accent-primary"
             />
             <label
@@ -277,7 +273,6 @@ function RegisterContent() {
 
           {isPro && (
             <div className="space-y-4 pl-4 border-l-2 border-primary/20 animate-in slide-in-from-top-2 fade-in duration-300">
-              {/* --- NOVO CAMPO: ÁREA DE ATUAÇÃO (TECH ou HEALTH) --- */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
                   Área de atuação principal
@@ -289,7 +284,12 @@ function RegisterContent() {
                   <select
                     name="industry"
                     required={isPro}
-                    defaultValue=""
+                    value={selectedIndustry}
+                    onChange={(e) =>
+                      setSelectedIndustry(
+                        e.target.value as "" | "TECH" | "HEALTH",
+                      )
+                    }
                     className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all text-sm appearance-none cursor-pointer"
                   >
                     <option value="" disabled className="text-muted-foreground">
@@ -301,26 +301,51 @@ function RegisterContent() {
                 </div>
               </div>
 
-              {/* Profissão */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
                   Qual sua especialidade principal?
                 </label>
                 <div className="relative group">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
                     <Briefcase size={18} />
                   </div>
-                  <input
-                    name="jobTitle"
-                    type="text"
-                    required={isPro}
-                    placeholder="Ex: Desenvolvedor, Psicólogo, Designer..."
-                    className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground text-sm"
-                  />
+                  {selectedIndustry === "HEALTH" ? (
+                    <select
+                      key="health-job-title"
+                      name="jobTitle"
+                      required={isPro}
+                      defaultValue=""
+                      className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all text-sm appearance-none cursor-pointer"
+                    >
+                      <option
+                        value=""
+                        disabled
+                        className="text-muted-foreground"
+                      >
+                        Selecione sua especialidade...
+                      </option>
+                      <option value="Personal Trainer">
+                        Personal Trainer
+                      </option>
+                      <option value="Nutricionista">Nutricionista</option>
+                      <option value="Professor(a) de Inglês">
+                        Professor(a) de Inglês
+                      </option>
+                      <option value="Psicólogo(a)">Psicólogo(a)</option>
+                    </select>
+                  ) : (
+                    <input
+                      key="default-job-title"
+                      name="jobTitle"
+                      type="text"
+                      required={isPro}
+                      placeholder="Ex: Desenvolvedor, Designer, Product Manager..."
+                      className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground text-sm"
+                    />
+                  )}
                 </div>
               </div>
 
-              {/* Tempo de Experiência */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
                   Tempo de experiência
@@ -350,7 +375,6 @@ function RegisterContent() {
           )}
         </div>
 
-        {/* Termos */}
         <div className="flex items-start gap-3 pt-2">
           <div className="relative flex items-center">
             <input
@@ -382,7 +406,7 @@ function RegisterContent() {
 
         <button
           type="submit"
-          disabled={isLoading || !isPasswordValid} // Bloqueia se a senha for fraca
+          disabled={isLoading || !isPasswordValid}
           className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isLoading ? (
@@ -398,7 +422,6 @@ function RegisterContent() {
         </button>
       </form>
 
-      {/* Rodapé e Sociais mantidos iguais */}
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-border" />
