@@ -4,9 +4,9 @@ import Link from "next/link";
 import { Mail, Lock, CheckCircle2, Loader2, Eye, EyeOff } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense, useEffect, useRef } from "react";
+import { signIn, getSession } from "next-auth/react";
 import { toast } from "sonner";
 import { WelcomeModal } from "./components/LoginModal";
-import { signIn } from "next-auth/react"; // <--- Importação correta para Client Components
 
 function LoginContent() {
   const router = useRouter();
@@ -22,12 +22,11 @@ function LoginContent() {
   const [errorMessage, setErrorMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Ref para garantir que o toast só dispare uma vez
   const toastShown = useRef(false);
 
   useEffect(() => {
     if (registered === "true" && !toastShown.current) {
-      toastShown.current = true; // Trava disparo duplo
+      toastShown.current = true;
 
       toast.success("Conta criada com sucesso!", {
         description: "Faça login para continuar.",
@@ -78,8 +77,33 @@ function LoginContent() {
       return;
     }
 
+    const session = await getSession();
+    const user = session?.user as
+      | (typeof session.user & {
+          userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN";
+          industry?: "TECH" | "HEALTH";
+          jobTitle?: string | null;
+        })
+      | undefined;
+
     toast.success("Login realizado!");
-    window.location.href = callbackUrl;
+
+    if (searchParams.get("action") === "chat") {
+      window.location.href = callbackUrl;
+      return;
+    }
+
+    if (user?.userType === "PROFESSIONAL" && user?.industry === "HEALTH") {
+      window.location.href = "/agendar-consulta/dashboard-profissional";
+      return;
+    }
+
+    if (user?.userType === "PROFESSIONAL" && user?.industry === "TECH") {
+      window.location.href = "/dashboard/profissional";
+      return;
+    }
+
+    window.location.href = "/portal";
   };
 
   return (
@@ -132,7 +156,6 @@ function LoginContent() {
       )}
 
       <form className="space-y-5" onSubmit={handleLogin}>
-        {/* Email */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-300 ml-1">
             Email
@@ -151,7 +174,6 @@ function LoginContent() {
           </div>
         </div>
 
-        {/* Senha */}
         <div className="space-y-2">
           <div className="flex justify-between items-center ml-1">
             <label className="text-sm font-medium text-gray-300">Senha</label>
@@ -173,7 +195,6 @@ function LoginContent() {
               placeholder="••••••••"
               className="w-full bg-card/50 border border-input text-foreground rounded-xl py-3 pl-10 pr-12 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-gray-600"
             />
-            {/* BOTAO OLHINHO */}
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}

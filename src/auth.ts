@@ -6,6 +6,11 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/prisma";
 
 const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
+type AuthUserExtras = {
+  userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN";
+  industry?: "TECH" | "HEALTH";
+  jobTitle?: string | null;
+};
 
 async function storeRemoteProfileImage(userId: string, imageUrl: string) {
   const existing = await db.user.findUnique({
@@ -75,6 +80,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           image: user.image ?? null,
           userType: user.userType,
+          industry: user.industry,
+          jobTitle: user.jobTitle,
         };
       },
     }),
@@ -82,15 +89,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        const authUser = user as typeof user & AuthUserExtras;
         token.id = user.id;
-        token.role = user.userType || "CLIENT";
+        token.role = authUser.userType || "CLIENT";
+        token.userType = authUser.userType || "CLIENT";
+        token.industry = authUser.industry || "TECH";
+        token.jobTitle = authUser.jobTitle || null;
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
+        const sessionUser = session.user as typeof session.user & AuthUserExtras;
         session.user.id = token.id as string;
         session.user.role = token.role as "CLIENT" | "PROFESSIONAL" | "ADMIN";
+        sessionUser.userType = token.userType as AuthUserExtras["userType"];
+        sessionUser.industry = token.industry as AuthUserExtras["industry"];
+        sessionUser.jobTitle = token.jobTitle as AuthUserExtras["jobTitle"];
       }
       return session;
     },
