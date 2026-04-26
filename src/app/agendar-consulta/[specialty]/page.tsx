@@ -38,7 +38,7 @@ export default function SpecialtyPage({
     params.specialty.charAt(0).toUpperCase() + params.specialty.slice(1);
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white font-poppins pt-24 pb-16">
+    <div className="min-h-screen bg-[#020617] text-white font-poppins pb-16">
       <div className="container mx-auto max-w-5xl px-4">
         <div className="mb-8 border-b border-white/10 pb-6">
           <h1 className="text-3xl font-futura font-bold text-white mb-2">

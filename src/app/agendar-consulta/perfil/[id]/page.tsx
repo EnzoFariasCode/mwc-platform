@@ -39,7 +39,7 @@ export default async function ProfessionalHealthProfile({
   ];
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white font-poppins pt-24 pb-24">
+    <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24">
       <div className="container mx-auto max-w-6xl px-4">
         <Link
           href="/agendar-consulta"
