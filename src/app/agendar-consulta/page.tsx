@@ -2,8 +2,16 @@
 
 import { useRef } from "react";
 import Link from "next/link";
+import React from "react";
 import Image from "next/image";
-import { Activity, ArrowRight, Star, ShieldCheck, HeartPulse } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  Star,
+  ShieldCheck,
+  HeartPulse,
+  Scale,
+} from "lucide-react";
 import FooterContact from "@/components/ui/FooterContact";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -100,6 +108,18 @@ export default function AgendarConsultaPage() {
       accentBg: "bg-blue-500",
       count: "20+ especialistas",
     },
+    {
+      id: "advogado",
+      name: "Advogado",
+      description: "Consultoria jurídica, revisão de contratos e mediação.",
+      image:
+        "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=600&q=80",
+      color:
+        "group-hover:border-amber-500/50 group-hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]",
+      accentText: "text-amber-400",
+      accentBg: "bg-amber-500",
+      count: "10+ especialistas",
+    },
   ];
 
   return (
@@ -128,59 +148,63 @@ export default function AgendarConsultaPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
-            {specialties.map((spec) => (
-              <Link
-                key={spec.id}
-                href={`/agendar-consulta/${spec.id}`}
-                className="block outline-none h-full"
-              >
-                <div
-                  className={`group flex flex-col h-full bg-[#0f172a]/90 backdrop-blur-sm border border-white/10 rounded-3xl overflow-hidden cursor-pointer transition-all duration-500 hover:-translate-y-2 ${spec.color}`}
+          <div className="flex flex-wrap justify-center gap-6 items-stretch">
+            {specialties.map((spec, index) => (
+              <React.Fragment key={spec.id}>
+                <Link
+                  href={`/agendar-consulta/${spec.id}`}
+                  className="block outline-none w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)]"
                 >
-                  <div className="relative h-[200px] w-full overflow-hidden shrink-0 bg-slate-900">
-                    <Image
-                      src={spec.image}
-                      alt={spec.name}
-                      fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out"
-                      unoptimized
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent opacity-90" />
-                  </div>
-                  <div className="flex flex-col flex-grow p-6">
-                    <div>
-                      <h2
-                        className={`font-futura text-xl font-bold uppercase tracking-wide mb-2 transition-colors duration-300 ${spec.accentText}`}
-                      >
-                        {spec.name}
-                      </h2>
-                      <p className="text-sm text-slate-400 leading-relaxed font-light">
-                        {spec.description}
-                      </p>
+                  <div
+                    className={`group flex flex-col h-full bg-[#0f172a]/90 backdrop-blur-sm border border-white/10 rounded-3xl overflow-hidden cursor-pointer transition-all duration-500 hover:-translate-y-2 ${spec.color}`}
+                  >
+                    <div className="relative h-[200px] w-full overflow-hidden shrink-0 bg-slate-900">
+                      <Image
+                        src={spec.image}
+                        alt={spec.name}
+                        fill
+                        className="object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out"
+                        unoptimized
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent opacity-90" />
                     </div>
-                    <div className="flex items-center justify-between pt-4 mt-auto border-t border-white/5">
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex -space-x-2">
-                          <div className="w-7 h-7 rounded-full bg-slate-700 border-2 border-[#0f172a]" />
-                          <div className="w-7 h-7 rounded-full bg-slate-600 border-2 border-[#0f172a]" />
-                          <div className="w-7 h-7 rounded-full bg-slate-500 border-2 border-[#0f172a] flex items-center justify-center">
-                            <span className="text-[9px] font-bold">+</span>
+                    <div className="flex flex-col flex-grow p-6">
+                      <div>
+                        <h2
+                          className={`font-futura text-xl font-bold uppercase tracking-wide mb-2 transition-colors duration-300 ${spec.accentText}`}
+                        >
+                          {spec.name}
+                        </h2>
+                        <p className="text-sm text-slate-400 leading-relaxed font-light">
+                          {spec.description}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between pt-4 mt-auto border-t border-white/5">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex -space-x-2">
+                            <div className="w-7 h-7 rounded-full bg-slate-700 border-2 border-[#0f172a]" />
+                            <div className="w-7 h-7 rounded-full bg-slate-600 border-2 border-[#0f172a]" />
+                            <div className="w-7 h-7 rounded-full bg-slate-500 border-2 border-[#0f172a] flex items-center justify-center">
+                              <span className="text-[9px] font-bold">+</span>
+                            </div>
                           </div>
+                          <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
+                            {spec.count}
+                          </span>
                         </div>
-                        <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
-                          {spec.count}
-                        </span>
-                      </div>
-                      <div
-                        className={`w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 transition-all duration-300 group-hover:text-white ${spec.accentBg} group-hover:border-transparent`}
-                      >
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        <div
+                          className={`w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 transition-all duration-300 group-hover:text-white ${spec.accentBg} group-hover:border-transparent`}
+                        >
+                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+
+                {/* Força a quebra de linha após o 3º card no Desktop para deixar 2 centralizados embaixo */}
+                {index === 2 && <div className="hidden lg:block w-full h-0" />}
+              </React.Fragment>
             ))}
           </div>
         </section>

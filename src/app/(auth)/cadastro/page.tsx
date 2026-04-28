@@ -324,14 +324,13 @@ function RegisterContent() {
                       >
                         Selecione sua especialidade...
                       </option>
-                      <option value="Personal Trainer">
-                        Personal Trainer
-                      </option>
+                      <option value="Personal Trainer">Personal Trainer</option>
                       <option value="Nutricionista">Nutricionista</option>
                       <option value="Professor(a) de Inglês">
                         Professor(a) de Inglês
                       </option>
                       <option value="Psicólogo(a)">Psicólogo(a)</option>
+                      <option value="Advogado(a)">Advogado(a)</option>
                     </select>
                   ) : (
                     <input
