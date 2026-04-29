@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react"; // Adicionado para o dropdown
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useSession, signOut } from "next-auth/react"; // Adicionado signOut
+import { useSession, signOut } from "next-auth/react";
 import {
   User,
   ChevronDown,
@@ -12,6 +12,7 @@ import {
   LogOut,
   LayoutDashboard,
   ExternalLink,
+  Settings, // Adicionado o ícone de configurações/perfil
 } from "lucide-react";
 
 type HealthHeaderUser = {
@@ -23,8 +24,8 @@ type HealthHeaderUser = {
 export function HealthHeader() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  const [isOpen, setIsOpen] = useState(false); // Estado do menu
-  const dropdownRef = useRef<HTMLDivElement>(null); // Ref para fechar ao clicar fora
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const isAuthenticated = status === "authenticated";
   const isLoading = status === "loading";
@@ -56,7 +57,7 @@ export function HealthHeader() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#020617]/80 backdrop-blur-md">
       <div className="container mx-auto max-w-7xl px-4 h-20 flex items-center justify-between">
-        {/* LOGO (Mantido seu estilo) */}
+        {/* LOGO */}
         <Link
           href="/agendar-consulta"
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -67,7 +68,7 @@ export function HealthHeader() {
           </span>
         </Link>
 
-        {/* NAV (Mantido seu estilo) */}
+        {/* NAV */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
           <Link
             href="/agendar-consulta"
@@ -124,25 +125,18 @@ export function HealthHeader() {
               />
             </div>
 
-            {/* SUBMENU (O Dropdown que você pediu) */}
+            {/* SUBMENU */}
             {isOpen && (
               <div className="absolute right-0 mt-4 w-60 bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="p-2">
-                  {/* Link: Ver Perfil ou Voltar ao Portal */}
+                  {/* NOVO Link: Meu Perfil (Paciente/Geral) */}
                   <Link
-                    href={
-                      isPro
-                        ? `/agendar-consulta/perfil/${sessionUser?.id || ""}`
-                        : "/portal"
-                    }
+                    href="/agendar-consulta/meu-perfil"
                     onClick={() => setIsOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors group"
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
                   >
                     <User className="w-4 h-4 text-[#d73cbe]" />
-                    <span>
-                      {isPro ? "Ver Perfil Público" : "Acessar Portal"}
-                    </span>
-                    <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100" />
+                    <span>Meu Perfil</span>
                   </Link>
 
                   {/* Link: Dashboard de cada um */}
@@ -159,12 +153,29 @@ export function HealthHeader() {
                     <span>{isPro ? "Meu Painel" : "Minhas Consultas"}</span>
                   </Link>
 
+                  {/* Link: Ver Perfil ou Voltar ao Portal */}
+                  <Link
+                    href={
+                      isPro
+                        ? `/agendar-consulta/perfil/${sessionUser?.id || ""}`
+                        : "/portal"
+                    }
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors group"
+                  >
+                    <Settings className="w-4 h-4 text-[#d73cbe]" />
+                    <span>
+                      {isPro ? "Ver Perfil Público" : "Acessar Portal"}
+                    </span>
+                    <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100" />
+                  </Link>
+
                   <div className="my-1 border-t border-white/5" />
 
                   {/* Botão Sair */}
                   <button
                     onClick={() => signOut({ callbackUrl: "/login" })}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Sair da conta</span>
@@ -174,7 +185,7 @@ export function HealthHeader() {
             )}
           </div>
         ) : (
-          /* BOTÃO LOGIN (Mantido seu estilo) */
+          /* BOTÃO LOGIN */
           <Link
             href="/login?callbackUrl=/agendar-consulta"
             className="flex items-center gap-2 px-5 py-2.5 bg-[#d73cbe]/10 text-[#d73cbe] rounded-xl hover:bg-[#d73cbe] hover:text-white transition-all font-medium border border-[#d73cbe]/20 hover:border-[#d73cbe] shadow-lg shadow-purple-900/10"
