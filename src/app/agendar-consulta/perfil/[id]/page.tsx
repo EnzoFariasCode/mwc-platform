@@ -12,7 +12,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { getHealthProfessionalById } from "@/modules/health/services/professional-service";
-import { HealthHeader } from "@/modules/health/components/health-header";
 import { ProfileViewClient } from "./profile-view-client";
 
 export default async function ProfessionalHealthProfile({
@@ -44,7 +43,6 @@ export default async function ProfessionalHealthProfile({
 
   return (
     <>
-      <HealthHeader />
       <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8">
         <div className="container mx-auto max-w-6xl px-4">
           <div className="flex justify-between items-center mb-8">
