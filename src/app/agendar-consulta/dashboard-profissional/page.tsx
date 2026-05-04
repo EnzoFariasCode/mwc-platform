@@ -13,9 +13,9 @@ import {
   Banknote,
   AlertTriangle,
   CalendarRange,
-  Settings2,
 } from "lucide-react";
 import { getHealthProfessionalDashboardById } from "@/modules/health/services/private-profile-service";
+import { DashboardModalsController } from "@/modules/health/components/dashboard-modals-controller";
 
 // Funções Utilitárias de Formatação
 function formatCurrency(value: number | null) {
@@ -45,7 +45,6 @@ export default async function ProHealthDashboard() {
     redirect("/portal");
   }
 
-  // IMPORTANTE: Certifique-se de que este service está trazendo os campos novos (documentReg, approach, sessionDuration, etc)
   const professional = await getHealthProfessionalDashboardById(
     session.user.id,
   );
@@ -61,31 +60,17 @@ export default async function ProHealthDashboard() {
   const missingApproach = !professional.approach;
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white px-4 py-10 selection:bg-[#d73cbe]/30 font-sans">
+    // A FONTE POPPINS ESTÁ AQUI NA PRIMEIRA DIV 👇
+    <div className="min-h-screen bg-[#020617] text-white px-4 py-10 selection:bg-[#d73cbe]/30 font-poppins">
       <div className="mx-auto max-w-6xl space-y-8">
         {/* =========================================
-            ALERTA CRÍTICO DE CREDENCIAL INCOMPLETA 
+            CONTROLADOR DE MODAIS E BOTÕES
+            (Ele cuida do alerta vermelho e dos botões mágicos)
             ========================================= */}
-        {missingCredential && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-6 shadow-[0_0_30px_rgba(239,68,68,0.1)]">
-            <div className="rounded-full bg-red-500/20 p-3 text-red-500">
-              <AlertTriangle className="h-6 w-6" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-red-400 uppercase tracking-wide">
-                Seu perfil está invisível para os pacientes!
-              </h3>
-              <p className="text-sm text-red-300/80 mt-1">
-                Para começar a receber agendamentos, é obrigatório informar o
-                seu Registro Profissional (Ex: CRM, CRP).
-              </p>
-            </div>
-            {/* Esse botão chamará o Modal da Fase 3 */}
-            <button className="whitespace-nowrap rounded-xl bg-red-500 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-red-600 shadow-lg shadow-red-500/20">
-              Completar Perfil Agora
-            </button>
-          </div>
-        )}
+        <DashboardModalsController
+          professional={professional}
+          missingCredential={missingCredential}
+        />
 
         {/* Header de Boas-vindas */}
         <div className="flex flex-col gap-6 rounded-3xl border border-white/10 bg-[#0f172a]/80 p-8 backdrop-blur-sm md:flex-row md:items-center md:justify-between">
@@ -112,7 +97,6 @@ export default async function ProHealthDashboard() {
 
         {/* Grid de Métricas */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Card: Consultas */}
           <div className="group rounded-2xl border border-white/10 bg-[#0f172a]/70 p-6 transition-all hover:border-[#d73cbe]/30">
             <div className="flex items-center justify-between">
               <div className="rounded-lg bg-blue-500/10 p-2 text-blue-500 group-hover:bg-blue-500/20 transition-colors">
@@ -125,13 +109,11 @@ export default async function ProHealthDashboard() {
             <div className="mt-4">
               <p className="text-sm text-slate-400">Agendamentos Realizados</p>
               <p className="mt-1 text-3xl font-bold text-white leading-none">
-                {/* Aqui estamos filtrando as completadas (se você já tiver isso mapeado, caso contrário usa o tamanho do array por enquanto) */}
                 {professional.proAppointments?.length || 0}
               </p>
             </div>
           </div>
 
-          {/* Card: Valor Sessão */}
           <div className="group rounded-2xl border border-white/10 bg-[#0f172a]/70 p-6 transition-all hover:border-[#d73cbe]/30">
             <div className="flex items-center justify-between">
               <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-500 group-hover:bg-emerald-500/20 transition-colors">
@@ -153,7 +135,6 @@ export default async function ProHealthDashboard() {
             </div>
           </div>
 
-          {/* Card: Avaliação */}
           <div className="group rounded-2xl border border-white/10 bg-[#0f172a]/70 p-6 transition-all hover:border-[#d73cbe]/30">
             <div className="flex items-center justify-between">
               <div className="rounded-lg bg-yellow-500/10 p-2 text-yellow-500 group-hover:bg-yellow-500/20 transition-colors">
@@ -176,7 +157,6 @@ export default async function ProHealthDashboard() {
             </div>
           </div>
 
-          {/* Card: Localização */}
           <div className="group rounded-2xl border border-white/10 bg-[#0f172a]/70 p-6 transition-all hover:border-[#d73cbe]/30">
             <div className="flex items-center justify-between">
               <div className="rounded-lg bg-[#d73cbe]/10 p-2 text-[#d73cbe] group-hover:bg-[#d73cbe]/20 transition-colors">
@@ -282,7 +262,7 @@ export default async function ProHealthDashboard() {
 
           {/* Coluna Direita: Perfil Clínico e Gestão de Agenda */}
           <div className="space-y-6">
-            {/* GESTÃO DE AGENDA (A NOVA ÁREA!) */}
+            {/* GESTÃO DE AGENDA INFO */}
             <div className="rounded-3xl border border-[#d73cbe]/20 bg-[#d73cbe]/5 p-8 backdrop-blur-sm relative overflow-hidden">
               <div className="absolute -right-4 -top-4 bg-[#d73cbe]/20 blur-3xl w-24 h-24 rounded-full pointer-events-none"></div>
 
@@ -304,22 +284,10 @@ export default async function ProHealthDashboard() {
                 </div>
                 <div className="flex justify-between items-center text-sm border-b border-white/10 pb-3">
                   <span className="text-slate-400">Disponibilidade</span>
-                  <span className="font-bold text-white">Não configurada</span>
+                  <span className="font-bold text-white">Ver config.</span>
                 </div>
               </div>
-
-              {/* Esse botão chamará o Modal da Agenda (Fase 3) */}
-              <button
-                disabled={missingCredential}
-                className={`w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${missingCredential ? "bg-white/5 text-slate-500 cursor-not-allowed" : "bg-[#d73cbe] hover:bg-[#b02da0] text-white shadow-lg shadow-[#d73cbe]/20"}`}
-              >
-                <Settings2 className="w-4 h-4" /> Configurar Horários
-              </button>
-              {missingCredential && (
-                <p className="text-[10px] text-center text-red-400 mt-3">
-                  Preencha seu registro profissional para liberar a agenda.
-                </p>
-              )}
+              {/* O Botão de Agenda está no DashboardModalsController logo acima do Perfil! */}
             </div>
 
             {/* PERFIL CLÍNICO */}
@@ -328,10 +296,6 @@ export default async function ProHealthDashboard() {
                 <h2 className="text-xl font-bold uppercase tracking-tight">
                   Perfil Clínico
                 </h2>
-                {/* Esse botão chamará o Modal de Edição (Fase 3) */}
-                <button className="text-xs text-[#d73cbe] hover:underline font-bold uppercase tracking-wider">
-                  Editar
-                </button>
               </div>
 
               <div className="space-y-4 text-sm">
