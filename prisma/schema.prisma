@@ -74,10 +74,21 @@ model User {
   bio             String?   @db.Text
   city            String?
   state           String?
-  hourlyRate      Decimal?    
+  hourlyRate      Decimal?  
   rating          Float     @default(0) 
   ratingCount     Int       @default(0)
   
+  // =========================================================
+  // [NOVO] CAMPOS DE ENDEREÇO E CONTATO
+  // =========================================================
+  phone           String?
+  gender          String?   // Ex: "M" ou "F"
+  cep             String?
+  address         String?   // Logradouro / Rua
+  addressNumber   String?   // Número
+  complement      String?   // Complemento
+  neighborhood    String?   // Bairro
+
   // =========================================================
   // [CAMPOS PROFISSIONAIS - SETOR TECH]
   // =========================================================
@@ -113,7 +124,7 @@ model User {
   stripeSubscriptionId     String?   @unique 
   stripePriceId            String?             
   stripeCurrentPeriodEnd   DateTime?         
-  stripeSubscriptionStatus String?            
+  stripeSubscriptionStatus String?           
 
   // =========================================================
   // [DADOS FINANCEIROS - RECEBIMENTO DE TRABALHO]
@@ -158,7 +169,7 @@ model Project {
   tags         String[] 
   
   budgetType   String    
-  budgetValue  Decimal      
+  budgetValue  Decimal     
   budgetLabel  String    
   
   agreedPrice  Decimal? 

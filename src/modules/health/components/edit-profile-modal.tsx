@@ -1,34 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
+import { User, MapPin, X, Save, Check } from "lucide-react";
 import {
-  User,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  X,
-  Save,
-  ShieldCheck,
-  Check,
-} from "lucide-react";
+  updatePatientProfile,
+  type PatientProfileData,
+} from "@/modules/users/actions/update-patient-profile";
 
 type EditProfileModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  initialData?: PatientProfileData | null;
+  onSaved?: () => void;
 };
 
-export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
+export function EditProfileModal({
+  isOpen,
+  onClose,
+  initialData,
+  onSaved,
+}: EditProfileModalProps) {
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleSave = () => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
-      onClose();
-    }, 1500);
+    setError(null);
+
+    const result = await updatePatientProfile(
+      new FormData(event.currentTarget),
+    );
+
+    setIsSaving(false);
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    onSaved?.();
+    onClose();
   };
 
   return (
@@ -38,7 +52,10 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
         onClick={onClose}
       />
 
-      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-[#0f172a] border border-white/10 rounded-2xl p-6 md:p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-200 custom-scrollbar">
+      <form
+        onSubmit={handleSubmit}
+        className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-[#0f172a] border border-white/10 rounded-2xl p-6 md:p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-200 custom-scrollbar"
+      >
         <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4 sticky top-0 bg-[#0f172a] z-10">
           <div>
             <h2 className="text-2xl font-futura font-bold text-white">
@@ -49,12 +66,19 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="w-10 h-10 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center text-slate-400 cursor-pointer border border-white/5"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {error && (
+          <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+            {error}
+          </div>
+        )}
 
         <div className="space-y-10">
           {/* SEÇÃO 1: DADOS PESSOAIS */}
@@ -68,8 +92,9 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                   Nome Completo
                 </label>
                 <input
+                  name="name"
                   type="text"
-                  defaultValue="Daniel Sodré"
+                  defaultValue={initialData?.name || ""}
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
               </div>
@@ -79,17 +104,20 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 </label>
                 <input
                   type="email"
-                  defaultValue="daniel@email.com"
-                  className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
+                  defaultValue={initialData?.email || ""}
+                  readOnly
+                  className="w-full bg-[#020617]/50 border border-white/5 rounded-xl py-3 px-4 text-sm text-slate-500 outline-none cursor-not-allowed"
                 />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
                   Data de Nascimento
                 </label>
+                {/* Nota do DEV: Certifique-se de que initialData.birthDate está formatado como YYYY-MM-DD para o input type="date" funcionar direito */}
                 <input
-                  type="text"
-                  defaultValue="15/08/1990"
+                  name="birthDate"
+                  type="date"
+                  defaultValue={initialData?.birthDate || ""}
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
               </div>
@@ -97,7 +125,12 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
                   Sexo Biológico
                 </label>
-                <select className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all appearance-none cursor-pointer">
+                <select
+                  name="gender"
+                  defaultValue={initialData?.gender || ""}
+                  className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">Não informado</option>
                   <option value="M">Masculino</option>
                   <option value="F">Feminino</option>
                 </select>
@@ -105,7 +138,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
             </div>
           </section>
 
-          {/* SEÇÃO 2: ENDEREÇO (Igual Imagem 1) */}
+          {/* SEÇÃO 2: ENDEREÇO */}
           <section>
             <h3 className="text-[#d73cbe] text-sm font-bold uppercase tracking-widest mb-5 flex items-center gap-2">
               <MapPin className="w-4 h-4" /> Endereço Residencial
@@ -113,31 +146,37 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
             <div className="grid grid-cols-1 md:grid-cols-6 gap-5">
               <div className="md:col-span-2 space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  CEP *
+                  CEP
                 </label>
                 <input
+                  name="cep"
                   type="text"
-                  defaultValue="04855-250"
+                  defaultValue={initialData?.cep || ""}
+                  placeholder="00000-000"
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
               </div>
               <div className="md:col-span-4 space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  Endereço *
+                  Endereço
                 </label>
                 <input
+                  name="address"
                   type="text"
-                  defaultValue="R TENENTE ODILON RAPOSO"
+                  defaultValue={initialData?.address || ""}
+                  placeholder="Nome da rua, avenida..."
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
               </div>
               <div className="md:col-span-2 space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  Número *
+                  Número
                 </label>
                 <input
+                  name="addressNumber"
                   type="text"
-                  defaultValue="56"
+                  defaultValue={initialData?.addressNumber || ""}
+                  placeholder="123"
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
               </div>
@@ -146,45 +185,54 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                   Complemento
                 </label>
                 <input
+                  name="complement"
                   type="text"
+                  defaultValue={initialData?.complement || ""}
                   placeholder="Apto, Bloco..."
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
               </div>
               <div className="md:col-span-2 space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  Bairro *
+                  Bairro
                 </label>
                 <input
+                  name="neighborhood"
                   type="text"
-                  defaultValue="JARDIM BELCITO"
+                  defaultValue={initialData?.neighborhood || ""}
+                  placeholder="Centro"
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
               </div>
               <div className="md:col-span-4 space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  Cidade *
+                  Cidade
                 </label>
                 <input
+                  name="city"
                   type="text"
-                  defaultValue="SAO PAULO"
+                  defaultValue={initialData?.city || ""}
+                  placeholder="São Paulo"
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
               </div>
               <div className="md:col-span-2 space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  UF *
+                  UF
                 </label>
                 <input
+                  name="state"
                   type="text"
-                  defaultValue="SP"
-                  className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
+                  defaultValue={initialData?.state || ""}
+                  placeholder="SP"
+                  maxLength={2}
+                  className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all uppercase"
                 />
               </div>
             </div>
           </section>
 
-          {/* SEÇÃO 3: WHATSAPP (Igual Imagem 2) */}
+          {/* SEÇÃO 3: WHATSAPP */}
           <section className="bg-white/5 p-6 rounded-2xl border border-white/5">
             <h3 className="text-white text-lg font-bold mb-2">
               Autorização no WhatsApp MWC
@@ -200,8 +248,10 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                   Número de telefone
                 </label>
                 <input
-                  type="text"
-                  defaultValue="11-94839-9097"
+                  name="phone"
+                  type="tel"
+                  defaultValue={initialData?.phone || ""}
+                  placeholder="(11) 99999-9999"
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
               </div>
@@ -210,6 +260,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 <div className="relative mt-1">
                   <input
                     type="checkbox"
+                    name="whatsappConsent"
                     defaultChecked
                     className="peer sr-only"
                   />
@@ -229,16 +280,17 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
 
         <div className="flex flex-col sm:flex-row justify-end gap-3 pt-8 mt-10 border-t border-white/5">
           <button
+            type="button"
             onClick={onClose}
             disabled={isSaving}
-            className="px-6 py-3 text-white text-sm font-bold cursor-pointer"
+            className="px-6 py-3 text-white text-sm font-bold cursor-pointer hover:bg-white/5 rounded-xl transition-all"
           >
             Cancelar
           </button>
           <button
-            onClick={handleSave}
+            type="submit"
             disabled={isSaving}
-            className="px-8 py-3 bg-[#d73cbe] hover:bg-[#b02da0] text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer"
+            className="px-8 py-3 bg-[#d73cbe] hover:bg-[#b02da0] text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer disabled:opacity-50"
           >
             {isSaving ? (
               "Salvando..."
@@ -249,7 +301,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
             )}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
