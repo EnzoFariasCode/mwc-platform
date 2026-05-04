@@ -63,6 +63,13 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
+  // NOVA REGRA DE NEGOCIO: Limite maximo de agendamento (Mes atual + 1)
+  const maxFutureMonth = addMonths(new Date(), 1);
+  const isAtMaxMonth = !isBefore(
+    startOfMonth(currentMonth),
+    startOfMonth(maxFutureMonth),
+  );
+
   // MOTOR DE SLOTS
   const getSlotsForDate = (date: Date) => {
     if (isBefore(startOfDay(date), startOfDay(new Date()))) return [];
@@ -114,24 +121,30 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
 
       {/* CONTROLES DO MÊS */}
       <div className="flex items-center justify-between mb-4">
-        <button
-          type="button"
-          onClick={prevMonth}
-          disabled={isBefore(
-            startOfMonth(currentMonth),
-            startOfMonth(new Date()),
-          )}
+        {/* Botão Voltar (Trava no mês atual) */}
+        <button 
+          type="button" 
+          onClick={prevMonth} 
+          disabled={isBefore(startOfMonth(currentMonth), startOfMonth(new Date()))} 
           className="w-8 h-8 rounded-lg border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
+        
         <span className="text-sm font-semibold text-white capitalize">
           {format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })}
         </span>
-        <button
-          type="button"
-          onClick={nextMonth}
-          className="w-8 h-8 rounded-lg border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+        
+        {/* Botão Avançar (Trava no Mês Atual + 1) */}
+        <button 
+          type="button" 
+          onClick={nextMonth} 
+          disabled={isAtMaxMonth}
+          className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${
+            isAtMaxMonth 
+              ? 'border-white/5 text-slate-600 opacity-40 cursor-not-allowed' 
+              : 'border-white/10 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer'
+          }`}
         >
           <ChevronRight className="w-4 h-4" />
         </button>
