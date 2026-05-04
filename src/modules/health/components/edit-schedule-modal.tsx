@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { X, Save, Clock, CalendarDays } from "lucide-react";
-import { updateHealthSchedule } from "../actions/update-health-schedule";
+import {
+  updateHealthSchedule,
+  type WeeklyAvailability,
+  type DaySchedule,
+} from "../actions/update-health-schedule";
 
 type EditScheduleModalProps = {
   isOpen: boolean;
@@ -10,7 +14,7 @@ type EditScheduleModalProps = {
   professional: any;
 };
 
-const defaultSchedule = {
+const defaultSchedule: WeeklyAvailability = {
   segunda: { active: true, start: "09:00", end: "18:00" },
   terca: { active: true, start: "09:00", end: "18:00" },
   quarta: { active: true, start: "09:00", end: "18:00" },
@@ -20,7 +24,7 @@ const defaultSchedule = {
   domingo: { active: false, start: "00:00", end: "00:00" },
 };
 
-const diasDaSemana = [
+const diasDaSemana: { key: keyof WeeklyAvailability; label: string }[] = [
   { key: "segunda", label: "Segunda-feira" },
   { key: "terca", label: "Terça-feira" },
   { key: "quarta", label: "Quarta-feira" },
@@ -35,10 +39,10 @@ export function EditScheduleModal({
   onClose,
   professional,
 }: EditScheduleModalProps) {
-  const [schedule, setSchedule] = useState(() => {
+  const [schedule, setSchedule] = useState<WeeklyAvailability>(() => {
     const saved = professional?.availability;
     if (!saved || Object.keys(saved).length === 0) return defaultSchedule;
-    return saved;
+    return saved as WeeklyAvailability;
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -46,11 +50,11 @@ export function EditScheduleModal({
   if (!isOpen) return null;
 
   const handleUpdateDay = (
-    dayKey: string,
-    field: "active" | "start" | "end",
-    value: any,
+    dayKey: keyof WeeklyAvailability,
+    field: keyof DaySchedule,
+    value: string | boolean,
   ) => {
-    setSchedule((prev: any) => ({
+    setSchedule((prev) => ({
       ...prev,
       [dayKey]: {
         ...prev[dayKey],

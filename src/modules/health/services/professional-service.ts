@@ -21,6 +21,10 @@ export async function getHealthProfessionalById(id: string) {
       ratingCount: true,
       city: true,
       state: true,
+
+      // 👇 A MÁGICA DO BACK-END: Puxando os dados da agenda para a vitrine!
+      availability: true,
+      sessionDuration: true,
     },
   });
 }
