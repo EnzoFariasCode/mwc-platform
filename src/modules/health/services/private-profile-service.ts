@@ -4,8 +4,8 @@ export async function getHealthProfessionalDashboardById(userId: string) {
   return await db.user.findUnique({
     where: {
       id: userId,
-      userType: "PROFESSIONAL",
-      industry: "HEALTH",
+      userType: "PROFESSIONAL", // Garante que é profissional
+      industry: "HEALTH", // Garante que é da área da saúde
     },
     select: {
       id: true,
@@ -20,6 +20,11 @@ export async function getHealthProfessionalDashboardById(userId: string) {
       rating: true,
       ratingCount: true,
       consultationFee: true,
+
+      // 👇 [AQUI ESTÁ A CORREÇÃO DO BACK-END]
+      sessionDuration: true, // Puxa o tempo da consulta (ex: 50 min)
+      availability: true, // Puxa a grade de horários (JSON)
+
       proAppointments: {
         orderBy: { date: "asc" },
         select: {

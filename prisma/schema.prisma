@@ -95,6 +95,7 @@ model User {
   documentReg       String?   // Para CRM, CRP, CREF, etc. (Ex: "CRP 06/12345")
   approach          String?   // Abordagem clínica (Ex: "TCC", "Psicanálise")
   consultationFee   Decimal?  // Valor fixo da consulta
+  sessionDuration   Int?      @default(50) // [NOVO] Duração da sessão em minutos (Padrão 50min)
   availability      Json?     @default("{}") // JSON para guardar a grade de horários disponíveis
 
   // Armazenamento de Imagem no Banco
