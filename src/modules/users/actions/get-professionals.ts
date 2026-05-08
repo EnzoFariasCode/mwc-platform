@@ -4,9 +4,15 @@ import { db } from "@/lib/prisma";
 
 export async function getProfessionalsBySpecialty(specialtyId: string) {
   try {
-    // [QA] Mapeamento para garantir que termos diferentes encontrem o mesmo cargo
     const searchTerms: Record<string, string[]> = {
-      psicologia: ["Psicologo", "Psicólogo", "Psicóloga", "Psicologia"],
+      psicologia: [
+        "Psicologo",
+        "Psicólogo",
+        "Psicóloga",
+        "Psicóloga(a)",
+        "Psicólogo(a)",
+        "Psicologia",
+      ],
       advogado: ["Advogado", "Advogada", "Jurídico"],
       nutricao: ["Nutricionista", "Nutrição"],
       personal: ["Personal Trainer", "Personal"],
@@ -24,14 +30,10 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
       where: {
         userType: "PROFESSIONAL",
         industry: "HEALTH",
-        // --- 🛡️ BARREIRA DE QUALIDADE 1 (Back-end) ---
-        // O banco de dados só retorna quem tem dados escalares não nulos
         documentReg: { not: null },
         jobTitle: { not: null },
         consultationFee: { not: null },
         sessionDuration: { not: null },
-        // A trava da availability (JSON) foi movida 100% para a Barreira 2
-        // ----------------------------------------------
         OR: [
           {
             jobTitle: {
@@ -47,7 +49,6 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
           },
         ],
       },
-
       select: {
         id: true,
         name: true,
@@ -65,29 +66,31 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
         approach: true,
         city: true,
         state: true,
+        profileImageBytes: true, // ✅ corrigido: estava "rofileImageBytes"
       },
     });
 
-    // --- 🛡️ BARREIRA DE QUALIDADE 2 (QA) ---
-    // Garante que o usuário não burlou a validação salvando apenas espaços em branco (" ") ou agenda vazia
-    const validProfessionals = professionals.filter((pro) => {
-      const hasValidDoc = pro.documentReg && pro.documentReg.trim() !== "";
-      const hasValidJobTitle = pro.jobTitle && pro.jobTitle.trim() !== "";
+    const validProfessionals = professionals
+      .filter((pro) => {
+        const hasValidDoc = pro.documentReg && pro.documentReg.trim() !== "";
+        const hasValidJobTitle = pro.jobTitle && pro.jobTitle.trim() !== "";
 
-      // Verifica se a agenda (JSON/Object ou String) não está vazia
-      let hasValidAgenda = false;
-      if (typeof pro.availability === "string") {
-        hasValidAgenda = pro.availability.length > 5; // Mínimo para ser um JSON válido com conteúdo
-      } else if (
-        typeof pro.availability === "object" &&
-        pro.availability !== null
-      ) {
-        // Checa se o objeto JSON não é apenas um "{}" vazio
-        hasValidAgenda = Object.keys(pro.availability).length > 0;
-      }
+        let hasValidAgenda = false;
+        if (typeof pro.availability === "string") {
+          hasValidAgenda = pro.availability.length > 5;
+        } else if (
+          typeof pro.availability === "object" &&
+          pro.availability !== null
+        ) {
+          hasValidAgenda = Object.keys(pro.availability).length > 0;
+        }
 
-      return hasValidDoc && hasValidJobTitle && hasValidAgenda;
-    });
+        return hasValidDoc && hasValidJobTitle && hasValidAgenda;
+      }) // ✅ corrigido: fechamento do .filter() no lugar certo
+      .map(({ profileImageBytes, ...pro }) => ({
+        ...pro,
+        hasProfileImage: profileImageBytes !== null,
+      }));
 
     return { data: validProfessionals };
   } catch (error) {

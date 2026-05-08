@@ -8,7 +8,7 @@ import { Star, Video, ShieldCheck, ArrowLeft } from "lucide-react";
 import { getProfessionalsBySpecialty } from "@/modules/users/actions/get-professionals";
 import { MonthlyScheduleClient } from "@/app/agendar-consulta/perfil/[id]/monthly-schedule-client";
 
-// ─── Tipagem ────────────────────────────────────────────────────────────────
+// ─── Tipagem Corrigida (Visão do Arquiteto Back-end) ──────────────────────────
 interface Professional {
   id: string;
   name: string;
@@ -16,23 +16,18 @@ interface Professional {
   jobTitle: string | null;
   documentReg: string | null;
   bio: string | null;
-  image: string | null;
+  hasProfileImage: boolean; // ← substituiu image: string | null
   rating: number;
   ratingCount: number;
   approach: string | null;
   industry: string | null;
-  availability:
-    | string
-    | Record<string, { active: boolean; start: string; end: string }>
-    | null;
+  availability: any;
   sessionDuration: number | null;
   consultationFee: number | string | null;
-  // Campos extras que o Prisma pode trazer sem quebrar
   city?: string | null;
   state?: string | null;
 }
 
-// ─── Componente ─────────────────────────────────────────────────────────────
 export default function SpecialtyPage({
   params,
 }: {
@@ -66,7 +61,6 @@ export default function SpecialtyPage({
     fetchProfessionals();
   }, [specialty]);
 
-  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8 flex items-center justify-center">
@@ -78,7 +72,6 @@ export default function SpecialtyPage({
     );
   }
 
-  // ── Erro ──────────────────────────────────────────────────────────────────
   if (error) {
     return (
       <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8 flex items-center justify-center">
@@ -95,7 +88,6 @@ export default function SpecialtyPage({
     );
   }
 
-  // ── Sem profissionais ─────────────────────────────────────────────────────
   if (professionals.length === 0) {
     return (
       <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8">
@@ -112,8 +104,8 @@ export default function SpecialtyPage({
               <span className="text-[#d73cbe]">{specialtyName}</span>
             </h1>
             <p className="text-slate-400 text-lg font-light max-w-2xl">
-              Ainda não temos especialistas nesta área. Fique de olho, em breve
-              teremos os melhores profissionais para você!
+              Ainda não temos especialistas nesta área. Em breve teremos os
+              melhores profissionais para você!
             </p>
           </div>
         </div>
@@ -121,11 +113,9 @@ export default function SpecialtyPage({
     );
   }
 
-  // ── Lista de profissionais ────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8">
       <div className="container mx-auto max-w-5xl px-4">
-        {/* HEADER DA PÁGINA */}
         <div className="mb-10">
           <Link
             href="/agendar-consulta"
@@ -137,20 +127,14 @@ export default function SpecialtyPage({
             Especialistas em{" "}
             <span className="text-[#d73cbe]">{specialtyName}</span>
           </h1>
-          <p className="text-slate-400 text-lg font-light max-w-2xl">
-            Escolha o profissional ideal e o melhor horário para você. Sua
-            reserva é confirmada instantaneamente.
-          </p>
         </div>
 
-        {/* LISTA DE PROFISSIONAIS */}
         <div className="space-y-8">
           {professionals.map((pro) => (
             <div
               key={pro.id}
-              className="bg-[#0f172a]/60 backdrop-blur-md border border-white/10 rounded-[32px] p-6 lg:p-8 flex flex-col lg:flex-row gap-8 transition-all hover:border-white/20 hover:shadow-2xl hover:shadow-black/50 relative overflow-hidden"
+              className="bg-[#0f172a]/60 backdrop-blur-md border border-white/10 rounded-[32px] p-6 lg:p-8 flex flex-col lg:flex-row gap-8 transition-all hover:border-white/20 hover:shadow-2xl relative overflow-hidden"
             >
-              {/* Brilho de fundo sutil */}
               <div className="absolute top-0 right-0 w-64 h-64 bg-[#d73cbe]/5 rounded-full blur-[80px] pointer-events-none" />
 
               {/* COLUNA ESQUERDA: Perfil */}
@@ -159,7 +143,7 @@ export default function SpecialtyPage({
                   <div className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0 border border-white/10 shadow-lg">
                     <Image
                       src={
-                        pro.image
+                        pro.hasProfileImage // ← era pro.image
                           ? `/api/images/user/${pro.id}`
                           : "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=250&q=80"
                       }
@@ -179,54 +163,37 @@ export default function SpecialtyPage({
                     <p className="text-sm text-[#d73cbe] font-medium uppercase tracking-wide mb-1">
                       {pro.jobTitle}
                     </p>
-                    <p className="text-xs text-slate-500 mb-3">
-                      {pro.documentReg}
-                    </p>
-
                     <div className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
                       <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
                       <span className="text-sm font-bold text-white">
                         {(pro.rating ?? 0).toFixed(1)}
                       </span>
-                      <span className="text-xs text-slate-400 font-medium">
-                        ({pro.ratingCount ?? 0})
-                      </span>
                     </div>
                   </div>
                 </div>
-
-                <p className="text-sm text-slate-400 leading-relaxed font-light mt-2">
+                <p className="text-sm text-slate-400 leading-relaxed font-light mt-2 line-clamp-3">
                   {pro.bio ?? "Sem biografia disponível."}
                 </p>
-
-                <div className="flex flex-wrap gap-2 mt-auto pt-2">
-                  {(
-                    [pro.jobTitle, pro.approach, pro.industry].filter(
-                      Boolean,
-                    ) as string[]
-                  ).map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-[11px] uppercase tracking-wider bg-[#d73cbe]/10 border border-[#d73cbe]/20 px-3 py-1.5 rounded-lg text-[#d73cbe] font-medium"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-
                 <div className="mt-2 pt-4 border-t border-white/5">
                   <Link
                     href={`/agendar-consulta/perfil/${pro.id}`}
-                    className="text-xs font-medium text-slate-400 hover:text-white transition-colors underline decoration-white/20 underline-offset-4"
+                    className="text-xs font-medium text-slate-400 hover:text-white transition-colors underline underline-offset-4"
                   >
                     Ver perfil completo
                   </Link>
                 </div>
               </div>
 
-              {/* COLUNA DIREITA: Calendário compacto */}
+              {/* COLUNA DIREITA: Calendário (Sanitização aplicada aqui!) */}
               <div className="lg:w-[55%] border-t lg:border-t-0 lg:border-l border-white/10 pt-6 lg:pt-0 lg:pl-8 flex flex-col z-10">
-                <MonthlyScheduleClient pro={pro} />
+                <MonthlyScheduleClient
+                  pro={{
+                    ...pro,
+                    availability: pro.availability ?? undefined,
+                    consultationFee: pro.consultationFee ?? 0,
+                    sessionDuration: pro.sessionDuration ?? 0,
+                  }}
+                />
                 <div className="flex items-center gap-2 text-xs font-medium text-emerald-500 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 mt-4 w-fit">
                   <Video className="w-4 h-4" /> Telemedicina
                 </div>
