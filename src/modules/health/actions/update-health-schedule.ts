@@ -3,28 +3,48 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 
-// 1. TIPAGEM ESTRITA (Ação do QA e Back-end para acabar com o 'any')
-export type DaySchedule = {
-  active: boolean;
-  start: string;
-  end: string;
-};
+// ─── Schema Zod ───────────────────────────────────────────────────────────────
 
-export type WeeklyAvailability = {
-  segunda: DaySchedule;
-  terca: DaySchedule;
-  quarta: DaySchedule;
-  quinta: DaySchedule;
-  sexta: DaySchedule;
-  sabado: DaySchedule;
-  domingo: DaySchedule;
-};
+const HH_MM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const dayScheduleSchema = z
+  .object({
+    active: z.boolean(),
+    start: z.string().regex(HH_MM_REGEX, "Horário de início inválido (HH:mm)"),
+    end: z.string().regex(HH_MM_REGEX, "Horário de término inválido (HH:mm)"),
+  })
+  .refine(
+    (day) => {
+      // Só valida a ordem quando o dia está ativo
+      if (!day.active) return true;
+      return day.start < day.end;
+    },
+    { message: "O horário de início deve ser anterior ao de término" },
+  );
+
+const weeklyAvailabilitySchema = z.object({
+  segunda: dayScheduleSchema,
+  terca: dayScheduleSchema,
+  quarta: dayScheduleSchema,
+  quinta: dayScheduleSchema,
+  sexta: dayScheduleSchema,
+  sabado: dayScheduleSchema,
+  domingo: dayScheduleSchema,
+});
+
+// ─── Tipos (mantidos para compatibilidade com o restante do projeto) ───────────
+
+export type DaySchedule = z.infer<typeof dayScheduleSchema>;
+export type WeeklyAvailability = z.infer<typeof weeklyAvailabilitySchema>;
+
+// ─── Server Action ────────────────────────────────────────────────────────────
 
 export async function updateHealthSchedule(scheduleData: WeeklyAvailability) {
   const session = await auth();
 
-  // 2. TRAVA DE SEGURANÇA MÁXIMA (Só Profissional da Saúde passa)
   if (
     !session?.user?.id ||
     session.user.userType !== "PROFESSIONAL" ||
@@ -36,25 +56,24 @@ export async function updateHealthSchedule(scheduleData: WeeklyAvailability) {
     };
   }
 
-  // 3. VALIDAÇÃO DE PAYLOAD (Garante que a estrutura JSON está correta)
-  if (
-    !scheduleData ||
-    typeof scheduleData !== "object" ||
-    !scheduleData.segunda
-  ) {
-    return { error: "Formato de agenda inválido." };
+  // Validação completa com Zod (substitui a checagem manual de `!scheduleData.segunda`)
+  const parsed = weeklyAvailabilitySchema.safeParse(scheduleData);
+
+  if (!parsed.success) {
+    const firstError =
+      parsed.error.issues[0]?.message ?? "Formato de agenda inválido.";
+    return { error: firstError };
   }
 
   try {
     await db.user.update({
       where: { id: session.user.id },
       data: {
-        // O Prisma aceita qualquer JSON, mas o TS garante que scheduleData é WeeklyAvailability
-        availability: scheduleData as any,
+        // Prisma.JsonObject no lugar do `as any`
+        availability: parsed.data as unknown as Prisma.JsonObject,
       },
     });
 
-    // Limpa o cache do dashboard e já deixa preparado para limpar o perfil público
     revalidatePath("/agendar-consulta/dashboard-profissional");
     revalidatePath(`/agendar-consulta/perfil/${session.user.id}`);
 
