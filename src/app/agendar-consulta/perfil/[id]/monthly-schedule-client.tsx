@@ -134,7 +134,7 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* PREÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡O + DURAÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢O */}
+      {/* PREÇO + DURAÇÃO */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-1.5 text-slate-400 text-xs">
           <Clock className="w-3.5 h-3.5 text-[#d73cbe]" />
@@ -142,7 +142,7 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
         </div>
         <div className="text-right">
           <p className="text-[9px] text-slate-500 uppercase tracking-wider leading-none mb-0.5">
-            Valor da SessÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o
+            Valor da Sessão
           </p>
           <p className="text-lg font-bold text-[#d73cbe] leading-none">
             {priceFormatted}
@@ -150,7 +150,7 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
         </div>
       </div>
 
-      {/* CONTROLES DO MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â S */}
+      {/* CONTROLES DO MÊS */}
       <div className="flex items-center justify-between mb-3">
         <button
           type="button"
@@ -175,7 +175,7 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
         </button>
       </div>
 
-      {/* GRID DO CALENDÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂRIO */}
+      {/* GRID DO CALENDÁRIO */}
       <div className="grid grid-cols-7 gap-1 mb-4 text-center">
         {["D", "S", "T", "Q", "Q", "S", "S"].map((day, i) => (
           <div key={i} className="text-[9px] font-bold text-slate-600 mb-1">
@@ -225,13 +225,11 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
         })}
       </div>
 
-      {/* HORÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂRIOS */}
+      {/* HORÁRIOS */}
       {selectedDate && (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
           <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">
-            HorÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡rios
-            ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â{" "}
-            {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
+            Horários — {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
           </h4>
 
           {slotsRealmenteDisponiveis.length > 0 ? (
@@ -248,16 +246,14 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
             </div>
           ) : (
             <div className="text-center p-3 rounded-lg bg-white/5 border border-white/5 text-xs text-slate-500">
-              Nenhum horÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡rio livre
-              neste dia.
+              Nenhum horário livre neste dia.
             </div>
           )}
         </div>
       )}
 
       <p className="text-[9px] text-center text-slate-600 leading-relaxed pt-3 mt-auto border-t border-white/5">
-        Cancelamento gratuito atÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© 24h
-        antes.
+        Cancelamento gratuito até 24h antes.
       </p>
     </div>
   );
