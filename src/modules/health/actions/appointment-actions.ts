@@ -2,7 +2,33 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import {
+  addMinutes,
+  addMonths,
+  endOfMonth,
+  format,
+  isBefore,
+  isValid,
+  parse,
+} from "date-fns";
+
+type DayRule = {
+  active: boolean;
+  start: string;
+  end: string;
+};
+
+const dayMap = [
+  "domingo",
+  "segunda",
+  "terca",
+  "quarta",
+  "quinta",
+  "sexta",
+  "sabado",
+];
 
 export async function createAppointment(formData: {
   proId: string;
@@ -11,13 +37,11 @@ export async function createAppointment(formData: {
 }) {
   const session = await auth();
 
-  // 1. Validação de Autenticação
   if (!session?.user?.id) {
-    return { error: "Você precisa estar logado para agendar." };
+    return { error: "Voce precisa estar logado para agendar." };
   }
 
   try {
-    // 2. Busca e Validação do Profissional Real
     const professional = await db.user.findUnique({
       where: { id: formData.proId },
       select: {
@@ -25,6 +49,8 @@ export async function createAppointment(formData: {
         userType: true,
         industry: true,
         consultationFee: true,
+        availability: true,
+        sessionDuration: true,
       },
     });
 
@@ -34,36 +60,110 @@ export async function createAppointment(formData: {
       professional.industry !== "HEALTH"
     ) {
       return {
-        error: "Profissional não encontrado ou não disponível para saúde.",
+        error: "Profissional nao encontrado ou indisponivel para saude.",
       };
     }
 
-    // 3. Processamento de Data e Hora
-    // Espera date no formato YYYY-MM-DD e time no formato HH:mm
-    const appointmentDate = new Date(`${formData.date}T${formData.time}:00`);
+    const [year, month, day] = formData.date.split("-").map(Number);
+    const [hours, minutes] = formData.time.split(":").map(Number);
 
-    if (isNaN(appointmentDate.getTime())) {
-      return { error: "Data ou horário inválidos." };
+    if (
+      !Number.isInteger(year) ||
+      !Number.isInteger(month) ||
+      !Number.isInteger(day) ||
+      !Number.isInteger(hours) ||
+      !Number.isInteger(minutes)
+    ) {
+      return { error: "Data ou horario invalido." };
     }
 
-    if (appointmentDate < new Date()) {
-      return { error: "Não é possível agendar para o passado." };
+    const reqDate = new Date(year, month - 1, day);
+    const reqDateTime = new Date(year, month - 1, day, hours, minutes);
+
+    if (!isValid(reqDate) || !isValid(reqDateTime)) {
+      return { error: "Data ou horario invalido." };
     }
 
-    // 4. Criação do Registro no Prisma
+    const now = new Date();
+
+    if (isBefore(reqDateTime, now)) {
+      return { error: "Nao e possivel agendar um horario no passado." };
+    }
+
+    const maxAllowedDate = endOfMonth(addMonths(now, 1));
+    if (reqDate > maxAllowedDate) {
+      return {
+        error: "A data solicitada esta fora da janela permitida.",
+      };
+    }
+
+    const availabilityObj =
+      typeof professional.availability === "string"
+        ? (JSON.parse(professional.availability) as Record<
+            string,
+            DayRule | undefined
+          >)
+        : (professional.availability as Record<string, DayRule | undefined>);
+
+    const dayName = dayMap[reqDate.getDay()];
+    const dayRule = availabilityObj?.[dayName];
+
+    if (!dayRule || dayRule.active !== true) {
+      return { error: `O profissional nao atende de ${dayName}.` };
+    }
+
+    const duration = professional.sessionDuration || 50;
+    let currentSlot = parse(dayRule.start, "HH:mm", reqDate);
+    const endSlot = parse(dayRule.end, "HH:mm", reqDate);
+    let isValidSlot = false;
+
+    while (addMinutes(currentSlot, duration) <= endSlot) {
+      if (format(currentSlot, "HH:mm") === formData.time) {
+        isValidSlot = true;
+        break;
+      }
+
+      currentSlot = addMinutes(currentSlot, duration);
+    }
+
+    if (!isValidSlot) {
+      return {
+        error:
+          "Horario invalido, fora de operacao ou incompativel com a duracao da sessao.",
+      };
+    }
+
+    const existingAppointment = await db.appointment.findFirst({
+      where: {
+        professionalId: professional.id,
+        date: reqDateTime,
+        status: { not: "CANCELED" },
+      },
+      select: { id: true },
+    });
+
+    if (existingAppointment) {
+      return {
+        error: "Desculpe, este horario acabou de ser reservado por outra pessoa.",
+      };
+    }
+
     const newAppointment = await db.appointment.create({
       data: {
-        date: appointmentDate,
+        date: reqDateTime,
         status: "SCHEDULED",
         price: professional.consultationFee || 0,
         patientId: session.user.id,
         professionalId: professional.id,
-        // MVP: Gerando um link de Meet "fake" funcional até integrar API do Google
-        meetLink: `https://meet.google.com/mwc-${Math.random().toString(36).substring(2, 11)}`,
+        meetLink: `https://meet.google.com/mwc-${Math.random()
+          .toString(36)
+          .substring(2, 11)}`,
       },
     });
 
     revalidatePath("/agendar-consulta/historico");
+    revalidatePath("/agendar-consulta/dashboard-profissional");
+    revalidatePath(`/agendar-consulta/perfil/${professional.id}`);
 
     return {
       success: true,
@@ -71,7 +171,18 @@ export async function createAppointment(formData: {
       meetLink: newAppointment.meetLink,
     };
   } catch (error) {
-    console.error("Erro ao criar agendamento:", error);
-    return { error: "Falha interna ao processar agendamento." };
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return {
+        error: "Desculpe, este horario acabou de ser reservado por outra pessoa.",
+      };
+    }
+
+    console.error("Erro critico ao processar agendamento:", error);
+    return {
+      error: "Falha interna do servidor. Tente novamente em instantes.",
+    };
   }
 }
