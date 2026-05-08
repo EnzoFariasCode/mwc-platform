@@ -250,6 +250,9 @@ model Appointment {
 
   @@index([patientId])
   @@index([professionalId])
+  
+  // [NOVO] Trava de segurança absoluta contra Double Booking (Conflito de Agenda)
+  @@unique([professionalId, date])
 }
 
 // =========================================================
