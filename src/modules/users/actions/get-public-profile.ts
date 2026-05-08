@@ -35,7 +35,7 @@ type PublicProfile = {
 };
 
 export async function getPublicProfile(
-  userId: string
+  userId: string,
 ): Promise<ActionResponse<PublicProfile>> {
   try {
     const professional = await db.user.findUnique({
@@ -44,7 +44,6 @@ export async function getPublicProfile(
         id: true,
         name: true,
         displayName: true,
-        // --- ADICIONADO: Selecionamos os bytes para saber se tem foto ---
         profileImageBytes: true,
         bio: true,
         city: true,
@@ -60,6 +59,13 @@ export async function getPublicProfile(
         socialGithub: true,
         socialLinkedin: true,
         createdAt: true,
+        // --- 🛡️ CAMPOS ADICIONADOS APENAS PARA A BARREIRA DE QUALIDADE ---
+        industry: true,
+        documentReg: true,
+        availability: true,
+        sessionDuration: true,
+        consultationFee: true,
+        // -------------------------------------------------------------------
         reviewsReceived: {
           where: {
             comment: { not: null },
@@ -78,12 +84,39 @@ export async function getPublicProfile(
     });
 
     if (!professional) {
-      return { success: false, error: "Perfil nao encontrado." };
+      return { success: false, error: "Perfil não encontrado." };
     }
 
+    // --- 🛡️ BARREIRA DE QUALIDADE (QA & Back-end) ---
+    if (professional.userType === "PROFESSIONAL") {
+      const hasValidDoc =
+        professional.documentReg && professional.documentReg.trim() !== "";
+      const hasValidJobTitle =
+        professional.jobTitle && professional.jobTitle.trim() !== "";
+      const hasFee =
+        professional.consultationFee !== null ||
+        professional.hourlyRate !== null;
+
+      let hasValidAgenda = false;
+      if (typeof professional.availability === "string") {
+        hasValidAgenda = professional.availability.length > 5;
+      } else if (
+        typeof professional.availability === "object" &&
+        professional.availability !== null
+      ) {
+        hasValidAgenda = Object.keys(professional.availability).length > 0;
+      }
+
+      if (!hasValidDoc || !hasValidJobTitle || !hasValidAgenda || !hasFee) {
+        return {
+          success: false,
+          error: "Este perfil está indisponível no momento.",
+        };
+      }
+    }
+    // ------------------------------------------------
+
     // --- LÓGICA DE TRANSFORMAÇÃO DA IMAGEM ---
-    // Se o campo de bytes não for nulo, criamos a URL para a API de imagens.
-    // Caso contrário, enviamos null (o frontend mostrará a inicial do nome).
     const avatarUrl = professional.profileImageBytes
       ? `/api/images/user/${professional.id}`
       : null;
@@ -92,22 +125,41 @@ export async function getPublicProfile(
       ? professional.hourlyRate.toNumber()
       : null;
 
-    // Removemos os dados binários pesados (profileImageBytes) do objeto
-    // antes de enviá-lo para o navegador, mantendo o resto.
+    // Removemos os campos de validação da resposta e extraímos o rawReviews
     const {
       profileImageBytes: _profileImageBytes,
       hourlyRate: _hourlyRate,
+      documentReg: _doc,
+      availability: _av,
+      sessionDuration: _sd,
+      consultationFee: _cf,
+      industry: _ind,
+      reviewsReceived: rawReviews, // Extraímos as avaliações com tipagem imperfeita
       ...rest
     } = professional;
+
     void _profileImageBytes;
     void _hourlyRate;
+    void _doc;
+    void _av;
+    void _sd;
+    void _cf;
+    void _ind;
+
+    // --- 🛠️ CORREÇÃO DE TIPAGEM PARA O TYPESCRIPT ---
+    // Mapeamos o array e garantimos ao TS que o comment é string (já filtramos no banco)
+    const formattedReviews: PublicReview[] = rawReviews.map((review) => ({
+      ...review,
+      comment: review.comment as string,
+    }));
 
     return {
       success: true,
       data: {
         ...rest,
         hourlyRate,
-        avatarUrl, // O frontend usará este campo
+        avatarUrl,
+        reviewsReceived: formattedReviews, // Passamos a lista corrigida e tipada
       },
     };
   } catch (error) {
