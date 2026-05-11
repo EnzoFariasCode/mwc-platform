@@ -42,7 +42,7 @@ enum ProposalStatus {
 
 // [NOVO] Status das consultas na área da saúde
 enum AppointmentStatus {
-  SCHEDULED // Marcada
+  SCHEDULED // Marcada (Será o status usado após o pagamento)
   COMPLETED // Realizada
   CANCELED  // Cancelada
 }
@@ -124,7 +124,7 @@ model User {
   stripeSubscriptionId     String?   @unique 
   stripePriceId            String?             
   stripeCurrentPeriodEnd   DateTime?         
-  stripeSubscriptionStatus String?           
+  stripeSubscriptionStatus String?            
 
   // =========================================================
   // [DADOS FINANCEIROS - RECEBIMENTO DE TRABALHO]
@@ -231,28 +231,28 @@ model Deliverable {
 
 model Appointment {
   id              String            @id @default(uuid())
-  date            DateTime          // Dia e hora da consulta agendada
+  date            DateTime          // Dia da consulta
+  time            String            // [NOVO] Horário da consulta (Ex: "14:30")
   status          AppointmentStatus @default(SCHEDULED)
-  meetLink        String?           // Link da videochamada gerado (Google Meet/Zoom)
+  meetLink        String?           // Link da videochamada
   price           Decimal           // Valor cobrado na consulta
-  notes           String?           @db.Text // Anotações do paciente para o profissional
+  notes           String?           @db.Text // Anotações do paciente
+  stripeSessionId String?           @unique // [NOVO] Rastreamento de pagamento
 
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  // Relacionamento com quem contratou (Paciente)
   patientId       String
   patient         User              @relation("PatientAppointments", fields: [patientId], references: [id])
   
-  // Relacionamento com quem atende (Médico/Terapeuta)
   professionalId  String
   professional    User              @relation("ProAppointments", fields: [professionalId], references: [id])
 
   @@index([patientId])
   @@index([professionalId])
   
-  // [NOVO] Trava de segurança absoluta contra Double Booking (Conflito de Agenda)
-  @@unique([professionalId, date])
+  // [CORREÇÃO] Trava de segurança agora inclui o horário para evitar double booking
+  @@unique([professionalId, date, time])
 }
 
 // =========================================================
@@ -266,7 +266,7 @@ model Transaction {
   user        User     @relation(fields: [userId], references: [id])
   
   amount      Decimal  
-  type        String   // "CREDIT" (Entrada) ou "DEBIT" (Saída)
+  type        String   // "CREDIT" ou "DEBIT"
   status      String   // "PENDING", "COMPLETED", "FAILED"
   description String   
   
@@ -274,7 +274,6 @@ model Transaction {
   updatedAt   DateTime @updatedAt
 
   projectId   String?
-  // Poderíamos ter appointmentId String? aqui no futuro para rastrear transações de saúde
 }
 
 model Review {
@@ -332,7 +331,6 @@ model Favorite {
   @@unique([clientId, professionalId])
 }
 
-// Modelos do NextAuth (Não mexer)
 model Account {
   id                String  @id @default(uuid())
   userId            String

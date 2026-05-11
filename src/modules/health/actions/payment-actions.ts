@@ -2,7 +2,7 @@
 
 import { stripe } from "@/lib/stripe";
 import { db } from "@/lib/prisma";
-import { auth } from "@/auth"; // Seu método de pegar sessão
+import { auth } from "@/auth";
 import { headers } from "next/headers";
 
 export async function createCheckoutSession(
@@ -27,7 +27,12 @@ export async function createCheckoutSession(
     // 2. Converte Decimal para centavos (Stripe usa inteiros: R$ 150,00 -> 15000)
     const unitAmount = Math.round(Number(professional.consultationFee) * 100);
 
-    const origin = headers().get("origin");
+    // ⚠️ CORREÇÃO AQUI: Esperamos (await) os headers carregarem antes de usar o .get()
+    const headersList = await headers();
+    const origin =
+      headersList.get("origin") ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "http://localhost:3000";
 
     // 3. Cria a sessão do Stripe
     const stripeSession = await stripe.checkout.sessions.create({
