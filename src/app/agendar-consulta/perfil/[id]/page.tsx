@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
-import { Star, MapPin, Video, ArrowLeft, ShieldCheck } from "lucide-react";
+import { Star, MapPin, Video, ShieldCheck } from "lucide-react";
 import { getHealthProfessionalById } from "@/modules/health/services/professional-service";
 import { ProfileViewClient } from "./profile-view-client";
-import { MonthlyScheduleClient } from "./monthly-schedule-client"; // Nosso novo motor!
+import { MonthlyScheduleClient } from "./monthly-schedule-client";
+import { BackButtonClient } from "./back-button-client"; // <-- Importamos o novo botão inteligente
 
 export default async function ProfessionalHealthProfile({
   params,
@@ -25,13 +25,9 @@ export default async function ProfessionalHealthProfile({
       <div className="container mx-auto max-w-6xl px-4">
         {/* CABEÇALHO */}
         <div className="flex justify-between items-center mb-8">
-          <Link
-            href="/agendar-consulta"
-            className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Voltar para a pesquisa
-          </Link>
+          {/* NOSSO NOVO BOTÃO INTELIGENTE */}
+          <BackButtonClient />
+
           <ProfileViewClient proId={id} proData={pro} />
         </div>
 
@@ -135,7 +131,16 @@ export default async function ProfessionalHealthProfile({
 
           {/* COLUNA DIREITA: CALENDÁRIO INTELIGENTE */}
           <div className="w-full lg:w-1/3 lg:sticky lg:top-28">
-            <MonthlyScheduleClient pro={pro} />
+            <MonthlyScheduleClient
+              pro={{
+                ...pro,
+                availability: (pro.availability ?? undefined) as any,
+                sessionDuration: pro.sessionDuration ?? undefined,
+                consultationFee: pro.consultationFee
+                  ? pro.consultationFee.toNumber()
+                  : undefined,
+              }}
+            />
           </div>
         </div>
       </div>
