@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getBookedSlots } from "@/modules/health/actions/get-booked-slots";
-import Link from "next/link";
+import { useRouter } from "next/navigation"; // <-- Adicionado o Roteador
 import {
   format,
   addMonths,
@@ -17,7 +17,7 @@ import {
   startOfDay,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, ArrowRight } from "lucide-react";
 
 interface MonthlyScheduleProps {
   pro: {
@@ -41,8 +41,11 @@ const dayMap = [
 ];
 
 export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
+  const router = useRouter(); // Roteador para navegarmos programaticamente
+
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [selectedTime, setSelectedTime] = useState<string | null>(null); // <-- Novo state para o horário
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
 
   const rawAvailability = pro.availability || {};
@@ -132,6 +135,15 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
       })
     : [];
 
+  // Função para executar o avanço
+  const handleProceed = () => {
+    if (selectedDate && selectedTime) {
+      router.push(
+        `/checkout-saude?proId=${pro.id}&time=${selectedTime}&date=${format(selectedDate, "yyyy-MM-dd")}`,
+      );
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* PREÇO + DURAÇÃO */}
@@ -198,7 +210,12 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
             <button
               key={date.toISOString()}
               type="button"
-              onClick={() => isAvailable && setSelectedDate(date)}
+              onClick={() => {
+                if (isAvailable) {
+                  setSelectedDate(date);
+                  setSelectedTime(null); // Zera o horário se o usuário mudar de dia!
+                }
+              }}
               disabled={!isAvailable}
               className={`
                 h-7 w-full rounded-md text-xs flex items-center justify-center transition-all
@@ -233,16 +250,25 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
           </h4>
 
           {slotsRealmenteDisponiveis.length > 0 ? (
-            <div className="grid grid-cols-4 gap-1.5 max-h-28 overflow-y-auto pr-0.5">
-              {slotsRealmenteDisponiveis.map((time) => (
-                <Link
-                  key={time}
-                  href={`/checkout-saude?proId=${pro.id}&time=${time}&date=${format(selectedDate, "yyyy-MM-dd")}`}
-                  className="py-1.5 text-[11px] font-medium text-center text-slate-300 bg-white/5 border border-white/10 rounded-lg hover:bg-[#d73cbe] hover:text-white hover:border-[#d73cbe] transition-all"
-                >
-                  {time}
-                </Link>
-              ))}
+            <div className="grid grid-cols-4 gap-1.5 max-h-32 overflow-y-auto pr-0.5 custom-scrollbar">
+              {slotsRealmenteDisponiveis.map((time) => {
+                const isSelectedTime = selectedTime === time;
+
+                return (
+                  <button
+                    key={time}
+                    type="button"
+                    onClick={() => setSelectedTime(time)}
+                    className={`py-1.5 text-[11px] font-medium text-center rounded-lg transition-all ${
+                      isSelectedTime
+                        ? "bg-[#d73cbe] text-white border border-[#d73cbe] shadow-md shadow-[#d73cbe]/30"
+                        : "text-slate-300 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-[#d73cbe] hover:border-[#d73cbe]/50"
+                    }`}
+                  >
+                    {time}
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center p-3 rounded-lg bg-white/5 border border-white/5 text-xs text-slate-500">
@@ -252,9 +278,24 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
         </div>
       )}
 
-      <p className="text-[9px] text-center text-slate-600 leading-relaxed pt-3 mt-auto border-t border-white/5">
-        Cancelamento gratuito até 24h antes.
-      </p>
+      {/* RODAPÉ & BOTÃO PROSSEGUIR */}
+      <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between gap-4">
+        <p className="text-[9px] text-slate-600 leading-relaxed max-w-[120px]">
+          Cancelamento gratuito até 24h antes.
+        </p>
+
+        <button
+          onClick={handleProceed}
+          disabled={!selectedTime}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
+            selectedTime
+              ? "bg-[#d73cbe] text-white shadow-lg shadow-[#d73cbe]/30 hover:bg-[#b02b9b] cursor-pointer"
+              : "bg-white/5 text-slate-500 cursor-not-allowed"
+          }`}
+        >
+          Prosseguir <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
