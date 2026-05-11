@@ -122,6 +122,37 @@ export async function POST(req: Request) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
 
+        // ------------------------------------------------------------------
+        // 🩺 FLUXO DE PAGAMENTO DE CONSULTA MÉDICA (HEALTH_APPOINTMENT)
+        // ------------------------------------------------------------------
+        if (session.metadata?.type === "HEALTH_APPOINTMENT") {
+          const { proId, patientId, date, time } = session.metadata;
+
+          try {
+            // Cria a consulta no banco de dados com status de pago/confirmado
+            // Nota: Se a sua tabela no Prisma tiver outro nome (ex: healthAppointment), ajuste aqui!
+            await db.appointment.create({
+              data: {
+                patientId: patientId,
+                professionalId: proId,
+                date: date,
+                time: time,
+                status: "CONFIRMED",
+                stripeSessionId: session.id, // Opcional, se existir na sua tabela
+              },
+            });
+            console.log(
+              `✅ Consulta confirmada via Stripe! Paciente: ${patientId} | Pro: ${proId} | Data: ${date} às ${time}`,
+            );
+          } catch (error) {
+            // Mesmo dando erro no banco, não estouramos erro pro Stripe para ele não ficar retentando em loop infinito
+          }
+
+          return new NextResponse(null, { status: 200 });
+        }
+        // ------------------------------------------------------------------
+
+        // FLUXO DE PROJETOS
         if (session.metadata?.type === "project_payment") {
           const amountValidation = await validateProjectPaymentAmount(
             session.metadata.proposalId,
@@ -144,6 +175,7 @@ export async function POST(req: Request) {
           return new NextResponse(null, { status: 200 });
         }
 
+        // FLUXO DE ASSINATURAS
         if (session.mode === "subscription") {
           if (!session?.metadata?.userId) {
             console.error("Webhook: Missing userId in subscription metadata.");
