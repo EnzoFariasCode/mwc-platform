@@ -145,6 +145,7 @@ export async function POST(req: Request) {
               `✅ Consulta confirmada via Stripe! Paciente: ${patientId} | Pro: ${proId} | Data: ${date} às ${time}`,
             );
           } catch (error) {
+            console.error("❌ Erro ao salvar consulta no webhook:", error);
             // Mesmo dando erro no banco, não estouramos erro pro Stripe para ele não ficar retentando em loop infinito
           }
 
