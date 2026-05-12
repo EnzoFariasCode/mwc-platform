@@ -71,9 +71,13 @@ export function UpgradeBanner({ isPro }: { isPro: boolean }) {
       const result = await createCheckoutSession(
         planId as "starter" | "advanced",
       );
+
       if (!result.success) {
-        toast.error(result.error);
-        if (result.error.includes("logado")) router.push("/login");
+        // 🛡️ O TRUQUE DE SEGURANÇA: Garantimos que sempre haverá um texto (fallback)
+        const errorMessage = result.error || "Erro desconhecido";
+
+        toast.error(errorMessage);
+        if (errorMessage.includes("logado")) router.push("/login");
         if (result.data?.url) router.push(result.data.url);
       } else if (result.data?.url) {
         window.location.href = result.data.url;
