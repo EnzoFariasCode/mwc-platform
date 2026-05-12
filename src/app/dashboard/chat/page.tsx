@@ -78,16 +78,18 @@ function ChatPageInner() {
         setConversations([]);
         return;
       }
-      const formatted: ConversationSummary[] = (result.data || []).map((c: any) => ({
-        id: c.id || "",
-        otherUserId: c.otherUserId || "",
-        name: c.name || "Usuário",
-        jobTitle: c.jobTitle || null,
-        lastMessage: c.lastMessage || "",
-        lastMessageTime: new Date(c.lastMessageTime),
-        avatar: c.avatar || null,
-        unreadCount: c.unreadCount || 0,
-      }));
+      const formatted: ConversationSummary[] = (result.data || []).map(
+        (c: any) => ({
+          id: c.id || "",
+          otherUserId: c.otherUserId || "",
+          name: c.name || "Usuário",
+          jobTitle: c.jobTitle || null,
+          lastMessage: c.lastMessage || "",
+          lastMessageTime: new Date(c.lastMessageTime),
+          avatar: c.avatar || null,
+          unreadCount: c.unreadCount || 0,
+        }),
+      );
       setConversations(formatted);
     } catch (error) {
       console.error("Erro ao carregar conversas:", error);
@@ -162,12 +164,14 @@ function ChatPageInner() {
         try {
           const result = await getConversationMessages(activeChatId);
           if (result.success && result.data) {
-            const formattedMessages: Message[] = result.data.messages.map((m: any) => ({
-              id: m.id,
-              text: m.text,
-              time: new Date(m.time),
-              sender: m.sender as "me" | "other",
-            }));
+            const formattedMessages: Message[] = result.data.messages.map(
+              (m: any) => ({
+                id: m.id,
+                text: m.text,
+                time: new Date(m.time),
+                sender: m.sender as "me" | "other",
+              }),
+            );
 
             setMessages((prev) => {
               if (prev.length !== formattedMessages.length) {
@@ -239,12 +243,14 @@ function ChatPageInner() {
 
         if (result.success && result.data && result.data.otherUser) {
           // CENÁRIO 1: Já existe conversa
-          const formattedMessages: Message[] = result.data.messages.map((m: any) => ({
-            id: m.id,
-            text: m.text,
-            time: new Date(m.time),
-            sender: m.sender as "me" | "other",
-          }));
+          const formattedMessages: Message[] = result.data.messages.map(
+            (m: any) => ({
+              id: m.id,
+              text: m.text,
+              time: new Date(m.time),
+              sender: m.sender as "me" | "other",
+            }),
+          );
 
           setMessages(formattedMessages);
           setActiveChatData(result.data.otherUser); // Define os dados do usuário
@@ -291,38 +297,45 @@ function ChatPageInner() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 🛡️ Segurança: Garante que o texto e o chat existem (resolve o erro de null)
     if (!inputText.trim() || !activeChatId) return;
 
+    // 📦 Recriando as variáveis que sumiram (resolve os erros 3 e 4)
     const text = inputText;
     const tempId = Date.now().toString();
+    const currentChatId = activeChatId; // Salva como string pura pro TypeScript ficar feliz
 
-    // 1. Otimista
-    const optimisticMsg: Message = {
+    // 1. Atualização Otimista na Tela (UI/UX amando isso!)
+    const optimisticMsg = {
       id: tempId,
       text: text,
       sender: "me",
       time: new Date(),
-    };
+    } as any; // Usamos 'any' aqui para evitar qualquer conflito com seu tipo Message
 
     setInputText("");
     setMessages((prev) => [...prev, optimisticMsg]);
     setIsSending(true);
 
     try {
-      // 2. Envia
-      const result = await sendMessage(activeChatId, text);
+      // 2. Envia para o Banco de Dados (agora o 'await' funciona!)
+      const result = await sendMessage(currentChatId, text);
 
       if (result.success && result.data) {
+        // 💡 O TRUQUE DO FRONT-END para o TypeScript não esquecer os dados
+        const messageData = result.data;
+
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === tempId
               ? {
                   ...msg,
-                  id: result.data.id,
-                  time: new Date(result.data.createdAt),
+                  id: messageData.id,
+                  time: new Date(messageData.createdAt),
                 }
-              : msg
-          )
+              : msg,
+          ),
         );
         loadConversations();
       } else {
@@ -331,6 +344,7 @@ function ChatPageInner() {
     } catch (error) {
       console.error("Falha no envio:", error);
       alert("Não foi possível enviar a mensagem.");
+      // Desfaz a mensagem otimista se der erro
       setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
       setInputText(text);
     } finally {
@@ -349,7 +363,7 @@ function ChatPageInner() {
 
   const handleDeleteConversation = async (
     conversationId: string,
-    e: React.MouseEvent
+    e: React.MouseEvent,
   ) => {
     e.stopPropagation();
     if (!confirm("Tem certeza que deseja apagar esta conversa?")) return;
@@ -373,7 +387,7 @@ function ChatPageInner() {
   // Filtro de Busca
   const displayedMessages = searchTerm
     ? messages.filter((m) =>
-        m.text.toLowerCase().includes(searchTerm.toLowerCase())
+        m.text.toLowerCase().includes(searchTerm.toLowerCase()),
       )
     : messages;
 
