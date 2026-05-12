@@ -9,7 +9,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 // Imports das imagens
 import eletricista from "@/assets/images/landingPage/eletricista.jpg";
-import encanador from "@/assets/images/landingPage/medico.jpg";
+import encanador from "@/assets/images/landingPage/encanador.avif";
 import designer from "@/assets/images/landingPage/logocreator.webp";
 import pedreiro from "@/assets/images/landingPage/pedreiro.webp";
 import desenvolvedor from "@/assets/images/landingPage/sitecreator.webp";
@@ -46,7 +46,7 @@ function ServicesSection() {
             trigger: ".gsap-title",
             start: "top 85%",
           },
-        }
+        },
       );
 
       // 2. Cards
@@ -66,7 +66,7 @@ function ServicesSection() {
               start: "top 85%",
               toggleActions: "play none none reverse",
             },
-          }
+          },
         );
       });
 
@@ -83,10 +83,10 @@ function ServicesSection() {
             trigger: ".gsap-line",
             start: "top 90%",
           },
-        }
+        },
       );
     },
-    { scope: containerRef }
+    { scope: containerRef },
   );
 
   // Função para navegar para a busca com o filtro
@@ -97,7 +97,7 @@ function ServicesSection() {
 
   return (
     <section
-    id="servicesSection"
+      id="servicesSection"
       ref={containerRef}
       className="relative py-24 px-4 bg-slate-950 overflow-hidden"
     >
