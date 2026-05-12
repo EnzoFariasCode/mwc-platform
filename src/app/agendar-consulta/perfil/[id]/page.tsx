@@ -136,8 +136,9 @@ export default async function ProfessionalHealthProfile({
                 ...pro,
                 availability: (pro.availability ?? undefined) as any,
                 sessionDuration: pro.sessionDuration ?? undefined,
+                // Usamos o construtor Number() que é seguro e agrada o TypeScript
                 consultationFee: pro.consultationFee
-                  ? pro.consultationFee.toNumber()
+                  ? Number(pro.consultationFee)
                   : undefined,
               }}
             />
