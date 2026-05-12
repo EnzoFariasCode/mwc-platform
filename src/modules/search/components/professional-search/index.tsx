@@ -317,7 +317,7 @@ export function ProfessionalSearch({
                           </span>
                           {pro.ratingCount > 0 && (
                             <span className="text-slate-500 text-xs">
-                              ({pro.ratingCount} avaliaÃ§Ãµes)
+                              ({pro.ratingCount} avaliações)
                             </span>
                           )}
                         </div>
