@@ -144,13 +144,15 @@ export async function createAppointment(formData: {
 
     if (existingAppointment) {
       return {
-        error: "Desculpe, este horario acabou de ser reservado por outra pessoa.",
+        error:
+          "Desculpe, este horario acabou de ser reservado por outra pessoa.",
       };
     }
 
     const newAppointment = await db.appointment.create({
       data: {
         date: reqDateTime,
+        time: formData.time, // ← string "14:30" já disponível
         status: "SCHEDULED",
         price: professional.consultationFee || 0,
         patientId: session.user.id,
@@ -176,7 +178,8 @@ export async function createAppointment(formData: {
       error.code === "P2002"
     ) {
       return {
-        error: "Desculpe, este horario acabou de ser reservado por outra pessoa.",
+        error:
+          "Desculpe, este horario acabou de ser reservado por outra pessoa.",
       };
     }
 

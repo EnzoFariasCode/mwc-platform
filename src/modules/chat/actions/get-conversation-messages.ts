@@ -21,7 +21,7 @@ type ConversationMessages = {
 };
 
 export async function getConversationMessages(
-  targetUserId: string
+  targetUserId: string,
 ): Promise<ActionResponse<ConversationMessages | null>> {
   try {
     const session = await verifySession();
@@ -69,21 +69,24 @@ export async function getConversationMessages(
         ? conversation.participantB
         : conversation.participantA;
 
-    const data = {
+    const data: ConversationMessages = {
       conversationId: conversation.id,
       messages: conversation.messages.map((msg) => ({
         id: msg.id,
         text: msg.content,
-        sender: msg.senderId === myId ? "me" : "other",
+        // 🛡️ A MARRETADA: Forçamos o tipo para o TypeScript parar de reclamar
+        sender: (msg.senderId === myId ? "me" : "other") as "me" | "other",
         time: msg.createdAt,
       })),
       otherUser: {
         id: otherUser.id,
-        name: otherUser.displayName || otherUser.name,
+        // Garante que name sempre será uma string (fazendo fallback se tudo for nulo)
+        name: otherUser.displayName || otherUser.name || "Usuário",
         jobTitle: otherUser.jobTitle,
         isFavorite: !!isFavorite,
       },
     };
+
     return { success: true, data };
   } catch (error) {
     console.error("Erro ao buscar mensagens:", error);
