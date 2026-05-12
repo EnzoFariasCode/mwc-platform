@@ -48,11 +48,14 @@ export async function finalizeProjectPayment({
   ) {
     if (
       proposal.status === ProposalStatus.ACCEPTED &&
-      [
-        ProjectStatus.IN_PROGRESS,
-        ProjectStatus.UNDER_REVIEW,
-        ProjectStatus.COMPLETED,
-      ].includes(proposal.project.status)
+      // 🛡️ CORREÇÃO 1: Avisando o TypeScript que isso é um Array de ProjectStatus
+      (
+        [
+          ProjectStatus.IN_PROGRESS,
+          ProjectStatus.UNDER_REVIEW,
+          ProjectStatus.COMPLETED,
+        ] as ProjectStatus[]
+      ).includes(proposal.project.status)
     ) {
       return { success: true, alreadyProcessed: true };
     }
@@ -74,7 +77,7 @@ export async function finalizeProjectPayment({
           professionalId: proposal.professionalId,
           agreedPrice: proposal.price,
           deadline: new Date(
-            Date.now() + proposal.estimatedDays * 24 * 60 * 60 * 1000
+            Date.now() + proposal.estimatedDays * 24 * 60 * 60 * 1000,
           ).toLocaleDateString("pt-BR"),
         },
       });
@@ -87,11 +90,14 @@ export async function finalizeProjectPayment({
 
         if (
           fresh?.status &&
-          [
-            ProjectStatus.IN_PROGRESS,
-            ProjectStatus.UNDER_REVIEW,
-            ProjectStatus.COMPLETED,
-          ].includes(fresh.status)
+          // 🛡️ CORREÇÃO 2: Mesma blindagem aqui embaixo
+          (
+            [
+              ProjectStatus.IN_PROGRESS,
+              ProjectStatus.UNDER_REVIEW,
+              ProjectStatus.COMPLETED,
+            ] as ProjectStatus[]
+          ).includes(fresh.status)
         ) {
           return { success: true, alreadyProcessed: true };
         }

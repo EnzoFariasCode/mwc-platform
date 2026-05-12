@@ -90,8 +90,13 @@ export function PricingSection({
     if (userStatus === "active") {
       try {
         const result = await createPortalSession();
-        if (result.url) window.location.href = result.url;
-        else toast.error(result.error || "Erro ao abrir portal.");
+
+        // 🛡️ CORREÇÃO 1: Abrindo a 'caixa' do ActionResponse
+        if (result.success && result.data?.url) {
+          window.location.href = result.data.url;
+        } else {
+          toast.error(result.error || "Erro ao abrir portal.");
+        }
       } catch {
         toast.error("Erro ao conectar com Stripe.");
       } finally {
@@ -106,11 +111,15 @@ export function PricingSection({
         planId as "starter" | "advanced",
       );
 
-      if (result.error) {
-        toast.error(result.error);
-        if (result.redirectUrl) router.push(result.redirectUrl);
-      } else if (result.url) {
-        window.location.href = result.url;
+      // 🛡️ CORREÇÃO 2: Aplicando a mesma blindagem no Checkout
+      if (!result.success) {
+        toast.error(result.error || "Erro ao iniciar pagamento.");
+        // (Opcional) Se o servidor mandar redirecionar no erro, pegamos do data
+        if (result.data && (result.data as any).redirectUrl) {
+          router.push((result.data as any).redirectUrl);
+        }
+      } else if (result.data?.url) {
+        window.location.href = result.data.url;
       }
     } catch {
       toast.error("Erro ao iniciar pagamento.");
@@ -143,7 +152,8 @@ export function PricingSection({
               <div className="text-4xl font-bold text-white mb-6">R$ 0,00</div>
               <ul className="space-y-3 mb-8 text-sm text-slate-300">
                 <li className="flex gap-2">
-                  <Check className="w-4 h-4 text-slate-500" /> 1 Trabalho por vez
+                  <Check className="w-4 h-4 text-slate-500" /> 1 Trabalho por
+                  vez
                 </li>
                 <li className="flex gap-2">
                   <Check className="w-4 h-4 text-slate-500" /> Taxa padrão (20%)
@@ -152,7 +162,11 @@ export function PricingSection({
               <button
                 onClick={() =>
                   isLoggedIn
-                    ? router.push(userType === "CLIENT" ? "/dashboard/cliente" : "/dashboard/profissional")
+                    ? router.push(
+                        userType === "CLIENT"
+                          ? "/dashboard/cliente"
+                          : "/dashboard/profissional",
+                      )
                     : router.push("/cadastro")
                 }
                 className="gsap-cta-button w-full py-4 rounded-xl font-bold text-sm bg-slate-800 text-white hover:bg-slate-700 transition-colors cursor-pointer relative overflow-hidden"
@@ -190,7 +204,9 @@ export function PricingSection({
                   )}
                 </div>
 
-                <p className="text-slate-400 text-sm mb-6">{plan.description}</p>
+                <p className="text-slate-400 text-sm mb-6">
+                  {plan.description}
+                </p>
 
                 <div className="text-4xl font-bold text-white mb-6">
                   {plan.price}{" "}
@@ -243,24 +259,31 @@ export function PricingSection({
                 <AlertTriangle className="w-8 h-8 text-yellow-500" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-white font-futura">Acesso Restrito</h3>
-                <p className="text-slate-400 text-sm">Conta de Cliente Detectada</p>
+                <h3 className="text-xl font-bold text-white font-futura">
+                  Acesso Restrito
+                </h3>
+                <p className="text-slate-400 text-sm">
+                  Conta de Cliente Detectada
+                </p>
               </div>
             </div>
-            
+
             <p className="text-slate-300 text-sm leading-relaxed mb-8">
-              Essa opção de assinatura é válida apenas para contas <strong>PROFISSIONAIS</strong>. 
-              Para assinar, acesse o seu dashboard e altere a sua conta para profissional, preencha seu perfil e assine para começar a pegar trabalhos e receber pagamentos.
+              Essa opção de assinatura é válida apenas para contas{" "}
+              <strong>PROFISSIONAIS</strong>. Para assinar, acesse o seu
+              dashboard e altere a sua conta para profissional, preencha seu
+              perfil e assine para começar a pegar trabalhos e receber
+              pagamentos.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row justify-end gap-3">
-              <button 
+              <button
                 onClick={() => setShowClientModal(false)}
                 className="px-6 py-3 rounded-xl text-sm font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors cursor-pointer"
               >
                 Entendi
               </button>
-              <button 
+              <button
                 onClick={() => router.push("/dashboard/cliente")}
                 className="px-6 py-3 rounded-xl text-sm font-bold bg-[#d73cbe] text-white hover:bg-[#b0269a] transition-colors shadow-lg cursor-pointer"
               >
