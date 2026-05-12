@@ -129,20 +129,22 @@ export async function POST(req: Request) {
           const { proId, patientId, date, time } = session.metadata;
 
           try {
-            // Cria a consulta no banco de dados com status de pago/confirmado
-            // Nota: Se a sua tabela no Prisma tiver outro nome (ex: healthAppointment), ajuste aqui!
+            // Cria a consulta no banco de dados com status de pago/marcado
             await db.appointment.create({
               data: {
                 patientId: patientId,
                 professionalId: proId,
                 date: date,
                 time: time,
-                status: "CONFIRMED",
+                status: "SCHEDULED",
                 stripeSessionId: session.id, // Opcional, se existir na sua tabela
+
+                // 💰 A LINHA MÁGICA: Pegamos o valor do Stripe (que vem em centavos) e dividimos por 100
+                price: session.amount_total ? session.amount_total / 100 : 0,
               },
             });
             console.log(
-              `✅ Consulta confirmada via Stripe! Paciente: ${patientId} | Pro: ${proId} | Data: ${date} às ${time}`,
+              `✅ Consulta confirmada via Stripe! Paciente: ${patientId} | Pro: ${proId} | Data: ${date} às ${time} | Valor: R$ ${session.amount_total ? session.amount_total / 100 : 0}`,
             );
           } catch (error) {
             console.error("❌ Erro ao salvar consulta no webhook:", error);
