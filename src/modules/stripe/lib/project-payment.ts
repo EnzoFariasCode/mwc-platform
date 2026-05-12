@@ -135,7 +135,7 @@ export async function finalizeProjectPayment({
       return { success: true };
     });
 
-    return result;
+    return result as FinalizeProjectPaymentResult;
   } catch (error) {
     console.error("Erro ao finalizar pagamento do projeto:", error);
     return { success: false, error: "Erro interno ao processar pagamento." };
