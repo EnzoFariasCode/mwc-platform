@@ -19,6 +19,10 @@ const orbitron = Orbitron({
 export const metadata: Metadata = {
   title: "MWC Platform",
   description: "Marketplace de Serviços Profissionais",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
