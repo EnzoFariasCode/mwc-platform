@@ -73,7 +73,7 @@ export function UpgradeBanner({ isPro }: { isPro: boolean }) {
       );
 
       if (!result.success) {
-        // 🛡️ O TRUQUE DE SEGURANÇA: Garantimos que sempre haverá um texto (fallback)
+        //Garantimos que sempre haverá um texto (fallback)
         const errorMessage = result.error || "Erro desconhecido";
 
         toast.error(errorMessage);
@@ -190,7 +190,7 @@ export function UpgradeBanner({ isPro }: { isPro: boolean }) {
           <div className="relative w-full max-w-5xl bg-slate-950 border border-white/10 rounded-3xl shadow-2xl overflow-hidden my-auto">
             <button
               onClick={() => setIsOpen(false)}
-              className="absolute top-4 right-4 p-2 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors z-20"
+              className="absolute top-4 right-4 p-2 bg-white/5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors z-20 cursor-alias"
             >
               <X className="w-6 h-6" />
             </button>
@@ -260,7 +260,7 @@ export function UpgradeBanner({ isPro }: { isPro: boolean }) {
                     <button
                       onClick={() => handleSubscribe(plan.id)}
                       disabled={loadingId !== null}
-                      className={`w-full py-4 rounded-xl font-bold text-sm transition-transform active:scale-95 flex items-center justify-center gap-2 ${
+                      className={`w-full py-4 rounded-xl font-bold text-sm transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${
                         loadingId !== null && loadingId !== plan.id
                           ? "opacity-50 cursor-not-allowed"
                           : ""
