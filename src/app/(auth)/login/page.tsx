@@ -78,12 +78,18 @@ function LoginContent() {
     }
 
     const session = await getSession();
+
+    // Tipagem segura sem usar 'typeof' em algo que pode ser nulo
     const user = session?.user as
-      | (typeof session.user & {
+      | {
+          id?: string;
+          name?: string | null;
+          email?: string | null;
+          image?: string | null;
           userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN";
           industry?: "TECH" | "HEALTH";
           jobTitle?: string | null;
-        })
+        }
       | undefined;
 
     toast.success("Login realizado!");
