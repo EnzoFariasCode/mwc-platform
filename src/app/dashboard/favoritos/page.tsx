@@ -68,7 +68,7 @@ export default function FavoritosPage() {
 
   // 3. Filtro de busca local
   const filteredFavoritos = favoritos.filter((fav) =>
-    fav.name.toLowerCase().includes(searchTerm.toLowerCase())
+    fav.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   // Helper para iniciais
@@ -116,15 +116,15 @@ export default function FavoritosPage() {
             {filteredFavoritos.map((fav) => (
               <div
                 key={fav.id}
-                className="bg-slate-900 border border-white/5 rounded-2xl p-6 flex flex-col gap-4 hover:border-white/10 transition-all group relative overflow-hidden"
+                className="bg-slate-900 border border-white/5 rounded-2xl p-4 sm:p-6 flex flex-col gap-4 hover:border-white/10 transition-all group relative overflow-hidden"
               >
                 {/* Efeito Hover Sutil */}
                 <div className="absolute inset-0 bg-gradient-to-br from-[#d73cbe]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-                {/* TOPO DO CARD */}
-                <div className="flex items-start justify-between relative z-10">
-                  <div className="flex items-center gap-4">
-                    {/* Avatar Lógica: Imagem ou Iniciais */}
+                {/* TOPO DO CARD - Responsivo */}
+                <div className="flex flex-col xs:flex-row items-start justify-between gap-4 relative z-10">
+                  <div className="flex items-center gap-4 min-w-0 flex-1">
+                    {/* Avatar Lógica */}
                     <div className="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center text-xl font-bold text-white border border-white/10 overflow-hidden shrink-0">
                       {fav.avatarUrl ? (
                         <Image
@@ -138,8 +138,9 @@ export default function FavoritosPage() {
                         getInitials(fav.name)
                       )}
                     </div>
-                    <div>
-                      <h3 className="font-bold text-white text-lg font-futura line-clamp-1">
+                    <div className="min-w-0">
+                      {/* Removido font-futura para evitar 'letras estranhas' e melhorar legibilidade */}
+                      <h3 className="font-bold text-white text-lg leading-tight line-clamp-1">
                         {fav.name}
                       </h3>
                       <p className="text-sm text-slate-400 line-clamp-1">
@@ -148,8 +149,8 @@ export default function FavoritosPage() {
                     </div>
                   </div>
 
-                  {/* Nota */}
-                  <div className="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded-lg border border-yellow-500/20 shrink-0">
+                  {/* Nota - Badge mais compacto no mobile */}
+                  <div className="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded-lg border border-yellow-500/20 shrink-0 self-start xs:self-auto">
                     <span className="text-yellow-500 font-bold text-sm">
                       {fav.ratingCount && fav.rating
                         ? fav.rating.toFixed(1)
@@ -157,8 +158,9 @@ export default function FavoritosPage() {
                     </span>
                     <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
                     {fav.ratingCount ? (
-                      <span className="text-xs text-slate-500">
-                        ({fav.ratingCount} avaliaÃ§Ãµes)
+                      <span className="text-xs text-slate-500 whitespace-nowrap">
+                        ({fav.ratingCount}{" "}
+                        {fav.ratingCount === 1 ? "avaliação" : "avaliações"})
                       </span>
                     ) : null}
                   </div>
@@ -177,10 +179,10 @@ export default function FavoritosPage() {
                 </div>
 
                 {/* BOTÕES DE AÇÃO */}
-                <div className="flex gap-3 mt-auto pt-2 relative z-10">
+                <div className="flex flex-col sm:flex-row gap-3 mt-auto pt-2 relative z-10">
                   <button
                     onClick={() => handleRemove(fav.id)}
-                    className="p-3 rounded-xl border border-white/10 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-colors cursor-pointer"
+                    className="p-3 rounded-xl border border-white/10 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-colors cursor-pointer flex items-center justify-center"
                     title="Remover dos favoritos"
                   >
                     <Trash2 className="w-5 h-5" />
@@ -190,9 +192,9 @@ export default function FavoritosPage() {
                     href={`/dashboard/chat?newChat=${fav.id}`}
                     className="flex-1"
                   >
-                    <button className="w-full cursor-pointer py-3 bg-[#d73cbe] hover:bg-[#b0269a] text-white font-bold rounded-xl transition-all shadow-lg shadow-purple-900/20 flex items-center justify-center gap-2">
-                      <MessageCircle className="w-5 h-5" />
-                      Chamar no Chat
+                    <button className="w-full cursor-pointer py-3 bg-[#d73cbe] hover:bg-[#b0269a] text-white font-bold rounded-xl transition-all shadow-lg shadow-purple-900/20 flex items-center justify-center gap-2 text-sm sm:text-base">
+                      <MessageCircle className="w-5 h-5 shrink-0" />
+                      <span>Chamar no Chat</span>
                     </button>
                   </Link>
                 </div>
