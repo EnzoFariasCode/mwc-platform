@@ -22,7 +22,7 @@ export async function GET(
       return new NextResponse(null, { status: 404 });
     }
 
-    return new NextResponse(user.profileImageBytes, {
+    return new NextResponse(user.profileImageBytes as unknown as BodyInit, {
       headers: {
         "Content-Type": user.profileImageType || "image/jpeg",
         "Cache-Control": "public, max-age=86400",
