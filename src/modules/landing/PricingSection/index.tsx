@@ -111,12 +111,15 @@ export function PricingSection({
         planId as "starter" | "advanced",
       );
 
-      // 🛡️ CORREÇÃO 2: Aplicando a mesma blindagem no Checkout
+      // 🛡️ CORREÇÃO 2: Aplicando a mesma blindagem no Checkout (SEM USAR ANY!)
       if (!result.success) {
         toast.error(result.error || "Erro ao iniciar pagamento.");
-        // (Opcional) Se o servidor mandar redirecionar no erro, pegamos do data
-        if (result.data && (result.data as any).redirectUrl) {
-          router.push((result.data as any).redirectUrl);
+
+        // Avisamos ao TypeScript o formato exato que estamos esperando
+        const errorData = result.data as { redirectUrl?: string } | undefined;
+
+        if (errorData?.redirectUrl) {
+          router.push(errorData.redirectUrl);
         }
       } else if (result.data?.url) {
         window.location.href = result.data.url;
