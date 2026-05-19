@@ -3,6 +3,8 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/prisma";
 
+const PLATFORM_FEE_PERCENT = 10;
+
 export type FinalizeHealthAppointmentPaymentResult = {
   success: boolean;
   alreadyProcessed?: boolean;
@@ -135,24 +137,55 @@ export async function finalizeHealthAppointmentPayment({
   }
 
   try {
-    const appointment = await db.appointment.create({
-      data: {
-        patientId,
-        professionalId: proId,
-        date: appointmentDateTime,
-        time,
-        status: "SCHEDULED",
-        stripeSessionId: session.id,
-        meetLink: `https://meet.google.com/mwc-${Math.random()
-          .toString(36)
-          .substring(2, 11)}`,
-        price: session.amount_total / 100,
-      },
-      select: { id: true, professionalId: true, patientId: true },
+    const appointment = await db.$transaction(async (tx) => {
+      const grossAmount = new Prisma.Decimal(session.amount_total ?? 0).div(100);
+      const professionalAmount = grossAmount
+        .mul(100 - PLATFORM_FEE_PERCENT)
+        .div(100)
+        .toDecimalPlaces(2);
+
+      const createdAppointment = await tx.appointment.create({
+        data: {
+          patientId,
+          professionalId: proId,
+          date: appointmentDateTime,
+          time,
+          status: "SCHEDULED",
+          stripeSessionId: session.id,
+          meetLink: `https://meet.google.com/mwc-${Math.random()
+            .toString(36)
+            .substring(2, 11)}`,
+          price: grossAmount,
+        },
+        select: { id: true, professionalId: true, patientId: true },
+      });
+
+      await tx.user.update({
+        where: { id: proId },
+        data: {
+          walletBalance: {
+            increment: professionalAmount,
+          },
+        },
+      });
+
+      await tx.transaction.create({
+        data: {
+          userId: proId,
+          amount: professionalAmount,
+          type: "CREDIT",
+          status: "COMPLETED",
+          description: `Consulta Health (${PLATFORM_FEE_PERCENT}% taxa aplicada) - ${date} as ${time} - Stripe: ${session.id}`,
+        },
+      });
+
+      return createdAppointment;
     });
 
     revalidatePath("/agendar-consulta/historico");
     revalidatePath("/agendar-consulta/dashboard-profissional");
+    revalidatePath("/agendar-consulta/financeiro");
+    revalidatePath("/dashboard/financeiro");
     revalidatePath(`/agendar-consulta/perfil/${appointment.professionalId}`);
 
     return {

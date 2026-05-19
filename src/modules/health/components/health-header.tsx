@@ -12,6 +12,7 @@ import {
   LogOut,
   LayoutDashboard,
   ExternalLink,
+  Wallet,
   Settings, // Adicionado o ícone de configurações/perfil
 } from "lucide-react";
 
@@ -88,6 +89,14 @@ export function HealthHeader() {
           >
             Minhas Consultas
           </Link>
+          {isPro && (
+            <Link
+              href="/agendar-consulta/financeiro"
+              className="hover:text-[#d73cbe] transition-colors"
+            >
+              Financeiro
+            </Link>
+          )}
         </nav>
 
         {isLoading ? (
@@ -152,6 +161,17 @@ export function HealthHeader() {
                     <LayoutDashboard className="w-4 h-4 text-[#d73cbe]" />
                     <span>{isPro ? "Meu Painel" : "Minhas Consultas"}</span>
                   </Link>
+
+                  {isPro && (
+                    <Link
+                      href="/agendar-consulta/financeiro"
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                    >
+                      <Wallet className="w-4 h-4 text-[#d73cbe]" />
+                      <span>Financeiro</span>
+                    </Link>
+                  )}
 
                   {/* Link: Ver Perfil ou Voltar ao Portal */}
                   <Link

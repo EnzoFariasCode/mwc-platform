@@ -58,6 +58,7 @@ export async function requestWithdrawal(
     });
 
     revalidatePath("/dashboard/financeiro");
+    revalidatePath("/agendar-consulta/financeiro");
     return {
       success: true,
       data: "Solicitação enviada! Pagamento em até 24h úteis.",
