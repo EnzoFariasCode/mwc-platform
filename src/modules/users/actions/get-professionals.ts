@@ -1,30 +1,15 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { getHealthSpecialtyById } from "@/modules/health/lib/specialties";
 
 export async function getProfessionalsBySpecialty(specialtyId: string) {
   try {
-    const searchTerms: Record<string, string[]> = {
-      psicologia: [
-        "Psicologo",
-        "Psicólogo",
-        "Psicóloga",
-        "Psicóloga(a)",
-        "Psicólogo(a)",
-        "Psicologia",
-      ],
-      advogado: ["Advogado", "Advogada", "Jurídico"],
-      nutricao: ["Nutricionista", "Nutrição"],
-      personal: ["Personal Trainer", "Personal"],
-      ingles: [
-        "Professor de Inglês",
-        "Inglês",
-        "English Teacher",
-        "Professor de Ingles",
-      ],
-    };
+    const specialty = getHealthSpecialtyById(specialtyId.toLowerCase());
 
-    const terms = searchTerms[specialtyId.toLowerCase()] || [specialtyId];
+    if (!specialty) {
+      return { data: [] };
+    }
 
     const professionals = await db.user.findMany({
       where: {
@@ -37,13 +22,13 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
         OR: [
           {
             jobTitle: {
-              in: terms,
+              in: specialty.terms,
               mode: "insensitive",
             },
           },
           {
             approach: {
-              contains: specialtyId,
+              contains: specialty.id,
               mode: "insensitive",
             },
           },
@@ -66,7 +51,7 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
         approach: true,
         city: true,
         state: true,
-        profileImageBytes: true, // ✅ corrigido: estava "rofileImageBytes"
+        profileImageBytes: true,
       },
     });
 
@@ -80,13 +65,14 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
           hasValidAgenda = pro.availability.length > 5;
         } else if (
           typeof pro.availability === "object" &&
-          pro.availability !== null
+          pro.availability !== null &&
+          !Array.isArray(pro.availability)
         ) {
           hasValidAgenda = Object.keys(pro.availability).length > 0;
         }
 
         return hasValidDoc && hasValidJobTitle && hasValidAgenda;
-      }) // ✅ corrigido: fechamento do .filter() no lugar certo
+      })
       .map(({ profileImageBytes, ...pro }) => ({
         ...pro,
         hasProfileImage: profileImageBytes !== null,

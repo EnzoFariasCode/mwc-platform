@@ -8,6 +8,7 @@ import { Star, Video, ShieldCheck, ArrowLeft } from "lucide-react";
 import { getProfessionalsBySpecialty } from "@/modules/users/actions/get-professionals";
 import { MonthlyScheduleClient } from "@/app/agendar-consulta/perfil/[id]/monthly-schedule-client";
 import type { HealthAvailability } from "@/modules/health/types";
+import { getHealthSpecialtyById } from "@/modules/health/lib/specialties";
 
 // ─── Tipagem Corrigida (Visão do Arquiteto Back-end) ──────────────────────────
 interface Professional {
@@ -36,7 +37,8 @@ export default function SpecialtyPage({
 }) {
   const resolvedParams = use(params);
   const specialty = resolvedParams.specialty;
-  const specialtyName = specialty.charAt(0).toUpperCase() + specialty.slice(1);
+  const specialtyConfig = getHealthSpecialtyById(specialty);
+  const specialtyName = specialtyConfig?.name ?? "Especialidade";
 
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +46,12 @@ export default function SpecialtyPage({
 
   useEffect(() => {
     async function fetchProfessionals() {
+      if (!specialtyConfig) {
+        setProfessionals([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
@@ -60,7 +68,28 @@ export default function SpecialtyPage({
       }
     }
     fetchProfessionals();
-  }, [specialty]);
+  }, [specialty, specialtyConfig]);
+
+  if (!specialtyConfig) {
+    return (
+      <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8">
+        <div className="container mx-auto max-w-5xl px-4">
+          <Link
+            href="/agendar-consulta"
+            className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-6 text-sm"
+          >
+            <ArrowLeft className="w-4 h-4" /> Voltar para especialidades
+          </Link>
+          <h1 className="text-4xl md:text-5xl font-futura font-bold text-white mb-4 uppercase tracking-tighter">
+            Especialidade indisponivel
+          </h1>
+          <p className="text-slate-400 text-lg font-light max-w-2xl">
+            Esta area nao faz parte do catalogo atual da MWC Health.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
