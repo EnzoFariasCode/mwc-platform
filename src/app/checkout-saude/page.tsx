@@ -9,9 +9,7 @@ import {
   ArrowLeft,
   User,
   Mail,
-  Calendar as CalendarIcon,
   ArrowRight,
-  Clock,
   ShieldCheck,
   CreditCard,
 } from "lucide-react";
@@ -19,6 +17,7 @@ import {
 // Trocamos createAppointment por createCheckoutSession
 import { createCheckoutSession } from "@/modules/health/actions/payment-actions";
 import { getHealthProfessionalById } from "@/modules/health/services/professional-service";
+import type { HealthProfessionalProfile } from "@/modules/health/types";
 
 export default function CheckoutSaudePage({
   searchParams,
@@ -35,7 +34,8 @@ export default function CheckoutSaudePage({
 
   const [step, setStep] = useState<1 | 2>(1);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [professional, setProfessional] = useState<any>(null);
+  const [professional, setProfessional] =
+    useState<HealthProfessionalProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

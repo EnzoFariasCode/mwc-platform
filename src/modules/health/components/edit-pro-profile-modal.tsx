@@ -11,11 +11,12 @@ import {
 } from "lucide-react";
 // Importando a Server Action que criamos na etapa anterior
 import { updateHealthProProfile } from "../actions/update-health-pro";
+import type { HealthProfessionalProfile } from "../types";
 
 type EditProProfileModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  initialData?: any;
+  initialData?: HealthProfessionalProfile | null;
 };
 
 export function EditProProfileModal({
@@ -27,6 +28,12 @@ export function EditProProfileModal({
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const initialFee =
+    typeof initialData?.consultationFee === "number" ||
+    typeof initialData?.consultationFee === "string"
+      ? initialData.consultationFee
+      : 150;
 
   // Lógica real conectada ao Back-end
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -164,7 +171,7 @@ export function EditProProfileModal({
                     name="consultationFee" // Adicionado
                     type="number"
                     step="0.01" // Permite centavos
-                    defaultValue={initialData?.consultationFee || 150}
+                    defaultValue={initialFee}
                     className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                   />
                 </div>

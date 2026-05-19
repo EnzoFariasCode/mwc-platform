@@ -15,7 +15,7 @@ import Link from "next/link";
 import { getNotifications } from "@/modules/notifications/actions/get-notifications";
 
 type NotificationItem = {
-  id: number;
+  id: string | number;
   type: string;
   title: string;
   message: string;
@@ -68,7 +68,7 @@ export function NotificationDropdown() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleRead = (id: number) => {
+  const handleRead = (id: string | number) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );

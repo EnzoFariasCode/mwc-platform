@@ -30,6 +30,7 @@ export async function getHealthProfessionalDashboardById(userId: string) {
         select: {
           id: true,
           date: true,
+          time: true,
           status: true,
           price: true,
           meetLink: true,
@@ -65,6 +66,7 @@ export async function getHealthPatientHistoryById(userId: string) {
         select: {
           id: true,
           date: true,
+          time: true,
           status: true,
           price: true,
           meetLink: true,

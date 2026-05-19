@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/prisma";
+import { format } from "date-fns";
 
 export async function getBookedSlots(
   professionalId: string,
@@ -15,16 +16,17 @@ export async function getBookedSlots(
           gte: startDate,
           lte: endDate,
         },
-        // Se no futuro você adicionar cancelamentos, pode colocar um filtro aqui:
-        // status: { not: "CANCELED" }
+        status: { not: "CANCELED" },
       },
       select: {
         date: true,
+        time: true,
       },
     });
 
-    // Retornamos um array de strings ISO para facilitar a comparação no Front-end
-    return appointments.map((app) => app.date.toISOString());
+    return appointments.map(
+      (app) => `${format(app.date, "yyyy-MM-dd")}|${app.time}`,
+    );
   } catch (error) {
     console.error("[GET_BOOKED_SLOTS_ERROR]", error);
     return [];

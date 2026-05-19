@@ -4,9 +4,10 @@ import { useState } from "react";
 import { Settings2, AlertTriangle } from "lucide-react";
 import { EditProProfileModal } from "./edit-pro-profile-modal";
 import { EditScheduleModal } from "./edit-schedule-modal";
+import type { HealthProfessionalProfile } from "../types";
 
 interface Props {
-  professional: any;
+  professional: HealthProfessionalProfile;
   missingCredential: boolean;
 }
 

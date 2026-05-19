@@ -7,11 +7,12 @@ import {
   type WeeklyAvailability,
   type DaySchedule,
 } from "../actions/update-health-schedule";
+import type { HealthProfessionalProfile } from "../types";
 
 type EditScheduleModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  professional: any;
+  professional: HealthProfessionalProfile;
 };
 
 const defaultSchedule: WeeklyAvailability = {
@@ -41,8 +42,19 @@ export function EditScheduleModal({
 }: EditScheduleModalProps) {
   const [schedule, setSchedule] = useState<WeeklyAvailability>(() => {
     const saved = professional?.availability;
-    if (!saved || Object.keys(saved).length === 0) return defaultSchedule;
-    return saved as WeeklyAvailability;
+    if (!saved) return defaultSchedule;
+
+    const parsed = typeof saved === "string" ? JSON.parse(saved) : saved;
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed) ||
+      Object.keys(parsed).length === 0
+    ) {
+      return defaultSchedule;
+    }
+
+    return parsed as WeeklyAvailability;
   });
 
   const [isSaving, setIsSaving] = useState(false);

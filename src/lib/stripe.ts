@@ -7,7 +7,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   // Mantendo exatamente a mesma versão que você já configurou no seu webhook
-  apiVersion: "2026-01-28.clover" as any,
+  apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
   typescript: true,
   appInfo: {
     name: "MWC Platform",

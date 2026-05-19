@@ -2,8 +2,8 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
 import { db } from "@/lib/prisma";
+import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
@@ -16,14 +16,10 @@ async function validateProjectPaymentAmount(
   amountInCents: number | null | undefined,
   currency: string | null | undefined,
 ) {
-  if (!proposalId) {
-    return { ok: false, error: "Missing proposalId" };
-  }
-
+  if (!proposalId) return { ok: false, error: "Missing proposalId" };
   if (!amountInCents || amountInCents <= 0) {
     return { ok: false, error: "Missing or invalid amount" };
   }
-
   if (!currency || currency.toLowerCase() !== "brl") {
     return { ok: false, error: "Invalid currency" };
   }
@@ -33,12 +29,9 @@ async function validateProjectPaymentAmount(
     select: { price: true },
   });
 
-  if (!proposal) {
-    return { ok: false, error: "Proposal not found" };
-  }
+  if (!proposal) return { ok: false, error: "Proposal not found" };
 
   const expectedCents = proposal.price.mul(100).toDecimalPlaces(0).toNumber();
-
   if (amountInCents !== expectedCents) {
     return {
       ok: false,
@@ -47,6 +40,37 @@ async function validateProjectPaymentAmount(
   }
 
   return { ok: true };
+}
+
+function parseHealthAppointmentDateTime(date?: string, time?: string) {
+  if (!date || !time) return null;
+
+  const [year, month, day] = date.split("-").map(Number);
+  const [hours, minutes] = time.split(":").map(Number);
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes)
+  ) {
+    return null;
+  }
+
+  const dateTime = new Date(year, month - 1, day, hours, minutes);
+  if (
+    Number.isNaN(dateTime.getTime()) ||
+    dateTime.getFullYear() !== year ||
+    dateTime.getMonth() !== month - 1 ||
+    dateTime.getDate() !== day ||
+    dateTime.getHours() !== hours ||
+    dateTime.getMinutes() !== minutes
+  ) {
+    return null;
+  }
+
+  return dateTime;
 }
 
 async function reopenProjectOnCheckoutExpired(
@@ -65,11 +89,7 @@ async function reopenProjectOnCheckoutExpired(
   });
 
   if (!proposal) return;
-
-  if (buyerId && proposal.project.ownerId !== buyerId) {
-    return;
-  }
-
+  if (buyerId && proposal.project.ownerId !== buyerId) return;
   if (proposal.project.status !== "WAITING_PAYMENT") return;
   if (proposal.status !== "PENDING") return;
 
@@ -77,6 +97,96 @@ async function reopenProjectOnCheckoutExpired(
     where: { id: proposal.projectId },
     data: { status: "OPEN" },
   });
+}
+
+async function handleHealthAppointment(session: Stripe.Checkout.Session) {
+  const { proId, patientId, date, time } = session.metadata ?? {};
+  const appointmentDateTime = parseHealthAppointmentDateTime(date, time);
+
+  if (!proId || !patientId || !appointmentDateTime || !time) {
+    console.error("Webhook Health: metadata invalido.", session.metadata);
+    return new NextResponse("Invalid health appointment metadata", {
+      status: 400,
+    });
+  }
+
+  const alreadyProcessed = await db.appointment.findUnique({
+    where: { stripeSessionId: session.id },
+    select: { id: true },
+  });
+
+  if (alreadyProcessed) {
+    return new NextResponse(null, { status: 200 });
+  }
+
+  const professional = await db.user.findFirst({
+    where: {
+      id: proId,
+      userType: "PROFESSIONAL",
+      industry: "HEALTH",
+    },
+    select: { id: true, consultationFee: true },
+  });
+
+  if (!professional || !professional.consultationFee) {
+    console.error("Webhook Health: profissional invalido.", proId);
+    return new NextResponse("Invalid health professional", { status: 400 });
+  }
+
+  const expectedAmount = professional.consultationFee
+    .mul(100)
+    .toDecimalPlaces(0)
+    .toNumber();
+
+  if (
+    session.currency?.toLowerCase() !== "brl" ||
+    session.amount_total !== expectedAmount
+  ) {
+    console.error("Webhook Health: valor invalido.", {
+      expectedAmount,
+      receivedAmount: session.amount_total,
+      currency: session.currency,
+    });
+    return new NextResponse("Invalid health payment amount", { status: 400 });
+  }
+
+  const existingSlot = await db.appointment.findFirst({
+    where: {
+      professionalId: proId,
+      date: appointmentDateTime,
+      time,
+      status: { not: "CANCELED" },
+    },
+    select: { id: true },
+  });
+
+  if (existingSlot) {
+    console.error(
+      `Webhook Health: horario ja reservado. Pro: ${proId} | Data: ${date} as ${time}`,
+    );
+    return new NextResponse(null, { status: 200 });
+  }
+
+  await db.appointment.create({
+    data: {
+      patientId,
+      professionalId: proId,
+      date: appointmentDateTime,
+      time,
+      status: "SCHEDULED",
+      stripeSessionId: session.id,
+      meetLink: `https://meet.google.com/mwc-${Math.random()
+        .toString(36)
+        .substring(2, 11)}`,
+      price: session.amount_total ? session.amount_total / 100 : 0,
+    },
+  });
+
+  console.log(
+    `Consulta confirmada via Stripe. Paciente: ${patientId} | Pro: ${proId} | Data: ${date} as ${time}`,
+  );
+
+  return new NextResponse(null, { status: 200 });
 }
 
 export async function POST(req: Request) {
@@ -122,40 +232,10 @@ export async function POST(req: Request) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        // ------------------------------------------------------------------
-        // 🩺 FLUXO DE PAGAMENTO DE CONSULTA MÉDICA (HEALTH_APPOINTMENT)
-        // ------------------------------------------------------------------
         if (session.metadata?.type === "HEALTH_APPOINTMENT") {
-          const { proId, patientId, date, time } = session.metadata;
-
-          try {
-            // Cria a consulta no banco de dados com status de pago/marcado
-            await db.appointment.create({
-              data: {
-                patientId: patientId,
-                professionalId: proId,
-                date: date,
-                time: time,
-                status: "SCHEDULED",
-                stripeSessionId: session.id, // Opcional, se existir na sua tabela
-
-                // 💰 A LINHA MÁGICA: Pegamos o valor do Stripe (que vem em centavos) e dividimos por 100
-                price: session.amount_total ? session.amount_total / 100 : 0,
-              },
-            });
-            console.log(
-              `✅ Consulta confirmada via Stripe! Paciente: ${patientId} | Pro: ${proId} | Data: ${date} às ${time} | Valor: R$ ${session.amount_total ? session.amount_total / 100 : 0}`,
-            );
-          } catch (error) {
-            console.error("❌ Erro ao salvar consulta no webhook:", error);
-            // Mesmo dando erro no banco, não estouramos erro pro Stripe para ele não ficar retentando em loop infinito
-          }
-
-          return new NextResponse(null, { status: 200 });
+          return await handleHealthAppointment(session);
         }
-        // ------------------------------------------------------------------
 
-        // FLUXO DE PROJETOS
         if (session.metadata?.type === "project_payment") {
           const amountValidation = await validateProjectPaymentAmount(
             session.metadata.proposalId,
@@ -178,7 +258,6 @@ export async function POST(req: Request) {
           return new NextResponse(null, { status: 200 });
         }
 
-        // FLUXO DE ASSINATURAS
         if (session.mode === "subscription") {
           if (!session?.metadata?.userId) {
             console.error("Webhook: Missing userId in subscription metadata.");

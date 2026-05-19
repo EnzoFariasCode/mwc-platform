@@ -10,7 +10,6 @@ import {
   Star,
   ShieldCheck,
   HeartPulse,
-  Scale,
 } from "lucide-react";
 import FooterContact from "@/components/ui/FooterContact";
 import gsap from "gsap";

@@ -7,6 +7,7 @@ import { Star, Video, ShieldCheck, ArrowLeft } from "lucide-react";
 
 import { getProfessionalsBySpecialty } from "@/modules/users/actions/get-professionals";
 import { MonthlyScheduleClient } from "@/app/agendar-consulta/perfil/[id]/monthly-schedule-client";
+import type { HealthAvailability } from "@/modules/health/types";
 
 // ─── Tipagem Corrigida (Visão do Arquiteto Back-end) ──────────────────────────
 interface Professional {
@@ -21,7 +22,7 @@ interface Professional {
   ratingCount: number;
   approach: string | null;
   industry: string | null;
-  availability: any;
+  availability: HealthAvailability;
   sessionDuration: number | null;
   consultationFee: number | string | null;
   city?: string | null;

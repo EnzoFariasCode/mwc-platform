@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getBookedSlots } from "@/modules/health/actions/get-booked-slots";
+import type { HealthAvailability } from "@/modules/health/types";
 import { useRouter } from "next/navigation"; // <-- Adicionado o Roteador
 import {
   format,
@@ -22,9 +23,7 @@ import { ChevronLeft, ChevronRight, Clock, ArrowRight } from "lucide-react";
 interface MonthlyScheduleProps {
   pro: {
     id: string;
-    availability?:
-      | Record<string, { active: boolean; start: string; end: string }>
-      | string;
+    availability?: HealthAvailability;
     sessionDuration?: number;
     consultationFee?: number | string;
   };
@@ -125,11 +124,9 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
 
   const slotsRealmenteDisponiveis = selectedDate
     ? availableSlots.filter((timeString) => {
-        const slotDate = new Date(selectedDate);
-        const [hours, minutes] = timeString.split(":");
-        slotDate.setHours(Number(hours), Number(minutes), 0, 0);
-
-        const isBooked = bookedSlots.includes(slotDate.toISOString());
+        const isBooked = bookedSlots.includes(
+          `${format(selectedDate, "yyyy-MM-dd")}|${timeString}`,
+        );
 
         return !isBooked;
       })

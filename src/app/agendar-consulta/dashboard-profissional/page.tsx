@@ -5,7 +5,6 @@ import {
   CalendarClock,
   Clock3,
   ExternalLink,
-  MapPin,
   ShieldCheck,
   Star,
   Video,
@@ -200,7 +199,7 @@ export default async function ProHealthDashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {professional.proAppointments.map((appointment: any) => {
+                {professional.proAppointments.map((appointment) => {
                   const patientName =
                     appointment.patient?.displayName ||
                     appointment.patient?.name ||

@@ -4,6 +4,7 @@ import { Star, MapPin, Video, ShieldCheck } from "lucide-react";
 import { getHealthProfessionalById } from "@/modules/health/services/professional-service";
 import { ProfileViewClient } from "./profile-view-client";
 import { MonthlyScheduleClient } from "./monthly-schedule-client";
+import type { HealthAvailability } from "@/modules/health/types";
 import { BackButtonClient } from "./back-button-client"; // <-- Importamos o novo botão inteligente
 
 export default async function ProfessionalHealthProfile({
@@ -134,7 +135,7 @@ export default async function ProfessionalHealthProfile({
             <MonthlyScheduleClient
               pro={{
                 ...pro,
-                availability: (pro.availability ?? undefined) as any,
+                availability: (pro.availability ?? undefined) as HealthAvailability,
                 sessionDuration: pro.sessionDuration ?? undefined,
                 // Usamos o construtor Number() que é seguro e agrada o TypeScript
                 consultationFee: pro.consultationFee

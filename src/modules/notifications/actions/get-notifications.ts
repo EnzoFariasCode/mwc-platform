@@ -28,7 +28,6 @@ export async function getNotifications(): Promise<
   const userId = session.id;
   const userRole = session.role; // Assumindo que a role vem na sessão (CLIENT / PROFESSIONAL)
   const notifications: NotificationItem[] = [];
-  let idCounter = 1;
 
   // 1. MENSAGENS NÃO LIDAS (Comum a ambos)
   const conversations = await db.conversation.findMany({
