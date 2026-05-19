@@ -4,9 +4,10 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { db } from "@/lib/prisma";
 import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
+import { finalizeHealthAppointmentPayment } from "@/modules/health/lib/appointment-payment";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-01-28.clover" as any,
+  apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -42,37 +43,6 @@ async function validateProjectPaymentAmount(
   return { ok: true };
 }
 
-function parseHealthAppointmentDateTime(date?: string, time?: string) {
-  if (!date || !time) return null;
-
-  const [year, month, day] = date.split("-").map(Number);
-  const [hours, minutes] = time.split(":").map(Number);
-
-  if (
-    !Number.isInteger(year) ||
-    !Number.isInteger(month) ||
-    !Number.isInteger(day) ||
-    !Number.isInteger(hours) ||
-    !Number.isInteger(minutes)
-  ) {
-    return null;
-  }
-
-  const dateTime = new Date(year, month - 1, day, hours, minutes);
-  if (
-    Number.isNaN(dateTime.getTime()) ||
-    dateTime.getFullYear() !== year ||
-    dateTime.getMonth() !== month - 1 ||
-    dateTime.getDate() !== day ||
-    dateTime.getHours() !== hours ||
-    dateTime.getMinutes() !== minutes
-  ) {
-    return null;
-  }
-
-  return dateTime;
-}
-
 async function reopenProjectOnCheckoutExpired(
   proposalId: string,
   buyerId?: string | null,
@@ -100,91 +70,14 @@ async function reopenProjectOnCheckoutExpired(
 }
 
 async function handleHealthAppointment(session: Stripe.Checkout.Session) {
-  const { proId, patientId, date, time } = session.metadata ?? {};
-  const appointmentDateTime = parseHealthAppointmentDateTime(date, time);
+  const result = await finalizeHealthAppointmentPayment({ session });
 
-  if (!proId || !patientId || !appointmentDateTime || !time) {
-    console.error("Webhook Health: metadata invalido.", session.metadata);
-    return new NextResponse("Invalid health appointment metadata", {
+  if (!result.success) {
+    console.error("Webhook Health:", result.error);
+    return new NextResponse(result.error ?? "Health appointment error", {
       status: 400,
     });
   }
-
-  const alreadyProcessed = await db.appointment.findUnique({
-    where: { stripeSessionId: session.id },
-    select: { id: true },
-  });
-
-  if (alreadyProcessed) {
-    return new NextResponse(null, { status: 200 });
-  }
-
-  const professional = await db.user.findFirst({
-    where: {
-      id: proId,
-      userType: "PROFESSIONAL",
-      industry: "HEALTH",
-    },
-    select: { id: true, consultationFee: true },
-  });
-
-  if (!professional || !professional.consultationFee) {
-    console.error("Webhook Health: profissional invalido.", proId);
-    return new NextResponse("Invalid health professional", { status: 400 });
-  }
-
-  const expectedAmount = professional.consultationFee
-    .mul(100)
-    .toDecimalPlaces(0)
-    .toNumber();
-
-  if (
-    session.currency?.toLowerCase() !== "brl" ||
-    session.amount_total !== expectedAmount
-  ) {
-    console.error("Webhook Health: valor invalido.", {
-      expectedAmount,
-      receivedAmount: session.amount_total,
-      currency: session.currency,
-    });
-    return new NextResponse("Invalid health payment amount", { status: 400 });
-  }
-
-  const existingSlot = await db.appointment.findFirst({
-    where: {
-      professionalId: proId,
-      date: appointmentDateTime,
-      time,
-      status: { not: "CANCELED" },
-    },
-    select: { id: true },
-  });
-
-  if (existingSlot) {
-    console.error(
-      `Webhook Health: horario ja reservado. Pro: ${proId} | Data: ${date} as ${time}`,
-    );
-    return new NextResponse(null, { status: 200 });
-  }
-
-  await db.appointment.create({
-    data: {
-      patientId,
-      professionalId: proId,
-      date: appointmentDateTime,
-      time,
-      status: "SCHEDULED",
-      stripeSessionId: session.id,
-      meetLink: `https://meet.google.com/mwc-${Math.random()
-        .toString(36)
-        .substring(2, 11)}`,
-      price: session.amount_total ? session.amount_total / 100 : 0,
-    },
-  });
-
-  console.log(
-    `Consulta confirmada via Stripe. Paciente: ${patientId} | Pro: ${proId} | Data: ${date} as ${time}`,
-  );
 
   return new NextResponse(null, { status: 200 });
 }
