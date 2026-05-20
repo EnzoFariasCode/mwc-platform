@@ -20,11 +20,8 @@ export function DashboardModalsController({
 
   return (
     <>
-      {/* Botões que substituem os estáticos na sua page.tsx */}
-
-      {/* BOTÃO 1: O Botão Vermelho Gigante do Topo (só renderiza se faltar credencial) */}
       {missingCredential && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-6 shadow-[0_0_30px_rgba(239,68,68,0.1)] mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-red-500/30 bg-red-500/10 p-6 shadow-[0_0_30px_rgba(239,68,68,0.1)] mb-8">
           <div className="rounded-full bg-red-500/20 p-3 text-red-500">
             <AlertTriangle className="h-6 w-6" />
           </div>
@@ -39,20 +36,24 @@ export function DashboardModalsController({
           </div>
           <button
             onClick={() => setIsProfileOpen(true)}
-            className="whitespace-nowrap rounded-xl bg-red-500 px-6 py-3 text-sm font-bold text-white hover:bg-red-600 shadow-lg"
+            className="whitespace-nowrap rounded-lg bg-red-500 px-6 py-3 text-sm font-bold text-white hover:bg-red-600 shadow-lg cursor-pointer active:scale-95 transition-all"
           >
             Completar Perfil Agora
           </button>
         </div>
       )}
 
-      {/* BOTÃO 2: Configurar Agenda */}
+      {/* BOTÃO 2: Configurar Agenda (Ajustado para tamanho exato) */}
       <button
         onClick={() => setIsScheduleOpen(true)}
         disabled={missingCredential}
-        className={`w-full py-3.5 mt-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${missingCredential ? "bg-white/5 text-slate-500 cursor-not-allowed" : "bg-[#d73cbe] hover:bg-[#b02da0] text-white shadow-lg shadow-[#d73cbe]/20"}`}
+        className={`w-full sm:w-fit px-8 py-3.5 mt-4 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 ${
+          missingCredential
+            ? "bg-white/5 text-slate-500 cursor-not-allowed"
+            : "bg-[#d73cbe] hover:bg-[#b02da0] text-white shadow-lg shadow-[#d73cbe]/20"
+        }`}
       >
-        <Settings2 className="w-4 h-4" /> Configurar Horários
+        <Settings2 className="w-5 h-5" /> Configurar Horários
       </button>
 
       {/* Renderização Invisível dos Modais */}
