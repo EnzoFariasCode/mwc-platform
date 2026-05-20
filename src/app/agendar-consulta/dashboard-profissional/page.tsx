@@ -82,7 +82,7 @@ export default async function ProHealthDashboard() {
             </h1>
             <p className="mt-2 max-w-2xl text-slate-400 leading-relaxed">
               Gerencie sua agenda de atendimentos, confira os próximos pacientes
-              e acompanhe seu posicionamento dentro do portal Health.
+              e acompanhe seu posicionamento dentro do portal MWC Online.
             </p>
           </div>
           <Link

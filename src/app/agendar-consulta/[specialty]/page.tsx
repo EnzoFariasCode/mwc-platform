@@ -84,7 +84,7 @@ export default function SpecialtyPage({
             Especialidade indisponivel
           </h1>
           <p className="text-slate-400 text-lg font-light max-w-2xl">
-            Esta area nao faz parte do catalogo atual da MWC Health.
+            Esta area nao faz parte do catalogo atual da MWC Online.
           </p>
         </div>
       </div>

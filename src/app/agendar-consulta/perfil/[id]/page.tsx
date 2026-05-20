@@ -123,7 +123,7 @@ export default async function ProfessionalHealthProfile({
                     Perfil Verificado
                   </h3>
                   <p className="text-sm text-slate-400">
-                    Registro profissional validado pela MWC Health.
+                    Registro profissional validado pela MWC Online.
                   </p>
                 </div>
               </div>

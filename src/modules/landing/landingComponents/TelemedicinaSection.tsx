@@ -84,23 +84,23 @@ export default function TelemedicinaSection() {
         {/* LEFT – Editorial content */}
         <div className="gsap-left-col opacity-0">
           <h2 className="max-w-xl text-4xl md:text-5xl font-bold leading-tight text-white font-futura uppercase">
-            Atendimento psicológico e nutricional,
+            Consultorias e atendimentos online,
             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#d73cbe] to-purple-500">
               sem sair de casa.
             </span>
           </h2>
 
           <p className="mt-6 max-w-lg text-lg text-slate-400 leading-relaxed">
-            Conectamos você a profissionais de saúde qualificados para consultas
-            online seguras, humanas e eficientes. Cuide de você no seu tempo.
+            Conectamos você a especialistas qualificados para consultas, aulas
+            e orientações online. Resolva com profissionais no seu tempo.
           </p>
 
           <ul className="mt-8 space-y-4">
             {[
-              "Psicólogos e nutricionistas certificados",
+              "Especialistas com perfil e agenda",
               "Agendamento rápido e online",
-              "Consultas por vídeo com total privacidade",
-              "Acompanhamento contínuo",
+              "Pagamento seguro pela Stripe",
+              "Histórico de atendimentos",
             ].map((item, index) => (
               <li
                 key={index}
@@ -117,7 +117,7 @@ export default function TelemedicinaSection() {
           <div className="mt-10 flex flex-wrap items-center gap-6">
             <Link href="/agendar-consulta">
               <button className="group cursor-pointer bg-[#d73cbe] hover:bg-[#b0269a] text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 hover:-translate-y-1 flex items-center gap-2">
-                Realizar consulta
+                Encontrar especialista
                 <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </button>
             </Link>

@@ -175,7 +175,7 @@ export async function finalizeHealthAppointmentPayment({
           amount: professionalAmount,
           type: "CREDIT",
           status: "COMPLETED",
-          description: `Consulta Health (${PLATFORM_FEE_PERCENT}% taxa aplicada) - ${date} as ${time} - Stripe: ${session.id}`,
+          description: `Atendimento MWC Online (${PLATFORM_FEE_PERCENT}% taxa aplicada) - ${date} as ${time} - Stripe: ${session.id}`,
         },
       });
 

@@ -1,4 +1,9 @@
-export type HealthSpecialtyId = "psicologia" | "nutricao" | "personal";
+export type HealthSpecialtyId =
+  | "psicologia"
+  | "nutricao"
+  | "personal"
+  | "ingles"
+  | "advogado";
 
 export type HealthSpecialty = {
   id: HealthSpecialtyId;
@@ -58,6 +63,36 @@ export const healthSpecialties: HealthSpecialty[] = [
     accentText: "text-orange-400",
     accentBg: "bg-orange-500",
     terms: ["Personal Trainer", "Personal", "Educador Fisico", "Educador Físico"],
+  },
+  {
+    id: "ingles",
+    name: "Professor de Ingles",
+    description: "Aulas online focadas em conversacao, negocios e fluencia.",
+    image:
+      "https://images.unsplash.com/photo-1577412647305-991150c7d163?auto=format&fit=crop&w=600&q=80",
+    color:
+      "group-hover:border-blue-500/50 group-hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]",
+    accentText: "text-blue-400",
+    accentBg: "bg-blue-500",
+    terms: [
+      "Professor de Ingles",
+      "Professor de Inglês",
+      "Ingles",
+      "Inglês",
+      "English Teacher",
+    ],
+  },
+  {
+    id: "advogado",
+    name: "Advogado",
+    description: "Consultoria juridica online, contratos, duvidas e mediacao.",
+    image:
+      "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=600&q=80",
+    color:
+      "group-hover:border-amber-500/50 group-hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]",
+    accentText: "text-amber-400",
+    accentBg: "bg-amber-500",
+    terms: ["Advogado", "Advogada", "Juridico", "Jurídico"],
   },
 ];
 

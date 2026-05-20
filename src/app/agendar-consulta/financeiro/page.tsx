@@ -107,7 +107,7 @@ export default async function HealthFinanceiroPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <p className="text-sm uppercase tracking-[0.35em] text-slate-500 font-medium">
-              MWC Health
+              MWC Online
             </p>
             <h1 className="text-3xl font-futura font-bold uppercase tracking-tight mt-2">
               Financeiro
@@ -151,7 +151,7 @@ export default async function HealthFinanceiroPage() {
           <div className="bg-[#0f172a]/80 border border-white/10 rounded-2xl p-6 flex flex-col gap-6">
             <div>
               <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">
-                Receita liquida Health
+                Receita liquida Online
               </p>
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">

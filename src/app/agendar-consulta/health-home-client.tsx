@@ -88,12 +88,12 @@ export function HealthHomeClient({
             <h1 className="font-futura text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 text-white">
               Encontre o especialista ideal para o seu{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d73cbe] to-purple-400">
-                bem-estar.
+                atendimento online.
               </span>
             </h1>
             <p className="text-slate-400 text-lg md:text-xl font-light leading-relaxed">
-              Agende atendimentos online com profissionais de saude e bem-estar
-              com perfil, agenda e valor de consulta configurados.
+              Agende consultorias, aulas e atendimentos online com
+              especialistas que possuem perfil, agenda e valor configurados.
             </p>
           </div>
 
@@ -187,12 +187,12 @@ export function HealthHomeClient({
 
               <div className="flex flex-col pt-8 lg:pt-0">
                 <h2 className="font-futura text-3xl md:text-4xl font-bold text-white mb-6 leading-tight uppercase tracking-wide">
-                  Sua saude e o seu <br />
-                  <span className="text-[#d73cbe]">maior projeto.</span>
+                  Especialistas online para <br />
+                  <span className="text-[#d73cbe]">cada etapa.</span>
                 </h2>
                 <p className="text-slate-400 text-lg mb-12 font-light leading-relaxed">
-                  Cuidar da mente, do corpo e da rotina tambem faz parte de
-                  construir uma vida profissional sustentavel.
+                  A MWC Online conecta voce a profissionais que podem ajudar em
+                  saude, rotina, carreira, aprendizado e consultoria.
                 </p>
 
                 <div className="relative border-l border-white/10 ml-3 space-y-12 pb-8">
@@ -203,12 +203,12 @@ export function HealthHomeClient({
                     <div className="flex items-center gap-3 mb-2">
                       <HeartPulse className="w-5 h-5 text-[#d73cbe]" />
                       <h3 className="text-xl font-bold text-white font-futura uppercase tracking-wide">
-                        Mente
+                        Consultas
                       </h3>
                     </div>
                     <p className="text-slate-400 leading-relaxed font-light">
-                      Encontre psicologos com agenda configurada, valor
-                      definido e perfil publico para comparar antes de agendar.
+                      Compare profissionais com perfil publico, agenda
+                      configurada e valor definido antes de agendar.
                     </p>
                   </div>
 
@@ -219,12 +219,13 @@ export function HealthHomeClient({
                     <div className="flex items-center gap-3 mb-2">
                       <Activity className="w-5 h-5 text-emerald-500" />
                       <h3 className="text-xl font-bold text-white font-futura uppercase tracking-wide">
-                        Corpo
+                        Especialistas
                       </h3>
                     </div>
                     <p className="text-slate-400 leading-relaxed font-light">
-                      Nutricionistas e personal trainers ajudam a transformar
-                      objetivos em rotina, com atendimento marcado pelo portal.
+                      Psicologos, nutricionistas, personal trainers, professores
+                      e consultores podem oferecer atendimentos online no mesmo
+                      fluxo.
                     </p>
                   </div>
 

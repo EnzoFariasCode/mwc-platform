@@ -296,7 +296,9 @@ function RegisterContent() {
                       Selecione o seu setor...
                     </option>
                     <option value="TECH">Tecnologia, Design & Negócios</option>
-                    <option value="HEALTH">Saúde, Terapia & Bem-estar</option>
+                    <option value="HEALTH">
+                      MWC Online - Consultorias e Atendimentos
+                    </option>
                   </select>
                 </div>
               </div>

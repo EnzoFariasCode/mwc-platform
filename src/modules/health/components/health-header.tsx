@@ -65,7 +65,7 @@ export function HealthHeader() {
         >
           <Activity className="w-6 h-6 text-[#d73cbe]" />
           <span className="font-futura text-xl font-bold tracking-widest uppercase">
-            MWC <span className="text-[#d73cbe]">Health</span>
+            MWC <span className="text-[#d73cbe]">Online</span>
           </span>
         </Link>
 
