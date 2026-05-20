@@ -65,7 +65,6 @@ export default async function ProHealthDashboard() {
   );
 
   return (
-    // A FONTE POPPINS ESTÁ AQUI NA PRIMEIRA DIV 👇
     <div className="min-h-screen bg-[#020617] text-white px-4 py-10 selection:bg-[#d73cbe]/30 font-poppins">
       <div className="mx-auto max-w-6xl space-y-8">
         {/* =========================================
@@ -78,7 +77,7 @@ export default async function ProHealthDashboard() {
         />
 
         {/* Header de Boas-vindas */}
-        <div className="flex flex-col gap-6 rounded-3xl border border-white/10 bg-[#0f172a]/80 p-8 backdrop-blur-sm md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-6 rounded-xl border border-white/10 bg-[#0f172a]/80 p-6 md:p-8 backdrop-blur-sm md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.35em] text-slate-500 font-medium">
               Painel do Especialista
@@ -86,14 +85,14 @@ export default async function ProHealthDashboard() {
             <h1 className="mt-3 text-3xl font-bold uppercase tracking-tight">
               {displayName}
             </h1>
-            <p className="mt-2 max-w-2xl text-slate-400 leading-relaxed">
+            <p className="mt-2 max-w-2xl text-slate-400 leading-relaxed text-sm md:text-base">
               Gerencie sua agenda de atendimentos, confira os próximos pacientes
               e acompanhe seu posicionamento dentro do portal MWC Online.
             </p>
           </div>
           <Link
             href={`/agendar-consulta/perfil/${professional.id}`}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#d73cbe]/30 bg-[#d73cbe]/10 px-6 py-4 text-sm font-semibold text-[#d73cbe] transition-all hover:bg-[#d73cbe] hover:text-white active:scale-95"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d73cbe]/30 bg-[#d73cbe]/10 px-6 py-3.5 text-sm font-semibold text-[#d73cbe] transition-all hover:bg-[#d73cbe] hover:text-white active:scale-95 shrink-0"
           >
             <ExternalLink className="h-4 w-4" />
             Ver perfil público
@@ -102,7 +101,7 @@ export default async function ProHealthDashboard() {
 
         {/* Grid de Métricas */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="group rounded-2xl border border-white/10 bg-[#0f172a]/70 p-6 transition-all hover:border-[#d73cbe]/30">
+          <div className="group rounded-xl border border-white/10 bg-[#0f172a]/70 p-5 transition-all hover:border-[#d73cbe]/30">
             <div className="flex items-center justify-between">
               <div className="rounded-lg bg-blue-500/10 p-2 text-blue-500 group-hover:bg-blue-500/20 transition-colors">
                 <Users className="h-5 w-5" />
@@ -119,7 +118,7 @@ export default async function ProHealthDashboard() {
             </div>
           </div>
 
-          <div className="group rounded-2xl border border-white/10 bg-[#0f172a]/70 p-6 transition-all hover:border-[#d73cbe]/30">
+          <div className="group rounded-xl border border-white/10 bg-[#0f172a]/70 p-5 transition-all hover:border-[#d73cbe]/30">
             <div className="flex items-center justify-between">
               <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-500 group-hover:bg-emerald-500/20 transition-colors">
                 <Banknote className="h-5 w-5" />
@@ -140,7 +139,7 @@ export default async function ProHealthDashboard() {
             </div>
           </div>
 
-          <div className="group rounded-2xl border border-white/10 bg-[#0f172a]/70 p-6 transition-all hover:border-[#d73cbe]/30">
+          <div className="group rounded-xl border border-white/10 bg-[#0f172a]/70 p-5 transition-all hover:border-[#d73cbe]/30">
             <div className="flex items-center justify-between">
               <div className="rounded-lg bg-yellow-500/10 p-2 text-yellow-500 group-hover:bg-yellow-500/20 transition-colors">
                 <Star className="h-5 w-5 fill-yellow-500/20" />
@@ -162,7 +161,7 @@ export default async function ProHealthDashboard() {
             </div>
           </div>
 
-          <div className="group rounded-2xl border border-white/10 bg-[#0f172a]/70 p-6 transition-all hover:border-[#d73cbe]/30">
+          <div className="group rounded-xl border border-white/10 bg-[#0f172a]/70 p-5 transition-all hover:border-[#d73cbe]/30">
             <div className="flex items-center justify-between">
               <div className="rounded-lg bg-[#d73cbe]/10 p-2 text-[#d73cbe] group-hover:bg-[#d73cbe]/20 transition-colors">
                 <Video className="h-5 w-5" />
@@ -187,10 +186,10 @@ export default async function ProHealthDashboard() {
           {/* Coluna Direita: Perfil Clínico e Gestão de Agenda */}
           <div className="space-y-6">
             {/* GESTÃO DE AGENDA INFO */}
-            <div className="rounded-3xl border border-[#d73cbe]/20 bg-[#d73cbe]/5 p-8 backdrop-blur-sm relative overflow-hidden">
+            <div className="rounded-xl border border-[#d73cbe]/20 bg-[#d73cbe]/5 p-6 md:p-8 backdrop-blur-sm relative overflow-hidden">
               <div className="absolute -right-4 -top-4 bg-[#d73cbe]/20 blur-3xl w-24 h-24 rounded-full pointer-events-none"></div>
 
-              <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center gap-3 mb-6 relative z-10">
                 <div className="p-2 bg-[#d73cbe]/20 text-[#d73cbe] rounded-lg">
                   <CalendarRange className="w-5 h-5" />
                 </div>
@@ -199,7 +198,7 @@ export default async function ProHealthDashboard() {
                 </h2>
               </div>
 
-              <div className="space-y-4 mb-6">
+              <div className="space-y-4 mb-6 relative z-10">
                 <div className="flex justify-between items-center text-sm border-b border-white/10 pb-3">
                   <span className="text-slate-400">Duração da sessão</span>
                   <span className="font-bold text-white">
@@ -215,7 +214,7 @@ export default async function ProHealthDashboard() {
             </div>
 
             {/* PERFIL CLÍNICO */}
-            <div className="rounded-3xl border border-white/10 bg-[#0f172a]/80 p-8 backdrop-blur-sm">
+            <div className="rounded-xl border border-white/10 bg-[#0f172a]/80 p-6 md:p-8 backdrop-blur-sm">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold uppercase tracking-tight">
                   Perfil Clínico
@@ -223,15 +222,15 @@ export default async function ProHealthDashboard() {
               </div>
 
               <div className="space-y-4 text-sm">
-                <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5 transition-colors hover:bg-white/[0.05]">
+                <div className="rounded-lg border border-white/5 bg-white/[0.03] p-4 transition-colors hover:bg-white/[0.05]">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     Especialidade
                   </p>
-                  <p className="mt-2 text-lg font-semibold text-white">
+                  <p className="mt-1 text-base md:text-lg font-semibold text-white">
                     {professional.jobTitle || "Não informado"}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5 transition-colors hover:bg-white/[0.05]">
+                <div className="rounded-lg border border-white/5 bg-white/[0.03] p-4 transition-colors hover:bg-white/[0.05]">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
                     Registro Profissional
                     {missingCredential && (
@@ -239,12 +238,12 @@ export default async function ProHealthDashboard() {
                     )}
                   </p>
                   <p
-                    className={`mt-2 text-lg font-semibold font-mono ${missingCredential ? "text-red-400" : "text-white"}`}
+                    className={`mt-1 text-base md:text-lg font-semibold font-mono ${missingCredential ? "text-red-400" : "text-white"}`}
                   >
                     {professional.documentReg || "Pendente"}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5 transition-colors hover:bg-white/[0.05]">
+                <div className="rounded-lg border border-white/5 bg-white/[0.03] p-4 transition-colors hover:bg-white/[0.05]">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
                     Abordagem Clínica
                     {missingApproach && (
@@ -252,7 +251,7 @@ export default async function ProHealthDashboard() {
                     )}
                   </p>
                   <p
-                    className={`mt-2 text-lg font-semibold ${missingApproach ? "text-yellow-400/80" : "text-white"}`}
+                    className={`mt-1 text-base md:text-lg font-semibold ${missingApproach ? "text-yellow-400/80" : "text-white"}`}
                   >
                     {professional.approach || "Pendente"}
                   </p>
