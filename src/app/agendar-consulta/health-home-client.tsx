@@ -92,12 +92,12 @@ export function HealthHomeClient({
               </span>
             </h1>
             <p className="text-slate-400 text-lg md:text-xl font-light leading-relaxed">
-              Agende consultorias, aulas e atendimentos online com
-              especialistas que possuem perfil, agenda e valor configurados.
+              Agende consultorias, aulas e atendimentos online com especialistas
+              que possuem perfil, agenda e valor configurados.
             </p>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-5">
             {specialties.map((spec) => (
               <Link
                 key={spec.id}
@@ -107,7 +107,8 @@ export function HealthHomeClient({
                 <div
                   className={`group flex flex-col h-full bg-[#0f172a]/90 backdrop-blur-sm border border-white/10 rounded-3xl overflow-hidden cursor-pointer transition-all duration-500 hover:-translate-y-2 ${spec.color}`}
                 >
-                  <div className="relative h-[200px] w-full overflow-hidden shrink-0 bg-slate-900">
+                  {/* AJUSTE: Reduzimos a imagem de 200px para 160px para os cards ficarem mais compactos e elegantes lado a lado */}
+                  <div className="relative h-[160px] w-full overflow-hidden shrink-0 bg-slate-900">
                     <Image
                       src={spec.image}
                       alt={spec.name}
@@ -117,32 +118,34 @@ export function HealthHomeClient({
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent opacity-90" />
                   </div>
-                  <div className="flex flex-col flex-grow p-6">
+
+                  {/* AJUSTE: Padding reduzido de p-6 para p-4/p-5 para compensar o card menor */}
+                  <div className="flex flex-col flex-grow p-4 lg:p-5">
                     <div>
                       <h2
-                        className={`font-futura text-xl font-bold uppercase tracking-wide mb-2 transition-colors duration-300 ${spec.accentText}`}
+                        className={`font-futura text-lg lg:text-xl font-bold uppercase tracking-wide mb-2 transition-colors duration-300 ${spec.accentText}`}
                       >
                         {spec.name}
                       </h2>
-                      <p className="text-sm text-slate-400 leading-relaxed font-light">
+                      <p className="text-xs lg:text-sm text-slate-400 leading-relaxed font-light line-clamp-3">
                         {spec.description}
                       </p>
                     </div>
                     <div className="flex items-center justify-between pt-4 mt-auto border-t border-white/5">
                       <div className="flex flex-col gap-1.5">
                         <div className="flex -space-x-2">
-                          <div className="w-7 h-7 rounded-full bg-slate-700 border-2 border-[#0f172a]" />
-                          <div className="w-7 h-7 rounded-full bg-slate-600 border-2 border-[#0f172a]" />
-                          <div className="w-7 h-7 rounded-full bg-slate-500 border-2 border-[#0f172a] flex items-center justify-center">
-                            <span className="text-[9px] font-bold">+</span>
+                          <div className="w-6 h-6 rounded-full bg-slate-700 border-2 border-[#0f172a]" />
+                          <div className="w-6 h-6 rounded-full bg-slate-600 border-2 border-[#0f172a]" />
+                          <div className="w-6 h-6 rounded-full bg-slate-500 border-2 border-[#0f172a] flex items-center justify-center">
+                            <span className="text-[8px] font-bold">+</span>
                           </div>
                         </div>
-                        <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
+                        <span className="text-[9px] lg:text-[10px] font-medium text-slate-500 uppercase tracking-wider">
                           {formatSpecialistCount(spec.count)}
                         </span>
                       </div>
                       <div
-                        className={`w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 transition-all duration-300 group-hover:text-white ${spec.accentBg} group-hover:border-transparent`}
+                        className={`w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 transition-all duration-300 group-hover:text-white ${spec.accentBg} group-hover:border-transparent`}
                       >
                         <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                       </div>
