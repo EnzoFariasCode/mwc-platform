@@ -19,18 +19,18 @@ enum UserType {
 
 // [NOVO] Diferencia os "mundos" dentro da plataforma
 enum Industry {
-  TECH      // Desenvolvedores, Designers, Freelancers (Padrão atual)
-  HEALTH    // Psicólogos, Nutricionistas, Personal Trainers
+  TECH // Desenvolvedores, Designers, Freelancers (Padrão atual)
+  HEALTH // Psicólogos, Nutricionistas, Personal Trainers
 }
 
 enum ProjectStatus {
-  OPEN             // Aberto para receber propostas
-  WAITING_PAYMENT  // Cliente aceitou proposta, aguardando pagamento (Escrow)
-  IN_PROGRESS      // Pago e em desenvolvimento
-  UNDER_REVIEW     // Profissional entregou, cliente está revisando
-  COMPLETED        // Finalizado e dinheiro liberado
-  CANCELED         // Cancelado antes de começar
-  DISPUTE          // Deu problema (Mediação)
+  OPEN // Aberto para receber propostas
+  WAITING_PAYMENT // Cliente aceitou proposta, aguardando pagamento (Escrow)
+  IN_PROGRESS // Pago e em desenvolvimento
+  UNDER_REVIEW // Profissional entregou, cliente está revisando
+  COMPLETED // Finalizado e dinheiro liberado
+  CANCELED // Cancelado antes de começar
+  DISPUTE // Deu problema (Mediação)
 }
 
 enum ProposalStatus {
@@ -44,7 +44,7 @@ enum ProposalStatus {
 enum AppointmentStatus {
   SCHEDULED // Marcada (Será o status usado após o pagamento)
   COMPLETED // Realizada
-  CANCELED  // Cancelada
+  CANCELED // Cancelada
 }
 
 // =========================================================
@@ -52,95 +52,95 @@ enum AppointmentStatus {
 // =========================================================
 
 model User {
-  id              String    @id @default(uuid())
-  name            String
-  displayName     String?
-  email           String    @unique
-  emailVerified   DateTime?
-  image           String?
-  password        String?
-  birthDate       DateTime?
-  userType        UserType  @default(CLIENT)
-  
+  id            String    @id @default(uuid())
+  name          String
+  displayName   String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  birthDate     DateTime?
+  userType      UserType  @default(CLIENT)
+
   // [NOVO] Campo que define de qual "setor" o usuário é
-  industry        Industry  @default(TECH) 
+  industry Industry @default(TECH)
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  profileViews    Int       @default(0)
-  
+  profileViews Int @default(0)
+
   // --- Dados de Perfil Gerais ---
-  bio             String?   @db.Text
-  city            String?
-  state           String?
-  hourlyRate      Decimal?  
-  rating          Float     @default(0) 
-  ratingCount     Int       @default(0)
-  
+  bio         String?  @db.Text
+  city        String?
+  state       String?
+  hourlyRate  Decimal?
+  rating      Float    @default(0)
+  ratingCount Int      @default(0)
+
   // =========================================================
   // [NOVO] CAMPOS DE ENDEREÇO E CONTATO
   // =========================================================
-  phone           String?
-  gender          String?   // Ex: "M" ou "F"
-  cep             String?
-  address         String?   // Logradouro / Rua
-  addressNumber   String?   // Número
-  complement      String?   // Complemento
-  neighborhood    String?   // Bairro
+  phone         String?
+  gender        String? // Ex: "M" ou "F"
+  cep           String?
+  address       String? // Logradouro / Rua
+  addressNumber String? // Número
+  complement    String? // Complemento
+  neighborhood  String? // Bairro
 
   // =========================================================
   // [CAMPOS PROFISSIONAIS - SETOR TECH]
   // =========================================================
-  jobTitle          String?            
-  yearsOfExperience Int?               
-  skills            String[]  @default([])
+  jobTitle          String?
+  yearsOfExperience Int?
+  skills            String[] @default([])
   socialGithub      String?
   socialLinkedin    String?
-  portfolio         Json?     @default("[]") 
-  certificates      Json?     @default("[]")
+  portfolio         Json?    @default("[]")
+  certificates      Json?    @default("[]")
 
   // =========================================================
   // [CAMPOS PROFISSIONAIS - SETOR HEALTH]
   // =========================================================
-  documentReg       String?   // Para CRM, CRP, CREF, etc. (Ex: "CRP 06/12345")
-  approach          String?   // Abordagem clínica (Ex: "TCC", "Psicanálise")
-  consultationFee   Decimal?  // Valor fixo da consulta
-  sessionDuration   Int?      @default(50) // [NOVO] Duração da sessão em minutos (Padrão 50min)
-  availability      Json?     @default("{}") // JSON para guardar a grade de horários disponíveis
+  documentReg     String? // Para CRM, CRP, CREF, etc. (Ex: "CRP 06/12345")
+  approach        String? // Abordagem clínica (Ex: "TCC", "Psicanálise")
+  consultationFee Decimal? // Valor fixo da consulta
+  sessionDuration Int?     @default(50) // [NOVO] Duração da sessão em minutos (Padrão 50min)
+  availability    Json?    @default("{}") // JSON para guardar a grade de horários disponíveis
 
   // Armazenamento de Imagem no Banco
-  profileImageBytes Bytes?   
-  profileImageType  String?  
+  profileImageBytes Bytes?
+  profileImageType  String?
 
   // --- RECUPERAÇÃO DE SENHA ---
-  resetCode         String?   
-  resetCodeExpiry   DateTime? 
-  
+  resetCode       String?
+  resetCodeExpiry DateTime?
+
   // =========================================================
   // [INTEGRAÇÃO STRIPE - ASSINATURA]
   // =========================================================
-  stripeCustomerId         String?   @unique 
-  stripeSubscriptionId     String?   @unique 
-  stripePriceId            String?             
-  stripeCurrentPeriodEnd   DateTime?         
-  stripeSubscriptionStatus String?            
+  stripeCustomerId         String?   @unique
+  stripeSubscriptionId     String?   @unique
+  stripePriceId            String?
+  stripeCurrentPeriodEnd   DateTime?
+  stripeSubscriptionStatus String?
 
   // =========================================================
   // [DADOS FINANCEIROS - RECEBIMENTO DE TRABALHO]
   // =========================================================
-  walletBalance    Decimal   @default(0) 
-  pixKey           String?                 
-  pixKeyType       String?                 
-  
-  transactions     Transaction[]
+  walletBalance Decimal @default(0)
+  pixKey        String?
+  pixKeyType    String?
+
+  transactions Transaction[]
 
   // --- Relacionamentos Tech ---
-  projectsOwned    Project[] @relation("ClientProjects")
-  projectsAssigned Project[] @relation("ProProjects")
+  projectsOwned    Project[]     @relation("ClientProjects")
+  projectsAssigned Project[]     @relation("ProProjects")
   proposals        Proposal[]    @relation("ProfessionalProposals")
-  deliverables     Deliverable[] @relation("UserDeliverables")       
-  
+  deliverables     Deliverable[] @relation("UserDeliverables")
+
   // --- Relacionamentos Health [NOVO] ---
   patientAppointments Appointment[] @relation("PatientAppointments")
   proAppointments     Appointment[] @relation("ProAppointments")
@@ -148,11 +148,11 @@ model User {
   // --- Relacionamentos Gerais ---
   conversationsAsA Conversation[] @relation("ParticipantA")
   conversationsAsB Conversation[] @relation("ParticipantB")
-  sentMessages     Message[]         @relation("SentMessages")
-  favorites        Favorite[] @relation("UserFavorites")
-  favoritedBy      Favorite[] @relation("FavoritedBy")
-  reviewsWritten   Review[]   @relation("ReviewsAuthored")
-  reviewsReceived  Review[]   @relation("ReviewsReceived")
+  sentMessages     Message[]      @relation("SentMessages")
+  favorites        Favorite[]     @relation("UserFavorites")
+  favoritedBy      Favorite[]     @relation("FavoritedBy")
+  reviewsWritten   Review[]       @relation("ReviewsAuthored")
+  reviewsReceived  Review[]       @relation("ReviewsReceived")
   accounts         Account[]
   sessions         Session[]
 }
@@ -162,67 +162,67 @@ model User {
 // =========================================================
 
 model Project {
-  id           String    @id @default(uuid())
-  title        String
-  description  String    @db.Text
-  category     String    
-  tags         String[] 
-  
-  budgetType   String    
-  budgetValue  Decimal     
-  budgetLabel  String    
-  
-  agreedPrice  Decimal? 
-  
-  deadline     String    
-  
-  status       ProjectStatus @default(OPEN) 
-  
-  attachments  Json?     @default("[]") 
+  id          String   @id @default(uuid())
+  title       String
+  description String   @db.Text
+  category    String
+  tags        String[]
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  budgetType  String
+  budgetValue Decimal
+  budgetLabel String
 
-  ownerId         String
-  owner           User      @relation("ClientProjects", fields: [ownerId], references: [id])
-  
-  professionalId  String?
-  professional    User?     @relation("ProProjects", fields: [professionalId], references: [id])
-  
-  bidsCount       Int       @default(0)
+  agreedPrice Decimal?
 
-  proposals       Proposal[]    
-  deliverables    Deliverable[] 
-  reviews         Review[]
+  deadline String
+
+  status ProjectStatus @default(OPEN)
+
+  attachments Json? @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation("ClientProjects", fields: [ownerId], references: [id])
+
+  professionalId String?
+  professional   User?   @relation("ProProjects", fields: [professionalId], references: [id])
+
+  bidsCount Int @default(0)
+
+  proposals    Proposal[]
+  deliverables Deliverable[]
+  reviews      Review[]
 }
 
 model Proposal {
-  id             String    @id @default(uuid())
-  price          Decimal  
-  estimatedDays  Int      
-  coverLetter    String    @db.Text 
+  id             String         @id @default(uuid())
+  price          Decimal
+  estimatedDays  Int
+  coverLetter    String         @db.Text
   status         ProposalStatus @default(PENDING)
   projectId      String
-  project        Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   professionalId String
-  professional   User    @relation("ProfessionalProposals", fields: [professionalId], references: [id])
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  professional   User           @relation("ProfessionalProposals", fields: [professionalId], references: [id])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@index([projectId])
   @@index([professionalId])
 }
 
 model Deliverable {
-  id             String    @id @default(uuid())
-  description    String?  
-  fileUrl        String?  
-  link           String?  
-  projectId      String
-  project        Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  senderId       String   
-  sender         User      @relation("UserDeliverables", fields: [senderId], references: [id])
-  createdAt      DateTime @default(now())
+  id          String   @id @default(uuid())
+  description String?
+  fileUrl     String?
+  link        String?
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  senderId    String
+  sender      User     @relation("UserDeliverables", fields: [senderId], references: [id])
+  createdAt   DateTime @default(now())
 }
 
 // =========================================================
@@ -231,28 +231,28 @@ model Deliverable {
 
 model Appointment {
   id              String            @id @default(uuid())
-  date            DateTime          // Dia da consulta
-  time            String            // [NOVO] Horário da consulta (Ex: "14:30")
+  date            DateTime // Dia da consulta
+  time            String // [NOVO] Horário da consulta (Ex: "14:30")
   status          AppointmentStatus @default(SCHEDULED)
-  meetLink        String?           // Link da videochamada
-  price           Decimal           // Valor cobrado na consulta
+  meetLink        String? // Link da videochamada
+  price           Decimal // Valor cobrado na consulta
   notes           String?           @db.Text // Anotações do paciente
   stripeSessionId String?           @unique // [NOVO] Rastreamento de pagamento
 
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  patientId       String
-  patient         User              @relation("PatientAppointments", fields: [patientId], references: [id])
-  
-  professionalId  String
-  professional    User              @relation("ProAppointments", fields: [professionalId], references: [id])
+  patientId String
+  patient   User   @relation("PatientAppointments", fields: [patientId], references: [id])
+
+  professionalId String
+  professional   User   @relation("ProAppointments", fields: [professionalId], references: [id])
+
+  // A trava real de double booking fica em migration SQL como indice parcial:
+  // unique(professionalId, date, time) apenas quando status <> 'CANCELED'.
 
   @@index([patientId])
   @@index([professionalId])
-  
-  // [CORREÇÃO] Trava de segurança agora inclui o horário para evitar double booking
-  @@unique([professionalId, date, time])
 }
 
 // =========================================================
@@ -260,20 +260,20 @@ model Appointment {
 // =========================================================
 
 model Transaction {
-  id          String   @id @default(uuid())
-  
-  userId      String   
-  user        User     @relation(fields: [userId], references: [id])
-  
-  amount      Decimal  
-  type        String   // "CREDIT" ou "DEBIT"
-  status      String   // "PENDING", "COMPLETED", "FAILED"
-  description String   
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id String @id @default(uuid())
 
-  projectId   String?
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  amount      Decimal
+  type        String // "CREDIT" ou "DEBIT"
+  status      String // "PENDING", "COMPLETED", "FAILED"
+  description String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String?
 }
 
 model Review {
@@ -294,40 +294,42 @@ model Review {
 }
 
 model Conversation {
-  id               String    @id @default(uuid())
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  lastMessageTime  DateTime  @default(now()) 
-  lastMessage      String?    
-  participantAId   String
-  participantA     User    @relation("ParticipantA", fields: [participantAId], references: [id])
-  participantBId   String
-  participantB     User    @relation("ParticipantB", fields: [participantBId], references: [id])
-  unreadCountA     Int     @default(0) 
-  unreadCountB     Int     @default(0) 
-  deletedByIds     String[] @default([]) 
-  messages         Message[]
+  id              String    @id @default(uuid())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastMessageTime DateTime  @default(now())
+  lastMessage     String?
+  participantAId  String
+  participantA    User      @relation("ParticipantA", fields: [participantAId], references: [id])
+  participantBId  String
+  participantB    User      @relation("ParticipantB", fields: [participantBId], references: [id])
+  unreadCountA    Int       @default(0)
+  unreadCountB    Int       @default(0)
+  deletedByIds    String[]  @default([])
+  messages        Message[]
+
   @@unique([participantAId, participantBId])
 }
 
 model Message {
-  id               String       @id @default(uuid())
-  content          String       @db.Text
-  read             Boolean      @default(false)
-  createdAt        DateTime     @default(now())
-  senderId         String
-  sender           User         @relation("SentMessages", fields: [senderId], references: [id])
-  conversationId   String
-  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  id             String       @id @default(uuid())
+  content        String       @db.Text
+  read           Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  senderId       String
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id])
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 model Favorite {
-  id               String   @id @default(uuid())
-  createdAt        DateTime @default(now())
-  clientId         String
-  client           User     @relation("UserFavorites", fields: [clientId], references: [id], onDelete: Cascade)
-  professionalId   String
-  professional     User     @relation("FavoritedBy", fields: [professionalId], references: [id], onDelete: Cascade)
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+  clientId       String
+  client         User     @relation("UserFavorites", fields: [clientId], references: [id], onDelete: Cascade)
+  professionalId String
+  professional   User     @relation("FavoritedBy", fields: [professionalId], references: [id], onDelete: Cascade)
+
   @@unique([clientId, professionalId])
 }
 

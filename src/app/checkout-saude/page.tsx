@@ -38,8 +38,8 @@ export default function CheckoutSaudePage({
   const [error, setError] = useState<string | null>(null);
 
   // Estados dos inputs editáveis
-  const [clientName, setClientName] = useState("");
-  const [clientEmail, setClientEmail] = useState("");
+  const [clientName, setClientName] = useState<string | null>(null);
+  const [clientEmail, setClientEmail] = useState<string | null>(null);
 
   // Formatação de data (de YYYY-MM-DD para DD/MM/YYYY)
   const formattedDate = dateStr.includes("-")
@@ -58,12 +58,8 @@ export default function CheckoutSaudePage({
     if (status === "unauthenticated") {
       const currentPath = `/checkout-saude?proId=${proId}&time=${timeStr}&date=${dateStr}`;
       router.push(`/login?callbackUrl=${encodeURIComponent(currentPath)}`);
-    } else if (status === "authenticated" && session?.user) {
-      // Puxa do banco (sessão), mas permite edição livre no input
-      setClientName(session.user.name || "");
-      setClientEmail(session.user.email || "");
     }
-  }, [status, router, proId, timeStr, dateStr, session]);
+  }, [status, router, proId, timeStr, dateStr]);
 
   const handleCheckout = async () => {
     setIsProcessing(true);
@@ -138,7 +134,7 @@ export default function CheckoutSaudePage({
                         <User className="w-5 h-5 text-slate-500" />
                         <input
                           type="text"
-                          value={clientName}
+                          value={clientName ?? session?.user?.name ?? ""}
                           onChange={(e) => setClientName(e.target.value)}
                           className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
                           placeholder="Como deseja ser chamado?"
@@ -154,7 +150,7 @@ export default function CheckoutSaudePage({
                         <Mail className="w-5 h-5 text-slate-500" />
                         <input
                           type="email"
-                          value={clientEmail}
+                          value={clientEmail ?? session?.user?.email ?? ""}
                           onChange={(e) => setClientEmail(e.target.value)}
                           className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
                           placeholder="seu.email@exemplo.com"

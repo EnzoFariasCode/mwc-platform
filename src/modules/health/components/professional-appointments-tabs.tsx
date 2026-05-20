@@ -1,0 +1,202 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import {
+  CalendarClock,
+  CheckCircle2,
+  Clock3,
+  ShieldCheck,
+  Timer,
+  Video,
+  XCircle,
+} from "lucide-react";
+
+type ProfessionalAppointment = {
+  id: string;
+  date: string;
+  time: string;
+  status: string;
+  price: number;
+  meetLink: string | null;
+  notes: string | null;
+  patientName: string;
+};
+
+function formatCurrency(value: number) {
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function formatDate(date: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(date));
+}
+
+function statusBadge(status: string) {
+  if (status === "COMPLETED") {
+    return {
+      label: "Realizado",
+      icon: CheckCircle2,
+      className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    };
+  }
+
+  if (status === "CANCELED") {
+    return {
+      label: "Cancelado",
+      icon: XCircle,
+      className: "bg-red-500/10 text-red-400 border-red-500/20",
+    };
+  }
+
+  return {
+    label: "Agendado",
+    icon: Timer,
+    className: "bg-[#d73cbe]/10 text-[#d73cbe] border-[#d73cbe]/20",
+  };
+}
+
+function EmptyState({ activeTab }: { activeTab: "scheduled" | "history" }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 px-6 py-20 text-center">
+      <div className="rounded-full bg-white/5 p-4 mb-4">
+        <CalendarClock className="h-8 w-8 text-slate-600" />
+      </div>
+      <p className="text-slate-400">
+        {activeTab === "scheduled"
+          ? "Nenhuma consulta agendada no momento."
+          : "Nenhum atendimento no historico ainda."}
+      </p>
+    </div>
+  );
+}
+
+export function ProfessionalAppointmentsTabs({
+  appointments,
+}: {
+  appointments: ProfessionalAppointment[];
+}) {
+  const [activeTab, setActiveTab] = useState<"scheduled" | "history">(
+    "scheduled",
+  );
+
+  const scheduled = useMemo(
+    () => appointments.filter((item) => item.status === "SCHEDULED"),
+    [appointments],
+  );
+  const history = useMemo(
+    () => appointments.filter((item) => item.status !== "SCHEDULED"),
+    [appointments],
+  );
+
+  const visibleAppointments = activeTab === "scheduled" ? scheduled : history;
+
+  return (
+    <div className="rounded-3xl border border-white/10 bg-[#0f172a]/80 p-8 backdrop-blur-sm">
+      <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold uppercase tracking-tight">
+            Atendimentos
+          </h2>
+          <p className="mt-1 text-slate-400">
+            Acompanhe consultas ativas, canceladas e realizadas.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-[#020617]/70 p-1 text-sm font-bold">
+          <button
+            type="button"
+            onClick={() => setActiveTab("scheduled")}
+            className={`rounded-lg px-4 py-2 transition-colors ${
+              activeTab === "scheduled"
+                ? "bg-[#d73cbe] text-white"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            Agendados ({scheduled.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("history")}
+            className={`rounded-lg px-4 py-2 transition-colors ${
+              activeTab === "history"
+                ? "bg-[#d73cbe] text-white"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            Historico ({history.length})
+          </button>
+        </div>
+      </div>
+
+      {visibleAppointments.length === 0 ? (
+        <EmptyState activeTab={activeTab} />
+      ) : (
+        <div className="space-y-4">
+          {visibleAppointments.map((appointment) => {
+            const badge = statusBadge(appointment.status);
+            const BadgeIcon = badge.icon;
+
+            return (
+              <div
+                key={appointment.id}
+                className="group relative rounded-2xl border border-white/5 bg-[#020617]/70 p-5 transition-all hover:border-[#d73cbe]/20 hover:bg-[#020617]"
+              >
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="space-y-2">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${badge.className}`}
+                    >
+                      <BadgeIcon className="h-3 w-3" />
+                      {badge.label}
+                    </span>
+                    <h3 className="text-xl font-semibold text-white group-hover:text-[#d73cbe] transition-colors">
+                      {appointment.patientName}
+                    </h3>
+                  </div>
+
+                  <div className="grid gap-3 text-sm text-slate-300 md:text-right">
+                    <p className="flex items-center gap-2 md:justify-end">
+                      <CalendarClock className="h-4 w-4 text-slate-500" />
+                      {formatDate(appointment.date)}
+                    </p>
+                    <p className="flex items-center gap-2 md:justify-end">
+                      <Clock3 className="h-4 w-4 text-slate-500" />
+                      {formatCurrency(appointment.price)}
+                    </p>
+                    {appointment.status === "SCHEDULED" &&
+                      appointment.meetLink && (
+                        <a
+                          href={appointment.meetLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 font-medium text-[#d73cbe] hover:text-white transition-colors md:justify-end"
+                        >
+                          <Video className="h-4 w-4" />
+                          Entrar na sala de atendimento
+                        </a>
+                      )}
+                  </div>
+                </div>
+
+                {appointment.notes && (
+                  <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.02] p-4 text-sm text-slate-400">
+                    <div className="mb-2 flex items-center gap-2 text-slate-300 font-medium">
+                      <ShieldCheck className="h-4 w-4 text-[#d73cbe]" />
+                      Observacoes
+                    </div>
+                    {appointment.notes}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

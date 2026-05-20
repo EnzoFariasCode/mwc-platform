@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { getHealthPatientHistoryById } from "@/modules/health/services/private-profile-service";
+import { CancelAppointmentButton } from "@/modules/health/components/cancel-appointment-button";
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -75,6 +76,9 @@ export default async function HistoricoConsultasPage() {
                 professional.displayName || professional.name;
               const badge = statusBadge(appointment.status);
               const BadgeIcon = badge.icon;
+              const canCancel =
+                appointment.status === "SCHEDULED" &&
+                appointment.date > new Date();
 
               return (
                 <div
@@ -120,16 +124,21 @@ export default async function HistoricoConsultasPage() {
                       {badge.label}
                     </span>
 
-                    {appointment.status === "SCHEDULED" && appointment.meetLink ? (
-                      <a
-                        href={appointment.meetLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-2 px-5 py-2.5 bg-[#d73cbe] hover:bg-[#b02da0] text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-[#d73cbe]/20"
-                      >
-                        <Video className="w-4 h-4" />
-                        Entrar no Meet
-                      </a>
+                    {canCancel ? (
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        {appointment.meetLink && (
+                          <a
+                            href={appointment.meetLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-[#d73cbe] hover:bg-[#b02da0] text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-[#d73cbe]/20"
+                          >
+                            <Video className="w-4 h-4" />
+                            Entrar no Meet
+                          </a>
+                        )}
+                        <CancelAppointmentButton appointmentId={appointment.id} />
+                      </div>
                     ) : (
                       <button
                         type="button"

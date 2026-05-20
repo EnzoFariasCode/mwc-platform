@@ -2,10 +2,7 @@ import { auth } from "@/auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  CalendarClock,
-  Clock3,
   ExternalLink,
-  ShieldCheck,
   Star,
   Video,
   Users,
@@ -15,6 +12,7 @@ import {
 } from "lucide-react";
 import { getHealthProfessionalDashboardById } from "@/modules/health/services/private-profile-service";
 import { DashboardModalsController } from "@/modules/health/components/dashboard-modals-controller";
+import { ProfessionalAppointmentsTabs } from "@/modules/health/components/professional-appointments-tabs";
 
 // Funções Utilitárias de Formatação
 function formatCurrency(value: number | null) {
@@ -23,13 +21,6 @@ function formatCurrency(value: number | null) {
     style: "currency",
     currency: "BRL",
   });
-}
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
 }
 
 export default async function ProHealthDashboard() {
@@ -57,6 +48,21 @@ export default async function ProHealthDashboard() {
   // TRAVA DE SEGURANÇA (Regra de Negócio)
   const missingCredential = !professional.documentReg;
   const missingApproach = !professional.approach;
+  const appointmentItems = (professional.proAppointments ?? []).map(
+    (appointment) => ({
+      id: appointment.id,
+      date: appointment.date.toISOString(),
+      time: appointment.time,
+      status: appointment.status,
+      price: Number(appointment.price),
+      meetLink: appointment.meetLink,
+      notes: appointment.notes,
+      patientName:
+        appointment.patient?.displayName ||
+        appointment.patient?.name ||
+        "Paciente Oculto",
+    }),
+  );
 
   return (
     // A FONTE POPPINS ESTÁ AQUI NA PRIMEIRA DIV 👇
@@ -176,88 +182,7 @@ export default async function ProHealthDashboard() {
 
         {/* Conteúdo Principal */}
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          {/* Coluna Esquerda: Consultas */}
-          <div className="rounded-3xl border border-white/10 bg-[#0f172a]/80 p-8 backdrop-blur-sm">
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold uppercase tracking-tight">
-                Próximas consultas
-              </h2>
-              <p className="mt-1 text-slate-400">
-                Lista de atendimentos agendados via portal.
-              </p>
-            </div>
-
-            {!professional.proAppointments ||
-            professional.proAppointments.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 px-6 py-20 text-center">
-                <div className="rounded-full bg-white/5 p-4 mb-4">
-                  <CalendarClock className="h-8 w-8 text-slate-600" />
-                </div>
-                <p className="text-slate-400">
-                  Nenhuma consulta agendada no momento.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {professional.proAppointments.map((appointment) => {
-                  const patientName =
-                    appointment.patient?.displayName ||
-                    appointment.patient?.name ||
-                    "Paciente Oculto";
-
-                  return (
-                    <div
-                      key={appointment.id}
-                      className="group relative rounded-2xl border border-white/5 bg-[#020617]/70 p-5 transition-all hover:border-[#d73cbe]/20 hover:bg-[#020617]"
-                    >
-                      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                        <div className="space-y-2">
-                          <span className="inline-block rounded-full bg-[#d73cbe]/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#d73cbe] border border-[#d73cbe]/20">
-                            {appointment.status}
-                          </span>
-                          <h3 className="text-xl font-semibold text-white group-hover:text-[#d73cbe] transition-colors">
-                            {patientName}
-                          </h3>
-                        </div>
-
-                        <div className="grid gap-3 text-sm text-slate-300 md:text-right">
-                          <p className="flex items-center gap-2 md:justify-end">
-                            <CalendarClock className="h-4 w-4 text-slate-500" />
-                            {formatDate(appointment.date)}
-                          </p>
-                          <p className="flex items-center gap-2 md:justify-end">
-                            <Clock3 className="h-4 w-4 text-slate-500" />
-                            {formatCurrency(Number(appointment.price))}
-                          </p>
-                          {appointment.meetLink && (
-                            <a
-                              href={appointment.meetLink}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-2 font-medium text-[#d73cbe] hover:text-white transition-colors md:justify-end"
-                            >
-                              <Video className="h-4 w-4" />
-                              Entrar na sala de atendimento
-                            </a>
-                          )}
-                        </div>
-                      </div>
-
-                      {appointment.notes && (
-                        <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.02] p-4 text-sm text-slate-400">
-                          <div className="mb-2 flex items-center gap-2 text-slate-300 font-medium">
-                            <ShieldCheck className="h-4 w-4 text-[#d73cbe]" />
-                            Observações do paciente
-                          </div>
-                          {appointment.notes}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <ProfessionalAppointmentsTabs appointments={appointmentItems} />
 
           {/* Coluna Direita: Perfil Clínico e Gestão de Agenda */}
           <div className="space-y-6">

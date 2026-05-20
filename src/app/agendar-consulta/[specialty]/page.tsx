@@ -3,7 +3,7 @@
 import { use, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Star, Video, ShieldCheck, ArrowLeft, User2 } from "lucide-react";
+import { Star, Video, ShieldCheck, ArrowLeft } from "lucide-react";
 
 import { getProfessionalsBySpecialty } from "@/modules/users/actions/get-professionals";
 import { MonthlyScheduleClient } from "@/app/agendar-consulta/perfil/[id]/monthly-schedule-client";
