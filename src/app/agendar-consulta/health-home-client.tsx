@@ -85,13 +85,13 @@ export function HealthHomeClient({
       <main className="flex-grow relative z-10">
         <section className="container mx-auto max-w-6xl px-4 py-16">
           <div className="flex flex-col items-start text-left mb-16 max-w-3xl">
-            <h1 className="font-futura text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 text-white">
+            <h1 className="font-futura text-3xl md:text-3xl lg:text-3xl uppercase font-bold leading-tight mb-6 text-white">
               Encontre o especialista ideal para o seu{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d73cbe] to-purple-400">
                 atendimento online.
               </span>
             </h1>
-            <p className="text-slate-400 text-lg md:text-xl font-light leading-relaxed">
+            <p className="text-slate-400 text-lg md:text-sm font-light leading-relaxed">
               Agende consultorias, aulas e atendimentos online com especialistas
               que possuem perfil, agenda e valor configurados.
             </p>
@@ -105,9 +105,8 @@ export function HealthHomeClient({
                 className="block outline-none"
               >
                 <div
-                  className={`group flex flex-col h-full bg-[#0f172a]/90 backdrop-blur-sm border border-white/10 rounded-3xl overflow-hidden cursor-pointer transition-all duration-500 hover:-translate-y-2 ${spec.color}`}
+                  className={`group flex flex-col h-full bg-[#0f172a]/90 backdrop-blur-sm border border-white/10 rounded overflow-hidden cursor-pointer transition-all duration-500 hover:-translate-y-2 ${spec.color}`}
                 >
-                  {/* AJUSTE: Reduzimos a imagem de 200px para 160px para os cards ficarem mais compactos e elegantes lado a lado */}
                   <div className="relative h-[160px] w-full overflow-hidden shrink-0 bg-slate-900">
                     <Image
                       src={spec.image}
