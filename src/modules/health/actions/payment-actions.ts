@@ -108,7 +108,9 @@ export async function createCheckoutSession(
     }
 
     if (professional.id === session.user.id) {
-      throw new Error("Voce nao pode agendar uma consulta com seu proprio perfil.");
+      throw new Error(
+        "Voce nao pode agendar uma consulta com seu proprio perfil.",
+      );
     }
 
     const availability =
@@ -197,8 +199,7 @@ export async function createCheckoutSession(
   } catch (error) {
     console.error("Erro Stripe Health:", error);
     return {
-      error:
-        error instanceof Error ? error.message : "Erro ao gerar pagamento",
+      error: error instanceof Error ? error.message : "Erro ao gerar pagamento",
     };
   }
 }
