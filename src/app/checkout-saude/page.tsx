@@ -14,7 +14,6 @@ import {
   CreditCard,
 } from "lucide-react";
 
-// Trocamos createAppointment por createCheckoutSession
 import { createCheckoutSession } from "@/modules/health/actions/payment-actions";
 import { getHealthProfessionalById } from "@/modules/health/services/professional-service";
 import type { HealthProfessionalProfile } from "@/modules/health/types";
@@ -38,6 +37,15 @@ export default function CheckoutSaudePage({
     useState<HealthProfessionalProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Estados dos inputs editáveis
+  const [clientName, setClientName] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+
+  // Formatação de data (de YYYY-MM-DD para DD/MM/YYYY)
+  const formattedDate = dateStr.includes("-")
+    ? dateStr.split("-").reverse().join("/")
+    : dateStr;
+
   useEffect(() => {
     if (proId) {
       getHealthProfessionalById(proId).then((res) => {
@@ -50,21 +58,25 @@ export default function CheckoutSaudePage({
     if (status === "unauthenticated") {
       const currentPath = `/checkout-saude?proId=${proId}&time=${timeStr}&date=${dateStr}`;
       router.push(`/login?callbackUrl=${encodeURIComponent(currentPath)}`);
+    } else if (status === "authenticated" && session?.user) {
+      // Puxa do banco (sessão), mas permite edição livre no input
+      setClientName(session.user.name || "");
+      setClientEmail(session.user.email || "");
     }
-  }, [status, router, proId, timeStr, dateStr]);
+  }, [status, router, proId, timeStr, dateStr, session]);
 
   const handleCheckout = async () => {
     setIsProcessing(true);
     setError(null);
 
-    // 🛡️ MODO REAL: Gera sessão no Stripe
+    // Opcional: Aqui poderíamos passar o 'clientEmail' para o Stripe para enviar o recibo
+    // const result = await createCheckoutSession(proId, dateStr, timeStr, clientEmail);
     const result = await createCheckoutSession(proId, dateStr, timeStr);
 
     if (result.error) {
       setError(result.error);
       setIsProcessing(false);
     } else if (result.url) {
-      // Redireciona para o site oficial do Stripe
       window.location.href = result.url;
     }
   };
@@ -85,12 +97,14 @@ export default function CheckoutSaudePage({
   return (
     <>
       <HealthHeader />
-      <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-28">
+      {/* 1. Reduzido o pt-28 excessivo para pt-24 e pb-24 */}
+      <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-24">
         <div className="container mx-auto max-w-6xl px-4">
-          <div className="mb-10">
+          {/* Margem inferior do header reduzida de mb-10 para mb-6 */}
+          <div className="mb-6">
             <button
               onClick={() => router.back()}
-              className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-6 text-sm bg-transparent border-none cursor-pointer"
+              className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-4 text-sm bg-transparent border-none cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" /> Voltar
             </button>
@@ -102,34 +116,49 @@ export default function CheckoutSaudePage({
           <div className="flex flex-col lg:flex-row gap-8 items-start">
             <div className="w-full lg:w-2/3 flex flex-col gap-6">
               {/* ETAPA 1: Dados */}
+              {/* 2. Reduzido de rounded-2xl para rounded-xl */}
               <div
-                className={`bg-[#0f172a]/80 backdrop-blur-md border ${step === 1 ? "border-[#d73cbe]/50" : "border-white/10 opacity-70"} rounded-2xl p-8`}
+                className={`bg-[#0f172a]/80 backdrop-blur-md border ${
+                  step === 1
+                    ? "border-[#d73cbe]/50"
+                    : "border-white/10 opacity-70"
+                } rounded-xl p-8`}
               >
-                <h2 className="text-2xl font-bold text-white mb-6">
+                <h2 className="text-xl font-bold text-white mb-6">
                   Confirme seus dados
                 </h2>
                 {step === 1 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                    <div className="flex items-center gap-3 bg-white/5 p-4 rounded-xl border border-white/5">
-                      <User className="w-5 h-5 text-slate-400" />
-                      <div>
-                        <span className="text-[10px] text-slate-500 uppercase block">
-                          Nome
-                        </span>
-                        <span className="text-sm font-semibold">
-                          {session?.user?.name}
-                        </span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+                    {/* 3. Campos agora são Editáveis (Inputs controlados) */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
+                        Nome Completo
+                      </label>
+                      <div className="flex items-center gap-3 bg-[#020617] p-3.5 rounded-lg border border-white/10 focus-within:border-[#d73cbe] transition-colors">
+                        <User className="w-5 h-5 text-slate-500" />
+                        <input
+                          type="text"
+                          value={clientName}
+                          onChange={(e) => setClientName(e.target.value)}
+                          className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
+                          placeholder="Como deseja ser chamado?"
+                        />
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 bg-white/5 p-4 rounded-xl border border-white/5">
-                      <Mail className="w-5 h-5 text-slate-400" />
-                      <div className="overflow-hidden">
-                        <span className="text-[10px] text-slate-500 uppercase block">
-                          E-mail
-                        </span>
-                        <span className="text-sm font-semibold truncate block">
-                          {session?.user?.email}
-                        </span>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
+                        E-mail para recibo e acesso
+                      </label>
+                      <div className="flex items-center gap-3 bg-[#020617] p-3.5 rounded-lg border border-white/10 focus-within:border-[#d73cbe] transition-colors">
+                        <Mail className="w-5 h-5 text-slate-500" />
+                        <input
+                          type="email"
+                          value={clientEmail}
+                          onChange={(e) => setClientEmail(e.target.value)}
+                          className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
+                          placeholder="seu.email@exemplo.com"
+                        />
                       </div>
                     </div>
                   </div>
@@ -137,7 +166,7 @@ export default function CheckoutSaudePage({
                 <div className="flex justify-end pt-4 border-t border-white/10">
                   <button
                     onClick={() => setStep(2)}
-                    className="px-8 py-3 bg-[#d73cbe] hover:bg-[#b02da0] text-white text-sm font-bold rounded-lg flex items-center gap-2 transition-all"
+                    className="px-8 py-3 bg-[#d73cbe] hover:bg-[#b02da0] text-white text-sm font-bold rounded-lg flex items-center gap-2 transition-all cursor-pointer active:scale-95"
                   >
                     Tudo certo, continuar <ArrowRight className="w-4 h-4" />
                   </button>
@@ -146,22 +175,28 @@ export default function CheckoutSaudePage({
 
               {/* ETAPA 2: Pagamento */}
               <div
-                className={`bg-[#0f172a]/80 backdrop-blur-md border ${step === 2 ? "border-[#d73cbe]/50" : "border-white/10 opacity-50"} rounded-2xl p-8`}
+                className={`bg-[#0f172a]/80 backdrop-blur-md border ${
+                  step === 2
+                    ? "border-[#d73cbe]/50"
+                    : "border-white/10 opacity-50"
+                } rounded-xl p-8`}
               >
                 <div className="flex items-center gap-3 mb-6">
                   <CreditCard
-                    className={`w-6 h-6 ${step === 2 ? "text-[#d73cbe]" : "text-slate-500"}`}
+                    className={`w-6 h-6 ${
+                      step === 2 ? "text-[#d73cbe]" : "text-slate-500"
+                    }`}
                   />
-                  <h2 className="text-2xl font-bold text-white">
+                  <h2 className="text-xl font-bold text-white">
                     Pagamento Seguro
                   </h2>
                 </div>
                 {step === 2 && (
                   <div className="space-y-4">
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-slate-400 leading-relaxed">
                       Ao clicar em confirmar, você será redirecionado para o
                       checkout seguro do <strong>Stripe</strong> para finalizar
-                      o pagamento.
+                      o agendamento.
                     </p>
                     {error && (
                       <p className="text-red-500 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20">
@@ -175,35 +210,57 @@ export default function CheckoutSaudePage({
 
             {/* RESUMO FIXO NA DIREITA */}
             <div className="w-full lg:w-1/3">
-              <div className="bg-[#0f172a] border border-white/10 rounded-2xl p-8 sticky top-32">
-                <h3 className="text-lg font-futura font-bold text-white uppercase mb-6 pb-4 border-b border-white/10">
-                  Resumo
+              <div className="bg-[#0f172a] border border-white/10 rounded-xl p-8 sticky top-32">
+                <h3 className="text-sm font-futura font-bold text-slate-400 uppercase tracking-widest mb-6 pb-4 border-b border-white/10">
+                  Resumo do Agendamento
                 </h3>
+
                 <div className="flex gap-4 items-center mb-6">
-                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10">
+                  {/* Adicionado bg-slate-800 para dar fundo ao avatar de iniciais se precisar */}
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center">
                     <Image
                       src={`/api/images/user/${professional.id}`}
-                      alt="Doutor"
+                      /* FIX DO TYPESCRIPT: Fallback para string vazia ou texto padrão */
+                      alt={professional.name || "Profissional"}
                       fill
                       className="object-cover"
                       unoptimized
+                      /* Fallback para caso não tenha foto no banco, usa iniciais */
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.src = `https://ui-avatars.com/api/?background=random&name=${encodeURIComponent(
+                          professional.name || "P",
+                        )}&color=fff&background=d73cbe`;
+                      }}
                     />
                   </div>
                   <div>
-                    <h4 className="font-bold text-white text-sm">
-                      {professional.name}
+                    <h4 className="font-bold text-white text-sm line-clamp-1">
+                      {/* Tratando o null aqui também por segurança */}
+                      {professional.name || "Profissional"}
                     </h4>
-                    <p className="text-xs text-[#d73cbe] font-medium">
-                      {professional.jobTitle}
+                    <p className="text-xs text-[#d73cbe] font-medium mt-0.5">
+                      {professional.jobTitle || "Especialista"}
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-3 mb-6 bg-white/5 rounded-xl p-4 border border-white/5">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Data/Hora</span>
+                {/* 5. Resumo alterado de linha para Coluna elegante */}
+                <div className="flex flex-col gap-3 mb-6 bg-white/5 rounded-lg p-5 border border-white/5 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Data:</span>
                     <span className="font-bold text-white">
-                      {dateStr} às {timeStr}
+                      {formattedDate}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Horário:</span>
+                    <span className="font-bold text-white">{timeStr}</span>
+                  </div>
+                  <div className="flex justify-between items-start mt-2 pt-3 border-t border-white/10">
+                    <span className="text-slate-400">Especialidade:</span>
+                    <span className="font-bold text-white text-right max-w-[140px] line-clamp-2">
+                      {professional.jobTitle || "Consulta Online"}
                     </span>
                   </div>
                 </div>
@@ -221,12 +278,13 @@ export default function CheckoutSaudePage({
                   </div>
                 </div>
 
+                {/* 4. Botão com cursor-pointer dinâmico */}
                 <button
                   onClick={handleCheckout}
                   disabled={step === 1 || isProcessing}
                   className={`w-full py-4 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${
                     step === 2 && !isProcessing
-                      ? "bg-emerald-500 hover:bg-emerald-600 text-white"
+                      ? "bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer shadow-lg shadow-emerald-900/20 active:scale-95"
                       : "bg-white/5 text-slate-500 cursor-not-allowed"
                   }`}
                 >
