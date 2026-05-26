@@ -14,21 +14,8 @@ import {
   parse,
 } from "date-fns";
 
-type DayRule = {
-  active: boolean;
-  start: string;
-  end: string;
-};
-
-const dayMap = [
-  "domingo",
-  "segunda",
-  "terca",
-  "quarta",
-  "quinta",
-  "sexta",
-  "sabado",
-];
+// [NOVO] Configurações de negócio
+const HOLD_EXPIRATION_MINUTES = 15;
 
 function parseAppointmentDateTime(date: string, time: string) {
   const [year, month, day] = date.split("-").map(Number);
@@ -44,7 +31,7 @@ function parseAppointmentDateTime(date: string, time: string) {
     return null;
   }
 
-  const dateOnly = new Date(year, month - 1, day);
+  const dateOnly = new Date(Date.UTC(year, month - 1, day)); // Mantendo UTC padrão
   const dateTime = new Date(year, month - 1, day, hours, minutes);
 
   if (
@@ -61,33 +48,34 @@ function parseAppointmentDateTime(date: string, time: string) {
 
 export async function createCheckoutSession(
   proId: string,
-  date: string,
-  time: string,
+  date: string, // Formato YYYY-MM-DD
+  time: string, // Formato HH:mm
 ) {
   try {
     const session = await auth();
     if (!session?.user?.id || !session.user.email) {
-      throw new Error("Nao autorizado");
+      throw new Error("Não autorizado");
     }
 
     if (!proId) {
-      throw new Error("Profissional invalido.");
+      throw new Error("Profissional inválido.");
     }
 
     const parsedDate = parseAppointmentDateTime(date, time);
     if (!parsedDate) {
-      throw new Error("Data ou horario invalido.");
+      throw new Error("Data ou horário inválido.");
     }
 
     if (isBefore(parsedDate.dateTime, new Date())) {
-      throw new Error("Nao e possivel agendar um horario no passado.");
+      throw new Error("Não é possível agendar um horário no passado.");
     }
 
     const maxAllowedDate = endOfMonth(addMonths(new Date(), 1));
     if (parsedDate.dateOnly > maxAllowedDate) {
-      throw new Error("A data solicitada esta fora da janela permitida.");
+      throw new Error("A data solicitada está fora da janela permitida.");
     }
 
+    // 1. Busca os dados essenciais do Profissional
     const professional = await db.user.findFirst({
       where: {
         id: proId,
@@ -98,75 +86,119 @@ export async function createCheckoutSession(
         id: true,
         name: true,
         consultationFee: true,
-        availability: true,
         sessionDuration: true,
       },
     });
 
     if (!professional || !professional.consultationFee) {
-      throw new Error("Profissional nao encontrado ou sem valor de consulta.");
+      throw new Error(
+        "Profissional não encontrado ou sem valor de consulta configurado.",
+      );
     }
 
     if (professional.id === session.user.id) {
       throw new Error(
-        "Voce nao pode agendar uma consulta com seu proprio perfil.",
+        "Você não pode agendar uma consulta com seu próprio perfil.",
       );
     }
 
-    const availability =
-      typeof professional.availability === "string"
-        ? (JSON.parse(professional.availability) as Record<
-            string,
-            DayRule | undefined
-          >)
-        : (professional.availability as Record<string, DayRule | undefined>);
+    const dayOfWeek = parsedDate.dateOnly.getUTCDay(); // 0 = Domingo, 1 = Segunda
 
-    const dayRule = availability?.[dayMap[parsedDate.dateOnly.getDay()]];
-    if (!dayRule || dayRule.active !== true) {
-      throw new Error("Este profissional nao atende no dia selecionado.");
-    }
-
-    const duration = professional.sessionDuration || 50;
-    let currentSlot = parse(dayRule.start, "HH:mm", parsedDate.dateOnly);
-    const endSlot = parse(dayRule.end, "HH:mm", parsedDate.dateOnly);
-    let isValidSlot = false;
-
-    while (addMinutes(currentSlot, duration) <= endSlot) {
-      if (format(currentSlot, "HH:mm") === time) {
-        isValidSlot = true;
-        break;
-      }
-      currentSlot = addMinutes(currentSlot, duration);
-    }
-
-    if (!isValidSlot) {
-      throw new Error("Horario fora da agenda do profissional.");
-    }
-
-    const existingAppointment = await db.appointment.findFirst({
+    // 2. Validação via NOVO BANCO RELACIONAL: Exceções e Folgas
+    const exception = await db.availabilityException.findFirst({
       where: {
         professionalId: professional.id,
-        date: parsedDate.dateTime,
-        time,
-        status: { not: "CANCELED" },
+        date: parsedDate.dateOnly,
       },
-      select: { id: true },
     });
 
-    if (existingAppointment) {
-      throw new Error("Este horario acabou de ser reservado.");
+    if (exception && !exception.isAvailable) {
+      throw new Error(
+        "O profissional não está atendendo nesta data específica (Folga/Feriado).",
+      );
     }
 
+    // 3. Validação via NOVO BANCO RELACIONAL: Dia da semana
+    const dayRule = await db.professionalAvailability.findUnique({
+      where: {
+        professionalId_dayOfWeek: {
+          professionalId: professional.id,
+          dayOfWeek: dayOfWeek,
+        },
+      },
+    });
+
+    if (!dayRule || !dayRule.isActive) {
+      throw new Error("Este profissional não atende neste dia da semana.");
+    }
+
+    // 4. RESERVA ATÔMICA (Evita Double Booking com Hold)
+    // Usamos uma transação para garantir que o banco não mude entre a verificação e a inserção
+    const holdId = await db.$transaction(async (tx) => {
+      // A) Checa se já existe uma consulta CONFIRMADA ou PAGA
+      const existingAppointment = await tx.appointment.findFirst({
+        where: {
+          professionalId: professional.id,
+          date: parsedDate.dateOnly,
+          time,
+          status: { not: "CANCELED" },
+        },
+      });
+
+      if (existingAppointment) {
+        throw new Error(
+          "Este horário acabou de ser reservado por outra pessoa.",
+        );
+      }
+
+      // B) Checa se existe um HOLD (Carrinho) ativo de outra pessoa
+      const now = new Date();
+      const activeHold = await tx.appointmentHold.findFirst({
+        where: {
+          professionalId: professional.id,
+          date: parsedDate.dateOnly,
+          time,
+          expiresAt: { gt: now }, // Expiração no futuro
+        },
+      });
+
+      if (activeHold) {
+        if (activeHold.patientId === session.user.id) {
+          // É o próprio usuário tentando de novo, vamos reciclar o hold dele
+          return activeHold.id;
+        } else {
+          throw new Error(
+            "Este horário está temporariamente reservado (em processo de pagamento por outro paciente). Tente novamente em 15 minutos.",
+          );
+        }
+      }
+
+      // C) Cria a Reserva Temporária (Hold)
+      const expiresAt = addMinutes(now, HOLD_EXPIRATION_MINUTES);
+      const newHold = await tx.appointmentHold.create({
+        data: {
+          professionalId: professional.id,
+          patientId: session.user.id,
+          date: parsedDate.dateOnly,
+          time,
+          expiresAt,
+        },
+      });
+
+      return newHold.id;
+    });
+
+    // 5. Configuração Stripe
     const unitAmount = Math.round(Number(professional.consultationFee) * 100);
     if (!Number.isFinite(unitAmount) || unitAmount <= 0) {
-      throw new Error("Valor de consulta invalido.");
+      throw new Error("Valor de consulta inválido.");
     }
 
     const headersList = await headers();
     const origin =
       headersList.get("origin") ||
       process.env.NEXT_PUBLIC_APP_URL ||
-      "http://localhost:3000";
+      "https://maximusworldclick.com.br"; // Ajustado para domínio real em falha
 
     const stripeSession = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -177,7 +209,7 @@ export async function createCheckoutSession(
             currency: "brl",
             product_data: {
               name: `Consulta com ${professional.name}`,
-              description: `Agendamento para o dia ${date} as ${time}`,
+              description: `Agendamento para o dia ${date} às ${time}`,
             },
             unit_amount: unitAmount,
           },
@@ -189,11 +221,20 @@ export async function createCheckoutSession(
         patientId: session.user.id,
         date,
         time,
+        holdId, // [NOVO] Passamos o Hold pro Stripe devolver no Webhook
         type: "HEALTH_APPOINTMENT",
       },
       success_url: `${origin}/checkout-saude/sucesso?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/agendar-consulta/perfil/${proId}`,
     });
+
+    // 6. Atualiza o Hold com a sessão do Stripe para rastreio cruzado
+    if (stripeSession.url) {
+      await db.appointmentHold.update({
+        where: { id: holdId },
+        data: { stripeSessionId: stripeSession.id },
+      });
+    }
 
     return { url: stripeSession.url };
   } catch (error) {

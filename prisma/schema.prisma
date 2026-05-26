@@ -17,20 +17,20 @@ enum UserType {
   ADMIN
 }
 
-// [NOVO] Diferencia os "mundos" dentro da plataforma
+// Diferencia os "mundos" dentro da plataforma
 enum Industry {
-  TECH // Desenvolvedores, Designers, Freelancers (Padrão atual)
+  TECH   // Desenvolvedores, Designers, Freelancers (Padrão atual)
   HEALTH // Psicólogos, Nutricionistas, Personal Trainers
 }
 
 enum ProjectStatus {
-  OPEN // Aberto para receber propostas
+  OPEN            // Aberto para receber propostas
   WAITING_PAYMENT // Cliente aceitou proposta, aguardando pagamento (Escrow)
-  IN_PROGRESS // Pago e em desenvolvimento
-  UNDER_REVIEW // Profissional entregou, cliente está revisando
-  COMPLETED // Finalizado e dinheiro liberado
-  CANCELED // Cancelado antes de começar
-  DISPUTE // Deu problema (Mediação)
+  IN_PROGRESS     // Pago e em desenvolvimento
+  UNDER_REVIEW    // Profissional entregou, cliente está revisando
+  COMPLETED       // Finalizado e dinheiro liberado
+  CANCELED        // Cancelado antes de começar
+  DISPUTE         // Deu problema (Mediação)
 }
 
 enum ProposalStatus {
@@ -40,11 +40,15 @@ enum ProposalStatus {
   WITHDRAWN
 }
 
-// [NOVO] Status das consultas na área da saúde
-enum AppointmentStatus {
-  SCHEDULED // Marcada (Será o status usado após o pagamento)
-  COMPLETED // Realizada
-  CANCELED // Cancelada
+// [NOVO] Status das consultas na área da saúde (Enterprise Level) - Renomeado para Bypass
+enum BookingStatus {
+  PENDING_PAYMENT // Aguardando pagamento no Stripe
+  PAID            // Pago, aguardando confirmação final do profissional (se houver)
+  CONFIRMED       // Confirmado e na agenda
+  COMPLETED       // Realizada
+  CANCELED        // Cancelada
+  REFUNDED        // Reembolsado ao paciente
+  NO_SHOW         // Paciente não compareceu
 }
 
 // =========================================================
@@ -62,7 +66,7 @@ model User {
   birthDate     DateTime?
   userType      UserType  @default(CLIENT)
 
-  // [NOVO] Campo que define de qual "setor" o usuário é
+  // Campo que define de qual "setor" o utilizador é
   industry Industry @default(TECH)
 
   createdAt DateTime @default(now())
@@ -79,7 +83,7 @@ model User {
   ratingCount Int      @default(0)
 
   // =========================================================
-  // [NOVO] CAMPOS DE ENDEREÇO E CONTATO
+  // CAMPOS DE ENDEREÇO E CONTATO
   // =========================================================
   phone         String?
   gender        String? // Ex: "M" ou "F"
@@ -103,12 +107,11 @@ model User {
   // =========================================================
   // [CAMPOS PROFISSIONAIS - SETOR HEALTH]
   // =========================================================
-  documentReg     String? // Para CRM, CRP, CREF, etc. (Ex: "CRP 06/12345")
-  approach        String? // Abordagem clínica (Ex: "TCC", "Psicanálise")
-  consultationFee Decimal? // Valor fixo da consulta
-  sessionDuration Int?     @default(50) // [NOVO] Duração da sessão em minutos (Padrão 50min)
-  availability    Json?    @default("{}") // JSON para guardar a grade de horários disponíveis
-
+  documentReg     String?  // Para CRM, CRP, CREF, etc. (Ex: "CRP 06/12345")
+  approach        String?  // Abordagem clínica (Ex: "TCC", "Psicanálise")
+  consultationFee Decimal? // Valor fixo da consulta base
+  sessionDuration Int?     @default(50) // Duração da sessão em minutos (Padrão 50min)
+  
   // Armazenamento de Imagem no Banco
   profileImageBytes Bytes?
   profileImageType  String?
@@ -120,10 +123,10 @@ model User {
   // =========================================================
   // [INTEGRAÇÃO STRIPE - ASSINATURA]
   // =========================================================
-  stripeCustomerId         String?   @unique
-  stripeSubscriptionId     String?   @unique
-  stripePriceId            String?
-  stripeCurrentPeriodEnd   DateTime?
+  stripeCustomerId       String?   @unique
+  stripeSubscriptionId   String?   @unique
+  stripePriceId          String?
+  stripeCurrentPeriodEnd DateTime?
   stripeSubscriptionStatus String?
 
   // =========================================================
@@ -141,9 +144,12 @@ model User {
   proposals        Proposal[]    @relation("ProfessionalProposals")
   deliverables     Deliverable[] @relation("UserDeliverables")
 
-  // --- Relacionamentos Health [NOVO] ---
-  patientAppointments Appointment[] @relation("PatientAppointments")
-  proAppointments     Appointment[] @relation("ProAppointments")
+  // --- Relacionamentos Health (Atualizados) ---
+  patientAppointments Appointment[]              @relation("PatientAppointments")
+  proAppointments     Appointment[]              @relation("ProAppointments")
+  services            ServiceType[]              @relation("ProServices")
+  availabilities      ProfessionalAvailability[] @relation("ProAvailability")
+  exceptions          AvailabilityException[]    @relation("ProExceptions")
 
   // --- Relacionamentos Gerais ---
   conversationsAsA Conversation[] @relation("ParticipantA")
@@ -226,31 +232,84 @@ model Deliverable {
 }
 
 // =========================================================
-// [NOVO] 4. MODELOS DE NEGÓCIO - HEALTH (CONSULTAS)
+// [NOVO] 4. MODELOS DE NEGÓCIO - HEALTH (CONSULTAS AVANÇADAS)
 // =========================================================
+
+model ServiceType {
+  id             String        @id @default(uuid())
+  professionalId String
+  professional   User          @relation("ProServices", fields: [professionalId], references: [id], onDelete: Cascade)
+  name           String        // Ex: "Sessão Terapia", "Primeira Consulta"
+  duration       Int           // Duração em minutos
+  price          Decimal
+  isActive       Boolean       @default(true)
+  appointments   Appointment[]
+}
+
+model ProfessionalAvailability {
+  id             String   @id @default(uuid())
+  professionalId String
+  professional   User     @relation("ProAvailability", fields: [professionalId], references: [id], onDelete: Cascade)
+  dayOfWeek      Int      // 0 = Domingo, 1 = Segunda, etc.
+  startTime      String   // Ex: "08:00"
+  endTime        String   // Ex: "18:00"
+  isActive       Boolean  @default(true)
+  
+  @@unique([professionalId, dayOfWeek])
+}
+
+model AvailabilityException {
+  id             String   @id @default(uuid())
+  professionalId String
+  professional   User     @relation("ProExceptions", fields: [professionalId], references: [id], onDelete: Cascade)
+  date           DateTime @db.Date // Dia do feriado/folga
+  isAvailable    Boolean  @default(false) // false = bloqueado o dia todo
+  startTime      String?  // Opcional: inicio de atendimento parcial
+  endTime        String?  // Opcional: fim de atendimento parcial
+  reason         String?  // Ex: "Feriado", "Férias"
+}
+
+model AppointmentHold {
+  id              String   @id @default(uuid())
+  professionalId  String
+  patientId       String
+  date            DateTime @db.Date
+  time            String
+  expiresAt       DateTime // UTC para expiração do carrinho (Ex: now + 15 min)
+  stripeSessionId String?  @unique
+  createdAt       DateTime @default(now())
+
+  // Índice para leitura rápida na hora de checar slots ocupados
+  @@index([professionalId, date, time])
+}
 
 model Appointment {
   id              String            @id @default(uuid())
-  date            DateTime // Dia da consulta
-  time            String // [NOVO] Horário da consulta (Ex: "14:30")
-  status          AppointmentStatus @default(SCHEDULED)
-  meetLink        String? // Link da videochamada
-  price           Decimal // Valor cobrado na consulta
-  notes           String?           @db.Text // Anotações do paciente
-  stripeSessionId String?           @unique // [NOVO] Rastreamento de pagamento
+  shortId         String            @unique @default(uuid()) // Código público com fallback para não dar erro
+  date            DateTime          @db.Date
+  time            String            
+  timezonePro     String            @default("America/Sao_Paulo") 
+  timezoneClient  String            @default("America/Sao_Paulo") 
+  status          BookingStatus     @default(PENDING_PAYMENT)
+  
+  meetLink        String?           
+  price           Decimal           
+  notes           String?           @db.Text 
+  stripeSessionId String?           @unique 
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
-  patientId String
-  patient   User   @relation("PatientAppointments", fields: [patientId], references: [id])
+  patientId       String
+  patient         User              @relation("PatientAppointments", fields: [patientId], references: [id])
+  
+  professionalId  String
+  professional    User              @relation("ProAppointments", fields: [professionalId], references: [id])
 
-  professionalId String
-  professional   User   @relation("ProAppointments", fields: [professionalId], references: [id])
+  serviceTypeId   String?
+  serviceType     ServiceType?      @relation(fields: [serviceTypeId], references: [id])
 
-  // A trava real de double booking fica em migration SQL como indice parcial:
-  // unique(professionalId, date, time) apenas quando status <> 'CANCELED'.
-
+  // Ajuda a prevenir consultas duplicadas no mesmo horário
   @@index([patientId])
   @@index([professionalId])
 }
