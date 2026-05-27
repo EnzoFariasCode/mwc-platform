@@ -4,7 +4,6 @@ import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import type { Prisma } from "@prisma/client";
 
 // ─── Schema Zod ───────────────────────────────────────────────────────────────
 
@@ -40,6 +39,16 @@ const weeklyAvailabilitySchema = z.object({
 export type DaySchedule = z.infer<typeof dayScheduleSchema>;
 export type WeeklyAvailability = z.infer<typeof weeklyAvailabilitySchema>;
 
+const mapDays = {
+  domingo: 0,
+  segunda: 1,
+  terca: 2,
+  quarta: 3,
+  quinta: 4,
+  sexta: 5,
+  sabado: 6,
+} as const;
+
 // ─── Server Action ────────────────────────────────────────────────────────────
 
 export async function updateHealthSchedule(scheduleData: WeeklyAvailability) {
@@ -56,7 +65,7 @@ export async function updateHealthSchedule(scheduleData: WeeklyAvailability) {
     };
   }
 
-  // Validação completa com Zod (substitui a checagem manual de `!scheduleData.segunda`)
+  // Validação completa com Zod
   const parsed = weeklyAvailabilitySchema.safeParse(scheduleData);
 
   if (!parsed.success) {
@@ -66,14 +75,35 @@ export async function updateHealthSchedule(scheduleData: WeeklyAvailability) {
   }
 
   try {
-    await db.user.update({
-      where: { id: session.user.id },
-      data: {
-        // Prisma.JsonObject no lugar do `as any`
-        availability: parsed.data as unknown as Prisma.JsonObject,
-      },
+    const proId = session.user.id;
+
+    // Transação: Limpa a agenda antiga e insere a nova nas tabelas relacionais
+    await db.$transaction(async (tx) => {
+      // 1. Remove as disponibilidades antigas deste profissional
+      await tx.professionalAvailability.deleteMany({
+        where: { professionalId: proId },
+      });
+
+      // 2. Prepara os novos dados relacionais
+      const newAvailabilities = Object.entries(parsed.data).map(
+        ([dayKey, data]) => {
+          return {
+            professionalId: proId,
+            dayOfWeek: mapDays[dayKey as keyof WeeklyAvailability],
+            isActive: data.active,
+            startTime: data.start,
+            endTime: data.end,
+          };
+        },
+      );
+
+      // 3. Insere em massa na nova tabela
+      await tx.professionalAvailability.createMany({
+        data: newAvailabilities,
+      });
     });
 
+    // Atualiza a cache das páginas
     revalidatePath("/agendar-consulta/dashboard-profissional");
     revalidatePath(`/agendar-consulta/perfil/${session.user.id}`);
 

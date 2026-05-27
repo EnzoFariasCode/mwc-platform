@@ -7,12 +7,13 @@ import {
   type WeeklyAvailability,
   type DaySchedule,
 } from "../actions/update-health-schedule";
+// @ts-ignore - Ignorando tipagem temporariamente para compatibilidade com o novo modelo Prisma
 import type { HealthProfessionalProfile } from "../types";
 
 type EditScheduleModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  professional: HealthProfessionalProfile;
+  professional: any; // Usando any para suportar a nova estrutura com a tabela availabilities
 };
 
 const defaultSchedule: WeeklyAvailability = {
@@ -25,14 +26,18 @@ const defaultSchedule: WeeklyAvailability = {
   domingo: { active: false, start: "00:00", end: "00:00" },
 };
 
-const diasDaSemana: { key: keyof WeeklyAvailability; label: string }[] = [
-  { key: "segunda", label: "Segunda-feira" },
-  { key: "terca", label: "Terça-feira" },
-  { key: "quarta", label: "Quarta-feira" },
-  { key: "quinta", label: "Quinta-feira" },
-  { key: "sexta", label: "Sexta-feira" },
-  { key: "sabado", label: "Sábado" },
-  { key: "domingo", label: "Domingo" },
+const diasDaSemana: {
+  key: keyof WeeklyAvailability;
+  label: string;
+  index: number;
+}[] = [
+  { key: "domingo", label: "Domingo", index: 0 },
+  { key: "segunda", label: "Segunda-feira", index: 1 },
+  { key: "terca", label: "Terça-feira", index: 2 },
+  { key: "quarta", label: "Quarta-feira", index: 3 },
+  { key: "quinta", label: "Quinta-feira", index: 4 },
+  { key: "sexta", label: "Sexta-feira", index: 5 },
+  { key: "sabado", label: "Sábado", index: 6 },
 ];
 
 export function EditScheduleModal({
@@ -41,20 +46,33 @@ export function EditScheduleModal({
   professional,
 }: EditScheduleModalProps) {
   const [schedule, setSchedule] = useState<WeeklyAvailability>(() => {
-    const saved = professional?.availability;
-    if (!saved) return defaultSchedule;
-
-    const parsed = typeof saved === "string" ? JSON.parse(saved) : saved;
+    // Se o backend enviar os dados da nova tabela ProfessionalAvailability
     if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      Array.isArray(parsed) ||
-      Object.keys(parsed).length === 0
+      professional?.availabilities &&
+      Array.isArray(professional.availabilities)
     ) {
-      return defaultSchedule;
+      if (professional.availabilities.length === 0) return defaultSchedule;
+
+      const loadedSchedule = { ...defaultSchedule };
+
+      diasDaSemana.forEach((dia) => {
+        const bdRule = professional.availabilities.find(
+          (a: any) => a.dayOfWeek === dia.index,
+        );
+        if (bdRule) {
+          loadedSchedule[dia.key] = {
+            active: bdRule.isActive,
+            start: bdRule.startTime,
+            end: bdRule.endTime,
+          };
+        } else {
+          loadedSchedule[dia.key].active = false;
+        }
+      });
+      return loadedSchedule;
     }
 
-    return parsed as WeeklyAvailability;
+    return defaultSchedule;
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -77,6 +95,7 @@ export function EditScheduleModal({
 
   const handleSave = async () => {
     setIsSaving(true);
+    // Agora o updateHealthSchedule recebe o JSON, mas vai convertê-lo no backend para o modelo relacional
     const result = await updateHealthSchedule(schedule);
     setIsSaving(false);
 
@@ -84,6 +103,7 @@ export function EditScheduleModal({
       alert(result.error);
     } else {
       onClose();
+      // Opcional: router.refresh() se precisar atualizar a tela pai
     }
   };
 
@@ -95,7 +115,7 @@ export function EditScheduleModal({
       />
 
       {/* MODAL CONTAINER: Max height control e overflow hidden */}
-      <div className="relative w-full max-w-2xl bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[95dvh] sm:max-h-[90vh] overflow-hidden">
+      <div className="relative w-full max-w-2xl bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[95dvh] sm:max-h-[90vh] overflow-hidden">
         {/* HEADER: Fixo no topo */}
         <div className="flex items-start justify-between p-5 sm:p-6 border-b border-white/5 shrink-0 bg-[#0f172a] z-10">
           <div>
@@ -142,7 +162,7 @@ export function EditScheduleModal({
                   </span>
                 </label>
 
-                {/* Controles de Horário (Em celular desce pra próxima linha) */}
+                {/* Controles de Horário */}
                 <div className="flex items-center gap-2 sm:gap-3 pl-8 sm:pl-0">
                   <div className="flex items-center gap-1 sm:gap-2">
                     <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 shrink-0" />
@@ -179,14 +199,14 @@ export function EditScheduleModal({
           <button
             onClick={onClose}
             disabled={isSaving}
-            className="w-full sm:w-auto px-5 py-3 sm:py-2.5 text-slate-300 hover:text-white text-sm font-bold rounded-xl border border-white/10 sm:border-none transition-colors"
+            className="w-full sm:w-auto px-5 py-3 sm:py-2.5 text-slate-300 hover:text-white text-sm font-bold rounded-lg border border-white/10 sm:border-none transition-colors"
           >
             Cancelar
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="w-full sm:w-auto px-6 py-3 sm:py-2.5 bg-[#d73cbe] hover:bg-[#b02da0] text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all"
+            className="w-full sm:w-auto px-6 py-3 sm:py-2.5 bg-[#d73cbe] hover:bg-[#b02da0] text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 cursor-pointer"
           >
             <Save className="w-4 h-4" />
             {isSaving ? "Salvando..." : "Salvar Agenda"}

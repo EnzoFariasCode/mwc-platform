@@ -21,9 +21,9 @@ export async function getHealthProfessionalDashboardById(userId: string) {
       ratingCount: true,
       consultationFee: true,
 
-      // 👇 [AQUI ESTÁ A CORREÇÃO DO BACK-END]
       sessionDuration: true, // Puxa o tempo da consulta (ex: 50 min)
-      availability: true, // Puxa a grade de horários (JSON)
+      availabilities: true, // <--- TABELA NOVA, // Puxa a grade de horários (JSON)
+      exceptions: true, // <--- TABELA NOVA, // Puxa as exceções de horários (JSON)
 
       proAppointments: {
         orderBy: { date: "asc" },
