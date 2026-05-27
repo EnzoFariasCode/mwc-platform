@@ -60,6 +60,13 @@ function statusBadge(status: string) {
   };
 }
 
+const finishedStatuses: readonly string[] = [
+  "COMPLETED",
+  "CANCELED",
+  "REFUNDED",
+  "NO_SHOW",
+];
+
 function EmptyState({ activeTab }: { activeTab: "scheduled" | "history" }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 px-6 py-20 text-center">
@@ -85,11 +92,12 @@ export function ProfessionalAppointmentsTabs({
   );
 
   const scheduled = useMemo(
-    () => appointments.filter((item) => item.status === "SCHEDULED"),
+    () =>
+      appointments.filter((item) => !finishedStatuses.includes(item.status)),
     [appointments],
   );
   const history = useMemo(
-    () => appointments.filter((item) => item.status !== "SCHEDULED"),
+    () => appointments.filter((item) => finishedStatuses.includes(item.status)),
     [appointments],
   );
 
@@ -168,18 +176,17 @@ export function ProfessionalAppointmentsTabs({
                       <Clock3 className="h-4 w-4 text-slate-500" />
                       {formatCurrency(appointment.price)}
                     </p>
-                    {appointment.status === "SCHEDULED" &&
-                      appointment.meetLink && (
-                        <a
-                          href={appointment.meetLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-2 font-medium text-[#d73cbe] hover:text-white transition-colors md:justify-end"
-                        >
-                          <Video className="h-4 w-4" />
-                          Entrar na sala de atendimento
-                        </a>
-                      )}
+                    {appointment.meetLink && (
+                      <a
+                        href={appointment.meetLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 font-medium text-[#d73cbe] hover:text-white transition-colors md:justify-end"
+                      >
+                        <Video className="h-4 w-4" />
+                        Entrar na sala de atendimento
+                      </a>
+                    )}
                   </div>
                 </div>
 

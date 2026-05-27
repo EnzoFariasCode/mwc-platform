@@ -62,7 +62,9 @@ export async function getPublicProfile(
         // --- 🛡️ CAMPOS ADICIONADOS APENAS PARA A BARREIRA DE QUALIDADE ---
         industry: true,
         documentReg: true,
-        availability: true,
+        availabilities: {
+          where: { isActive: true },
+        },
         sessionDuration: true,
         consultationFee: true,
         // -------------------------------------------------------------------
@@ -97,15 +99,9 @@ export async function getPublicProfile(
         professional.consultationFee !== null ||
         professional.hourlyRate !== null;
 
-      let hasValidAgenda = false;
-      if (typeof professional.availability === "string") {
-        hasValidAgenda = professional.availability.length > 5;
-      } else if (
-        typeof professional.availability === "object" &&
-        professional.availability !== null
-      ) {
-        hasValidAgenda = Object.keys(professional.availability).length > 0;
-      }
+      const hasValidAgenda =
+        Array.isArray(professional.availabilities) &&
+        professional.availabilities.length > 0;
 
       if (!hasValidDoc || !hasValidJobTitle || !hasValidAgenda || !hasFee) {
         return {
@@ -130,7 +126,7 @@ export async function getPublicProfile(
       profileImageBytes: _profileImageBytes,
       hourlyRate: _hourlyRate,
       documentReg: _doc,
-      availability: _av,
+      availabilities: _av,
       sessionDuration: _sd,
       consultationFee: _cf,
       industry: _ind,

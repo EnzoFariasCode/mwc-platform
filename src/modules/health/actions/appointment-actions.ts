@@ -8,27 +8,11 @@ import {
   addMinutes,
   addMonths,
   endOfMonth,
-  format,
   isBefore,
   isValid,
   parse,
+  format, // <-- O LINTER QUEBROU PORQUE ISSO FALTAVA AQUI
 } from "date-fns";
-
-type DayRule = {
-  active: boolean;
-  start: string;
-  end: string;
-};
-
-const dayMap = [
-  "domingo",
-  "segunda",
-  "terca",
-  "quarta",
-  "quinta",
-  "sexta",
-  "sabado",
-];
 
 const PLATFORM_FEE_PERCENT = 10;
 
@@ -51,7 +35,6 @@ export async function createAppointment(formData: {
         userType: true,
         industry: true,
         consultationFee: true,
-        availability: true,
         sessionDuration: true,
       },
     });
@@ -88,6 +71,35 @@ export async function createAppointment(formData: {
 
     const now = new Date();
 
+    const availabilityRule = await db.professionalAvailability.findFirst({
+      where: {
+        professionalId: professional.id,
+        dayOfWeek: reqDate.getDay(),
+        isActive: true,
+      },
+      select: {
+        startTime: true,
+        endTime: true,
+      },
+    });
+
+    if (!availabilityRule) {
+      return {
+        error: "O profissional nao atende neste dia da semana.",
+      };
+    }
+
+    const exception = await db.availabilityException.findFirst({
+      where: {
+        professionalId: professional.id,
+        date: reqDate,
+      },
+    });
+
+    if (exception && !exception.isAvailable) {
+      return { error: "O profissional nao atende nesta data especifica." };
+    }
+
     if (isBefore(reqDateTime, now)) {
       return { error: "Nao e possivel agendar um horario no passado." };
     }
@@ -99,24 +111,10 @@ export async function createAppointment(formData: {
       };
     }
 
-    const availabilityObj =
-      typeof professional.availability === "string"
-        ? (JSON.parse(professional.availability) as Record<
-            string,
-            DayRule | undefined
-          >)
-        : (professional.availability as Record<string, DayRule | undefined>);
-
-    const dayName = dayMap[reqDate.getDay()];
-    const dayRule = availabilityObj?.[dayName];
-
-    if (!dayRule || dayRule.active !== true) {
-      return { error: `O profissional nao atende de ${dayName}.` };
-    }
-
+    const dayRule = availabilityRule;
     const duration = professional.sessionDuration || 50;
-    let currentSlot = parse(dayRule.start, "HH:mm", reqDate);
-    const endSlot = parse(dayRule.end, "HH:mm", reqDate);
+    let currentSlot = parse(dayRule.startTime, "HH:mm", reqDate);
+    const endSlot = parse(dayRule.endTime, "HH:mm", reqDate);
     let isValidSlot = false;
 
     while (addMinutes(currentSlot, duration) <= endSlot) {
@@ -138,7 +136,7 @@ export async function createAppointment(formData: {
     const existingAppointment = await db.appointment.findFirst({
       where: {
         professionalId: professional.id,
-        date: reqDateTime,
+        date: reqDate,
         status: { not: "CANCELED" },
       },
       select: { id: true },
@@ -153,9 +151,9 @@ export async function createAppointment(formData: {
 
     const newAppointment = await db.appointment.create({
       data: {
-        date: reqDateTime,
-        time: formData.time, // ← string "14:30" já disponível
-        status: "SCHEDULED",
+        date: reqDate,
+        time: formData.time,
+        status: "CONFIRMED",
         price: professional.consultationFee || 0,
         patientId: session.user.id,
         professionalId: professional.id,
@@ -228,7 +226,12 @@ export async function cancelPatientAppointment(appointmentId: string) {
         throw new Error("Voce nao tem permissao para cancelar esta consulta.");
       }
 
-      if (appointment.status !== "SCHEDULED") {
+      if (
+        appointment.status === "CANCELED" ||
+        appointment.status === "COMPLETED" ||
+        appointment.status === "REFUNDED" ||
+        appointment.status === "NO_SHOW"
+      ) {
         throw new Error("Apenas consultas agendadas podem ser canceladas.");
       }
 
@@ -261,7 +264,9 @@ export async function cancelPatientAppointment(appointmentId: string) {
           select: { walletBalance: true },
         });
 
-        if (professional?.walletBalance.greaterThanOrEqualTo(professionalAmount)) {
+        if (
+          professional?.walletBalance.greaterThanOrEqualTo(professionalAmount)
+        ) {
           await tx.user.update({
             where: { id: appointment.professionalId },
             data: {

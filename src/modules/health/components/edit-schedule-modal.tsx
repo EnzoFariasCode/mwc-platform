@@ -7,13 +7,18 @@ import {
   type WeeklyAvailability,
   type DaySchedule,
 } from "../actions/update-health-schedule";
-// @ts-ignore - Ignorando tipagem temporariamente para compatibilidade com o novo modelo Prisma
-import type { HealthProfessionalProfile } from "../types";
 
 type EditScheduleModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  professional: any; // Usando any para suportar a nova estrutura com a tabela availabilities
+  professional: {
+    availabilities?: Array<{
+      dayOfWeek: number;
+      isActive: boolean;
+      startTime: string;
+      endTime: string;
+    }>;
+  };
 };
 
 const defaultSchedule: WeeklyAvailability = {
@@ -46,19 +51,21 @@ export function EditScheduleModal({
   professional,
 }: EditScheduleModalProps) {
   const [schedule, setSchedule] = useState<WeeklyAvailability>(() => {
-    // Se o backend enviar os dados da nova tabela ProfessionalAvailability
-    if (
-      professional?.availabilities &&
-      Array.isArray(professional.availabilities)
-    ) {
-      if (professional.availabilities.length === 0) return defaultSchedule;
+    // 1. Extraímos para uma variável para garantir o tipo no TypeScript
+    const avails = professional?.availabilities;
 
-      const loadedSchedule = { ...defaultSchedule };
+    if (avails && Array.isArray(avails)) {
+      if (avails.length === 0) return defaultSchedule;
+
+      // 2. Deep Clone: garante que não vamos mutar o defaultSchedule original na memória
+      const loadedSchedule = JSON.parse(
+        JSON.stringify(defaultSchedule),
+      ) as WeeklyAvailability;
 
       diasDaSemana.forEach((dia) => {
-        const bdRule = professional.availabilities.find(
-          (a: any) => a.dayOfWeek === dia.index,
-        );
+        // Agora o 'avails' é reconhecido como Array seguro pelo TS
+        const bdRule = avails.find((a) => a.dayOfWeek === dia.index);
+
         if (bdRule) {
           loadedSchedule[dia.key] = {
             active: bdRule.isActive,
@@ -95,7 +102,6 @@ export function EditScheduleModal({
 
   const handleSave = async () => {
     setIsSaving(true);
-    // Agora o updateHealthSchedule recebe o JSON, mas vai convertê-lo no backend para o modelo relacional
     const result = await updateHealthSchedule(schedule);
     setIsSaving(false);
 
@@ -103,7 +109,6 @@ export function EditScheduleModal({
       alert(result.error);
     } else {
       onClose();
-      // Opcional: router.refresh() se precisar atualizar a tela pai
     }
   };
 
@@ -114,9 +119,7 @@ export function EditScheduleModal({
         onClick={onClose}
       />
 
-      {/* MODAL CONTAINER: Max height control e overflow hidden */}
       <div className="relative w-full max-w-2xl bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[95dvh] sm:max-h-[90vh] overflow-hidden">
-        {/* HEADER: Fixo no topo */}
         <div className="flex items-start justify-between p-5 sm:p-6 border-b border-white/5 shrink-0 bg-[#0f172a] z-10">
           <div>
             <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
@@ -135,7 +138,6 @@ export function EditScheduleModal({
           </button>
         </div>
 
-        {/* BODY: Área com rolagem independente */}
         <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1 space-y-3 sm:space-y-4">
           {diasDaSemana.map((dia) => {
             const data = schedule[dia.key as keyof typeof schedule];
@@ -143,9 +145,12 @@ export function EditScheduleModal({
             return (
               <div
                 key={dia.key}
-                className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border transition-all gap-4 sm:gap-0 ${data.active ? "bg-[#020617] border-[#d73cbe]/30" : "bg-white/5 border-white/5 opacity-60"}`}
+                className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border transition-all gap-4 sm:gap-0 ${
+                  data.active
+                    ? "bg-[#020617] border-[#d73cbe]/30"
+                    : "bg-white/5 border-white/5 opacity-60"
+                }`}
               >
-                {/* Checkbox Liga/Desliga */}
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -156,13 +161,14 @@ export function EditScheduleModal({
                     className="w-5 h-5 rounded border-white/20 text-[#d73cbe] focus:ring-[#d73cbe] bg-transparent cursor-pointer shrink-0"
                   />
                   <span
-                    className={`font-semibold text-sm sm:text-base ${data.active ? "text-white" : "text-slate-400"}`}
+                    className={`font-semibold text-sm sm:text-base ${
+                      data.active ? "text-white" : "text-slate-400"
+                    }`}
                   >
                     {dia.label}
                   </span>
                 </label>
 
-                {/* Controles de Horário */}
                 <div className="flex items-center gap-2 sm:gap-3 pl-8 sm:pl-0">
                   <div className="flex items-center gap-1 sm:gap-2">
                     <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 shrink-0" />
@@ -194,7 +200,6 @@ export function EditScheduleModal({
           })}
         </div>
 
-        {/* FOOTER: Fixo na base */}
         <div className="flex flex-col sm:flex-row justify-end gap-3 p-5 sm:p-6 border-t border-white/5 shrink-0 bg-[#0f172a] z-10">
           <button
             onClick={onClose}

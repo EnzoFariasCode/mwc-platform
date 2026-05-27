@@ -4,47 +4,11 @@ import { auth } from "@/auth";
 import { stripe } from "@/lib/stripe";
 import { db } from "@/lib/prisma";
 import { headers } from "next/headers";
-import {
-  addMinutes,
-  addMonths,
-  endOfMonth,
-  format,
-  isBefore,
-  isValid,
-  parse,
-} from "date-fns";
+import { addMinutes, addMonths, endOfMonth, isBefore } from "date-fns";
+import { parseAppointmentDateTime, generateDaySlots } from "./slot-helpers";
 
 // [NOVO] Configurações de negócio
 const HOLD_EXPIRATION_MINUTES = 15;
-
-function parseAppointmentDateTime(date: string, time: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  const [hours, minutes] = time.split(":").map(Number);
-
-  if (
-    !Number.isInteger(year) ||
-    !Number.isInteger(month) ||
-    !Number.isInteger(day) ||
-    !Number.isInteger(hours) ||
-    !Number.isInteger(minutes)
-  ) {
-    return null;
-  }
-
-  const dateOnly = new Date(Date.UTC(year, month - 1, day)); // Mantendo UTC padrão
-  const dateTime = new Date(year, month - 1, day, hours, minutes);
-
-  if (
-    !isValid(dateOnly) ||
-    !isValid(dateTime) ||
-    format(dateOnly, "yyyy-MM-dd") !== date ||
-    format(dateTime, "HH:mm") !== time
-  ) {
-    return null;
-  }
-
-  return { dateOnly, dateTime };
-}
 
 export async function createCheckoutSession(
   proId: string,
@@ -102,7 +66,7 @@ export async function createCheckoutSession(
       );
     }
 
-    const dayOfWeek = parsedDate.dateOnly.getUTCDay(); // 0 = Domingo, 1 = Segunda
+    const dayOfWeek = parsedDate.dateOnly.getDay(); // 0 = Domingo, 1 = Segunda
 
     // 2. Validação via NOVO BANCO RELACIONAL: Exceções e Folgas
     const exception = await db.availabilityException.findFirst({
@@ -135,19 +99,19 @@ export async function createCheckoutSession(
     // 3.5 VALIDAÇÃO DE SEGURANÇA (Prevenção de URL Tampering)
     // Garante que o horário pedido está dentro do expediente e alinhado com a duração da sessão
     const duration = professional.sessionDuration || 50;
-    let currentSlot = parse(dayRule.startTime, "HH:mm", parsedDate.dateOnly);
-    const endSlot = parse(dayRule.endTime, "HH:mm", parsedDate.dateOnly);
-    let isValidSlot = false;
 
-    while (addMinutes(currentSlot, duration) <= endSlot) {
-      if (format(currentSlot, "HH:mm") === time) {
-        isValidSlot = true;
-        break;
-      }
-      currentSlot = addMinutes(currentSlot, duration);
+    if (!dayRule.startTime || !dayRule.endTime) {
+      throw new Error("Agenda do profissional está incompleta.");
     }
 
-    if (!isValidSlot) {
+    const daySlots = generateDaySlots(
+      dayRule.startTime,
+      dayRule.endTime,
+      parsedDate.dateOnly,
+      duration,
+    );
+
+    if (!daySlots.includes(time)) {
       throw new Error(
         "Horário inválido, fora do expediente ou não alinhado com a agenda do profissional.",
       );

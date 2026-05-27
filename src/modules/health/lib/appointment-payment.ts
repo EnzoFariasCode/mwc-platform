@@ -117,7 +117,12 @@ export async function finalizeHealthAppointmentPayment({
       time,
       status: { not: "CANCELED" },
     },
-    select: { id: true, patientId: true, professionalId: true, stripeSessionId: true },
+    select: {
+      id: true,
+      patientId: true,
+      professionalId: true,
+      stripeSessionId: true,
+    },
   });
 
   if (existingSlot) {
@@ -138,7 +143,9 @@ export async function finalizeHealthAppointmentPayment({
 
   try {
     const appointment = await db.$transaction(async (tx) => {
-      const grossAmount = new Prisma.Decimal(session.amount_total ?? 0).div(100);
+      const grossAmount = new Prisma.Decimal(session.amount_total ?? 0).div(
+        100,
+      );
       const professionalAmount = grossAmount
         .mul(100 - PLATFORM_FEE_PERCENT)
         .div(100)
@@ -150,7 +157,7 @@ export async function finalizeHealthAppointmentPayment({
           professionalId: proId,
           date: appointmentDateTime,
           time,
-          status: "SCHEDULED",
+          status: "CONFIRMED",
           stripeSessionId: session.id,
           meetLink: `https://meet.google.com/mwc-${Math.random()
             .toString(36)

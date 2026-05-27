@@ -17,12 +17,14 @@ import {
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Clock, ArrowRight } from "lucide-react";
 
+import type { HealthAvailability } from "@/modules/health/types";
+
 interface MonthlyScheduleProps {
   pro: {
     id: string;
     sessionDuration?: number;
     consultationFee?: number | string;
-    // availability JSON removido para sempre!
+    availability?: HealthAvailability;
   };
 }
 

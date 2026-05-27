@@ -7,7 +7,6 @@ import { Star, Video, ShieldCheck, ArrowLeft } from "lucide-react";
 
 import { getProfessionalsBySpecialty } from "@/modules/users/actions/get-professionals";
 import { MonthlyScheduleClient } from "@/app/agendar-consulta/perfil/[id]/monthly-schedule-client";
-import type { HealthAvailability } from "@/modules/health/types";
 import { getHealthSpecialtyById } from "@/modules/health/lib/specialties";
 
 // ─── Tipagem Corrigida (Visão do Arquiteto Back-end) ──────────────────────────
@@ -23,7 +22,6 @@ interface Professional {
   ratingCount: number;
   approach: string | null;
   industry: string | null;
-  availability: HealthAvailability;
   sessionDuration: number | null;
   consultationFee: number | string | null;
   city?: string | null;
@@ -162,7 +160,7 @@ export default function SpecialtyPage({
         <div className="space-y-8">
           {professionals.map((pro) => {
             const displayName = pro.displayName ?? pro.name;
-            
+
             return (
               <div
                 key={pro.id}
@@ -186,19 +184,19 @@ export default function SpecialtyPage({
                           onError={(e) => {
                             const target = e.currentTarget;
                             target.src = `https://ui-avatars.com/api/?background=random&name=${encodeURIComponent(
-                              displayName
+                              displayName,
                             )}&color=fff&background=d73cbe`;
                           }}
                         />
                       ) : (
                         <Image
-                           src={`https://ui-avatars.com/api/?background=random&name=${encodeURIComponent(
-                             displayName
-                           )}&color=fff&background=d73cbe`}
-                           alt={displayName}
-                           fill
-                           className="object-cover"
-                           unoptimized
+                          src={`https://ui-avatars.com/api/?background=random&name=${encodeURIComponent(
+                            displayName,
+                          )}&color=fff&background=d73cbe`}
+                          alt={displayName}
+                          fill
+                          className="object-cover"
+                          unoptimized
                         />
                       )}
                     </div>
@@ -238,7 +236,6 @@ export default function SpecialtyPage({
                   <MonthlyScheduleClient
                     pro={{
                       ...pro,
-                      availability: pro.availability ?? undefined,
                       consultationFee: pro.consultationFee ?? 0,
                       sessionDuration: pro.sessionDuration ?? 0,
                     }}

@@ -77,8 +77,9 @@ export default async function HistoricoConsultasPage() {
               const badge = statusBadge(appointment.status);
               const BadgeIcon = badge.icon;
               const canCancel =
-                appointment.status === "SCHEDULED" &&
-                appointment.date > new Date();
+                !["CANCELED", "COMPLETED", "REFUNDED", "NO_SHOW"].includes(
+                  appointment.status,
+                ) && appointment.date > new Date();
 
               return (
                 <div
@@ -100,7 +101,9 @@ export default async function HistoricoConsultasPage() {
                         {professionalName}
                       </h3>
                       <p className="text-xs text-[#d73cbe] font-medium uppercase tracking-wider mb-2">
-                        {professional.jobTitle || professional.approach || "Especialista"}
+                        {professional.jobTitle ||
+                          professional.approach ||
+                          "Especialista"}
                       </p>
 
                       <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
@@ -137,7 +140,9 @@ export default async function HistoricoConsultasPage() {
                             Entrar no Meet
                           </a>
                         )}
-                        <CancelAppointmentButton appointmentId={appointment.id} />
+                        <CancelAppointmentButton
+                          appointmentId={appointment.id}
+                        />
                       </div>
                     ) : (
                       <button
