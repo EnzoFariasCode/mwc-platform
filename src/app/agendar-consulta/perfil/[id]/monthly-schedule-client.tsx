@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getBookedSlots } from "@/modules/health/actions/get-booked-slots";
-import type { HealthAvailability } from "@/modules/health/types";
-import { useRouter } from "next/navigation"; // <-- Adicionado o Roteador
+import { getMonthlySlots } from "@/modules/health/actions/get-monthly-slots"; // <-- Nova Action
+import { useRouter } from "next/navigation";
 import {
   format,
   addMonths,
@@ -12,8 +11,6 @@ import {
   endOfMonth,
   eachDayOfInterval,
   isSameDay,
-  parse,
-  addMinutes,
   isBefore,
   startOfDay,
 } from "date-fns";
@@ -23,35 +20,24 @@ import { ChevronLeft, ChevronRight, Clock, ArrowRight } from "lucide-react";
 interface MonthlyScheduleProps {
   pro: {
     id: string;
-    availability?: HealthAvailability;
     sessionDuration?: number;
     consultationFee?: number | string;
+    // availability JSON removido para sempre!
   };
 }
 
-const dayMap = [
-  "domingo",
-  "segunda",
-  "terca",
-  "quarta",
-  "quinta",
-  "sexta",
-  "sabado",
-];
-
 export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
-  const router = useRouter(); // Roteador para navegarmos programaticamente
+  const router = useRouter();
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-  const [selectedTime, setSelectedTime] = useState<string | null>(null); // <-- Novo state para o horário
-  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
-  const rawAvailability = pro.availability || {};
-  const availability =
-    typeof rawAvailability === "string"
-      ? JSON.parse(rawAvailability)
-      : rawAvailability;
+  // <-- NOVO: Guardamos um mapa dos dias com horários livres (ex: { '2026-05-27': ['08:00', '09:00'] })
+  const [monthlySlots, setMonthlySlots] = useState<Record<string, string[]>>(
+    {},
+  );
+  const [isLoading, setIsLoading] = useState(false);
 
   const duration = pro.sessionDuration || 50;
 
@@ -79,64 +65,34 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
     startOfMonth(currentMonth),
   );
 
+  // <-- NOVO: Ao mudar o mês, pedimos a agenda limpa pro servidor
   useEffect(() => {
-    async function fetchBookedSlots() {
-      const currentYear = currentMonth.getFullYear();
-      const currentMonthIndex = currentMonth.getMonth();
-      const start = new Date(currentYear, currentMonthIndex, 1);
-      const end = new Date(currentYear, currentMonthIndex + 1, 0);
+    async function fetchSlots() {
+      setIsLoading(true);
+      const start = startOfMonth(currentMonth);
+      const end = endOfMonth(currentMonth);
 
-      const slots = await getBookedSlots(pro.id, start, end);
-      setBookedSlots(slots);
+      const slotsMap = await getMonthlySlots(pro.id, start, end, duration);
+      setMonthlySlots(slotsMap);
+      setIsLoading(false);
     }
 
     if (pro.id) {
-      fetchBookedSlots();
+      fetchSlots();
     }
-  }, [pro.id, currentMonth]);
-
-  const getSlotsForDate = (date: Date) => {
-    if (isBefore(startOfDay(date), startOfDay(new Date()))) return [];
-
-    const dayName = dayMap[date.getDay()];
-    const dayRule = availability[dayName];
-
-    if (!dayRule || dayRule.active !== true) return [];
-
-    const slots: string[] = [];
-    let currentSlot = parse(dayRule.start, "HH:mm", date);
-    const endSlot = parse(dayRule.end, "HH:mm", date);
-    const now = new Date();
-
-    while (addMinutes(currentSlot, duration) <= endSlot) {
-      if (isBefore(currentSlot, now)) {
-        currentSlot = addMinutes(currentSlot, duration);
-        continue;
-      }
-      slots.push(format(currentSlot, "HH:mm"));
-      currentSlot = addMinutes(currentSlot, duration);
-    }
-
-    return slots;
-  };
-
-  const availableSlots = selectedDate ? getSlotsForDate(selectedDate) : [];
+  }, [pro.id, currentMonth, duration]);
 
   const slotsRealmenteDisponiveis = selectedDate
-    ? availableSlots.filter((timeString) => {
-        const isBooked = bookedSlots.includes(
-          `${format(selectedDate, "yyyy-MM-dd")}|${timeString}`,
-        );
-
-        return !isBooked;
-      })
+    ? monthlySlots[format(selectedDate, "yyyy-MM-dd")] || []
     : [];
 
-  // Função para executar o avanço
   const handleProceed = () => {
     if (selectedDate && selectedTime) {
       router.push(
-        `/checkout-saude?proId=${pro.id}&time=${selectedTime}&date=${format(selectedDate, "yyyy-MM-dd")}`,
+        `/checkout-saude?proId=${pro.id}&time=${selectedTime}&date=${format(
+          selectedDate,
+          "yyyy-MM-dd",
+        )}`,
       );
     }
   };
@@ -164,7 +120,7 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
         <button
           type="button"
           onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-          disabled={isAtMinMonth}
+          disabled={isAtMinMonth || isLoading}
           className="w-6 h-6 rounded-md border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronLeft className="w-3.5 h-3.5" />
@@ -177,7 +133,7 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
         <button
           type="button"
           onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-          disabled={isAtMaxMonth}
+          disabled={isAtMaxMonth || isLoading}
           className="w-6 h-6 rounded-md border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronRight className="w-3.5 h-3.5" />
@@ -198,10 +154,12 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
 
         {daysInMonth.map((date) => {
           const isPast = isBefore(startOfDay(date), startOfDay(new Date()));
-          const hasConfiguredAvailability =
-            availability[dayMap[date.getDay()]]?.active === true;
+          const dateStr = format(date, "yyyy-MM-dd");
+
+          // O servidor já fez a conta. Se tem array no mapa, é porque tem vaga.
+          const isAvailable =
+            !isPast && monthlySlots[dateStr]?.length > 0 && !isLoading;
           const isSelected = selectedDate && isSameDay(date, selectedDate);
-          const isAvailable = !isPast && hasConfiguredAvailability;
 
           return (
             <button
@@ -210,7 +168,7 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
               onClick={() => {
                 if (isAvailable) {
                   setSelectedDate(date);
-                  setSelectedTime(null); // Zera o horário se o usuário mudar de dia!
+                  setSelectedTime(null);
                 }
               }}
               disabled={!isAvailable}
@@ -246,7 +204,11 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
             Horários — {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
           </h4>
 
-          {slotsRealmenteDisponiveis.length > 0 ? (
+          {isLoading ? (
+            <div className="text-center p-3 rounded-lg bg-white/5 border border-white/5 text-xs text-slate-500 animate-pulse">
+              Carregando agenda...
+            </div>
+          ) : slotsRealmenteDisponiveis.length > 0 ? (
             <div className="grid grid-cols-4 gap-1.5 max-h-32 overflow-y-auto pr-0.5 custom-scrollbar">
               {slotsRealmenteDisponiveis.map((time) => {
                 const isSelectedTime = selectedTime === time;
@@ -286,7 +248,7 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
           disabled={!selectedTime}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
             selectedTime
-              ? "bg-[#d73cbe] text-white shadow-lg shadow-[#d73cbe]/30 hover:bg-[#b02b9b] cursor-pointer"
+              ? "bg-[#d73cbe] text-white shadow-lg shadow-[#d73cbe]/30 hover:bg-[#b02b9b] cursor-pointer active:scale-95"
               : "bg-white/5 text-slate-500 cursor-not-allowed"
           }`}
         >

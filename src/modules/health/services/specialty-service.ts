@@ -1,31 +1,27 @@
 import { db } from "@/lib/prisma";
 import { healthSpecialties } from "@/modules/health/lib/specialties";
 
-function hasConfiguredAvailability(availability: unknown) {
-  if (!availability) return false;
-
-  if (typeof availability === "string") {
-    return availability.length > 5;
-  }
-
-  if (typeof availability === "object" && !Array.isArray(availability)) {
-    return Object.keys(availability).length > 0;
-  }
-
-  return false;
-}
-
 export async function getHealthSpecialtyCards() {
   const cards = await Promise.all(
     healthSpecialties.map(async (specialty) => {
-      const professionals = await db.user.findMany({
+      // Usamos db.user.count para saber exatamente quantos profissionais
+      // atendem aos critérios sem precisar baixar os dados deles para a memória.
+      const count = await db.user.count({
         where: {
           userType: "PROFESSIONAL",
           industry: "HEALTH",
+          // Filtros de integridade do perfil
           documentReg: { not: null },
           jobTitle: { not: null },
           consultationFee: { not: null },
           sessionDuration: { not: null },
+
+          // O "coração" da nova lógica:
+          // Só conta quem tem disponibilidade configurada na tabela nova
+          availabilities: {
+            some: { isActive: true },
+          },
+
           OR: [
             {
               jobTitle: {
@@ -35,24 +31,17 @@ export async function getHealthSpecialtyCards() {
             },
             {
               approach: {
-                contains: specialty.id,
+                contains: specialty.id, // Assume que specialty.id é o termo da abordagem
                 mode: "insensitive",
               },
             },
           ],
         },
-        select: {
-          availability: true,
-        },
       });
-
-      const availableCount = professionals.filter((pro) =>
-        hasConfiguredAvailability(pro.availability),
-      ).length;
 
       return {
         ...specialty,
-        count: availableCount,
+        count: count,
       };
     }),
   );
