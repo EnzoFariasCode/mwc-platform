@@ -132,6 +132,27 @@ export async function createCheckoutSession(
       throw new Error("Este profissional não atende neste dia da semana.");
     }
 
+    // 3.5 VALIDAÇÃO DE SEGURANÇA (Prevenção de URL Tampering)
+    // Garante que o horário pedido está dentro do expediente e alinhado com a duração da sessão
+    const duration = professional.sessionDuration || 50;
+    let currentSlot = parse(dayRule.startTime, "HH:mm", parsedDate.dateOnly);
+    const endSlot = parse(dayRule.endTime, "HH:mm", parsedDate.dateOnly);
+    let isValidSlot = false;
+
+    while (addMinutes(currentSlot, duration) <= endSlot) {
+      if (format(currentSlot, "HH:mm") === time) {
+        isValidSlot = true;
+        break;
+      }
+      currentSlot = addMinutes(currentSlot, duration);
+    }
+
+    if (!isValidSlot) {
+      throw new Error(
+        "Horário inválido, fora do expediente ou não alinhado com a agenda do profissional.",
+      );
+    }
+
     // 4. RESERVA ATÔMICA (Evita Double Booking com Hold)
     // Usamos uma transação para garantir que o banco não mude entre a verificação e a inserção
     const holdId = await db.$transaction(async (tx) => {
@@ -221,7 +242,7 @@ export async function createCheckoutSession(
         patientId: session.user.id,
         date,
         time,
-        holdId, // [NOVO] Passamos o Hold pro Stripe devolver no Webhook
+        holdId, // Passamos o Hold pro Stripe devolver no Webhook
         type: "HEALTH_APPOINTMENT",
       },
       success_url: `${origin}/checkout-saude/sucesso?session_id={CHECKOUT_SESSION_ID}`,
