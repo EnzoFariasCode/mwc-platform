@@ -297,6 +297,11 @@ model Appointment {
   notes           String?           @db.Text 
   stripeSessionId String?           @unique 
 
+  // Rastreamento de aceite dos termos de pagamento
+  acceptedPaymentTerms     Boolean          @default(false)
+  paymentTermsAcceptedAt   DateTime?
+  paymentTermsIpAddress    String?          // IP de onde foi aceito (para compliance)
+
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
