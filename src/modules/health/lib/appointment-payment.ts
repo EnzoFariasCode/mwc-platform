@@ -30,9 +30,14 @@ function parseHealthAppointmentDateTime(date?: string, time?: string) {
   }
 
   const dateTime = new Date(year, month - 1, day, hours, minutes);
+  const dateOnly = new Date(year, month - 1, day);
 
   if (
+    Number.isNaN(dateOnly.getTime()) ||
     Number.isNaN(dateTime.getTime()) ||
+    dateOnly.getFullYear() !== year ||
+    dateOnly.getMonth() !== month - 1 ||
+    dateOnly.getDate() !== day ||
     dateTime.getFullYear() !== year ||
     dateTime.getMonth() !== month - 1 ||
     dateTime.getDate() !== day ||
@@ -42,7 +47,7 @@ function parseHealthAppointmentDateTime(date?: string, time?: string) {
     return null;
   }
 
-  return dateTime;
+  return { dateOnly, dateTime };
 }
 
 export async function finalizeHealthAppointmentPayment({
@@ -60,10 +65,10 @@ export async function finalizeHealthAppointmentPayment({
     return { success: false, error: "Pagamento invalido." };
   }
 
-  const { proId, patientId, date, time } = session.metadata;
-  const appointmentDateTime = parseHealthAppointmentDateTime(date, time);
+  const { proId, patientId, date, time, holdId } = session.metadata;
+  const appointmentDate = parseHealthAppointmentDateTime(date, time);
 
-  if (!proId || !patientId || !time || !appointmentDateTime) {
+  if (!proId || !patientId || !time || !appointmentDate) {
     return { success: false, error: "Dados do agendamento invalidos." };
   }
 
@@ -77,6 +82,12 @@ export async function finalizeHealthAppointmentPayment({
   });
 
   if (alreadyProcessed) {
+    if (holdId) {
+      await db.appointmentHold.deleteMany({
+        where: { id: holdId, patientId, professionalId: proId },
+      });
+    }
+
     return {
       success: true,
       alreadyProcessed: true,
@@ -113,7 +124,7 @@ export async function finalizeHealthAppointmentPayment({
   const existingSlot = await db.appointment.findFirst({
     where: {
       professionalId: proId,
-      date: appointmentDateTime,
+      date: appointmentDate.dateOnly,
       time,
       status: { not: "CANCELED" },
     },
@@ -155,7 +166,7 @@ export async function finalizeHealthAppointmentPayment({
         data: {
           patientId,
           professionalId: proId,
-          date: appointmentDateTime,
+          date: appointmentDate.dateOnly,
           time,
           status: "CONFIRMED",
           stripeSessionId: session.id,
@@ -166,6 +177,18 @@ export async function finalizeHealthAppointmentPayment({
         },
         select: { id: true, professionalId: true, patientId: true },
       });
+
+      if (holdId) {
+        await tx.appointmentHold.deleteMany({
+          where: {
+            id: holdId,
+            patientId,
+            professionalId: proId,
+            date: appointmentDate.dateOnly,
+            time,
+          },
+        });
+      }
 
       await tx.user.update({
         where: { id: proId },

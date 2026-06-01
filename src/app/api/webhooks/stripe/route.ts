@@ -4,15 +4,13 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { db } from "@/lib/prisma";
 import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
-import crypto from "crypto";
+import { finalizeHealthAppointmentPayment } from "@/modules/health/lib/appointment-payment";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-
-// --- Funções Auxiliares de Validação ---
 
 async function validateProjectPaymentAmount(
   proposalId: string,
@@ -41,6 +39,7 @@ async function validateProjectPaymentAmount(
       error: `Amount mismatch. Expected ${expectedCents}, got ${amountInCents}`,
     };
   }
+
   return { ok: true };
 }
 
@@ -70,54 +69,18 @@ async function reopenProjectOnCheckoutExpired(
   });
 }
 
-// --- LOGICA DE SAÚDE (ATUALIZADA) ---
-
 async function handleHealthAppointment(session: Stripe.Checkout.Session) {
-  const metadata = session.metadata;
+  const result = await finalizeHealthAppointmentPayment({ session });
 
-  if (!metadata || metadata.type !== "HEALTH_APPOINTMENT") {
-    return new NextResponse("Invalid metadata", { status: 400 });
-  }
-
-  const { proId, patientId, date, time, holdId } = metadata;
-
-  // Gera ShortID único (Ex: MWC-A8F9)
-  const randomStr = crypto.randomBytes(2).toString("hex").toUpperCase();
-  const shortId = `MWC-${randomStr}`;
-
-  try {
-    await db.$transaction(async (tx) => {
-      // 1. Cria o agendamento real
-      await tx.appointment.create({
-        data: {
-          shortId,
-          date: new Date(date), // Formato 'YYYY-MM-DD'
-          time: time,
-          status: "PAID",
-          price: session.amount_total ? session.amount_total / 100 : 0,
-          stripeSessionId: session.id,
-          patientId: patientId,
-          professionalId: proId,
-        },
-      });
-
-      // 2. Remove o HOLD temporário (Reserva atômica concluída)
-      if (holdId) {
-        await tx.appointmentHold.deleteMany({
-          where: { id: holdId },
-        });
-      }
+  if (!result.success) {
+    console.error("Webhook Health:", result.error);
+    return new NextResponse(result.error ?? "Health appointment error", {
+      status: 400,
     });
-
-    console.log(`✅ Consulta ${shortId} confirmada via Webhook.`);
-    return new NextResponse(null, { status: 200 });
-  } catch (error) {
-    console.error("❌ Erro Webhook Health (Transação):", error);
-    return new NextResponse("Transaction Error", { status: 500 });
   }
-}
 
-// --- ROTA POST PRINCIPAL ---
+  return new NextResponse(null, { status: 200 });
+}
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -146,6 +109,7 @@ export async function POST(req: Request) {
       console.error("Webhook: Payment processing failed.", result.error);
       return;
     }
+
     console.log(`Project payment processed for proposal ${proposalId}.`);
   };
 
@@ -154,12 +118,10 @@ export async function POST(req: Request) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        // ROTA SAUDE
         if (session.metadata?.type === "HEALTH_APPOINTMENT") {
           return await handleHealthAppointment(session);
         }
 
-        // ROTA PROJETOS
         if (session.metadata?.type === "project_payment") {
           const amountValidation = await validateProjectPaymentAmount(
             session.metadata.proposalId,
@@ -178,7 +140,6 @@ export async function POST(req: Request) {
           return new NextResponse(null, { status: 200 });
         }
 
-        // ROTA ASSINATURAS (PRO)
         if (session.mode === "subscription") {
           if (!session?.metadata?.userId) break;
 
@@ -199,6 +160,7 @@ export async function POST(req: Request) {
             },
           });
         }
+
         return new NextResponse(null, { status: 200 });
       }
 
@@ -213,7 +175,6 @@ export async function POST(req: Request) {
         return new NextResponse(null, { status: 200 });
       }
 
-      // ... manter os outros cases (payment_intent.succeeded, invoice, etc.) exatamente como estão
       default:
         return new NextResponse(null, { status: 200 });
     }
