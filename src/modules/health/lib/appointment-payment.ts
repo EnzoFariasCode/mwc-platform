@@ -168,7 +168,9 @@ export async function finalizeHealthAppointmentPayment({
           professionalId: proId,
           date: appointmentDate.dateOnly,
           time,
-          status: "CONFIRMED",
+          // Pagamento recebido, ainda não transformamos esse agendamento em "CONFIRMED"
+          // se houver uma etapa adicional de aceitação/validação do profissional.
+          status: "PAID",
           stripeSessionId: session.id,
           meetLink: `https://meet.google.com/mwc-${Math.random()
             .toString(36)
