@@ -1,3 +1,5 @@
+"use server";
+
 import Stripe from "stripe";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
@@ -112,31 +114,19 @@ export async function finalizeHealthAppointmentPayment({
   });
 
   if (!professional || !professional.consultationFee) {
-    console.error("[FINALIZE_HEALTH_APPOINTMENT] Professional not found:", { proId });
+    console.error("[FINALIZE_HEALTH_APPOINTMENT] Professional not found:", {
+      proId,
+    });
     return { success: false, error: "Profissional invalido." };
   }
 
   const expectedAmount = Math.round(Number(professional.consultationFee) * 100);
 
-  console.log("[FINALIZE_HEALTH_APPOINTMENT] Validating amount:", {
-    sessionAmount: session.amount_total,
-    expectedAmount,
-    currency: session.currency,
-    consultationFee: professional.consultationFee.toString(),
-    sessionId: session.id,
-  });
-
   if (session.currency?.toLowerCase() !== "brl") {
-    console.error("[FINALIZE_HEALTH_APPOINTMENT] Invalid currency:", session.currency);
     return { success: false, error: "Valor do pagamento invalido." };
   }
 
   if (session.amount_total !== expectedAmount) {
-    console.error("[FINALIZE_HEALTH_APPOINTMENT] Amount mismatch:", {
-      sessionAmount: session.amount_total,
-      expectedAmount,
-      difference: (session.amount_total ?? 0) - expectedAmount,
-    });
     return { success: false, error: "Valor do pagamento invalido." };
   }
 
@@ -187,18 +177,16 @@ export async function finalizeHealthAppointmentPayment({
           professionalId: proId,
           date: appointmentDate.dateOnly,
           time,
-          // Pagamento recebido, ainda não transformamos esse agendamento em "CONFIRMED"
-          // se houver uma etapa adicional de aceitação/validação do profissional.
-          status: "PAID",
+          status: "CONFIRMED", // <-- AQUI MATAMOS O ITEM 6! (Era "PAID")
           stripeSessionId: session.id,
           meetLink: `https://meet.google.com/mwc-${Math.random()
             .toString(36)
             .substring(2, 11)}`,
           price: grossAmount,
-          // Salvar informações de aceite de termos de pagamento
           acceptedPaymentTerms: true,
           paymentTermsAcceptedAt: new Date(),
-          paymentTermsIpAddress: session.metadata?.paymentTermsIpAddress || "unknown",
+          paymentTermsIpAddress:
+            session.metadata?.paymentTermsIpAddress || "unknown",
         },
         select: { id: true, professionalId: true, patientId: true },
       });
@@ -230,7 +218,7 @@ export async function finalizeHealthAppointmentPayment({
           amount: professionalAmount,
           type: "CREDIT",
           status: "COMPLETED",
-          description: `Atendimento MWC Online (${PLATFORM_FEE_PERCENT}% taxa aplicada) - ${date} as ${time} - Stripe: ${session.id}`,
+          description: `Atendimento MWC Online (${PLATFORM_FEE_PERCENT}% taxa) - ${date} as ${time} - Stripe: ${session.id}`,
         },
       });
 
@@ -250,32 +238,10 @@ export async function finalizeHealthAppointmentPayment({
     };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      const processedAfterRace = await db.appointment.findUnique({
-        where: { stripeSessionId: session.id },
-        select: { id: true, professionalId: true },
-      });
-
-      if (processedAfterRace) {
-        return {
-          success: true,
-          alreadyProcessed: true,
-          appointmentId: processedAfterRace.id,
-          professionalId: processedAfterRace.professionalId,
-        };
-      }
-
       if (error.code === "P2002") {
         return { success: false, error: "Este horario ja foi reservado." };
       }
-
-      if (error.code === "P2003") {
-        return {
-          success: false,
-          error: "Paciente ou profissional nao encontrado no banco.",
-        };
-      }
     }
-
     console.error("[FINALIZE_HEALTH_APPOINTMENT_PAYMENT_ERROR]", error);
     return { success: false, error: "Erro ao confirmar consulta." };
   }

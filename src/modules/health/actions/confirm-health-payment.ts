@@ -3,7 +3,7 @@
 import Stripe from "stripe";
 import { verifySession } from "@/lib/auth";
 import { ActionResponse } from "@/modules/users/types/user-types";
-import { finalizeHealthAppointmentPayment } from "@/modules/health/lib/appointment-payment";
+import { finalizeHealthAppointmentPayment } from "@/modules/health/actions/appointment-payment";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
