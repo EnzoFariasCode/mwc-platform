@@ -280,7 +280,7 @@ model AppointmentHold {
   createdAt       DateTime @default(now())
 
   // Índice para leitura rápida na hora de checar slots ocupados
-  @@index([professionalId, date, time])
+  @@unique([professionalId, date, time])
 }
 
 model Appointment {

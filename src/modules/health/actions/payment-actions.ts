@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { stripe } from "@/lib/stripe";
 import { db } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { headers } from "next/headers";
 import { addMinutes, addMonths, endOfMonth, isBefore } from "date-fns";
 import { parseAppointmentDateTime, generateDaySlots } from "./slot-helpers";
@@ -119,7 +120,7 @@ export async function createCheckoutSession(
 
     // 4. RESERVA ATÔMICA (Evita Double Booking com Hold)
     // Usamos uma transação para garantir que o banco não mude entre a verificação e a inserção
-    const holdId = await db.$transaction(async (tx) => {
+    const hold = await db.$transaction(async (tx) => {
       // A) Checa se já existe uma consulta CONFIRMADA ou PAGA
       const existingAppointment = await tx.appointment.findFirst({
         where: {
@@ -138,6 +139,15 @@ export async function createCheckoutSession(
 
       // B) Checa se existe um HOLD (Carrinho) ativo de outra pessoa
       const now = new Date();
+      await tx.appointmentHold.deleteMany({
+        where: {
+          professionalId: professional.id,
+          date: parsedDate.dateOnly,
+          time,
+          expiresAt: { lte: now },
+        },
+      });
+
       const activeHold = await tx.appointmentHold.findFirst({
         where: {
           professionalId: professional.id,
@@ -150,7 +160,10 @@ export async function createCheckoutSession(
       if (activeHold) {
         if (activeHold.patientId === session.user.id) {
           // É o próprio usuário tentando de novo, vamos reciclar o hold dele
-          return activeHold.id;
+          return {
+            id: activeHold.id,
+            stripeSessionId: activeHold.stripeSessionId,
+          };
         } else {
           throw new Error(
             "Este horário está temporariamente reservado (em processo de pagamento por outro paciente). Tente novamente em 15 minutos.",
@@ -170,8 +183,24 @@ export async function createCheckoutSession(
         },
       });
 
-      return newHold.id;
+      return {
+        id: newHold.id,
+        stripeSessionId: newHold.stripeSessionId,
+      };
     });
+
+    if (hold.stripeSessionId) {
+      const existingStripeSession = await stripe.checkout.sessions.retrieve(
+        hold.stripeSessionId,
+      );
+
+      if (
+        existingStripeSession.status === "open" &&
+        existingStripeSession.url
+      ) {
+        return { url: existingStripeSession.url };
+      }
+    }
 
     // 5. Configuração Stripe
     const unitAmount = Math.round(Number(professional.consultationFee) * 100);
@@ -206,7 +235,7 @@ export async function createCheckoutSession(
         patientId: session.user.id,
         date,
         time,
-        holdId, // Passamos o Hold pro Stripe devolver no Webhook
+        holdId: hold.id, // Passamos o Hold pro Stripe devolver no Webhook
         type: "HEALTH_APPOINTMENT",
       },
       success_url: `${origin}/checkout-saude/sucesso?session_id={CHECKOUT_SESSION_ID}`,
@@ -216,7 +245,7 @@ export async function createCheckoutSession(
     // 6. Atualiza o Hold com a sessão do Stripe para rastreio cruzado
     if (stripeSession.url) {
       await db.appointmentHold.update({
-        where: { id: holdId },
+        where: { id: hold.id },
         data: { stripeSessionId: stripeSession.id },
       });
     }
@@ -224,6 +253,17 @@ export async function createCheckoutSession(
     return { url: stripeSession.url };
   } catch (error) {
     console.error("Erro Stripe Health:", error);
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return {
+        error:
+          "Este horÃ¡rio estÃ¡ temporariamente reservado. Tente novamente em alguns minutos.",
+      };
+    }
+
     return {
       error: error instanceof Error ? error.message : "Erro ao gerar pagamento",
     };
