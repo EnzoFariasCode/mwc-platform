@@ -19,5 +19,11 @@ export type HealthProfessionalProfile = {
   approach?: string | null;
   consultationFee?: unknown;
   sessionDuration?: number | null;
+  availabilities?: Array<{
+    dayOfWeek: number;
+    isActive: boolean;
+    startTime: string;
+    endTime: string;
+  }>;
   availability?: unknown;
 };

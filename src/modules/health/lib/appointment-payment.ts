@@ -69,6 +69,12 @@ export async function finalizeHealthAppointmentPayment({
   const appointmentDate = parseHealthAppointmentDateTime(date, time);
 
   if (!proId || !patientId || !time || !appointmentDate) {
+    console.error("[FINALIZE_HEALTH_APPOINTMENT] Invalid appointment data:", {
+      proId,
+      patientId,
+      time,
+      appointmentDate,
+    });
     return { success: false, error: "Dados do agendamento invalidos." };
   }
 
@@ -106,18 +112,31 @@ export async function finalizeHealthAppointmentPayment({
   });
 
   if (!professional || !professional.consultationFee) {
+    console.error("[FINALIZE_HEALTH_APPOINTMENT] Professional not found:", { proId });
     return { success: false, error: "Profissional invalido." };
   }
 
-  const expectedAmount = professional.consultationFee
-    .mul(100)
-    .toDecimalPlaces(0)
-    .toNumber();
+  const expectedAmount = Math.round(Number(professional.consultationFee) * 100);
 
-  if (
-    session.currency?.toLowerCase() !== "brl" ||
-    session.amount_total !== expectedAmount
-  ) {
+  console.log("[FINALIZE_HEALTH_APPOINTMENT] Validating amount:", {
+    sessionAmount: session.amount_total,
+    expectedAmount,
+    currency: session.currency,
+    consultationFee: professional.consultationFee.toString(),
+    sessionId: session.id,
+  });
+
+  if (session.currency?.toLowerCase() !== "brl") {
+    console.error("[FINALIZE_HEALTH_APPOINTMENT] Invalid currency:", session.currency);
+    return { success: false, error: "Valor do pagamento invalido." };
+  }
+
+  if (session.amount_total !== expectedAmount) {
+    console.error("[FINALIZE_HEALTH_APPOINTMENT] Amount mismatch:", {
+      sessionAmount: session.amount_total,
+      expectedAmount,
+      difference: (session.amount_total ?? 0) - expectedAmount,
+    });
     return { success: false, error: "Valor do pagamento invalido." };
   }
 

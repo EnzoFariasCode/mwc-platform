@@ -70,14 +70,32 @@ async function reopenProjectOnCheckoutExpired(
 }
 
 async function handleHealthAppointment(session: Stripe.Checkout.Session) {
+  console.log("[WEBHOOK_HEALTH] Processing health appointment payment:", {
+    sessionId: session.id,
+    paymentStatus: session.payment_status,
+    amount: session.amount_total,
+    currency: session.currency,
+    metadata: session.metadata,
+  });
+
   const result = await finalizeHealthAppointmentPayment({ session });
 
   if (!result.success) {
-    console.error("Webhook Health:", result.error);
+    console.error("[WEBHOOK_HEALTH] Health appointment finalization failed:", {
+      error: result.error,
+      sessionId: session.id,
+      metadata: session.metadata,
+    });
     return new NextResponse(result.error ?? "Health appointment error", {
       status: 400,
     });
   }
+
+  console.log("[WEBHOOK_HEALTH] Health appointment created successfully:", {
+    appointmentId: result.appointmentId,
+    professionalId: result.professionalId,
+    sessionId: session.id,
+  });
 
   return new NextResponse(null, { status: 200 });
 }
