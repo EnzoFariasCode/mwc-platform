@@ -113,6 +113,22 @@ export async function POST(req: Request) {
     console.log(`Project payment processed for proposal ${proposalId}.`);
   };
 
+  const handleHealthCheckoutExpired = async (
+    session: Stripe.Checkout.Session,
+  ) => {
+    const holdId = session.metadata?.holdId;
+    const stripeSessionId = session.id;
+
+    await db.appointmentHold.deleteMany({
+      where: {
+        OR: [
+          holdId ? { id: holdId } : undefined,
+          stripeSessionId ? { stripeSessionId } : undefined,
+        ].filter(Boolean) as Array<Record<string, unknown>>,
+      },
+    });
+  };
+
   try {
     switch (event.type) {
       case "checkout.session.completed": {
@@ -172,6 +188,11 @@ export async function POST(req: Request) {
             session.metadata.buyerId,
           );
         }
+
+        if (session.metadata?.type === "HEALTH_APPOINTMENT") {
+          await handleHealthCheckoutExpired(session);
+        }
+
         return new NextResponse(null, { status: 200 });
       }
 
