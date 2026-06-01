@@ -176,6 +176,10 @@ export async function finalizeHealthAppointmentPayment({
             .toString(36)
             .substring(2, 11)}`,
           price: grossAmount,
+          // Salvar informações de aceite de termos de pagamento
+          acceptedPaymentTerms: true,
+          paymentTermsAcceptedAt: new Date(),
+          paymentTermsIpAddress: session.metadata?.paymentTermsIpAddress || "unknown",
         },
         select: { id: true, professionalId: true, patientId: true },
       });

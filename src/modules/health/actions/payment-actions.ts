@@ -15,6 +15,11 @@ export async function createCheckoutSession(
   proId: string,
   date: string, // Formato YYYY-MM-DD
   time: string, // Formato HH:mm
+  paymentTermsInfo?: {
+    acceptedPaymentTerms?: boolean;
+    paymentTermsAcceptedAt?: string;
+    paymentTermsIpAddress?: string;
+  },
 ) {
   try {
     const session = await auth();
@@ -237,6 +242,9 @@ export async function createCheckoutSession(
         time,
         holdId: hold.id, // Passamos o Hold pro Stripe devolver no Webhook
         type: "HEALTH_APPOINTMENT",
+        acceptedPaymentTerms: paymentTermsInfo?.acceptedPaymentTerms ? "true" : "false",
+        paymentTermsAcceptedAt: paymentTermsInfo?.paymentTermsAcceptedAt || new Date().toISOString(),
+        paymentTermsIpAddress: paymentTermsInfo?.paymentTermsIpAddress || "unknown",
       },
       success_url: `${origin}/checkout-saude/sucesso?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/agendar-consulta/perfil/${proId}`,

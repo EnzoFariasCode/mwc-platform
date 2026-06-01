@@ -56,6 +56,14 @@ export async function cancelPatientAppointment(appointmentId: string) {
         throw new Error("Nao e possivel cancelar uma consulta passada.");
       }
 
+      // Validar janela de 24h para reembolso
+      const now = new Date();
+      const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      
+      if (appointment.date < twentyFourHoursFromNow) {
+        throw new Error("Cancelamentos sao permitidos apenas com no minimo 24 horas de antecedencia. Fora dessa janela, o valor nao pode ser reembolsado.");
+      }
+
       const cancelNote = `Cancelada pelo paciente em ${new Date().toLocaleString("pt-BR")}.`;
       const notes = appointment.notes
         ? `${appointment.notes}\n\n${cancelNote}`

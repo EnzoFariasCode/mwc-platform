@@ -4,6 +4,7 @@ import { use, useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { HealthHeader } from "@/modules/health/components/health-header";
+import { PaymentTermsModal } from "@/modules/health/components/payment-terms-modal";
 import Image from "next/image";
 import {
   ArrowLeft,
@@ -37,6 +38,10 @@ export default function CheckoutSaudePage({
     useState<HealthProfessionalProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Modal de termos
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [clientIpAddress, setClientIpAddress] = useState<string | null>(null);
+
   // Estados dos inputs editáveis
   const [clientName, setClientName] = useState<string | null>(null);
   const [clientEmail, setClientEmail] = useState<string | null>(null);
@@ -61,18 +66,35 @@ export default function CheckoutSaudePage({
     }
   }, [status, router, proId, timeStr, dateStr]);
 
+  // Capturar IP do cliente para compliance
+  useEffect(() => {
+    fetch("https://api.ipify.org?format=json")
+      .then((res) => res.json())
+      .then((data) => setClientIpAddress(data.ip))
+      .catch(() => setClientIpAddress("unknown"));
+  }, []);
+
   const handleCheckout = async () => {
+    // Abrir modal de termos ao invés de ir direto para o Stripe
+    setShowTermsModal(true);
+  };
+
+  const handleAcceptTermsAndCheckout = async () => {
     setIsProcessing(true);
     setError(null);
 
-    // Opcional: Aqui poderíamos passar o 'clientEmail' para o Stripe para enviar o recibo
-    // const result = await createCheckoutSession(proId, dateStr, timeStr, clientEmail);
-    const result = await createCheckoutSession(proId, dateStr, timeStr);
+    const result = await createCheckoutSession(proId, dateStr, timeStr, {
+      acceptedPaymentTerms: true,
+      paymentTermsAcceptedAt: new Date().toISOString(),
+      paymentTermsIpAddress: clientIpAddress || "unknown",
+    });
 
     if (result.error) {
       setError(result.error);
       setIsProcessing(false);
+      setShowTermsModal(false);
     } else if (result.url) {
+      // Redirecionar para Stripe apenas após aceitar termos
       window.location.href = result.url;
     }
   };
@@ -93,6 +115,12 @@ export default function CheckoutSaudePage({
   return (
     <>
       <HealthHeader />
+      <PaymentTermsModal
+        isOpen={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        onAccept={handleAcceptTermsAndCheckout}
+        isLoading={isProcessing}
+      />
       {/* 1. Reduzido o pt-28 excessivo para pt-24 e pb-24 */}
       <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-24">
         <div className="container mx-auto max-w-6xl px-4">
