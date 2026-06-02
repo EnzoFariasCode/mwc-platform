@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  Banknote,
   CalendarClock,
   CheckCircle2,
   Clock3,
@@ -32,7 +33,6 @@ function formatCurrency(value: number) {
 function formatDate(date: string) {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "medium",
-    timeStyle: "short",
   }).format(new Date(date));
 }
 
@@ -174,6 +174,10 @@ export function ProfessionalAppointmentsTabs({
                     </p>
                     <p className="flex items-center gap-2 md:justify-end">
                       <Clock3 className="h-4 w-4 text-slate-500" />
+                      {appointment.time}
+                    </p>
+                    <p className="flex items-center gap-2 md:justify-end">
+                      <Banknote className="h-4 w-4 text-slate-500" />
                       {formatCurrency(appointment.price)}
                     </p>
                     {appointment.meetLink && (

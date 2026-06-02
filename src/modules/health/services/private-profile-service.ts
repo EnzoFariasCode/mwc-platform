@@ -26,7 +26,7 @@ export async function getHealthProfessionalDashboardById(userId: string) {
       exceptions: true, // <--- TABELA NOVA, // Puxa as exceções de horários (JSON)
 
       proAppointments: {
-        orderBy: { date: "asc" },
+        orderBy: [{ date: "asc" }, { time: "asc" }],
         select: {
           id: true,
           date: true,
@@ -62,7 +62,7 @@ export async function getHealthPatientHistoryById(userId: string) {
       city: true,
       state: true,
       patientAppointments: {
-        orderBy: { date: "asc" },
+        orderBy: [{ date: "asc" }, { time: "asc" }],
         select: {
           id: true,
           date: true,
