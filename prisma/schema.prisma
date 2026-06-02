@@ -19,18 +19,18 @@ enum UserType {
 
 // Diferencia os "mundos" dentro da plataforma
 enum Industry {
-  TECH   // Desenvolvedores, Designers, Freelancers (Padrão atual)
+  TECH // Desenvolvedores, Designers, Freelancers (Padrão atual)
   HEALTH // Psicólogos, Nutricionistas, Personal Trainers
 }
 
 enum ProjectStatus {
-  OPEN            // Aberto para receber propostas
+  OPEN // Aberto para receber propostas
   WAITING_PAYMENT // Cliente aceitou proposta, aguardando pagamento (Escrow)
-  IN_PROGRESS     // Pago e em desenvolvimento
-  UNDER_REVIEW    // Profissional entregou, cliente está revisando
-  COMPLETED       // Finalizado e dinheiro liberado
-  CANCELED        // Cancelado antes de começar
-  DISPUTE         // Deu problema (Mediação)
+  IN_PROGRESS // Pago e em desenvolvimento
+  UNDER_REVIEW // Profissional entregou, cliente está revisando
+  COMPLETED // Finalizado e dinheiro liberado
+  CANCELED // Cancelado antes de começar
+  DISPUTE // Deu problema (Mediação)
 }
 
 enum ProposalStatus {
@@ -43,17 +43,30 @@ enum ProposalStatus {
 // [NOVO] Status das consultas na área da saúde (Enterprise Level) - Renomeado para Bypass
 enum BookingStatus {
   PENDING_PAYMENT // Aguardando pagamento no Stripe
-  PAID            // Pago, aguardando confirmação final do profissional (se houver)
-  CONFIRMED       // Confirmado e na agenda
-  COMPLETED       // Realizada
-  CANCELED        // Cancelada
-  REFUNDED        // Reembolsado ao paciente
-  NO_SHOW         // Paciente não compareceu
+  PAID // Pago, aguardando confirmação final do profissional (se houver)
+  CONFIRMED // Confirmado e na agenda
+  COMPLETED // Realizada
+  CANCELED // Cancelada
+  REFUNDED // Reembolsado ao paciente
+  NO_SHOW // Paciente não compareceu
 }
 
 // =========================================================
 // 2. MODELO DE USUÁRIO (Principal)
 // =========================================================
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELED
+}
 
 model User {
   id            String    @id @default(uuid())
@@ -107,11 +120,11 @@ model User {
   // =========================================================
   // [CAMPOS PROFISSIONAIS - SETOR HEALTH]
   // =========================================================
-  documentReg     String?  // Para CRM, CRP, CREF, etc. (Ex: "CRP 06/12345")
-  approach        String?  // Abordagem clínica (Ex: "TCC", "Psicanálise")
+  documentReg     String? // Para CRM, CRP, CREF, etc. (Ex: "CRP 06/12345")
+  approach        String? // Abordagem clínica (Ex: "TCC", "Psicanálise")
   consultationFee Decimal? // Valor fixo da consulta base
   sessionDuration Int?     @default(50) // Duração da sessão em minutos (Padrão 50min)
-  
+
   // Armazenamento de Imagem no Banco
   profileImageBytes Bytes?
   profileImageType  String?
@@ -123,18 +136,19 @@ model User {
   // =========================================================
   // [INTEGRAÇÃO STRIPE - ASSINATURA]
   // =========================================================
-  stripeCustomerId       String?   @unique
-  stripeSubscriptionId   String?   @unique
-  stripePriceId          String?
-  stripeCurrentPeriodEnd DateTime?
+  stripeCustomerId         String?   @unique
+  stripeSubscriptionId     String?   @unique
+  stripePriceId            String?
+  stripeCurrentPeriodEnd   DateTime?
   stripeSubscriptionStatus String?
 
   // =========================================================
   // [DADOS FINANCEIROS - RECEBIMENTO DE TRABALHO]
   // =========================================================
-  walletBalance Decimal @default(0)
-  pixKey        String?
-  pixKeyType    String?
+  pendingBalance Decimal @default(0)
+  walletBalance  Decimal @default(0)
+  pixKey         String?
+  pixKeyType     String?
 
   transactions Transaction[]
 
@@ -239,22 +253,22 @@ model ServiceType {
   id             String        @id @default(uuid())
   professionalId String
   professional   User          @relation("ProServices", fields: [professionalId], references: [id], onDelete: Cascade)
-  name           String        // Ex: "Sessão Terapia", "Primeira Consulta"
-  duration       Int           // Duração em minutos
+  name           String // Ex: "Sessão Terapia", "Primeira Consulta"
+  duration       Int // Duração em minutos
   price          Decimal
   isActive       Boolean       @default(true)
   appointments   Appointment[]
 }
 
 model ProfessionalAvailability {
-  id             String   @id @default(uuid())
+  id             String  @id @default(uuid())
   professionalId String
-  professional   User     @relation("ProAvailability", fields: [professionalId], references: [id], onDelete: Cascade)
-  dayOfWeek      Int      // 0 = Domingo, 1 = Segunda, etc.
-  startTime      String   // Ex: "08:00"
-  endTime        String   // Ex: "18:00"
-  isActive       Boolean  @default(true)
-  
+  professional   User    @relation("ProAvailability", fields: [professionalId], references: [id], onDelete: Cascade)
+  dayOfWeek      Int // 0 = Domingo, 1 = Segunda, etc.
+  startTime      String // Ex: "08:00"
+  endTime        String // Ex: "18:00"
+  isActive       Boolean @default(true)
+
   @@unique([professionalId, dayOfWeek])
 }
 
@@ -264,9 +278,9 @@ model AvailabilityException {
   professional   User     @relation("ProExceptions", fields: [professionalId], references: [id], onDelete: Cascade)
   date           DateTime @db.Date // Dia do feriado/folga
   isAvailable    Boolean  @default(false) // false = bloqueado o dia todo
-  startTime      String?  // Opcional: inicio de atendimento parcial
-  endTime        String?  // Opcional: fim de atendimento parcial
-  reason         String?  // Ex: "Feriado", "Férias"
+  startTime      String? // Opcional: inicio de atendimento parcial
+  endTime        String? // Opcional: fim de atendimento parcial
+  reason         String? // Ex: "Feriado", "Férias"
 }
 
 model AppointmentHold {
@@ -284,35 +298,35 @@ model AppointmentHold {
 }
 
 model Appointment {
-  id              String            @id @default(uuid())
-  shortId         String            @unique @default(uuid()) // Código público com fallback para não dar erro
-  date            DateTime          @db.Date
-  time            String            
-  timezonePro     String            @default("America/Sao_Paulo") 
-  timezoneClient  String            @default("America/Sao_Paulo") 
-  status          BookingStatus     @default(PENDING_PAYMENT)
-  
-  meetLink        String?           
-  price           Decimal           
-  notes           String?           @db.Text 
-  stripeSessionId String?           @unique 
+  id             String        @id @default(uuid())
+  shortId        String        @unique @default(uuid()) // Código público com fallback para não dar erro
+  date           DateTime      @db.Date
+  time           String
+  timezonePro    String        @default("America/Sao_Paulo")
+  timezoneClient String        @default("America/Sao_Paulo")
+  status         BookingStatus @default(PENDING_PAYMENT)
+
+  meetLink        String?
+  price           Decimal
+  notes           String? @db.Text
+  stripeSessionId String? @unique
 
   // Rastreamento de aceite dos termos de pagamento
-  acceptedPaymentTerms     Boolean          @default(false)
-  paymentTermsAcceptedAt   DateTime?
-  paymentTermsIpAddress    String?          // IP de onde foi aceito (para compliance)
+  acceptedPaymentTerms   Boolean   @default(false)
+  paymentTermsAcceptedAt DateTime?
+  paymentTermsIpAddress  String? // IP de onde foi aceito (para compliance)
 
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  patientId       String
-  patient         User              @relation("PatientAppointments", fields: [patientId], references: [id])
-  
-  professionalId  String
-  professional    User              @relation("ProAppointments", fields: [professionalId], references: [id])
+  patientId String
+  patient   User   @relation("PatientAppointments", fields: [patientId], references: [id])
 
-  serviceTypeId   String?
-  serviceType     ServiceType?      @relation(fields: [serviceTypeId], references: [id])
+  professionalId String
+  professional   User   @relation("ProAppointments", fields: [professionalId], references: [id])
+
+  serviceTypeId String?
+  serviceType   ServiceType? @relation(fields: [serviceTypeId], references: [id])
 
   // Ajuda a prevenir consultas duplicadas no mesmo horário
   @@index([patientId])
@@ -330,8 +344,8 @@ model Transaction {
   user   User   @relation(fields: [userId], references: [id])
 
   amount      Decimal
-  type        String // "CREDIT" ou "DEBIT"
-  status      String // "PENDING", "COMPLETED", "FAILED"
+  type        TransactionType
+  status      TransactionStatus
   description String
 
   createdAt DateTime @default(now())

@@ -206,7 +206,7 @@ export async function finalizeHealthAppointmentPayment({
       await tx.user.update({
         where: { id: proId },
         data: {
-          walletBalance: {
+          pendingBalance: {
             increment: professionalAmount,
           },
         },
@@ -217,7 +217,7 @@ export async function finalizeHealthAppointmentPayment({
           userId: proId,
           amount: professionalAmount,
           type: "CREDIT",
-          status: "COMPLETED",
+          status: "PENDING",
           description: `Atendimento MWC Online (${PLATFORM_FEE_PERCENT}% taxa) - ${date} as ${time} - Stripe: ${session.id}`,
         },
       });
