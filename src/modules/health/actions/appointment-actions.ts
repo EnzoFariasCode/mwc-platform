@@ -3,9 +3,6 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { format } from "date-fns";
-
-const PLATFORM_FEE_PERCENT = 10;
 
 export async function cancelPatientAppointment(appointmentId: string) {
   const session = await auth();
@@ -27,7 +24,6 @@ export async function cancelPatientAppointment(appointmentId: string) {
           date: true,
           time: true,
           status: true,
-          price: true,
           patientId: true,
           professionalId: true,
           stripeSessionId: true,
@@ -69,6 +65,41 @@ export async function cancelPatientAppointment(appointmentId: string) {
         ? `${appointment.notes}\n\n${cancelNote}`
         : cancelNote;
 
+      const pendingTransaction = appointment.stripeSessionId
+        ? await tx.transaction.findFirst({
+            where: {
+              userId: appointment.professionalId,
+              type: "CREDIT",
+              status: "PENDING",
+              description: {
+                contains: appointment.stripeSessionId,
+              },
+            },
+            select: {
+              id: true,
+              amount: true,
+            },
+          })
+        : null;
+
+      if (pendingTransaction) {
+        await tx.transaction.update({
+          where: { id: pendingTransaction.id },
+          data: {
+            status: "CANCELED",
+          },
+        });
+
+        await tx.user.update({
+          where: { id: appointment.professionalId },
+          data: {
+            pendingBalance: {
+              decrement: pendingTransaction.amount,
+            },
+          },
+        });
+      }
+
       await tx.appointment.update({
         where: { id: appointment.id },
         data: {
@@ -76,52 +107,6 @@ export async function cancelPatientAppointment(appointmentId: string) {
           notes,
         },
       });
-
-      const grossAmount = appointment.price;
-      const professionalAmount = grossAmount
-        .mul(100 - PLATFORM_FEE_PERCENT)
-        .div(100)
-        .toDecimalPlaces(2);
-
-      if (professionalAmount.greaterThan(0)) {
-        const professional = await tx.user.findUnique({
-          where: { id: appointment.professionalId },
-          select: { walletBalance: true },
-        });
-
-        if (
-          professional?.walletBalance.greaterThanOrEqualTo(professionalAmount)
-        ) {
-          await tx.user.update({
-            where: { id: appointment.professionalId },
-            data: {
-              walletBalance: {
-                decrement: professionalAmount,
-              },
-            },
-          });
-
-          await tx.transaction.create({
-            data: {
-              userId: appointment.professionalId,
-              amount: professionalAmount,
-              type: "DEBIT",
-              status: "COMPLETED",
-              description: `Estorno interno por cancelamento - Atendimento ${format(appointment.date, "dd/MM/yyyy")} as ${appointment.time}`,
-            },
-          });
-        } else {
-          await tx.transaction.create({
-            data: {
-              userId: appointment.professionalId,
-              amount: professionalAmount,
-              type: "DEBIT",
-              status: "PENDING",
-              description: `Ajuste pendente por cancelamento - Atendimento ${format(appointment.date, "dd/MM/yyyy")} as ${appointment.time}`,
-            },
-          });
-        }
-      }
 
       return {
         professionalId: appointment.professionalId,
@@ -142,6 +127,110 @@ export async function cancelPatientAppointment(appointmentId: string) {
         error instanceof Error
           ? error.message
           : "Nao foi possivel cancelar a consulta.",
+    };
+  }
+}
+
+export async function completeHealthAppointment(appointmentId: string) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return { error: "Voce precisa estar logado para concluir a consulta." };
+  }
+
+  if (!appointmentId) {
+    return { error: "Consulta invalida." };
+  }
+
+  try {
+    await db.$transaction(async (tx) => {
+      const appointment = await tx.appointment.findUnique({
+        where: { id: appointmentId },
+        select: {
+          id: true,
+          status: true,
+          professionalId: true,
+          stripeSessionId: true,
+        },
+      });
+
+      if (!appointment) {
+        throw new Error("Consulta nao encontrada.");
+      }
+
+      if (appointment.professionalId !== session.user.id) {
+        throw new Error("Voce nao tem permissao para concluir esta consulta.");
+      }
+
+      if (appointment.status !== "CONFIRMED") {
+        throw new Error("Apenas consultas confirmadas podem ser concluidas.");
+      }
+
+      if (!appointment.stripeSessionId) {
+        throw new Error("Consulta sem referencia de pagamento Stripe.");
+      }
+
+      const pendingTransaction = await tx.transaction.findFirst({
+        where: {
+          userId: appointment.professionalId,
+          type: "CREDIT",
+          status: "PENDING",
+          description: {
+            contains: appointment.stripeSessionId,
+          },
+        },
+        select: {
+          id: true,
+          amount: true,
+        },
+      });
+
+      if (!pendingTransaction) {
+        throw new Error(
+          "Transacao financeira pendente nao encontrada para esta consulta.",
+        );
+      }
+
+      await tx.appointment.update({
+        where: { id: appointment.id },
+        data: {
+          status: "COMPLETED",
+        },
+      });
+
+      await tx.transaction.update({
+        where: { id: pendingTransaction.id },
+        data: {
+          status: "COMPLETED",
+        },
+      });
+
+      await tx.user.update({
+        where: { id: appointment.professionalId },
+        data: {
+          pendingBalance: {
+            decrement: pendingTransaction.amount,
+          },
+          walletBalance: {
+            increment: pendingTransaction.amount,
+          },
+        },
+      });
+    });
+
+    revalidatePath("/agendar-consulta/historico");
+    revalidatePath("/agendar-consulta/dashboard-profissional");
+    revalidatePath("/agendar-consulta/financeiro");
+    revalidatePath("/dashboard/financeiro");
+
+    return { success: true };
+  } catch (error) {
+    console.error("[COMPLETE_HEALTH_APPOINTMENT_ERROR]", error);
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel concluir a consulta.",
     };
   }
 }
