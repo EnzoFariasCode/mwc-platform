@@ -9,6 +9,7 @@ import {
   Banknote,
   AlertTriangle,
   CalendarRange,
+  Hourglass,
 } from "lucide-react";
 import { getHealthProfessionalDashboardById } from "@/modules/health/services/private-profile-service";
 import { DashboardModalsController } from "@/modules/health/components/dashboard-modals-controller";
@@ -100,7 +101,7 @@ export default async function ProHealthDashboard() {
         </div>
 
         {/* Grid de Métricas */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="group rounded-xl border border-white/10 bg-[#0f172a]/70 p-5 transition-all hover:border-[#d73cbe]/30">
             <div className="flex items-center justify-between">
               <div className="rounded-lg bg-blue-500/10 p-2 text-blue-500 group-hover:bg-blue-500/20 transition-colors">
@@ -114,6 +115,23 @@ export default async function ProHealthDashboard() {
               <p className="text-sm text-slate-400">Agendamentos Realizados</p>
               <p className="mt-1 text-3xl font-bold text-white leading-none">
                 {professional.proAppointments?.length || 0}
+              </p>
+            </div>
+          </div>
+
+          <div className="group rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-5 transition-all hover:border-yellow-500/40">
+            <div className="flex items-center justify-between">
+              <div className="rounded-lg bg-yellow-500/10 p-2 text-yellow-400 group-hover:bg-yellow-500/20 transition-colors">
+                <Hourglass className="h-5 w-5" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-yellow-200/70">
+                Escrow
+              </span>
+            </div>
+            <div className="mt-4">
+              <p className="text-sm text-yellow-100/70">Lancamentos Futuros</p>
+              <p className="mt-1 text-2xl font-bold text-yellow-300 leading-none">
+                {formatCurrency(Number(professional.pendingBalance))}
               </p>
             </div>
           </div>

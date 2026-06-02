@@ -19,6 +19,7 @@ export async function getHealthProfessionalDashboardById(userId: string) {
       state: true,
       rating: true,
       ratingCount: true,
+      pendingBalance: true,
       consultationFee: true,
 
       sessionDuration: true, // Puxa o tempo da consulta (ex: 50 min)

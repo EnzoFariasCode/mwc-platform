@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Download,
   History,
+  Hourglass,
   Landmark,
   Percent,
   Wallet,
@@ -54,6 +55,7 @@ export default async function HealthFinanceiroPage() {
     where: { id: session.user.id },
     select: {
       id: true,
+      pendingBalance: true,
       walletBalance: true,
       pixKey: true,
       pixKeyType: true,
@@ -82,6 +84,7 @@ export default async function HealthFinanceiroPage() {
 
   if (!user) redirect("/portal");
 
+  const pendingBalance = user.pendingBalance.toNumber();
   const walletBalance = user.walletBalance.toNumber();
   const grossHealthRevenue = user.proAppointments.reduce(
     (total, appointment) => total + appointment.price.toNumber(),
@@ -113,8 +116,8 @@ export default async function HealthFinanceiroPage() {
               Financeiro
             </h1>
             <p className="text-slate-400 text-sm mt-1">
-              Acompanhe consultas pagas, saldo disponivel e solicitacoes de
-              saque.
+              Acompanhe consultas pagas, lancamentos futuros, saldo disponivel
+              e solicitacoes de saque.
             </p>
           </div>
           <button className="flex items-center justify-center gap-2 px-4 py-2 bg-[#0f172a] border border-white/10 rounded-xl text-slate-400 text-sm hover:text-white transition-colors">
@@ -203,7 +206,16 @@ export default async function HealthFinanceiroPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-5">
+            <p className="text-xs text-yellow-200/70 uppercase font-bold tracking-wider flex items-center gap-2">
+              <Hourglass className="w-4 h-4" />
+              Lancamentos futuros
+            </p>
+            <p className="text-2xl font-bold text-yellow-300 mt-2">
+              {formatCurrency(pendingBalance)}
+            </p>
+          </div>
           <div className="rounded-2xl border border-white/10 bg-[#0f172a]/70 p-5">
             <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">
               Bruto em consultas
@@ -256,7 +268,7 @@ export default async function HealthFinanceiroPage() {
                 </h3>
                 <p className="text-slate-400 max-w-sm mt-2">
                   Quando um paciente pagar uma consulta, o valor liquido entrara
-                  automaticamente na sua carteira.
+                  como lancamento futuro ate a conclusao do atendimento.
                 </p>
               </div>
             ) : (

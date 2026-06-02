@@ -11,6 +11,7 @@ import {
   Video,
   XCircle,
 } from "lucide-react";
+import { CompleteAppointmentButton } from "@/modules/health/components/complete-appointment-button";
 
 type ProfessionalAppointment = {
   id: string;
@@ -34,6 +35,22 @@ function formatDate(date: string) {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "medium",
   }).format(new Date(date));
+}
+
+function canCompleteAppointment(date: string, time: string) {
+  const appointmentDate = new Date(date);
+  const [hours, minutes] = time.split(":").map(Number);
+
+  if (
+    Number.isNaN(appointmentDate.getTime()) ||
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes)
+  ) {
+    return false;
+  }
+
+  appointmentDate.setHours(hours, minutes, 0, 0);
+  return appointmentDate <= new Date();
 }
 
 function statusBadge(status: string) {
@@ -148,6 +165,10 @@ export function ProfessionalAppointmentsTabs({
           {visibleAppointments.map((appointment) => {
             const badge = statusBadge(appointment.status);
             const BadgeIcon = badge.icon;
+            const canComplete = canCompleteAppointment(
+              appointment.date,
+              appointment.time,
+            );
 
             return (
               <div
@@ -190,6 +211,12 @@ export function ProfessionalAppointmentsTabs({
                         <Video className="h-4 w-4" />
                         Entrar na sala de atendimento
                       </a>
+                    )}
+                    {appointment.status === "CONFIRMED" && (
+                      <CompleteAppointmentButton
+                        appointmentId={appointment.id}
+                        disabled={!canComplete}
+                      />
                     )}
                   </div>
                 </div>
