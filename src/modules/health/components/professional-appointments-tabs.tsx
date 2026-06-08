@@ -10,8 +10,10 @@ import {
   Timer,
   Video,
   XCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { CompleteAppointmentButton } from "@/modules/health/components/complete-appointment-button";
+import { ProfessionalAppointmentActionButtons } from "@/modules/health/components/professional-appointment-action-buttons";
 
 type ProfessionalAppointment = {
   id: string;
@@ -67,6 +69,14 @@ function statusBadge(status: string) {
       label: "Em disputa",
       icon: Timer,
       className: "bg-yellow-500/10 text-yellow-300 border-yellow-500/20",
+    };
+  }
+
+  if (status === "NO_SHOW") {
+    return {
+      label: "Paciente ausente",
+      icon: AlertTriangle,
+      className: "bg-orange-500/10 text-orange-300 border-orange-500/20",
     };
   }
 
@@ -144,7 +154,7 @@ export function ProfessionalAppointmentsTabs({
           <button
             type="button"
             onClick={() => setActiveTab("scheduled")}
-            className={`rounded-lg px-4 py-2 transition-colors ${
+            className={`cursor-pointer rounded-lg px-4 py-2 transition-colors ${
               activeTab === "scheduled"
                 ? "bg-[#d73cbe] text-white"
                 : "text-slate-400 hover:text-white"
@@ -155,7 +165,7 @@ export function ProfessionalAppointmentsTabs({
           <button
             type="button"
             onClick={() => setActiveTab("history")}
-            className={`rounded-lg px-4 py-2 transition-colors ${
+            className={`cursor-pointer rounded-lg px-4 py-2 transition-colors ${
               activeTab === "history"
                 ? "bg-[#d73cbe] text-white"
                 : "text-slate-400 hover:text-white"
@@ -214,17 +224,23 @@ export function ProfessionalAppointmentsTabs({
                         href={appointment.meetLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-2 font-medium text-[#d73cbe] hover:text-white transition-colors md:justify-end"
+                        className="inline-flex cursor-pointer items-center gap-2 font-medium text-[#d73cbe] hover:text-white transition-colors md:justify-end"
                       >
                         <Video className="h-4 w-4" />
                         Entrar na sala de atendimento
                       </a>
                     )}
                     {appointment.status === "CONFIRMED" && (
-                      <CompleteAppointmentButton
-                        appointmentId={appointment.id}
-                        disabled={!canComplete}
-                      />
+                      <>
+                        <CompleteAppointmentButton
+                          appointmentId={appointment.id}
+                          disabled={!canComplete}
+                        />
+                        <ProfessionalAppointmentActionButtons
+                          appointmentId={appointment.id}
+                          canMarkNoShow={canComplete}
+                        />
+                      </>
                     )}
                   </div>
                 </div>
@@ -246,5 +262,9 @@ export function ProfessionalAppointmentsTabs({
     </div>
   );
 }
+
+
+
+
 
 

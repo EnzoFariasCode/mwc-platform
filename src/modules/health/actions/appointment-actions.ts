@@ -12,7 +12,7 @@ type EscrowAppointment = {
   stripeSessionId: string | null;
 };
 
-async function releaseAppointmentEscrow(
+async function findPendingCreditTransaction(
   tx: Prisma.TransactionClient,
   appointment: EscrowAppointment,
 ) {
@@ -20,7 +20,7 @@ async function releaseAppointmentEscrow(
     throw new Error("Consulta sem referencia de pagamento Stripe.");
   }
 
-  const pendingTransaction = await tx.transaction.findFirst({
+  return await tx.transaction.findFirst({
     where: {
       userId: appointment.professionalId,
       type: "CREDIT",
@@ -34,6 +34,13 @@ async function releaseAppointmentEscrow(
       amount: true,
     },
   });
+}
+
+async function releaseAppointmentEscrow(
+  tx: Prisma.TransactionClient,
+  appointment: EscrowAppointment,
+) {
+  const pendingTransaction = await findPendingCreditTransaction(tx, appointment);
 
   if (!pendingTransaction) {
     throw new Error(
@@ -41,31 +48,61 @@ async function releaseAppointmentEscrow(
     );
   }
 
-  await tx.appointment.update({
-    where: { id: appointment.id },
-    data: {
-      status: "COMPLETED",
-    },
-  });
-
   await tx.transaction.update({
     where: { id: pendingTransaction.id },
-    data: {
-      status: "COMPLETED",
-    },
+    data: { status: "COMPLETED" },
   });
 
   await tx.user.update({
     where: { id: appointment.professionalId },
     data: {
-      pendingBalance: {
-        decrement: pendingTransaction.amount,
-      },
-      walletBalance: {
-        increment: pendingTransaction.amount,
-      },
+      pendingBalance: { decrement: pendingTransaction.amount },
+      walletBalance: { increment: pendingTransaction.amount },
     },
   });
+}
+
+async function cancelAppointmentEscrow(
+  tx: Prisma.TransactionClient,
+  appointment: EscrowAppointment,
+) {
+  const pendingTransaction = await findPendingCreditTransaction(tx, appointment);
+
+  if (!pendingTransaction) return;
+
+  await tx.transaction.update({
+    where: { id: pendingTransaction.id },
+    data: { status: "CANCELED" },
+  });
+
+  await tx.user.update({
+    where: { id: appointment.professionalId },
+    data: {
+      pendingBalance: { decrement: pendingTransaction.amount },
+    },
+  });
+}
+
+async function refundStripeCheckoutSession(
+  stripeSessionId: string,
+  idempotencyKey: string,
+) {
+  const checkoutSession = await stripe.checkout.sessions.retrieve(
+    stripeSessionId,
+  );
+  const paymentIntent = checkoutSession.payment_intent;
+
+  if (!paymentIntent) {
+    throw new Error("Pagamento Stripe nao encontrado para reembolso.");
+  }
+
+  const paymentIntentId =
+    typeof paymentIntent === "string" ? paymentIntent : paymentIntent.id;
+
+  return await stripe.refunds.create(
+    { payment_intent: paymentIntentId },
+    { idempotencyKey },
+  );
 }
 
 function appointmentDateTime(date: Date, time: string) {
@@ -89,6 +126,14 @@ function revalidateHealthAppointmentPaths(professionalId?: string) {
   }
 }
 
+const terminalStatuses = [
+  "CANCELED",
+  "COMPLETED",
+  "REFUNDED",
+  "NO_SHOW",
+  "DISPUTED",
+] as const;
+
 export async function cancelPatientAppointment(appointmentId: string) {
   const session = await auth();
 
@@ -106,7 +151,6 @@ export async function cancelPatientAppointment(appointmentId: string) {
       select: {
         id: true,
         date: true,
-        time: true,
         status: true,
         patientId: true,
         professionalId: true,
@@ -115,21 +159,13 @@ export async function cancelPatientAppointment(appointmentId: string) {
       },
     });
 
-    if (!appointment) {
-      throw new Error("Consulta nao encontrada.");
-    }
+    if (!appointment) throw new Error("Consulta nao encontrada.");
 
     if (appointment.patientId !== session.user.id) {
       throw new Error("Voce nao tem permissao para cancelar esta consulta.");
     }
 
-    if (
-      appointment.status === "CANCELED" ||
-      appointment.status === "COMPLETED" ||
-      appointment.status === "REFUNDED" ||
-      appointment.status === "NO_SHOW" ||
-      appointment.status === "DISPUTED"
-    ) {
+    if (terminalStatuses.includes(appointment.status as never)) {
       throw new Error("Apenas consultas agendadas podem ser canceladas.");
     }
 
@@ -137,9 +173,8 @@ export async function cancelPatientAppointment(appointmentId: string) {
       throw new Error("Nao e possivel cancelar uma consulta passada.");
     }
 
-    const now = new Date();
     const twentyFourHoursFromNow = new Date(
-      now.getTime() + 24 * 60 * 60 * 1000,
+      Date.now() + 24 * 60 * 60 * 1000,
     );
 
     if (appointment.date < twentyFourHoursFromNow) {
@@ -152,24 +187,12 @@ export async function cancelPatientAppointment(appointmentId: string) {
       throw new Error("Consulta sem referencia de pagamento Stripe.");
     }
 
-    const checkoutSession = await stripe.checkout.sessions.retrieve(
+    const refund = await refundStripeCheckoutSession(
       appointment.stripeSessionId,
-    );
-    const paymentIntent = checkoutSession.payment_intent;
-
-    if (!paymentIntent) {
-      throw new Error("Pagamento Stripe nao encontrado para reembolso.");
-    }
-
-    const paymentIntentId =
-      typeof paymentIntent === "string" ? paymentIntent : paymentIntent.id;
-
-    const refund = await stripe.refunds.create(
-      { payment_intent: paymentIntentId },
-      { idempotencyKey: `health-appointment-cancel-${appointment.id}` },
+      `health-appointment-cancel-${appointment.id}`,
     );
 
-    const result = await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       const freshAppointment = await tx.appointment.findUnique({
         where: { id: appointment.id },
         select: {
@@ -181,76 +204,117 @@ export async function cancelPatientAppointment(appointmentId: string) {
         },
       });
 
-      if (!freshAppointment) {
-        throw new Error("Consulta nao encontrada.");
-      }
+      if (!freshAppointment) throw new Error("Consulta nao encontrada.");
 
-      if (
-        freshAppointment.status === "CANCELED" ||
-        freshAppointment.status === "COMPLETED" ||
-        freshAppointment.status === "REFUNDED" ||
-        freshAppointment.status === "NO_SHOW" ||
-        freshAppointment.status === "DISPUTED"
-      ) {
+      if (terminalStatuses.includes(freshAppointment.status as never)) {
         throw new Error("Apenas consultas agendadas podem ser canceladas.");
       }
+
+      await cancelAppointmentEscrow(tx, freshAppointment);
 
       const cancelNote = `Cancelada pelo paciente em ${new Date().toLocaleString("pt-BR")}. Reembolso Stripe solicitado: ${refund.id}.`;
       const notes = freshAppointment.notes
         ? `${freshAppointment.notes}\n\n${cancelNote}`
         : cancelNote;
 
-      const pendingTransaction = await tx.transaction.findFirst({
-        where: {
-          userId: freshAppointment.professionalId,
-          type: "CREDIT",
-          status: "PENDING",
-          description: {
-            contains: freshAppointment.stripeSessionId ?? "",
-          },
-        },
-        select: {
-          id: true,
-          amount: true,
-        },
-      });
-
-      if (pendingTransaction) {
-        await tx.transaction.update({
-          where: { id: pendingTransaction.id },
-          data: {
-            status: "CANCELED",
-          },
-        });
-
-        await tx.user.update({
-          where: { id: freshAppointment.professionalId },
-          data: {
-            pendingBalance: {
-              decrement: pendingTransaction.amount,
-            },
-          },
-        });
-      }
-
       await tx.appointment.update({
         where: { id: freshAppointment.id },
-        data: {
-          status: "CANCELED",
-          notes,
-        },
+        data: { status: "CANCELED", notes },
       });
-
-      return {
-        professionalId: freshAppointment.professionalId,
-      };
     });
 
-    revalidateHealthAppointmentPaths(result.professionalId);
+    revalidateHealthAppointmentPaths(appointment.professionalId);
 
     return { success: true };
   } catch (error) {
     console.error("[CANCEL_PATIENT_APPOINTMENT_ERROR]", error);
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel cancelar a consulta.",
+    };
+  }
+}
+
+export async function cancelProfessionalAppointment(appointmentId: string) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return { error: "Voce precisa estar logado para cancelar." };
+  }
+
+  if (!appointmentId) {
+    return { error: "Consulta invalida." };
+  }
+
+  try {
+    const appointment = await db.appointment.findUnique({
+      where: { id: appointmentId },
+      select: {
+        id: true,
+        status: true,
+        professionalId: true,
+        stripeSessionId: true,
+        notes: true,
+      },
+    });
+
+    if (!appointment) throw new Error("Consulta nao encontrada.");
+
+    if (appointment.professionalId !== session.user.id) {
+      throw new Error("Voce nao tem permissao para cancelar esta consulta.");
+    }
+
+    if (terminalStatuses.includes(appointment.status as never)) {
+      throw new Error("Apenas consultas agendadas podem ser canceladas.");
+    }
+
+    if (!appointment.stripeSessionId) {
+      throw new Error("Consulta sem referencia de pagamento Stripe.");
+    }
+
+    const refund = await refundStripeCheckoutSession(
+      appointment.stripeSessionId,
+      `health-appointment-pro-cancel-${appointment.id}`,
+    );
+
+    await db.$transaction(async (tx) => {
+      const freshAppointment = await tx.appointment.findUnique({
+        where: { id: appointment.id },
+        select: {
+          id: true,
+          status: true,
+          professionalId: true,
+          stripeSessionId: true,
+          notes: true,
+        },
+      });
+
+      if (!freshAppointment) throw new Error("Consulta nao encontrada.");
+
+      if (terminalStatuses.includes(freshAppointment.status as never)) {
+        throw new Error("Apenas consultas agendadas podem ser canceladas.");
+      }
+
+      await cancelAppointmentEscrow(tx, freshAppointment);
+
+      const cancelNote = `Cancelada pelo profissional em ${new Date().toLocaleString("pt-BR")}. Reembolso Stripe solicitado: ${refund.id}.`;
+      const notes = freshAppointment.notes
+        ? `${freshAppointment.notes}\n\n${cancelNote}`
+        : cancelNote;
+
+      await tx.appointment.update({
+        where: { id: freshAppointment.id },
+        data: { status: "CANCELED", notes },
+      });
+    });
+
+    revalidateHealthAppointmentPaths(appointment.professionalId);
+
+    return { success: true };
+  } catch (error) {
+    console.error("[CANCEL_PROFESSIONAL_APPOINTMENT_ERROR]", error);
     return {
       error:
         error instanceof Error
@@ -281,86 +345,81 @@ export async function reportHealthAppointmentDispute(
   }
 
   try {
+    const appointment = await db.appointment.findUnique({
+      where: { id: appointmentId },
+      select: {
+        id: true,
+        date: true,
+        time: true,
+        status: true,
+        patientId: true,
+        professionalId: true,
+        stripeSessionId: true,
+        notes: true,
+      },
+    });
+
+    if (!appointment) throw new Error("Consulta nao encontrada.");
+
+    if (appointment.patientId !== session.user.id) {
+      throw new Error("Voce nao tem permissao para disputar esta consulta.");
+    }
+
+    if (appointment.status !== "CONFIRMED") {
+      throw new Error("Apenas consultas confirmadas podem ser disputadas.");
+    }
+
+    const scheduledAt = appointmentDateTime(appointment.date, appointment.time);
+
+    if (!scheduledAt || scheduledAt > new Date()) {
+      throw new Error("A disputa so pode ser aberta apos o horario da consulta.");
+    }
+
+    if (!appointment.stripeSessionId) {
+      throw new Error("Consulta sem referencia de pagamento Stripe.");
+    }
+
+    const refund = await refundStripeCheckoutSession(
+      appointment.stripeSessionId,
+      `health-appointment-dispute-refund-${appointment.id}`,
+    );
+
     const result = await db.$transaction(async (tx) => {
-      const appointment = await tx.appointment.findUnique({
-        where: { id: appointmentId },
+      const freshAppointment = await tx.appointment.findUnique({
+        where: { id: appointment.id },
         select: {
           id: true,
-          date: true,
-          time: true,
           status: true,
-          patientId: true,
           professionalId: true,
           stripeSessionId: true,
           notes: true,
         },
       });
 
-      if (!appointment) {
-        throw new Error("Consulta nao encontrada.");
-      }
+      if (!freshAppointment) throw new Error("Consulta nao encontrada.");
 
-      if (appointment.patientId !== session.user.id) {
-        throw new Error("Voce nao tem permissao para disputar esta consulta.");
-      }
-
-      if (appointment.status !== "CONFIRMED") {
+      if (freshAppointment.status !== "CONFIRMED") {
         throw new Error("Apenas consultas confirmadas podem ser disputadas.");
       }
 
-      const scheduledAt = appointmentDateTime(appointment.date, appointment.time);
+      await cancelAppointmentEscrow(tx, freshAppointment);
 
-      if (!scheduledAt || scheduledAt > new Date()) {
-        throw new Error("A disputa so pode ser aberta apos o horario da consulta.");
-      }
-
-      if (!appointment.stripeSessionId) {
-        throw new Error("Consulta sem referencia de pagamento Stripe.");
-      }
-
-      const pendingTransaction = await tx.transaction.findFirst({
-        where: {
-          userId: appointment.professionalId,
-          type: "CREDIT",
-          status: "PENDING",
-          description: {
-            contains: appointment.stripeSessionId,
-          },
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (!pendingTransaction) {
-        throw new Error(
-          "Transacao financeira pendente nao encontrada para esta consulta.",
-        );
-      }
-
-      await tx.transaction.update({
-        where: { id: pendingTransaction.id },
-        data: {
-          status: "DISPUTED",
-        },
-      });
-
-      const disputeNote = `Disputa aberta pelo paciente em ${new Date().toLocaleString("pt-BR")}: ${normalizedReason}`;
-      const notes = appointment.notes
-        ? `${appointment.notes}\n\n${disputeNote}`
+      const disputeNote = `Disputa aberta pelo paciente em ${new Date().toLocaleString("pt-BR")}: ${normalizedReason}. Reembolso Stripe solicitado: ${refund.id}.`;
+      const notes = freshAppointment.notes
+        ? `${freshAppointment.notes}\n\n${disputeNote}`
         : disputeNote;
 
       await tx.appointment.update({
-        where: { id: appointment.id },
+        where: { id: freshAppointment.id },
         data: {
-          status: "DISPUTED",
+          status: "REFUNDED",
           disputeReason: normalizedReason,
           disputeOpenedAt: new Date(),
           notes,
         },
       });
 
-      return { professionalId: appointment.professionalId };
+      return { professionalId: freshAppointment.professionalId };
     });
 
     revalidateHealthAppointmentPaths(result.professionalId);
@@ -376,7 +435,6 @@ export async function reportHealthAppointmentDispute(
     };
   }
 }
-
 export async function completeHealthAppointment(appointmentId: string) {
   const session = await auth();
 
@@ -400,9 +458,7 @@ export async function completeHealthAppointment(appointmentId: string) {
         },
       });
 
-      if (!appointment) {
-        throw new Error("Consulta nao encontrada.");
-      }
+      if (!appointment) throw new Error("Consulta nao encontrada.");
 
       if (appointment.professionalId !== session.user.id) {
         throw new Error("Voce nao tem permissao para concluir esta consulta.");
@@ -413,9 +469,14 @@ export async function completeHealthAppointment(appointmentId: string) {
       }
 
       await releaseAppointmentEscrow(tx, appointment);
+
+      await tx.appointment.update({
+        where: { id: appointment.id },
+        data: { status: "COMPLETED" },
+      });
     });
 
-    revalidateHealthAppointmentPaths();
+    revalidateHealthAppointmentPaths(session.user.id);
 
     return { success: true };
   } catch (error) {
@@ -425,6 +486,75 @@ export async function completeHealthAppointment(appointmentId: string) {
         error instanceof Error
           ? error.message
           : "Nao foi possivel concluir a consulta.",
+    };
+  }
+}
+
+export async function markPatientNoShowAppointment(appointmentId: string) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return { error: "Voce precisa estar logado para marcar ausencia." };
+  }
+
+  if (!appointmentId) {
+    return { error: "Consulta invalida." };
+  }
+
+  try {
+    await db.$transaction(async (tx) => {
+      const appointment = await tx.appointment.findUnique({
+        where: { id: appointmentId },
+        select: {
+          id: true,
+          date: true,
+          time: true,
+          status: true,
+          professionalId: true,
+          stripeSessionId: true,
+          notes: true,
+        },
+      });
+
+      if (!appointment) throw new Error("Consulta nao encontrada.");
+
+      if (appointment.professionalId !== session.user.id) {
+        throw new Error("Voce nao tem permissao para marcar ausencia nesta consulta.");
+      }
+
+      if (appointment.status !== "CONFIRMED") {
+        throw new Error("Apenas consultas confirmadas podem ser marcadas como ausencia.");
+      }
+
+      const scheduledAt = appointmentDateTime(appointment.date, appointment.time);
+
+      if (!scheduledAt || scheduledAt > new Date()) {
+        throw new Error("A ausencia so pode ser marcada apos o horario da consulta.");
+      }
+
+      await releaseAppointmentEscrow(tx, appointment);
+
+      const noShowNote = `Paciente marcado como nao compareceu em ${new Date().toLocaleString("pt-BR")}.`;
+      const notes = appointment.notes
+        ? `${appointment.notes}\n\n${noShowNote}`
+        : noShowNote;
+
+      await tx.appointment.update({
+        where: { id: appointment.id },
+        data: { status: "NO_SHOW", notes },
+      });
+    });
+
+    revalidateHealthAppointmentPaths(session.user.id);
+
+    return { success: true };
+  } catch (error) {
+    console.error("[MARK_PATIENT_NO_SHOW_APPOINTMENT_ERROR]", error);
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel marcar ausencia do paciente.",
     };
   }
 }
@@ -475,6 +605,11 @@ export async function autoCompleteHealthAppointments() {
         }
 
         await releaseAppointmentEscrow(tx, freshAppointment);
+
+        await tx.appointment.update({
+          where: { id: freshAppointment.id },
+          data: { status: "COMPLETED" },
+        });
       });
 
       completed += 1;
@@ -490,3 +625,4 @@ export async function autoCompleteHealthAppointments() {
 
   return { completed, failed };
 }
+

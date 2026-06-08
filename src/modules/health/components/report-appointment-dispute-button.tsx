@@ -14,7 +14,7 @@ export function ReportAppointmentDisputeButton({
 
   const handleReport = () => {
     const reason = window.prompt(
-      "Descreva o problema da consulta para congelar o valor em disputa.",
+      "Descreva o problema da consulta para solicitar o reembolso.",
     );
 
     if (!reason) return;
@@ -30,7 +30,7 @@ export function ReportAppointmentDisputeButton({
         return;
       }
 
-      toast.success("Disputa aberta. O valor ficara congelado para analise.");
+      toast.success("Solicitacao registrada. O reembolso foi solicitado ao Stripe.");
     });
   };
 
@@ -39,10 +39,12 @@ export function ReportAppointmentDisputeButton({
       type="button"
       onClick={handleReport}
       disabled={isPending}
-      className="flex items-center gap-2 px-4 py-2.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-300 text-xs font-bold rounded-xl transition-all border border-yellow-500/20 disabled:opacity-60 disabled:cursor-wait"
+      className="flex cursor-pointer items-center gap-2 px-4 py-2.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-300 text-xs font-bold rounded-xl transition-all border border-yellow-500/20 disabled:opacity-60 disabled:cursor-wait"
     >
       <AlertTriangle className="w-4 h-4" />
-      {isPending ? "Abrindo..." : "Reportar problema"}
+      {isPending ? "Solicitando..." : "Solicitar reembolso"}
     </button>
   );
 }
+
+

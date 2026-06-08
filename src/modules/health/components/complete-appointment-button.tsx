@@ -43,10 +43,11 @@ export function CompleteAppointmentButton({
           ? "Disponivel somente apos o horario da consulta."
           : "Marcar consulta como concluida"
       }
-      className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
     >
       <CheckCircle2 className="h-4 w-4" />
       {isPending ? "Concluindo..." : "Marcar como concluida"}
     </button>
   );
 }
+

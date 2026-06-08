@@ -36,10 +36,11 @@ export function CancelAppointmentButton({
       type="button"
       onClick={handleCancel}
       disabled={isPending}
-      className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 text-xs font-bold rounded-xl transition-all border border-red-500/20 disabled:opacity-60 disabled:cursor-wait"
+      className="flex cursor-pointer items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 text-xs font-bold rounded-xl transition-all border border-red-500/20 disabled:opacity-60 disabled:cursor-wait"
     >
       <XCircle className="w-4 h-4" />
       {isPending ? "Cancelando..." : "Cancelar"}
     </button>
   );
 }
+

@@ -161,7 +161,7 @@ export default async function HistoricoConsultasPage() {
                             href={appointment.meetLink}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-2 px-5 py-2.5 bg-[#d73cbe] hover:bg-[#b02da0] text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-[#d73cbe]/20"
+                            className="flex cursor-pointer items-center gap-2 px-5 py-2.5 bg-[#d73cbe] hover:bg-[#b02da0] text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-[#d73cbe]/20"
                           >
                             <Video className="w-4 h-4" />
                             Entrar no Meet
@@ -178,7 +178,7 @@ export default async function HistoricoConsultasPage() {
                     ) : (
                       <button
                         type="button"
-                        className="p-2.5 rounded-xl bg-white/5 text-slate-500 hover:text-white transition-colors border border-white/5"
+                        className="cursor-pointer p-2.5 rounded-xl bg-white/5 text-slate-500 hover:text-white transition-colors border border-white/5"
                         aria-label="Mais opções"
                       >
                         <MoreVertical className="w-5 h-5" />
@@ -196,7 +196,7 @@ export default async function HistoricoConsultasPage() {
             </p>
             <Link
               href="/agendar-consulta"
-              className="text-[#d73cbe] text-sm mt-4 inline-block hover:underline"
+              className="cursor-pointer text-[#d73cbe] text-sm mt-4 inline-block hover:underline"
             >
               Começar agora
             </Link>
@@ -206,6 +206,7 @@ export default async function HistoricoConsultasPage() {
     </div>
   );
 }
+
 
 
 
