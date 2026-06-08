@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { getHealthPatientHistoryById } from "@/modules/health/services/private-profile-service";
 import { CancelAppointmentButton } from "@/modules/health/components/cancel-appointment-button";
+import { ReportAppointmentDisputeButton } from "@/modules/health/components/report-appointment-dispute-button";
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -22,12 +23,30 @@ function formatDate(date: Date) {
   }).format(date);
 }
 
+function appointmentDateTime(date: Date, time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+  const dateTime = new Date(date);
+
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null;
+
+  dateTime.setHours(hours, minutes, 0, 0);
+  return Number.isNaN(dateTime.getTime()) ? null : dateTime;
+}
+
 function statusBadge(status: string) {
   if (status === "COMPLETED") {
     return {
       label: "Realizado",
       className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
       icon: CheckCircle2,
+    };
+  }
+
+  if (status === "DISPUTED") {
+    return {
+      label: "Em disputa",
+      className: "bg-yellow-500/10 text-yellow-300 border-yellow-500/20",
+      icon: Timer,
     };
   }
 
@@ -77,9 +96,17 @@ export default async function HistoricoConsultasPage() {
               const badge = statusBadge(appointment.status);
               const BadgeIcon = badge.icon;
               const canCancel =
-                !["CANCELED", "COMPLETED", "REFUNDED", "NO_SHOW"].includes(
+                !["CANCELED", "COMPLETED", "REFUNDED", "NO_SHOW", "DISPUTED"].includes(
                   appointment.status,
                 ) && appointment.date > new Date();
+              const scheduledAt = appointmentDateTime(
+                appointment.date,
+                appointment.time,
+              );
+              const canDispute =
+                appointment.status === "CONFIRMED" &&
+                !!scheduledAt &&
+                scheduledAt <= new Date();
 
               return (
                 <div
@@ -144,6 +171,10 @@ export default async function HistoricoConsultasPage() {
                           appointmentId={appointment.id}
                         />
                       </div>
+                    ) : canDispute ? (
+                      <ReportAppointmentDisputeButton
+                        appointmentId={appointment.id}
+                      />
                     ) : (
                       <button
                         type="button"
@@ -175,3 +206,6 @@ export default async function HistoricoConsultasPage() {
     </div>
   );
 }
+
+
+

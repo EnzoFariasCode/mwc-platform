@@ -47,6 +47,7 @@ enum BookingStatus {
   CONFIRMED // Confirmado e na agenda
   COMPLETED // Realizada
   CANCELED // Cancelada
+  DISPUTED // Em disputa pelo paciente
   REFUNDED // Reembolsado ao paciente
   NO_SHOW // Paciente não compareceu
 }
@@ -66,6 +67,7 @@ enum TransactionStatus {
   COMPLETED
   FAILED
   CANCELED
+  DISPUTED
 }
 
 model User {
@@ -308,8 +310,10 @@ model Appointment {
 
   meetLink        String?
   price           Decimal
-  notes           String? @db.Text
-  stripeSessionId String? @unique
+  notes           String?   @db.Text
+  stripeSessionId String?   @unique
+  disputeReason   String?   @db.Text
+  disputeOpenedAt DateTime?
 
   // Rastreamento de aceite dos termos de pagamento
   acceptedPaymentTerms   Boolean   @default(false)

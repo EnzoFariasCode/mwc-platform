@@ -62,6 +62,14 @@ function statusBadge(status: string) {
     };
   }
 
+  if (status === "DISPUTED") {
+    return {
+      label: "Em disputa",
+      icon: Timer,
+      className: "bg-yellow-500/10 text-yellow-300 border-yellow-500/20",
+    };
+  }
+
   if (status === "CANCELED") {
     return {
       label: "Cancelado",
@@ -238,3 +246,5 @@ export function ProfessionalAppointmentsTabs({
     </div>
   );
 }
+
+

@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
+    "db:deploy": "prisma migrate deploy",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest"
@@ -45,3 +46,5 @@
     "vitest": "^1.1.8"
   }
 }
+
+

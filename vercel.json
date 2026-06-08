@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/health-auto-complete",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}
