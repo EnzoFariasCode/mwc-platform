@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import {
   AlertCircle,
   ArrowRight,
@@ -30,7 +30,7 @@ export default async function CheckoutSuccessPage({
 
   return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 font-poppins text-white">
-      {/* Aplicado o novo padrão de bordas: rounded-2xl (elegante e corporativo) */}
+      {/* Aplicado o novo padrÃ£o de bordas: rounded-2xl (elegante e corporativo) */}
       <div className="max-w-md w-full bg-[#0f172a] border border-white/10 rounded-2xl p-8 md:p-10 text-center shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 blur-[70px] pointer-events-none bg-blue-500/20" />
 
@@ -64,6 +64,18 @@ export default async function CheckoutSuccessPage({
           </div>
         )}
 
+        {confirmation.success && (
+          <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-left text-xs text-emerald-100">
+            <p className="font-semibold">Resumo dos termos aceitos</p>
+            <p className="mt-1 text-emerald-100/80">
+              O pagamento fica retido em escrow e so e liberado ao profissional
+              apos a consulta ser concluida. Cancelamentos do paciente com mais
+              de 24h geram reembolso integral; ausencia do paciente nao gera
+              reembolso.
+            </p>
+          </div>
+        )}
+
         <div className="space-y-4 relative z-10">
           <Link
             href="/agendar-consulta/historico"
@@ -83,3 +95,4 @@ export default async function CheckoutSuccessPage({
     </div>
   );
 }
+
