@@ -39,6 +39,7 @@ async function findPendingCreditTransaction(
 async function releaseAppointmentEscrow(
   tx: Prisma.TransactionClient,
   appointment: EscrowAppointment,
+  description?: string,
 ) {
   const pendingTransaction = await findPendingCreditTransaction(tx, appointment);
 
@@ -50,7 +51,10 @@ async function releaseAppointmentEscrow(
 
   await tx.transaction.update({
     where: { id: pendingTransaction.id },
-    data: { status: "COMPLETED" },
+    data: {
+      status: "COMPLETED",
+      ...(description ? { description } : {}),
+    },
   });
 
   await tx.user.update({
@@ -151,6 +155,7 @@ export async function cancelPatientAppointment(appointmentId: string) {
       select: {
         id: true,
         date: true,
+        time: true,
         status: true,
         patientId: true,
         professionalId: true,
@@ -169,7 +174,9 @@ export async function cancelPatientAppointment(appointmentId: string) {
       throw new Error("Apenas consultas agendadas podem ser canceladas.");
     }
 
-    if (appointment.date <= new Date()) {
+    const scheduledAt = appointmentDateTime(appointment.date, appointment.time);
+
+    if (!scheduledAt || scheduledAt <= new Date()) {
       throw new Error("Nao e possivel cancelar uma consulta passada.");
     }
 
@@ -177,10 +184,58 @@ export async function cancelPatientAppointment(appointmentId: string) {
       Date.now() + 24 * 60 * 60 * 1000,
     );
 
-    if (appointment.date < twentyFourHoursFromNow) {
-      throw new Error(
-        "Cancelamentos sao permitidos apenas com no minimo 24 horas de antecedencia. Fora dessa janela, o valor nao pode ser reembolsado.",
-      );
+    if (scheduledAt < twentyFourHoursFromNow) {
+      await db.$transaction(async (tx) => {
+        const freshAppointment = await tx.appointment.findUnique({
+          where: { id: appointment.id },
+          select: {
+            id: true,
+            date: true,
+            time: true,
+            status: true,
+            professionalId: true,
+            stripeSessionId: true,
+            notes: true,
+          },
+        });
+
+        if (!freshAppointment) throw new Error("Consulta nao encontrada.");
+
+        if (terminalStatuses.includes(freshAppointment.status as never)) {
+          throw new Error("Apenas consultas agendadas podem ser canceladas.");
+        }
+
+        const freshScheduledAt = appointmentDateTime(
+          freshAppointment.date,
+          freshAppointment.time,
+        );
+
+        if (!freshScheduledAt || freshScheduledAt <= new Date()) {
+          throw new Error("Nao e possivel cancelar uma consulta passada.");
+        }
+
+        const lateCancelDescription = `LATE_CANCEL_FEE - Cancelamento tardio pelo paciente (${new Date().toLocaleString("pt-BR")}) - Stripe: ${freshAppointment.stripeSessionId}`;
+
+        await releaseAppointmentEscrow(
+          tx,
+          freshAppointment,
+          lateCancelDescription,
+        );
+
+        const cancelNote = `Cancelada pelo paciente com menos de 24h de antecedencia em ${new Date().toLocaleString("pt-BR")}. Sem reembolso; valor liberado ao profissional como compensacao pela reserva do horario.`;
+        const notes = freshAppointment.notes
+          ? `${freshAppointment.notes}\n\n${cancelNote}`
+          : cancelNote;
+
+        await tx.appointment.update({
+          where: { id: freshAppointment.id },
+          data: { status: "CANCELED", notes },
+        });
+      });
+
+      revalidateHealthAppointmentPaths(appointment.professionalId);
+
+      return { success: true };
     }
 
     if (!appointment.stripeSessionId) {
