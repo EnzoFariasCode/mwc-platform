@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { use, useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
@@ -40,13 +40,12 @@ export default function CheckoutSaudePage({
 
   // Modal de termos
   const [showTermsModal, setShowTermsModal] = useState(false);
-  const [clientIpAddress, setClientIpAddress] = useState<string | null>(null);
 
-  // Estados dos inputs editáveis
+  // Estados dos inputs editÃ¡veis
   const [clientName, setClientName] = useState<string | null>(null);
   const [clientEmail, setClientEmail] = useState<string | null>(null);
 
-  // Formatação de data (de YYYY-MM-DD para DD/MM/YYYY)
+  // FormataÃ§Ã£o de data (de YYYY-MM-DD para DD/MM/YYYY)
   const formattedDate = dateStr.includes("-")
     ? dateStr.split("-").reverse().join("/")
     : dateStr;
@@ -66,16 +65,8 @@ export default function CheckoutSaudePage({
     }
   }, [status, router, proId, timeStr, dateStr]);
 
-  // Capturar IP do cliente para compliance
-  useEffect(() => {
-    fetch("https://api.ipify.org?format=json")
-      .then((res) => res.json())
-      .then((data) => setClientIpAddress(data.ip))
-      .catch(() => setClientIpAddress("unknown"));
-  }, []);
-
   const handleCheckout = async () => {
-    // Abrir modal de termos ao invés de ir direto para o Stripe
+    // Abrir modal de termos ao invÃ©s de ir direto para o Stripe
     setShowTermsModal(true);
   };
 
@@ -86,7 +77,6 @@ export default function CheckoutSaudePage({
     const result = await createCheckoutSession(proId, dateStr, timeStr, {
       acceptedPaymentTerms: true,
       paymentTermsAcceptedAt: new Date().toISOString(),
-      paymentTermsIpAddress: clientIpAddress || "unknown",
     });
 
     if (result.error) {
@@ -94,7 +84,7 @@ export default function CheckoutSaudePage({
       setIsProcessing(false);
       setShowTermsModal(false);
     } else if (result.url) {
-      // Redirecionar para Stripe apenas após aceitar termos
+      // Redirecionar para Stripe apenas apÃ³s aceitar termos
       window.location.href = result.url;
     }
   };
@@ -153,7 +143,7 @@ export default function CheckoutSaudePage({
                 </h2>
                 {step === 1 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-                    {/* 3. Campos agora são Editáveis (Inputs controlados) */}
+                    {/* 3. Campos agora sÃ£o EditÃ¡veis (Inputs controlados) */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
                         Nome Completo
@@ -218,7 +208,7 @@ export default function CheckoutSaudePage({
                 {step === 2 && (
                   <div className="space-y-4">
                     <p className="text-sm text-slate-400 leading-relaxed">
-                      Ao clicar em confirmar, você será redirecionado para o
+                      Ao clicar em confirmar, vocÃª serÃ¡ redirecionado para o
                       checkout seguro do <strong>Stripe</strong> para finalizar
                       o agendamento.
                     </p>
@@ -244,12 +234,12 @@ export default function CheckoutSaudePage({
                   <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center">
                     <Image
                       src={`/api/images/user/${professional.id}`}
-                      /* FIX DO TYPESCRIPT: Fallback para string vazia ou texto padrão */
+                      /* FIX DO TYPESCRIPT: Fallback para string vazia ou texto padrÃ£o */
                       alt={professional.name || "Profissional"}
                       fill
                       className="object-cover"
                       unoptimized
-                      /* Fallback para caso não tenha foto no banco, usa iniciais */
+                      /* Fallback para caso nÃ£o tenha foto no banco, usa iniciais */
                       onError={(e) => {
                         const target = e.currentTarget;
                         target.src = `https://ui-avatars.com/api/?background=random&name=${encodeURIComponent(
@@ -260,7 +250,7 @@ export default function CheckoutSaudePage({
                   </div>
                   <div>
                     <h4 className="font-bold text-white text-sm line-clamp-1">
-                      {/* Tratando o null aqui também por segurança */}
+                      {/* Tratando o null aqui tambÃ©m por seguranÃ§a */}
                       {professional.name || "Profissional"}
                     </h4>
                     <p className="text-xs text-[#d73cbe] font-medium mt-0.5">
@@ -278,7 +268,7 @@ export default function CheckoutSaudePage({
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400">Horário:</span>
+                    <span className="text-slate-400">HorÃ¡rio:</span>
                     <span className="font-bold text-white">{timeStr}</span>
                   </div>
                   <div className="flex justify-between items-start mt-2 pt-3 border-t border-white/10">
@@ -302,7 +292,7 @@ export default function CheckoutSaudePage({
                   </div>
                 </div>
 
-                {/* 4. Botão com cursor-pointer dinâmico */}
+                {/* 4. BotÃ£o com cursor-pointer dinÃ¢mico */}
                 <button
                   onClick={handleCheckout}
                   disabled={step === 1 || isProcessing}

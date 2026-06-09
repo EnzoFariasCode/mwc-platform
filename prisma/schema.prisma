@@ -152,7 +152,8 @@ model User {
   pixKey         String?
   pixKeyType     String?
 
-  transactions Transaction[]
+  transactions            Transaction[]
+  paymentTermsAcceptances PaymentTermsAcceptance[]
 
   // --- Relacionamentos Tech ---
   projectsOwned    Project[]     @relation("ClientProjects")
@@ -459,4 +460,28 @@ model RateLimit {
   updatedAt DateTime @updatedAt
 
   @@index([resetAt])
+}
+
+model PaymentTermsAcceptance {
+  id              String   @id @default(cuid())
+  userId          String
+  stripeSessionId String?
+  acceptedAt      DateTime @default(now())
+  ipAddress       String
+  termsVersion    String   @default("v1.0")
+  userAgent       String?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([stripeSessionId])
+}
+
+model StripeEventLog {
+  id            String   @id @default(cuid())
+  stripeEventId String   @unique
+  type          String
+  processedAt   DateTime @default(now())
+
+  @@index([stripeEventId])
 }

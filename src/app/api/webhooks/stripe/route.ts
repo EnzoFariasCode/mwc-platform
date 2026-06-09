@@ -100,6 +100,287 @@ async function handleHealthAppointment(session: Stripe.Checkout.Session) {
   return new NextResponse(null, { status: 200 });
 }
 
+function getStripeId(value: string | { id: string } | null | undefined) {
+  if (!value) return null;
+  return typeof value === "string" ? value : value.id;
+}
+
+async function getCheckoutSessionIdFromPaymentIntent(paymentIntentId: string) {
+  const sessions = await stripe.checkout.sessions.list({
+    payment_intent: paymentIntentId,
+    limit: 1,
+  });
+
+  return sessions.data[0]?.id ?? null;
+}
+
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  const paymentIntentId = getStripeId(charge.payment_intent);
+
+  if (!paymentIntentId) {
+    console.warn("[WEBHOOK_REFUND] No payment_intent on charge:", charge.id);
+    return new NextResponse(null, { status: 200 });
+  }
+
+  let checkoutSessionId: string | null = null;
+
+  try {
+    checkoutSessionId =
+      await getCheckoutSessionIdFromPaymentIntent(paymentIntentId);
+  } catch (err) {
+    console.error("[WEBHOOK_REFUND] Failed to retrieve checkout session:", err);
+    return new NextResponse(null, { status: 200 });
+  }
+
+  if (!checkoutSessionId) {
+    console.warn(
+      "[WEBHOOK_REFUND] No checkout session found for charge:",
+      charge.id,
+    );
+    return new NextResponse(null, { status: 200 });
+  }
+
+  const appt = await db.appointment.findUnique({
+    where: { stripeSessionId: checkoutSessionId },
+    select: {
+      id: true,
+      status: true,
+      professionalId: true,
+    },
+  });
+
+  if (!appt) {
+    console.warn(
+      "[WEBHOOK_REFUND] No appointment found for session:",
+      checkoutSessionId,
+    );
+    return new NextResponse(null, { status: 200 });
+  }
+
+  if (appt.status === "REFUNDED") {
+    console.log("[WEBHOOK_REFUND] Appointment already REFUNDED:", appt.id);
+    return new NextResponse(null, { status: 200 });
+  }
+
+  await db.$transaction(async (tx) => {
+    const pendingTransaction = await tx.transaction.findFirst({
+      where: {
+        userId: appt.professionalId,
+        status: "PENDING",
+        description: { contains: checkoutSessionId },
+      },
+      select: { id: true, amount: true },
+    });
+
+    await tx.appointment.update({
+      where: { id: appt.id },
+      data: { status: "REFUNDED" },
+    });
+
+    if (!pendingTransaction) return;
+
+    await tx.transaction.update({
+      where: { id: pendingTransaction.id },
+      data: { status: "CANCELED" },
+    });
+
+    await tx.user.update({
+      where: { id: appt.professionalId },
+      data: {
+        pendingBalance: {
+          decrement: pendingTransaction.amount,
+        },
+      },
+    });
+  });
+
+  console.log("[WEBHOOK_REFUND] Appointment marked as REFUNDED:", appt.id);
+  return new NextResponse(null, { status: 200 });
+}
+
+async function handleDisputeCreated(dispute: Stripe.Dispute) {
+  const paymentIntentId = getStripeId(dispute.payment_intent);
+
+  if (!paymentIntentId) {
+    console.warn("[WEBHOOK_DISPUTE] No payment_intent on dispute:", dispute.id);
+    return new NextResponse(null, { status: 200 });
+  }
+
+  let checkoutSessionId: string | null = null;
+
+  try {
+    checkoutSessionId =
+      await getCheckoutSessionIdFromPaymentIntent(paymentIntentId);
+  } catch (err) {
+    console.error(
+      "[WEBHOOK_DISPUTE] Failed to retrieve checkout session:",
+      err,
+    );
+    return new NextResponse(null, { status: 200 });
+  }
+
+  if (!checkoutSessionId) {
+    console.warn(
+      "[WEBHOOK_DISPUTE] No checkout session found for dispute:",
+      dispute.id,
+    );
+    return new NextResponse(null, { status: 200 });
+  }
+
+  const appt = await db.appointment.findUnique({
+    where: { stripeSessionId: checkoutSessionId },
+    select: {
+      id: true,
+      status: true,
+      professionalId: true,
+    },
+  });
+
+  if (!appt) {
+    console.warn(
+      "[WEBHOOK_DISPUTE] No appointment found for session:",
+      checkoutSessionId,
+    );
+    return new NextResponse(null, { status: 200 });
+  }
+
+  if (appt.status === "DISPUTED" || appt.status === "REFUNDED") {
+    console.log("[WEBHOOK_DISPUTE] Appointment already handled:", appt.id);
+    return new NextResponse(null, { status: 200 });
+  }
+
+  await db.$transaction(async (tx) => {
+    const pendingTransaction = await tx.transaction.findFirst({
+      where: {
+        userId: appt.professionalId,
+        status: "PENDING",
+        description: { contains: checkoutSessionId },
+      },
+      select: { id: true, amount: true },
+    });
+
+    await tx.appointment.update({
+      where: { id: appt.id },
+      data: {
+        status: "DISPUTED",
+        disputeReason: dispute.reason,
+        disputeOpenedAt: new Date(),
+      },
+    });
+
+    if (!pendingTransaction) return;
+
+    await tx.user.update({
+      where: { id: appt.professionalId },
+      data: {
+        pendingBalance: {
+          decrement: pendingTransaction.amount,
+        },
+      },
+    });
+
+    await tx.transaction.update({
+      where: { id: pendingTransaction.id },
+      data: { status: "DISPUTED" },
+    });
+  });
+
+  console.log("[WEBHOOK_DISPUTE] Appointment marked as DISPUTED:", appt.id);
+  return new NextResponse(null, { status: 200 });
+}
+
+async function handleDisputeClosed(dispute: Stripe.Dispute) {
+  const paymentIntentId = getStripeId(dispute.payment_intent);
+
+  if (!paymentIntentId) {
+    return new NextResponse(null, { status: 200 });
+  }
+
+  let checkoutSessionId: string | null = null;
+
+  try {
+    checkoutSessionId =
+      await getCheckoutSessionIdFromPaymentIntent(paymentIntentId);
+  } catch (err) {
+    console.error("[WEBHOOK_DISPUTE_CLOSED] Failed to retrieve session:", err);
+    return new NextResponse(null, { status: 200 });
+  }
+
+  if (!checkoutSessionId) return new NextResponse(null, { status: 200 });
+
+  const appt = await db.appointment.findUnique({
+    where: { stripeSessionId: checkoutSessionId },
+    select: {
+      id: true,
+      professionalId: true,
+    },
+  });
+
+  if (!appt) return new NextResponse(null, { status: 200 });
+
+  if (dispute.status === "won" || dispute.status === "warning_closed") {
+    await db.$transaction(async (tx) => {
+      const disputedTransaction = await tx.transaction.findFirst({
+        where: {
+          userId: appt.professionalId,
+          status: "DISPUTED",
+          description: { contains: checkoutSessionId },
+        },
+        select: { id: true, amount: true },
+      });
+
+      await tx.appointment.update({
+        where: { id: appt.id },
+        data: { status: "COMPLETED" },
+      });
+
+      if (!disputedTransaction) return;
+
+      await tx.user.update({
+        where: { id: appt.professionalId },
+        data: {
+          walletBalance: {
+            increment: disputedTransaction.amount,
+          },
+        },
+      });
+
+      await tx.transaction.update({
+        where: { id: disputedTransaction.id },
+        data: { status: "COMPLETED" },
+      });
+    });
+
+    console.log(
+      "[WEBHOOK_DISPUTE_CLOSED] Dispute won - balance restored for appointment:",
+      appt.id,
+    );
+  } else if (dispute.status === "lost") {
+    await db.$transaction(async (tx) => {
+      await tx.appointment.update({
+        where: { id: appt.id },
+        data: { status: "REFUNDED" },
+      });
+
+      await tx.transaction.updateMany({
+        where: {
+          userId: appt.professionalId,
+          status: "DISPUTED",
+          description: { contains: checkoutSessionId },
+        },
+        data: { status: "CANCELED" },
+      });
+    });
+
+    console.log(
+      "[WEBHOOK_DISPUTE_CLOSED] Dispute lost - appointment marked REFUNDED:",
+      appt.id,
+    );
+  }
+
+  return new NextResponse(null, { status: 200 });
+}
+
 export async function POST(req: Request) {
   const body = await req.text();
   const signature = (await headers()).get("Stripe-Signature") as string;
@@ -115,6 +396,23 @@ export async function POST(req: Request) {
     console.error(`Webhook Error: ${error.message}`);
     return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 });
   }
+
+  // [TASK 3] Idempotency guard - skip already-processed events
+  const alreadyProcessed = await db.stripeEventLog.findUnique({
+    where: { stripeEventId: event.id },
+  });
+
+  if (alreadyProcessed) {
+    console.log(`[WEBHOOK] Skipping already-processed event: ${event.id}`);
+    return new NextResponse(null, { status: 200 });
+  }
+
+  await db.stripeEventLog.create({
+    data: {
+      stripeEventId: event.id,
+      type: event.type,
+    },
+  });
 
   const handleProjectPayment = async (proposalId: string, buyerId: string) => {
     const result = await finalizeProjectPayment({
@@ -212,6 +510,21 @@ export async function POST(req: Request) {
         }
 
         return new NextResponse(null, { status: 200 });
+      }
+
+      case "charge.refunded": {
+        const charge = event.data.object as Stripe.Charge;
+        return await handleChargeRefunded(charge);
+      }
+
+      case "charge.dispute.created": {
+        const dispute = event.data.object as Stripe.Dispute;
+        return await handleDisputeCreated(dispute);
+      }
+
+      case "charge.dispute.closed": {
+        const dispute = event.data.object as Stripe.Dispute;
+        return await handleDisputeClosed(dispute);
       }
 
       default:
