@@ -644,30 +644,31 @@ export async function autoCompleteHealthAppointments() {
     if (releaseAt > now) continue;
 
     try {
-      await db.$transaction(async (tx) => {
-        const freshAppointment = await tx.appointment.findUnique({
-          where: { id: appointment.id },
-          select: {
-            id: true,
-            status: true,
-            professionalId: true,
-            stripeSessionId: true,
+      const didComplete = await db.$transaction(async (tx) => {
+        const claimedAppointment = await tx.appointment.updateMany({
+          where: {
+            id: appointment.id,
+            status: "CONFIRMED",
           },
-        });
-
-        if (!freshAppointment || freshAppointment.status !== "CONFIRMED") {
-          return;
-        }
-
-        await releaseAppointmentEscrow(tx, freshAppointment);
-
-        await tx.appointment.update({
-          where: { id: freshAppointment.id },
           data: { status: "COMPLETED" },
         });
+
+        if (claimedAppointment.count === 0) {
+          return false;
+        }
+
+        await releaseAppointmentEscrow(tx, {
+          id: appointment.id,
+          professionalId: appointment.professionalId,
+          stripeSessionId: appointment.stripeSessionId,
+        });
+
+        return true;
       });
 
-      completed += 1;
+      if (didComplete) {
+        completed += 1;
+      }
     } catch (error) {
       failed.push({
         appointmentId: appointment.id,
