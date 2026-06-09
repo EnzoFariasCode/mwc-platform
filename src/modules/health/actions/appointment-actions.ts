@@ -64,6 +64,8 @@ async function releaseAppointmentEscrow(
       walletBalance: { increment: pendingTransaction.amount },
     },
   });
+
+  return pendingTransaction;
 }
 
 async function cancelAppointmentEscrow(
@@ -85,6 +87,8 @@ async function cancelAppointmentEscrow(
       pendingBalance: { decrement: pendingTransaction.amount },
     },
   });
+
+  return pendingTransaction;
 }
 
 async function refundStripeCheckoutSession(
@@ -138,7 +142,14 @@ const terminalStatuses = [
   "DISPUTED",
 ] as const;
 
-export async function cancelPatientAppointment(appointmentId: string) {
+function normalizeActionReason(reason?: string) {
+  return reason?.trim().replace(/\s+/g, " ") || "";
+}
+
+export async function cancelPatientAppointment(
+  appointmentId: string,
+  reason?: string,
+) {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -150,6 +161,8 @@ export async function cancelPatientAppointment(appointmentId: string) {
   }
 
   try {
+    const normalizedReason = normalizeActionReason(reason);
+
     const appointment = await db.appointment.findUnique({
       where: { id: appointmentId },
       select: {
@@ -216,13 +229,13 @@ export async function cancelPatientAppointment(appointmentId: string) {
 
         const lateCancelDescription = `LATE_CANCEL_FEE - Cancelamento tardio pelo paciente (${new Date().toLocaleString("pt-BR")}) - Stripe: ${freshAppointment.stripeSessionId}`;
 
-        await releaseAppointmentEscrow(
+        const releasedTransaction = await releaseAppointmentEscrow(
           tx,
           freshAppointment,
           lateCancelDescription,
         );
 
-        const cancelNote = `Cancelada pelo paciente com menos de 24h de antecedencia em ${new Date().toLocaleString("pt-BR")}. Sem reembolso; valor liberado ao profissional como compensacao pela reserva do horario.`;
+        const cancelNote = `Cancelada pelo paciente com menos de 24h de antecedencia em ${new Date().toLocaleString("pt-BR")}. Motivo: ${normalizedReason || "Nao informado"}. Sem reembolso; valor liberado ao profissional como compensacao pela reserva do horario. Transacao: ${releasedTransaction.id}.`;
         const notes = freshAppointment.notes
           ? `${freshAppointment.notes}\n\n${cancelNote}`
           : cancelNote;
@@ -265,9 +278,12 @@ export async function cancelPatientAppointment(appointmentId: string) {
         throw new Error("Apenas consultas agendadas podem ser canceladas.");
       }
 
-      await cancelAppointmentEscrow(tx, freshAppointment);
+      const canceledTransaction = await cancelAppointmentEscrow(
+        tx,
+        freshAppointment,
+      );
 
-      const cancelNote = `Cancelada pelo paciente em ${new Date().toLocaleString("pt-BR")}. Reembolso Stripe solicitado: ${refund.id}.`;
+      const cancelNote = `Cancelada pelo paciente em ${new Date().toLocaleString("pt-BR")}. Motivo: ${normalizedReason || "Nao informado"}. Reembolso Stripe solicitado: ${refund.id}. Transacao: ${canceledTransaction?.id ?? "nao encontrada"}.`;
       const notes = freshAppointment.notes
         ? `${freshAppointment.notes}\n\n${cancelNote}`
         : cancelNote;
@@ -292,7 +308,10 @@ export async function cancelPatientAppointment(appointmentId: string) {
   }
 }
 
-export async function cancelProfessionalAppointment(appointmentId: string) {
+export async function cancelProfessionalAppointment(
+  appointmentId: string,
+  reason?: string,
+) {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -304,6 +323,8 @@ export async function cancelProfessionalAppointment(appointmentId: string) {
   }
 
   try {
+    const normalizedReason = normalizeActionReason(reason);
+
     const appointment = await db.appointment.findUnique({
       where: { id: appointmentId },
       select: {
@@ -352,9 +373,12 @@ export async function cancelProfessionalAppointment(appointmentId: string) {
         throw new Error("Apenas consultas agendadas podem ser canceladas.");
       }
 
-      await cancelAppointmentEscrow(tx, freshAppointment);
+      const canceledTransaction = await cancelAppointmentEscrow(
+        tx,
+        freshAppointment,
+      );
 
-      const cancelNote = `Cancelada pelo profissional em ${new Date().toLocaleString("pt-BR")}. Reembolso Stripe solicitado: ${refund.id}.`;
+      const cancelNote = `Cancelada pelo profissional em ${new Date().toLocaleString("pt-BR")}. Motivo: ${normalizedReason || "Nao informado"}. Reembolso Stripe solicitado: ${refund.id}. Transacao: ${canceledTransaction?.id ?? "nao encontrada"}.`;
       const notes = freshAppointment.notes
         ? `${freshAppointment.notes}\n\n${cancelNote}`
         : cancelNote;
@@ -545,7 +569,10 @@ export async function completeHealthAppointment(appointmentId: string) {
   }
 }
 
-export async function markPatientNoShowAppointment(appointmentId: string) {
+export async function markPatientNoShowAppointment(
+  appointmentId: string,
+  reason?: string,
+) {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -557,6 +584,8 @@ export async function markPatientNoShowAppointment(appointmentId: string) {
   }
 
   try {
+    const normalizedReason = normalizeActionReason(reason);
+
     await db.$transaction(async (tx) => {
       const appointment = await tx.appointment.findUnique({
         where: { id: appointmentId },
@@ -587,9 +616,12 @@ export async function markPatientNoShowAppointment(appointmentId: string) {
         throw new Error("A ausencia so pode ser marcada apos o horario da consulta.");
       }
 
-      await releaseAppointmentEscrow(tx, appointment);
+      const releasedTransaction = await releaseAppointmentEscrow(
+        tx,
+        appointment,
+      );
 
-      const noShowNote = `Paciente marcado como nao compareceu em ${new Date().toLocaleString("pt-BR")}.`;
+      const noShowNote = `Paciente marcado como nao compareceu em ${new Date().toLocaleString("pt-BR")}. Motivo/evidencia: ${normalizedReason || "Nao informado"}. Transacao: ${releasedTransaction.id}.`;
       const notes = appointment.notes
         ? `${appointment.notes}\n\n${noShowNote}`
         : noShowNote;

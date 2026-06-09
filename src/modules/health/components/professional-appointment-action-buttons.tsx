@@ -1,12 +1,13 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { AlertTriangle, CalendarClock, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   cancelProfessionalAppointment,
   markPatientNoShowAppointment,
 } from "@/modules/health/actions/appointment-actions";
+import { AppointmentReasonModal } from "./appointment-reason-modal";
 
 export function ProfessionalAppointmentActionButtons({
   appointmentId,
@@ -16,41 +17,37 @@ export function ProfessionalAppointmentActionButtons({
   canMarkNoShow: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [modalType, setModalType] = useState<"cancel" | "no-show" | null>(
+    null,
+  );
 
-  const handleCancel = () => {
-    const confirmed = window.confirm(
-      "Cancelar esta consulta? O paciente recebera reembolso pelo Stripe e o horario sera liberado.",
-    );
-
-    if (!confirmed) return;
-
+  const handleCancel = (reason: string) => {
     startTransition(async () => {
-      const result = await cancelProfessionalAppointment(appointmentId);
+      const result = await cancelProfessionalAppointment(
+        appointmentId,
+        reason,
+      );
 
       if (result.error) {
         toast.error(result.error);
         return;
       }
 
+      setModalType(null);
       toast.success("Consulta cancelada e reembolso solicitado.");
     });
   };
 
-  const handleNoShow = () => {
-    const confirmed = window.confirm(
-      "Confirmar que o paciente nao compareceu? O valor pendente sera liberado para sua carteira.",
-    );
-
-    if (!confirmed) return;
-
+  const handleNoShow = (reason: string) => {
     startTransition(async () => {
-      const result = await markPatientNoShowAppointment(appointmentId);
+      const result = await markPatientNoShowAppointment(appointmentId, reason);
 
       if (result.error) {
         toast.error(result.error);
         return;
       }
 
+      setModalType(null);
       toast.success("Ausencia do paciente registrada.");
     });
   };
@@ -59,7 +56,7 @@ export function ProfessionalAppointmentActionButtons({
     <div className="flex flex-wrap items-center justify-end gap-2">
       <button
         type="button"
-        onClick={handleCancel}
+        onClick={() => setModalType("cancel")}
         disabled={isPending}
         className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs font-bold text-red-300 transition-all hover:bg-red-500/20 disabled:cursor-wait disabled:opacity-60"
       >
@@ -79,7 +76,7 @@ export function ProfessionalAppointmentActionButtons({
 
       <button
         type="button"
-        onClick={handleNoShow}
+        onClick={() => setModalType("no-show")}
         disabled={isPending || !canMarkNoShow}
         title={
           canMarkNoShow
@@ -91,6 +88,40 @@ export function ProfessionalAppointmentActionButtons({
         <AlertTriangle className="h-4 w-4" />
         Paciente ausente
       </button>
+
+      <AppointmentReasonModal
+        isOpen={modalType === "cancel"}
+        title="Cancelar consulta"
+        description="Informe o motivo do cancelamento profissional."
+        summary="O paciente recebera reembolso integral pelo Stripe e o valor pendente sera removido dos seus lancamentos futuros."
+        confirmLabel="Confirmar cancelamento"
+        isLoading={isPending}
+        options={[
+          { value: "indisponibilidade", label: "Indisponibilidade profissional" },
+          { value: "emergencia", label: "Emergencia ou imprevisto" },
+          { value: "agenda", label: "Conflito de agenda" },
+          { value: "outro", label: "Outro motivo" },
+        ]}
+        onClose={() => setModalType(null)}
+        onConfirm={handleCancel}
+      />
+
+      <AppointmentReasonModal
+        isOpen={modalType === "no-show"}
+        title="Paciente ausente"
+        description="Registre a evidencia ou contexto da ausencia."
+        summary="O agendamento sera marcado como paciente ausente e o valor pendente sera liberado para sua carteira."
+        confirmLabel="Confirmar ausencia"
+        isLoading={isPending}
+        options={[
+          { value: "nao_entrou", label: "Paciente nao entrou na sala" },
+          { value: "sem_resposta", label: "Paciente nao respondeu contato" },
+          { value: "atraso", label: "Atraso excedeu a tolerancia" },
+          { value: "outro", label: "Outro motivo" },
+        ]}
+        onClose={() => setModalType(null)}
+        onConfirm={handleNoShow}
+      />
     </div>
   );
 }
