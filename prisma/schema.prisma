@@ -70,6 +70,14 @@ enum TransactionStatus {
   DISPUTED
 }
 
+enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
 model User {
   id            String    @id @default(uuid())
   name          String
@@ -155,6 +163,7 @@ model User {
   transactions                 Transaction[]
   paymentTermsAcceptances      PaymentTermsAcceptance[]
   professionalTermsAcceptances ProfessionalTermsAcceptance[]
+  withdrawalRequests           WithdrawalRequest[]
 
   // --- Relacionamentos Tech ---
   projectsOwned    Project[]     @relation("ClientProjects")
@@ -358,6 +367,25 @@ model Transaction {
   updatedAt DateTime @updatedAt
 
   projectId String?
+}
+
+model WithdrawalRequest {
+  id            String           @id @default(cuid())
+  userId        String
+  transactionId String           @unique
+  amount        Decimal
+  pixKey        String
+  pixKeyType    String
+  status        WithdrawalStatus @default(PENDING)
+  provider      String           @default("MANUAL_PIX")
+  providerRef   String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
 }
 
 model Review {

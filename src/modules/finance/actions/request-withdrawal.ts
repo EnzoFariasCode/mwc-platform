@@ -6,62 +6,123 @@ import { Prisma } from "@prisma/client";
 import { getUserSession } from "@/lib/get-session";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { sendWithdrawalRequestedEmail } from "@/modules/finance/services/withdrawal-email-service";
+
+const MIN_WITHDRAWAL_AMOUNT = new Prisma.Decimal(50);
+const PIX_KEY_TYPES = ["CPF", "CNPJ", "EMAIL", "PHONE", "EVP"] as const;
+
+function parseMoneyInput(value: FormDataEntryValue | null) {
+  const raw = value?.toString().trim();
+  if (!raw) return null;
+
+  const normalized = raw.replace(/\./g, "").replace(",", ".");
+  const numberValue = Number(normalized);
+
+  if (!Number.isFinite(numberValue)) return null;
+
+  return new Prisma.Decimal(numberValue).toDecimalPlaces(2);
+}
+
+function normalizePixKey(value: FormDataEntryValue | null) {
+  return value?.toString().trim() || "";
+}
+
+function normalizePixKeyType(value: FormDataEntryValue | null) {
+  const type = value?.toString().trim().toUpperCase();
+  return PIX_KEY_TYPES.includes(type as (typeof PIX_KEY_TYPES)[number])
+    ? type
+    : null;
+}
 
 export async function requestWithdrawal(
-  formData: FormData
+  formData: FormData,
 ): Promise<ActionResponse<string>> {
   const session = await getUserSession();
-  if (!session) return { success: false, error: "Não autorizado." };
+  if (!session) return { success: false, error: "Nao autorizado." };
 
-  const cpfPix = formData.get("cpfPix") as string;
+  const amount = parseMoneyInput(formData.get("amount"));
+  const pixKey = normalizePixKey(formData.get("pixKey"));
+  const pixKeyType = normalizePixKeyType(formData.get("pixKeyType"));
 
-  if (!cpfPix || cpfPix.length < 11) {
-    return { success: false, error: "CPF inválido. Digite apenas números." };
+  if (!amount || amount.lessThanOrEqualTo(0)) {
+    return { success: false, error: "Informe um valor de saque valido." };
   }
 
-  // Usamos transaction do Prisma para garantir que não haja erro no meio do caminho
-  // (Ex: Criar o saque mas não descontar do saldo)
+  if (amount.lessThan(MIN_WITHDRAWAL_AMOUNT)) {
+    return { success: false, error: "Saldo insuficiente (Minimo R$ 50,00)." };
+  }
+
+  if (!pixKeyType) {
+    return { success: false, error: "Selecione o tipo da chave Pix." };
+  }
+
+  if (pixKey.length < 5) {
+    return { success: false, error: "Informe uma chave Pix valida." };
+  }
+
   try {
-    await db.$transaction(async (tx) => {
-      // 1. Buscar saldo atualizado (para evitar race condition)
+    const withdrawal = await db.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { id: session.id },
-        select: { walletBalance: true },
+        select: { walletBalance: true, email: true, name: true },
       });
 
-      if (!user || user.walletBalance.lessThan(50)) {
-        throw new Error("Saldo insuficiente (Mínimo R$ 50,00).");
+      if (!user) {
+        throw new Error("Usuario nao encontrado.");
       }
 
-      const amountToWithdraw = user.walletBalance;
+      if (user.walletBalance.lessThan(amount)) {
+        throw new Error("Saldo disponivel insuficiente para este saque.");
+      }
 
-      // 2. Criar o registro da Transação (Saque)
-      await tx.transaction.create({
+      const transaction = await tx.transaction.create({
         data: {
           userId: session.id,
-          amount: amountToWithdraw,
+          amount,
           type: "DEBIT",
-          status: "PENDING", // Fica pendente até você pagar manualmente no banco
-          description: `Solicitação de Saque (CPF: ${cpfPix})`,
+          status: "PENDING",
+          description: `Saque Pix solicitado (${pixKeyType}: ${pixKey})`,
         },
       });
 
-      // 3. Zerar o saldo do usuário e salvar a chave Pix usada
+      await tx.withdrawalRequest.create({
+        data: {
+          userId: session.id,
+          transactionId: transaction.id,
+          amount,
+          pixKey,
+          pixKeyType,
+          status: "PENDING",
+          provider: "MANUAL_PIX",
+        },
+      });
+
       await tx.user.update({
         where: { id: session.id },
         data: {
-          walletBalance: new Prisma.Decimal(0), // Saca tudo
-          pixKey: cpfPix, // Salva o CPF como última chave usada
-          pixKeyType: "CPF",
+          walletBalance: { decrement: amount },
+          pixKey,
+          pixKeyType,
         },
       });
+
+      return {
+        email: user.email,
+        name: user.name,
+        amount,
+        pixKey,
+        pixKeyType,
+      };
     });
 
     revalidatePath("/dashboard/financeiro");
     revalidatePath("/agendar-consulta/financeiro");
+
+    await sendWithdrawalRequestedEmail(withdrawal);
+
     return {
       success: true,
-      data: "Solicitação enviada! Pagamento em até 24h úteis.",
+      data: "Solicitacao de saque Pix registrada. Pagamento pendente de processamento.",
     };
   } catch (error: any) {
     return {
@@ -70,5 +131,3 @@ export async function requestWithdrawal(
     };
   }
 }
-
-

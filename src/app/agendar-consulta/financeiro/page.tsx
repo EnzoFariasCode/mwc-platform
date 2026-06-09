@@ -63,6 +63,10 @@ export default async function HealthFinanceiroPage() {
         orderBy: { createdAt: "desc" },
         take: 30,
       },
+      withdrawalRequests: {
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      },
       proAppointments: {
         where: { status: { not: "CANCELED" } },
         orderBy: { createdAt: "desc" },
@@ -322,6 +326,45 @@ export default async function HealthFinanceiroPage() {
                       </span>
                       <ChevronRight className="w-4 h-4 text-slate-600" />
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold text-white font-futura flex items-center gap-2">
+            <Landmark className="w-5 h-5 text-[#d73cbe]" />
+            Solicitações de saque Pix
+          </h2>
+
+          <div className="bg-[#0f172a]/80 border border-white/10 rounded-2xl overflow-hidden">
+            {user.withdrawalRequests.length === 0 ? (
+              <div className="px-5 py-8 text-sm text-slate-400">
+                Nenhuma solicitação de saque registrada ainda.
+              </div>
+            ) : (
+              <div className="divide-y divide-white/10">
+                {user.withdrawalRequests.map((withdrawal) => (
+                  <div
+                    key={withdrawal.id}
+                    className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3"
+                  >
+                    <div>
+                      <p className="font-bold text-white text-sm">
+                        Pix {withdrawal.pixKeyType}: {withdrawal.pixKey}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {new Date(withdrawal.createdAt).toLocaleDateString(
+                          "pt-BR",
+                        )}{" "}
+                        • {statusText(withdrawal.status)}
+                      </p>
+                    </div>
+                    <p className="font-bold text-white">
+                      {formatCurrency(withdrawal.amount.toNumber())}
+                    </p>
                   </div>
                 ))}
               </div>
