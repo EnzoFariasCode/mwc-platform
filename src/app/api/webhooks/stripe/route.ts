@@ -5,6 +5,7 @@ import Stripe from "stripe";
 import { db } from "@/lib/prisma";
 import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
 import { finalizeHealthAppointmentPayment } from "@/modules/health/actions/appointment-payment";
+import { sendRefundProcessedEmail } from "@/modules/health/services/transactional-email-service";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
@@ -144,8 +145,13 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
     where: { stripeSessionId: checkoutSessionId },
     select: {
       id: true,
+      date: true,
+      time: true,
+      price: true,
       status: true,
       professionalId: true,
+      patient: { select: { name: true, email: true } },
+      professional: { select: { name: true, email: true } },
     },
   });
 
@@ -195,6 +201,16 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
   });
 
   console.log("[WEBHOOK_REFUND] Appointment marked as REFUNDED:", appt.id);
+
+  await sendRefundProcessedEmail({
+    patient: appt.patient,
+    professional: appt.professional,
+    date: appt.date,
+    time: appt.time,
+    price: appt.price,
+    refundId: charge.refunds?.data[0]?.id,
+  });
+
   return new NextResponse(null, { status: 200 });
 }
 

@@ -5,6 +5,11 @@ import { db } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import {
+  sendAppointmentCompletedEmail,
+  sendCancellationEmail,
+  sendRefundProcessedEmail,
+} from "@/modules/health/services/transactional-email-service";
 
 type EscrowAppointment = {
   id: string;
@@ -169,11 +174,14 @@ export async function cancelPatientAppointment(
         id: true,
         date: true,
         time: true,
+        price: true,
         status: true,
         patientId: true,
         professionalId: true,
         stripeSessionId: true,
         notes: true,
+        patient: { select: { name: true, email: true } },
+        professional: { select: { name: true, email: true } },
       },
     });
 
@@ -248,6 +256,18 @@ export async function cancelPatientAppointment(
 
       revalidateHealthAppointmentPaths(appointment.professionalId);
 
+      await sendCancellationEmail({
+        patient: appointment.patient,
+        professional: appointment.professional,
+        date: appointment.date,
+        time: appointment.time,
+        price: appointment.price,
+        reason: normalizedReason,
+        canceledBy: "patient",
+        refundRequested: false,
+        lateCancelFeeApplied: true,
+      });
+
       return { success: true };
     }
 
@@ -296,6 +316,18 @@ export async function cancelPatientAppointment(
 
     revalidateHealthAppointmentPaths(appointment.professionalId);
 
+    await sendCancellationEmail({
+      patient: appointment.patient,
+      professional: appointment.professional,
+      date: appointment.date,
+      time: appointment.time,
+      price: appointment.price,
+      reason: normalizedReason,
+      refundId: refund.id,
+      canceledBy: "patient",
+      refundRequested: true,
+    });
+
     return { success: true };
   } catch (error) {
     console.error("[CANCEL_PATIENT_APPOINTMENT_ERROR]", error);
@@ -329,10 +361,15 @@ export async function cancelProfessionalAppointment(
       where: { id: appointmentId },
       select: {
         id: true,
+        date: true,
+        time: true,
+        price: true,
         status: true,
         professionalId: true,
         stripeSessionId: true,
         notes: true,
+        patient: { select: { name: true, email: true } },
+        professional: { select: { name: true, email: true } },
       },
     });
 
@@ -391,6 +428,18 @@ export async function cancelProfessionalAppointment(
 
     revalidateHealthAppointmentPaths(appointment.professionalId);
 
+    await sendCancellationEmail({
+      patient: appointment.patient,
+      professional: appointment.professional,
+      date: appointment.date,
+      time: appointment.time,
+      price: appointment.price,
+      reason: normalizedReason,
+      refundId: refund.id,
+      canceledBy: "professional",
+      refundRequested: true,
+    });
+
     return { success: true };
   } catch (error) {
     console.error("[CANCEL_PROFESSIONAL_APPOINTMENT_ERROR]", error);
@@ -430,11 +479,14 @@ export async function reportHealthAppointmentDispute(
         id: true,
         date: true,
         time: true,
+        price: true,
         status: true,
         patientId: true,
         professionalId: true,
         stripeSessionId: true,
         notes: true,
+        patient: { select: { name: true, email: true } },
+        professional: { select: { name: true, email: true } },
       },
     });
 
@@ -503,6 +555,16 @@ export async function reportHealthAppointmentDispute(
 
     revalidateHealthAppointmentPaths(result.professionalId);
 
+    await sendRefundProcessedEmail({
+      patient: appointment.patient,
+      professional: appointment.professional,
+      date: appointment.date,
+      time: appointment.time,
+      price: appointment.price,
+      reason: normalizedReason,
+      refundId: refund.id,
+    });
+
     return { success: true };
   } catch (error) {
     console.error("[REPORT_HEALTH_APPOINTMENT_DISPUTE_ERROR]", error);
@@ -526,14 +588,19 @@ export async function completeHealthAppointment(appointmentId: string) {
   }
 
   try {
-    await db.$transaction(async (tx) => {
+    const completedAppointment = await db.$transaction(async (tx) => {
       const appointment = await tx.appointment.findUnique({
         where: { id: appointmentId },
         select: {
           id: true,
+          date: true,
+          time: true,
+          price: true,
           status: true,
           professionalId: true,
           stripeSessionId: true,
+          patient: { select: { name: true, email: true } },
+          professional: { select: { name: true, email: true } },
         },
       });
 
@@ -553,9 +620,19 @@ export async function completeHealthAppointment(appointmentId: string) {
         where: { id: appointment.id },
         data: { status: "COMPLETED" },
       });
+
+      return appointment;
     });
 
     revalidateHealthAppointmentPaths(session.user.id);
+
+    await sendAppointmentCompletedEmail({
+      patient: completedAppointment.patient,
+      professional: completedAppointment.professional,
+      date: completedAppointment.date,
+      time: completedAppointment.time,
+      price: completedAppointment.price,
+    });
 
     return { success: true };
   } catch (error) {
@@ -659,8 +736,11 @@ export async function autoCompleteHealthAppointments() {
       id: true,
       date: true,
       time: true,
+      price: true,
       professionalId: true,
       stripeSessionId: true,
+      patient: { select: { name: true, email: true } },
+      professional: { select: { name: true, email: true } },
     },
   });
 
@@ -700,6 +780,13 @@ export async function autoCompleteHealthAppointments() {
 
       if (didComplete) {
         completed += 1;
+        await sendAppointmentCompletedEmail({
+          patient: appointment.patient,
+          professional: appointment.professional,
+          date: appointment.date,
+          time: appointment.time,
+          price: appointment.price,
+        });
       }
     } catch (error) {
       failed.push({

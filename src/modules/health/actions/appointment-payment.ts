@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/prisma";
+import { sendPaymentConfirmedEmail } from "@/modules/health/services/transactional-email-service";
 
 const PLATFORM_FEE_PERCENT = 10;
 
@@ -188,7 +189,17 @@ export async function finalizeHealthAppointmentPayment({
           paymentTermsIpAddress:
             session.metadata?.paymentTermsIpAddress || "unknown",
         },
-        select: { id: true, professionalId: true, patientId: true },
+        select: {
+          id: true,
+          professionalId: true,
+          patientId: true,
+          date: true,
+          time: true,
+          price: true,
+          meetLink: true,
+          patient: { select: { name: true, email: true } },
+          professional: { select: { name: true, email: true } },
+        },
       });
 
       if (holdId) {
@@ -230,6 +241,15 @@ export async function finalizeHealthAppointmentPayment({
     revalidatePath("/agendar-consulta/financeiro");
     revalidatePath("/dashboard/financeiro");
     revalidatePath(`/agendar-consulta/perfil/${appointment.professionalId}`);
+
+    await sendPaymentConfirmedEmail({
+      patient: appointment.patient,
+      professional: appointment.professional,
+      date: appointment.date,
+      time: appointment.time,
+      price: appointment.price,
+      meetLink: appointment.meetLink,
+    });
 
     return {
       success: true,
