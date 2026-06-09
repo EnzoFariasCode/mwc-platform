@@ -1,5 +1,7 @@
-"use server";
+﻿"use server";
 
+import { headers } from "next/headers";
+import { db } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { UserType, Industry } from "@prisma/client"; // Adicionado Industry aqui
 import {
@@ -18,18 +20,20 @@ export async function registerUser(
   const displayName = formData.get("displayName")?.toString().trim();
   const birthDateRaw = formData.get("birthDate")?.toString();
   const isPro = formData.get("isPro") === "on";
+  const acceptedProfessionalTerms =
+    formData.get("professionalTermsAccepted") === "on";
 
   // Dados profissionais
   const jobTitle = formData.get("jobTitle")?.toString().trim();
   const experienceRaw = formData.get("experienceLevel")?.toString();
   const industryRaw = formData.get("industry")?.toString(); // Extraindo o novo campo
 
-  // 1. Validação Básica
+  // 1. ValidaÃ§Ã£o BÃ¡sica
   if (!name || !email || !password) {
-    return { success: false, error: "Preencha todos os campos obrigatórios." };
+    return { success: false, error: "Preencha todos os campos obrigatÃ³rios." };
   }
 
-  // 2. Validação Profissional
+  // 2. ValidaÃ§Ã£o Profissional
   if (isPro) {
     if (!jobTitle) {
       return {
@@ -40,7 +44,13 @@ export async function registerUser(
     if (!industryRaw) {
       return {
         success: false,
-        error: "Profissionais precisam selecionar a área de atuação.",
+        error: "Profissionais precisam selecionar a Ã¡rea de atuaÃ§Ã£o.",
+      };
+    }
+    if (!acceptedProfessionalTerms) {
+      return {
+        success: false,
+        error: "Profissionais precisam aceitar os termos profissionais.",
       };
     }
   }
@@ -54,7 +64,7 @@ export async function registerUser(
     const userExists = await findUserByEmail(email);
 
     if (userExists) {
-      return { success: false, error: "Este email já está em uso." };
+      return { success: false, error: "Este email jÃ¡ estÃ¡ em uso." };
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -65,7 +75,7 @@ export async function registerUser(
     const industry =
       isPro && industryRaw === "HEALTH" ? Industry.HEALTH : Industry.TECH;
 
-    await createUser({
+    const user = await createUser({
       name,
       email,
       password: hashedPassword,
@@ -77,9 +87,28 @@ export async function registerUser(
       yearsOfExperience: isPro ? yearsOfExperience : null,
     });
 
+
+    if (isPro) {
+      const headersList = await headers();
+      const ipAddress =
+        headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        headersList.get("x-real-ip") ||
+        "unknown";
+      const userAgent = headersList.get("user-agent") || undefined;
+
+      await db.professionalTermsAcceptance.create({
+        data: {
+          userId: user.id,
+          ipAddress,
+          userAgent,
+          termsVersion: "professional-v1.0",
+        },
+      });
+    }
+
     return { success: true };
   } catch (error) {
-    console.error("Erro ao registrar usuário:", error);
+    console.error("Erro ao registrar usuÃ¡rio:", error);
     return { success: false, error: "Erro ao criar conta." };
   }
 }

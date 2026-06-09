@@ -152,8 +152,9 @@ model User {
   pixKey         String?
   pixKeyType     String?
 
-  transactions            Transaction[]
-  paymentTermsAcceptances PaymentTermsAcceptance[]
+  transactions                 Transaction[]
+  paymentTermsAcceptances      PaymentTermsAcceptance[]
+  professionalTermsAcceptances ProfessionalTermsAcceptance[]
 
   // --- Relacionamentos Tech ---
   projectsOwned    Project[]     @relation("ClientProjects")
@@ -484,4 +485,17 @@ model StripeEventLog {
   processedAt   DateTime @default(now())
 
   @@index([stripeEventId])
+}
+
+model ProfessionalTermsAcceptance {
+  id           String   @id @default(cuid())
+  userId       String
+  acceptedAt   DateTime @default(now())
+  ipAddress    String
+  termsVersion String   @default("professional-v1.0")
+  userAgent    String?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }

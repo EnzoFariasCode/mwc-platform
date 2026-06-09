@@ -372,6 +372,27 @@ function RegisterContent() {
                   </select>
                 </div>
               </div>
+
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <div className="relative mt-0.5 flex items-center">
+                    <input
+                      type="checkbox"
+                      name="professionalTermsAccepted"
+                      required={isPro}
+                      className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-border bg-input transition-all checked:border-primary checked:bg-primary"
+                    />
+                    <Check className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-primary-foreground opacity-0 peer-checked:opacity-100" />
+                  </div>
+                  <span className="text-xs leading-relaxed text-muted-foreground">
+                    Li e aceito os termos profissionais da MWC Online,
+                    incluindo taxa da plataforma de 10%, regras de repasse em
+                    escrow, liberaÃ§Ã£o de saldo apÃ³s conclusÃ£o, polÃ­tica de
+                    cancelamento pelo profissional, no-show do paciente e
+                    regras de saque.
+                  </span>
+                </label>
+              </div>
             </div>
           )}
         </div>
