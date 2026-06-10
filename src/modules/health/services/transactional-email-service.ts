@@ -203,6 +203,7 @@ export async function sendRescheduleEmail(
         : null,
       ...buildBaseLines(payload),
       payload.meetLink ? `Link da consulta: ${payload.meetLink}` : null,
+      "O pagamento original permanece valido. Nenhuma nova cobranca sera feita.",
     ]
       .filter(Boolean)
       .join("\n"),

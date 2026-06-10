@@ -6,20 +6,27 @@ import { toast } from "sonner";
 import {
   cancelProfessionalAppointment,
   markPatientNoShowAppointment,
+  rescheduleHealthAppointment,
 } from "@/modules/health/actions/appointment-actions";
 import { AppointmentReasonModal } from "./appointment-reason-modal";
+import { RescheduleAppointmentModal } from "./reschedule-appointment-modal";
 
 export function ProfessionalAppointmentActionButtons({
   appointmentId,
   canMarkNoShow,
+  appointmentDate,
+  appointmentTime,
 }: {
   appointmentId: string;
   canMarkNoShow: boolean;
+  appointmentDate: string;
+  appointmentTime: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const [modalType, setModalType] = useState<"cancel" | "no-show" | null>(
     null,
   );
+  const [showReschedule, setShowReschedule] = useState(false);
 
   const handleCancel = (reason: string) => {
     startTransition(async () => {
@@ -52,6 +59,24 @@ export function ProfessionalAppointmentActionButtons({
     });
   };
 
+  const handleReschedule = (newDate: string, newTime: string) => {
+    startTransition(async () => {
+      const result = await rescheduleHealthAppointment(
+        appointmentId,
+        newDate,
+        newTime,
+      );
+
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+
+      setShowReschedule(false);
+      toast.success("Consulta reagendada com sucesso. O paciente foi notificado.");
+    });
+  };
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       <button
@@ -66,9 +91,9 @@ export function ProfessionalAppointmentActionButtons({
 
       <button
         type="button"
-        disabled
-        title="Reagendamento exige escolha de novo horario e sera implementado no proximo passo."
-        className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-500 opacity-70"
+        onClick={() => setShowReschedule(true)}
+        disabled={isPending}
+        className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#d73cbe]/20 bg-[#d73cbe]/10 px-4 py-2.5 text-xs font-bold text-[#d73cbe] transition-all hover:bg-[#d73cbe]/20 disabled:cursor-wait disabled:opacity-60"
       >
         <CalendarClock className="h-4 w-4" />
         Reagendar
@@ -121,6 +146,16 @@ export function ProfessionalAppointmentActionButtons({
         ]}
         onClose={() => setModalType(null)}
         onConfirm={handleNoShow}
+      />
+
+      <RescheduleAppointmentModal
+        isOpen={showReschedule}
+        appointmentId={appointmentId}
+        currentDate={appointmentDate}
+        currentTime={appointmentTime}
+        isLoading={isPending}
+        onClose={() => setShowReschedule(false)}
+        onConfirm={handleReschedule}
       />
     </div>
   );

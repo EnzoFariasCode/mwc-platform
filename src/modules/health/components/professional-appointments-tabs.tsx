@@ -239,6 +239,8 @@ export function ProfessionalAppointmentsTabs({
                         <ProfessionalAppointmentActionButtons
                           appointmentId={appointment.id}
                           canMarkNoShow={canComplete}
+                          appointmentDate={appointment.date}
+                          appointmentTime={appointment.time}
                         />
                       </>
                     )}

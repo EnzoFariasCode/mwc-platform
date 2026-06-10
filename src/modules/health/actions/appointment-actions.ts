@@ -9,7 +9,12 @@ import {
   sendAppointmentCompletedEmail,
   sendCancellationEmail,
   sendRefundProcessedEmail,
+  sendRescheduleEmail,
 } from "@/modules/health/services/transactional-email-service";
+import {
+  generateDaySlots,
+  parseAppointmentDateTime,
+} from "@/modules/health/actions/slot-helpers";
 
 type EscrowAppointment = {
   id: string;
@@ -799,5 +804,209 @@ export async function autoCompleteHealthAppointments() {
   revalidateHealthAppointmentPaths();
 
   return { completed, failed };
+}
+
+export async function rescheduleHealthAppointment(
+  appointmentId: string,
+  newDate: string,
+  newTime: string,
+): Promise<{ success?: boolean; error?: string }> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { error: "Nao autorizado." };
+    }
+
+    if (!appointmentId) {
+      return { error: "Consulta invalida." };
+    }
+
+    const appointment = await db.appointment.findUnique({
+      where: { id: appointmentId },
+      select: {
+        id: true,
+        date: true,
+        time: true,
+        status: true,
+        professionalId: true,
+        patientId: true,
+        stripeSessionId: true,
+        price: true,
+        notes: true,
+        meetLink: true,
+        patient: { select: { name: true, email: true } },
+        professional: {
+          select: { name: true, email: true, sessionDuration: true },
+        },
+      },
+    });
+
+    if (!appointment) {
+      return { error: "Consulta nao encontrada." };
+    }
+
+    if (appointment.professionalId !== session.user.id) {
+      return { error: "Apenas o profissional pode reagendar esta consulta." };
+    }
+
+    if (appointment.status !== "CONFIRMED") {
+      return { error: "Apenas consultas confirmadas podem ser reagendadas." };
+    }
+
+    const currentDateTime = appointmentDateTime(
+      appointment.date,
+      appointment.time,
+    );
+
+    if (!currentDateTime) {
+      return { error: "Data atual da consulta invalida." };
+    }
+
+    const hoursUntilCurrent =
+      (currentDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+
+    if (hoursUntilCurrent < 24) {
+      return {
+        error:
+          "Reagendamento nao permitido com menos de 24 horas de antecedencia.",
+      };
+    }
+
+    const parsedNewDate = parseAppointmentDateTime(newDate, newTime);
+
+    if (!parsedNewDate) {
+      return { error: "Data ou horario invalido." };
+    }
+
+    if (parsedNewDate.dateTime <= new Date()) {
+      return { error: "O novo horario deve ser no futuro." };
+    }
+
+    const hoursUntilNew =
+      (parsedNewDate.dateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+
+    if (hoursUntilNew < 24) {
+      return {
+        error: "O novo horario deve ter pelo menos 24 horas de antecedencia.",
+      };
+    }
+
+    const dayOfWeek = parsedNewDate.dateOnly.getDay();
+
+    const exception = await db.availabilityException.findFirst({
+      where: {
+        professionalId: appointment.professionalId,
+        date: parsedNewDate.dateOnly,
+      },
+    });
+
+    if (exception && !exception.isAvailable) {
+      return { error: "Profissional nao atende nesta data." };
+    }
+
+    const dayRule = await db.professionalAvailability.findUnique({
+      where: {
+        professionalId_dayOfWeek: {
+          professionalId: appointment.professionalId,
+          dayOfWeek,
+        },
+      },
+    });
+
+    if (!dayRule || !dayRule.isActive || !dayRule.startTime || !dayRule.endTime) {
+      return { error: "Profissional nao atende neste dia da semana." };
+    }
+
+    const duration = appointment.professional.sessionDuration || 50;
+    const validSlots = generateDaySlots(
+      dayRule.startTime,
+      dayRule.endTime,
+      parsedNewDate.dateOnly,
+      duration,
+    );
+
+    if (!validSlots.includes(newTime)) {
+      return {
+        error:
+          "Horario invalido, fora do expediente ou desalinhado com a agenda.",
+      };
+    }
+
+    const existingAppointment = await db.appointment.findFirst({
+      where: {
+        professionalId: appointment.professionalId,
+        date: parsedNewDate.dateOnly,
+        time: newTime,
+        status: { not: "CANCELED" },
+        id: { not: appointmentId },
+      },
+      select: { id: true },
+    });
+
+    if (existingAppointment) {
+      return { error: "Este horario ja esta reservado." };
+    }
+
+    const activeHold = await db.appointmentHold.findFirst({
+      where: {
+        professionalId: appointment.professionalId,
+        date: parsedNewDate.dateOnly,
+        time: newTime,
+        expiresAt: { gt: new Date() },
+      },
+      select: { id: true },
+    });
+
+    if (activeHold) {
+      return {
+        error:
+          "Este horario esta temporariamente reservado. Tente novamente em alguns minutos.",
+      };
+    }
+
+    const rescheduleNote = `Reagendado pelo profissional em ${new Date().toLocaleString("pt-BR")}. De ${appointment.date.toLocaleDateString("pt-BR")} as ${appointment.time} para ${newDate} as ${newTime}. Pagamento original mantido.`;
+    const notes = appointment.notes
+      ? `${appointment.notes}\n\n${rescheduleNote}`
+      : rescheduleNote;
+
+    const updated = await db.appointment.updateMany({
+      where: {
+        id: appointmentId,
+        status: "CONFIRMED",
+        professionalId: session.user.id,
+      },
+      data: {
+        date: parsedNewDate.dateOnly,
+        time: newTime,
+        notes,
+      },
+    });
+
+    if (updated.count === 0) {
+      return { error: "Consulta nao esta mais disponivel para reagendamento." };
+    }
+
+    try {
+      await sendRescheduleEmail({
+        patient: appointment.patient,
+        professional: appointment.professional,
+        previousDate: appointment.date,
+        previousTime: appointment.time,
+        date: parsedNewDate.dateOnly,
+        time: newTime,
+        price: appointment.price,
+        meetLink: appointment.meetLink,
+      });
+    } catch (emailError) {
+      console.error("[RESCHEDULE] Email failed (non-blocking):", emailError);
+    }
+
+    revalidateHealthAppointmentPaths(appointment.professionalId);
+
+    return { success: true };
+  } catch (error) {
+    console.error("[RESCHEDULE_APPOINTMENT_ERROR]", error);
+    return { error: "Erro ao reagendar consulta." };
+  }
 }
 
