@@ -30,6 +30,10 @@ export async function confirmHealthPayment(
     expectedPatientId: userId,
   });
 
+  if (result.alreadyProcessed) {
+    return { success: true };
+  }
+
   if (!result.success) {
     return { success: false, error: result.error };
   }
