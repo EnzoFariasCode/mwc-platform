@@ -78,6 +78,14 @@ enum WithdrawalStatus {
   CANCELED
 }
 
+enum HealthSpecialty {
+  PSYCHOLOGIST
+  NUTRITIONIST
+  PERSONAL_TRAINER
+  LAWYER
+  ENGLISH_TEACHER
+}
+
 model User {
   id            String    @id @default(uuid())
   name          String
@@ -164,6 +172,9 @@ model User {
   paymentTermsAcceptances      PaymentTermsAcceptance[]
   professionalTermsAcceptances ProfessionalTermsAcceptance[]
   withdrawalRequests           WithdrawalRequest[]
+  clientRecordsAsPro           ClientRecord[]                @relation("ProfessionalRecords")
+  clientRecordsAsPat           ClientRecord[]                @relation("PatientRecords")
+  sessionNotesWritten          SessionNote[]                 @relation("ProfessionalSessionNotes")
 
   // --- Relacionamentos Tech ---
   projectsOwned    Project[]     @relation("ClientProjects")
@@ -343,8 +354,66 @@ model Appointment {
   serviceTypeId String?
   serviceType   ServiceType? @relation(fields: [serviceTypeId], references: [id])
 
+  sessionNote SessionNote?
+
   // Ajuda a prevenir consultas duplicadas no mesmo horário
   @@index([patientId])
+  @@index([professionalId])
+}
+
+model ClientRecord {
+  id             String          @id @default(cuid())
+  professionalId String
+  patientId      String
+  specialty      HealthSpecialty
+
+  // Pre-filled from patient User data, kept for snapshot
+  patientName   String
+  patientEmail  String?
+  patientPhone  String?
+  patientBirth  DateTime?
+  patientGender String?
+  patientCity   String?
+
+  // Common clinical fields
+  chiefComplaint String? @db.Text
+  generalNotes   String? @db.Text
+
+  // Specialty-specific fields stored as flexible JSON
+  specialtyData Json? @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  professional User          @relation("ProfessionalRecords", fields: [professionalId], references: [id])
+  patient      User          @relation("PatientRecords", fields: [patientId], references: [id])
+  sessionNotes SessionNote[]
+
+  @@unique([professionalId, patientId])
+  @@index([professionalId])
+  @@index([patientId])
+}
+
+model SessionNote {
+  id             String  @id @default(cuid())
+  clientRecordId String
+  appointmentId  String? @unique
+  professionalId String
+
+  sessionDate  DateTime
+  content      String   @db.Text
+  evolution    String?  @db.Text
+  nextSteps    String?  @db.Text
+  privateNotes String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientRecord ClientRecord @relation(fields: [clientRecordId], references: [id], onDelete: Cascade)
+  appointment  Appointment? @relation(fields: [appointmentId], references: [id])
+  professional User         @relation("ProfessionalSessionNotes", fields: [professionalId], references: [id])
+
+  @@index([clientRecordId])
   @@index([professionalId])
 }
 

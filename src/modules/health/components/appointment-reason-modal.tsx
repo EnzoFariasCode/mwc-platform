@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, X } from "lucide-react";
 
 type ReasonOption = {
@@ -34,7 +35,7 @@ export function AppointmentReasonModal({
   const [selectedReason, setSelectedReason] = useState(options[0]?.value ?? "");
   const [details, setDetails] = useState("");
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
   const normalizedDetails = details.trim();
   const canConfirm = Boolean(selectedReason) && normalizedDetails.length >= 10;
@@ -49,8 +50,8 @@ export function AppointmentReasonModal({
     onConfirm(`${selectedLabel}: ${normalizedDetails}`);
   };
 
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
       <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0f172a] text-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-5">
           <div className="flex gap-3">
@@ -135,6 +136,7 @@ export function AppointmentReasonModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
