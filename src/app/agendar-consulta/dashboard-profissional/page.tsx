@@ -62,6 +62,7 @@ export default async function ProHealthDashboard() {
         appointment.patient?.displayName ||
         appointment.patient?.name ||
         "Paciente Oculto",
+      patientId: appointment.patient.id,
     }),
   );
 

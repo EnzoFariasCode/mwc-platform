@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Banknote,
   CalendarClock,
   CheckCircle2,
   Clock3,
+  FileText,
   ShieldCheck,
   Timer,
   Video,
@@ -24,6 +26,7 @@ type ProfessionalAppointment = {
   meetLink: string | null;
   notes: string | null;
   patientName: string;
+  patientId: string;
 };
 
 function formatCurrency(value: number) {
@@ -229,6 +232,16 @@ export function ProfessionalAppointmentsTabs({
                         <Video className="h-4 w-4" />
                         Entrar na sala de atendimento
                       </a>
+                    )}
+                    {(appointment.status === "CONFIRMED" ||
+                      appointment.status === "COMPLETED") && (
+                      <Link
+                        href={`/agendar-consulta/prontuario/${appointment.patientId}`}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d73cbe]/20 bg-[#d73cbe]/10 px-4 py-2.5 text-xs font-bold text-[#d73cbe] transition-all hover:bg-[#d73cbe]/20 md:justify-end"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Prontuario
+                      </Link>
                     )}
                     {appointment.status === "CONFIRMED" && (
                       <>
