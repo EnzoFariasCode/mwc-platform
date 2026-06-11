@@ -1,0 +1,274 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { ChevronDown, ChevronUp, ClipboardList, Save } from "lucide-react";
+import { toast } from "sonner";
+import { updateClientRecord } from "@/modules/health/actions/client-record-actions";
+
+type SpecialtyField = {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "select";
+  options?: string[];
+};
+
+type Props = {
+  record: {
+    id: string;
+    specialty: string;
+    chiefComplaint: string | null;
+    generalNotes: string | null;
+    specialtyData: Record<string, unknown>;
+  };
+};
+
+const specialtyFields: Record<string, SpecialtyField[]> = {
+  PSYCHOLOGIST: [
+    { key: "cid", label: "CID-10", type: "text" },
+    { key: "approach", label: "Abordagem terapeutica", type: "text" },
+    { key: "medications", label: "Medicamentos em uso", type: "textarea" },
+    {
+      key: "mentalHealthHistory",
+      label: "Historico de saude mental",
+      type: "textarea",
+    },
+    {
+      key: "riskLevel",
+      label: "Nivel de risco",
+      type: "select",
+      options: ["low", "medium", "high"],
+    },
+    { key: "sessionFrequency", label: "Frequencia de sessoes", type: "text" },
+  ],
+  NUTRITIONIST: [
+    { key: "weight", label: "Peso (kg)", type: "text" },
+    { key: "height", label: "Altura (cm)", type: "text" },
+    { key: "bmi", label: "IMC", type: "text" },
+    { key: "goal", label: "Objetivo", type: "text" },
+    {
+      key: "foodRestrictions",
+      label: "Restricoes alimentares",
+      type: "textarea",
+    },
+    { key: "clinicalHistory", label: "Historico clinico", type: "textarea" },
+    { key: "currentDiet", label: "Dieta atual", type: "textarea" },
+  ],
+  PERSONAL_TRAINER: [
+    { key: "weight", label: "Peso (kg)", type: "text" },
+    { key: "height", label: "Altura (cm)", type: "text" },
+    { key: "bodyFatPercent", label: "% Gordura corporal", type: "text" },
+    { key: "goal", label: "Objetivo", type: "text" },
+    {
+      key: "physicalLimitations",
+      label: "Limitacoes fisicas",
+      type: "textarea",
+    },
+    {
+      key: "fitnessLevel",
+      label: "Nivel de condicionamento",
+      type: "select",
+      options: ["beginner", "intermediate", "advanced"],
+    },
+    { key: "currentProgram", label: "Programa atual", type: "textarea" },
+  ],
+  LAWYER: [
+    { key: "caseType", label: "Tipo de caso", type: "text" },
+    { key: "processNumber", label: "Numero do processo", type: "text" },
+    {
+      key: "relevantDocuments",
+      label: "Documentos relevantes",
+      type: "textarea",
+    },
+    { key: "legalStatus", label: "Status juridico atual", type: "text" },
+    { key: "opposingParty", label: "Parte contraria", type: "text" },
+    { key: "nextHearing", label: "Proxima audiencia", type: "text" },
+  ],
+  ENGLISH_TEACHER: [
+    {
+      key: "currentLevel",
+      label: "Nivel atual",
+      type: "select",
+      options: ["A1", "A2", "B1", "B2", "C1", "C2"],
+    },
+    { key: "goal", label: "Objetivo do aluno", type: "text" },
+    { key: "materialsUsed", label: "Materiais utilizados", type: "textarea" },
+    { key: "difficultyAreas", label: "Areas de dificuldade", type: "textarea" },
+    { key: "homeworkNotes", label: "Tarefas e anotacoes", type: "textarea" },
+  ],
+};
+
+const riskLabels: Record<string, string> = {
+  low: "Baixo",
+  medium: "Medio",
+  high: "Alto",
+};
+
+const fitnessLabels: Record<string, string> = {
+  beginner: "Iniciante",
+  intermediate: "Intermediario",
+  advanced: "Avancado",
+};
+
+function getSelectLabel(key: string, value: string) {
+  if (key === "riskLevel") return riskLabels[value] ?? value;
+  if (key === "fitnessLevel") return fitnessLabels[value] ?? value;
+  return value;
+}
+
+function getFieldValue(data: Record<string, unknown>, key: string) {
+  const value = data[key];
+  if (value === null || value === undefined) return "";
+  return String(value);
+}
+
+export function ClientRecordForm({ record }: Props) {
+  const [isPending, startTransition] = useTransition();
+  const [showSpecialty, setShowSpecialty] = useState(true);
+  const [chiefComplaint, setChiefComplaint] = useState(
+    record.chiefComplaint ?? "",
+  );
+  const [generalNotes, setGeneralNotes] = useState(record.generalNotes ?? "");
+  const [specialtyData, setSpecialtyData] = useState<Record<string, unknown>>(
+    record.specialtyData ?? {},
+  );
+
+  const fields = specialtyFields[record.specialty] ?? [];
+
+  const handleSpecialtyChange = (key: string, value: string) => {
+    setSpecialtyData((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = () => {
+    startTransition(async () => {
+      const result = await updateClientRecord(record.id, {
+        chiefComplaint,
+        generalNotes,
+        specialtyData,
+      });
+
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+
+      toast.success("Prontuario salvo com sucesso.");
+    });
+  };
+
+  return (
+    <div className="space-y-6 rounded-xl border border-white/10 bg-[#0f172a]/80 p-6 backdrop-blur-sm">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-[#d73cbe]/10 p-2 text-[#d73cbe]">
+            <ClipboardList className="h-5 w-5" />
+          </div>
+          <h2 className="text-lg font-bold uppercase tracking-tight text-white">
+            Dados Clinicos
+          </h2>
+        </div>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isPending}
+          className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-[#d73cbe] px-4 py-2 text-sm font-bold text-white transition-all hover:bg-[#c032a8] active:scale-95 disabled:cursor-wait disabled:opacity-60"
+        >
+          {isPending ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
+          Salvar
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+          Queixa principal / Motivo do atendimento
+        </label>
+        <textarea
+          value={chiefComplaint}
+          onChange={(event) => setChiefComplaint(event.target.value)}
+          rows={3}
+          className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+          placeholder="Descreva o motivo principal do atendimento..."
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+          Observacoes gerais
+        </label>
+        <textarea
+          value={generalNotes}
+          onChange={(event) => setGeneralNotes(event.target.value)}
+          rows={4}
+          className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+          placeholder="Anotacoes gerais sobre o paciente..."
+        />
+      </div>
+
+      {fields.length > 0 && (
+        <div className="space-y-4">
+          <button
+            type="button"
+            onClick={() => setShowSpecialty((value) => !value)}
+            className="flex cursor-pointer items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500 transition-colors hover:text-slate-300"
+          >
+            {showSpecialty ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+            Dados especificos da especialidade
+          </button>
+
+          {showSpecialty && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {fields.map((field) => (
+                <div key={field.key} className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    {field.label}
+                  </label>
+                  {field.type === "textarea" ? (
+                    <textarea
+                      value={getFieldValue(specialtyData, field.key)}
+                      onChange={(event) =>
+                        handleSpecialtyChange(field.key, event.target.value)
+                      }
+                      rows={3}
+                      className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                    />
+                  ) : field.type === "select" ? (
+                    <select
+                      value={getFieldValue(specialtyData, field.key)}
+                      onChange={(event) =>
+                        handleSpecialtyChange(field.key, event.target.value)
+                      }
+                      className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                    >
+                      <option value="">Selecionar...</option>
+                      {field.options?.map((option) => (
+                        <option key={option} value={option}>
+                          {getSelectLabel(field.key, option)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={getFieldValue(specialtyData, field.key)}
+                      onChange={(event) =>
+                        handleSpecialtyChange(field.key, event.target.value)
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
