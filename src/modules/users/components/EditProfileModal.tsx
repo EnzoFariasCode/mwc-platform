@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -17,6 +16,7 @@ import {
   Trash2,
   Save,
   AlertCircle,
+  CheckCircle2,
   MapPin,
   DollarSign,
   Loader2,
@@ -24,6 +24,7 @@ import {
   Camera, // <--- Importado para o ícone de foto
 } from "lucide-react";
 import Image from "next/image";
+import { PASSWORD_REGEX } from "@/modules/auth/lib/password";
 
 const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set([
@@ -69,11 +70,16 @@ type PortfolioItem = {
   url: string;
 };
 
+type SaveResult = {
+  success: boolean;
+  error?: string;
+};
+
 interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: any; // Flexibilizei para any para facilitar a integração com a action
-  onSave: (data: FormData) => void; // <--- Mudamos para FormData
+  onSave: (data: FormData) => SaveResult | Promise<SaveResult>; // <--- Mudamos para FormData
 }
 
 interface CityIBGE {
@@ -122,6 +128,9 @@ export function EditProfileModal({
   const [newSkill, setNewSkill] = useState("");
   const [newPortfolio, setNewPortfolio] = useState({ title: "", url: "" });
   const [error, setError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Inicializa dados
   useEffect(() => {
@@ -163,6 +172,9 @@ export function EditProfileModal({
       setPreviewUrl(user.avatarUrl || null);
 
       setError(null);
+      setPasswordError(null);
+      setSuccessMessage(null);
+      setIsSaving(false);
       setNewSkill("");
       setShowCityList(false);
     }
@@ -210,6 +222,30 @@ export function EditProfileModal({
         )
       : [];
 
+  const passwordRequirements = [
+    {
+      label: "Entre 8 e 20 caracteres",
+      valid:
+        formData.newPassword.length >= 8 && formData.newPassword.length <= 20,
+    },
+    {
+      label: "Uma letra maiuscula",
+      valid: /[A-Z]/.test(formData.newPassword),
+    },
+    {
+      label: "Uma letra minuscula",
+      valid: /[a-z]/.test(formData.newPassword),
+    },
+    {
+      label: "Um numero ou simbolo",
+      valid: /[\d\W]/.test(formData.newPassword),
+    },
+  ];
+
+  const isChangingPassword =
+    formData.currentPassword.trim() !== "" ||
+    formData.newPassword.trim() !== "";
+
   // --- LÓGICA DE SELEÇÃO DE IMAGEM ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -248,9 +284,11 @@ export function EditProfileModal({
     setList(list.filter((_: any, i: number) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setPasswordError(null);
+    setSuccessMessage(null);
 
     if (isPro && (!formData.jobTitle || formData.jobTitle.trim() === "")) {
       setError(
@@ -261,13 +299,21 @@ export function EditProfileModal({
 
     if (formData.newPassword.trim() !== "") {
       if (!formData.currentPassword) {
-        setError("Para alterar a senha, confirme a senha atual.");
+        setPasswordError("Informe a senha atual para alterar.");
         return;
       }
-      if (formData.newPassword.length < 6) {
-        setError("Nova senha deve ter min 6 caracteres.");
+      if (!PASSWORD_REGEX.test(formData.newPassword)) {
+        setPasswordError("A nova senha ainda nao atende aos requisitos.");
         return;
       }
+    }
+
+    if (
+      formData.currentPassword.trim() !== "" &&
+      formData.newPassword.trim() === ""
+    ) {
+      setPasswordError("Informe a nova senha para concluir a alteracao.");
+      return;
     }
 
     // --- CRIAÇÃO DO FORM DATA PARA ENVIO DE ARQUIVO ---
@@ -306,8 +352,38 @@ export function EditProfileModal({
       data.append("profileImage", selectedFile);
     }
 
-    onSave(data); // Envia o FormData para o pai
-    onClose();
+    setIsSaving(true);
+    try {
+      const result = await onSave(data); // Envia o FormData para o pai
+
+      if (!result.success) {
+        const message = result.error || "Erro ao salvar perfil.";
+        if (message.toLowerCase().includes("senha")) {
+          setPasswordError(
+            message.toLowerCase().includes("incorreta")
+              ? "SENHA ATUAL ESTA INCORRETA."
+              : message,
+          );
+        } else {
+          setError(message);
+        }
+        return;
+      }
+
+      if (isChangingPassword) {
+        setFormData((prev) => ({
+          ...prev,
+          currentPassword: "",
+          newPassword: "",
+        }));
+        setSuccessMessage("Senha alterada com sucesso.");
+        return;
+      }
+
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -337,6 +413,13 @@ export function EditProfileModal({
             <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-sm flex items-center gap-2 animate-pulse">
               <AlertCircle className="w-4 h-4" />
               {error}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 p-3 rounded-lg text-sm flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4" />
+              {successMessage}
             </div>
           )}
 
@@ -782,20 +865,59 @@ export function EditProfileModal({
               type="password"
               placeholder="Senha Atual"
               value={formData.currentPassword}
-              onChange={(e) =>
-                setFormData({ ...formData, currentPassword: e.target.value })
-              }
-              className="w-full p-2 mb-2 bg-slate-950 border border-slate-700 rounded text-sm"
+              autoComplete="current-password"
+              disabled={isSaving}
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  currentPassword: e.target.value,
+                });
+                setPasswordError(null);
+                setSuccessMessage(null);
+              }}
+              className="w-full p-2 mb-2 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
             />
+            {passwordError && (
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-red-400">
+                <AlertCircle className="h-3.5 w-3.5" />
+                {passwordError}
+              </p>
+            )}
             <input
               type="password"
               placeholder="Nova Senha"
               value={formData.newPassword}
-              onChange={(e) =>
-                setFormData({ ...formData, newPassword: e.target.value })
-              }
-              className="w-full p-2 bg-slate-950 border border-slate-700 rounded text-sm"
+              autoComplete="new-password"
+              disabled={isSaving}
+              onChange={(e) => {
+                setFormData({ ...formData, newPassword: e.target.value });
+                setPasswordError(null);
+                setSuccessMessage(null);
+              }}
+              className="w-full p-2 bg-slate-950 border border-slate-700 rounded text-sm text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
             />
+            {formData.newPassword && (
+              <div className="grid gap-1.5 pt-2 text-[11px]">
+                {passwordRequirements.map((requirement) => (
+                  <div
+                    key={requirement.label}
+                    className={`flex items-center gap-1.5 ${
+                      requirement.valid ? "text-emerald-400" : "text-slate-500"
+                    }`}
+                  >
+                    {requirement.valid ? (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    ) : (
+                      <AlertCircle className="h-3.5 w-3.5" />
+                    )}
+                    {requirement.label}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-[11px] leading-relaxed text-slate-500">
+              Preencha os dois campos somente se desejar alterar sua senha.
+            </p>
           </div>
         </form>
 
@@ -804,15 +926,22 @@ export function EditProfileModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg cursor-pointer"
+            disabled={isSaving}
+            className="px-4 py-2.5 text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
           >
             Cancelar
           </button>
           <button
             onClick={handleSubmit}
-            className="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 hover:scale-[1.02] rounded-lg shadow-lg shadow-indigo-900/20 cursor-pointer flex items-center gap-2"
+            disabled={isSaving}
+            className="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 hover:scale-[1.02] rounded-lg shadow-lg shadow-indigo-900/20 cursor-pointer flex items-center gap-2 disabled:cursor-wait disabled:opacity-70 disabled:hover:scale-100"
           >
-            <Save className="w-4 h-4" /> Salvar
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {isSaving ? "Salvando..." : "Salvar"}
           </button>
         </div>
       </div>

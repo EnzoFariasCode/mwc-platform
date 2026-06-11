@@ -198,27 +198,27 @@ export default function PerfilView({ user }: { user: UserData }) {
       }
     }
 
-    setCurrentUser((prev) => ({
-      ...prev,
-      ...tempUpdates,
-      avatarUrl: newAvatarUrl,
-      hourlyRate: tempUpdates.hourlyRate
-        ? parseFloat(tempUpdates.hourlyRate)
-        : prev.hourlyRate,
-      yearsOfExperience: tempUpdates.yearsOfExperience
-        ? parseInt(tempUpdates.yearsOfExperience)
-        : prev.yearsOfExperience,
-    }));
-
     try {
       const response = await updateProfile(formData);
       if (!response.success) {
-        alert(response.error);
-      } else {
-        setIsEditModalOpen(false);
+        return response;
       }
+
+      setCurrentUser((prev) => ({
+        ...prev,
+        ...tempUpdates,
+        avatarUrl: newAvatarUrl,
+        hourlyRate: tempUpdates.hourlyRate
+          ? parseFloat(tempUpdates.hourlyRate)
+          : prev.hourlyRate,
+        yearsOfExperience: tempUpdates.yearsOfExperience
+          ? parseInt(tempUpdates.yearsOfExperience)
+          : prev.yearsOfExperience,
+      }));
+
+      return response;
     } catch {
-      alert("Erro ao salvar perfil.");
+      return { success: false, error: "Erro ao salvar perfil." };
     } finally {
     }
   };

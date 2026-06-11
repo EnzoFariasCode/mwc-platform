@@ -7,6 +7,7 @@ import { Prisma } from "@prisma/client";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { validatePassword } from "@/modules/auth/lib/password";
 const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -181,6 +182,14 @@ export async function updateProfile(
     if (newPassword && newPassword.trim() !== "") {
       if (!currentPassword) {
         return { success: false, error: "Informe a senha atual para alterar." };
+      }
+
+      const passwordValidation = validatePassword(newPassword);
+      if (!passwordValidation.valid) {
+        return {
+          success: false,
+          error: passwordValidation.error || "A senha nao atende aos requisitos.",
+        };
       }
 
       if (!userInDb.password) {
