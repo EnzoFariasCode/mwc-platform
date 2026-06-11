@@ -91,10 +91,14 @@ export default async function ProntuarioPage({ params }: Props) {
 
         <div className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
           <div className="space-y-6">
-            <ClientRecordForm record={record} />
+            <ClientRecordForm
+              key={record.updatedAt.toISOString()}
+              record={record}
+            />
             <AddSessionNoteForm
               clientRecordId={record.id}
               patientId={patientId}
+              specialty={record.specialty}
             />
             <SessionNotesList notes={record.sessionNotes} />
           </div>

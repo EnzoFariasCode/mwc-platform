@@ -8,9 +8,24 @@ import { createSessionNote } from "@/modules/health/actions/client-record-action
 type Props = {
   clientRecordId: string;
   patientId: string;
+  specialty: string;
 };
 
-export function AddSessionNoteForm({ clientRecordId }: Props) {
+const moodOptions = [
+  "Ansioso",
+  "Calmo",
+  "Depressivo",
+  "Receptivo",
+  "Agitado",
+  "Resistente",
+  "Emocionado",
+  "Fechado",
+];
+
+export function AddSessionNoteForm({
+  clientRecordId,
+  specialty,
+}: Props) {
   const [isPending, startTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
   const [sessionDate, setSessionDate] = useState(
@@ -20,6 +35,8 @@ export function AddSessionNoteForm({ clientRecordId }: Props) {
   const [evolution, setEvolution] = useState("");
   const [nextSteps, setNextSteps] = useState("");
   const [privateNotes, setPrivateNotes] = useState("");
+  const [moodOnArrival, setMoodOnArrival] = useState<string[]>([]);
+  const [techniquesUsed, setTechniquesUsed] = useState("");
 
   const handleSubmit = () => {
     if (content.trim().length < 10) {
@@ -28,9 +45,25 @@ export function AddSessionNoteForm({ clientRecordId }: Props) {
     }
 
     startTransition(async () => {
+      const psychologyExtra =
+        specialty === "PSYCHOLOGIST"
+          ? [
+              moodOnArrival.length > 0
+                ? `Estado inicial: ${moodOnArrival.join(", ")}`
+                : "",
+              techniquesUsed ? `Tecnicas: ${techniquesUsed}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n")
+          : "";
+
+      const fullContent = psychologyExtra
+        ? `${content}\n\n---\n${psychologyExtra}`
+        : content;
+
       const result = await createSessionNote(clientRecordId, {
         sessionDate,
-        content,
+        content: fullContent,
         evolution: evolution || undefined,
         nextSteps: nextSteps || undefined,
         privateNotes: privateNotes || undefined,
@@ -46,6 +79,8 @@ export function AddSessionNoteForm({ clientRecordId }: Props) {
       setEvolution("");
       setNextSteps("");
       setPrivateNotes("");
+      setMoodOnArrival([]);
+      setTechniquesUsed("");
       setIsOpen(false);
     });
   };
@@ -84,6 +119,36 @@ export function AddSessionNoteForm({ clientRecordId }: Props) {
             />
           </div>
 
+          {specialty === "PSYCHOLOGIST" && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Estado inicial do paciente
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {moodOptions.map((mood) => (
+                  <button
+                    key={mood}
+                    type="button"
+                    onClick={() =>
+                      setMoodOnArrival((prev) =>
+                        prev.includes(mood)
+                          ? prev.filter((item) => item !== mood)
+                          : [...prev, mood],
+                      )
+                    }
+                    className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-bold transition-all ${
+                      moodOnArrival.includes(mood)
+                        ? "border-[#d73cbe]/50 bg-[#d73cbe]/20 text-[#d73cbe]"
+                        : "border-white/10 bg-white/5 text-slate-400 hover:border-white/20 hover:text-white"
+                    }`}
+                  >
+                    {mood}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
               Nota da sessao <span className="text-red-400">*</span>
@@ -109,6 +174,21 @@ export function AddSessionNoteForm({ clientRecordId }: Props) {
               className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
             />
           </div>
+
+          {specialty === "PSYCHOLOGIST" && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Intervencoes e tecnicas utilizadas
+              </label>
+              <textarea
+                value={techniquesUsed}
+                onChange={(event) => setTechniquesUsed(event.target.value)}
+                rows={2}
+                placeholder="Ex: Reestruturacao cognitiva, exposicao gradual, mindfulness..."
+                className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+              />
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">

@@ -4,8 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-
-// =========================================================
+// ==========d===============================================
 // TYPES
 // =========================================================
 
@@ -44,6 +43,17 @@ export type ClientRecordResult = {
     patientCity: string | null;
     chiefComplaint: string | null;
     generalNotes: string | null;
+    emergencyContactName: string | null;
+    emergencyContactPhone: string | null;
+    emergencyContactRel: string | null;
+    occupation: string | null;
+    previousTreatments: string | null;
+    familyHistory: string | null;
+    continuousMedications: string | null;
+    sessionValueAgreed: number | null;
+    sessionFrequency: string | null;
+    fixedSessionDay: string | null;
+    fixedSessionTime: string | null;
     specialtyData: Record<string, unknown>;
     createdAt: Date;
     updatedAt: Date;
@@ -150,6 +160,17 @@ export async function updateClientRecord(
     chiefComplaint?: string;
     generalNotes?: string;
     specialtyData?: Record<string, unknown>;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+    emergencyContactRel?: string;
+    occupation?: string;
+    previousTreatments?: string;
+    familyHistory?: string;
+    continuousMedications?: string;
+    sessionValueAgreed?: number | null;
+    sessionFrequency?: string;
+    fixedSessionDay?: string;
+    fixedSessionTime?: string;
   },
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -175,9 +196,48 @@ export async function updateClientRecord(
     await db.clientRecord.update({
       where: { id: recordId },
       data: {
-        chiefComplaint: data.chiefComplaint,
-        generalNotes: data.generalNotes,
-        specialtyData: data.specialtyData as Prisma.InputJsonValue | undefined,
+        ...(data.chiefComplaint !== undefined && {
+          chiefComplaint: data.chiefComplaint || null,
+        }),
+        ...(data.generalNotes !== undefined && {
+          generalNotes: data.generalNotes || null,
+        }),
+        ...(data.specialtyData !== undefined && {
+          specialtyData: data.specialtyData as Prisma.InputJsonValue,
+        }),
+        ...(data.emergencyContactName !== undefined && {
+          emergencyContactName: data.emergencyContactName || null,
+        }),
+        ...(data.emergencyContactPhone !== undefined && {
+          emergencyContactPhone: data.emergencyContactPhone || null,
+        }),
+        ...(data.emergencyContactRel !== undefined && {
+          emergencyContactRel: data.emergencyContactRel || null,
+        }),
+        ...(data.occupation !== undefined && {
+          occupation: data.occupation || null,
+        }),
+        ...(data.previousTreatments !== undefined && {
+          previousTreatments: data.previousTreatments || null,
+        }),
+        ...(data.familyHistory !== undefined && {
+          familyHistory: data.familyHistory || null,
+        }),
+        ...(data.continuousMedications !== undefined && {
+          continuousMedications: data.continuousMedications || null,
+        }),
+        ...(data.sessionValueAgreed !== undefined && {
+          sessionValueAgreed: data.sessionValueAgreed,
+        }),
+        ...(data.sessionFrequency !== undefined && {
+          sessionFrequency: data.sessionFrequency || null,
+        }),
+        ...(data.fixedSessionDay !== undefined && {
+          fixedSessionDay: data.fixedSessionDay || null,
+        }),
+        ...(data.fixedSessionTime !== undefined && {
+          fixedSessionTime: data.fixedSessionTime || null,
+        }),
       },
     });
 
@@ -358,6 +418,83 @@ export async function getClientRecord(
 }
 
 // =========================================================
+// ACTION 6 - List all ClientRecords for professional
+// =========================================================
+
+export type ClientRecordSummary = {
+  id: string;
+  patientId: string;
+  patientName: string;
+  patientEmail: string | null;
+  patientCity: string | null;
+  specialty: string;
+  chiefComplaint: string | null;
+  totalNotes: number;
+  lastSessionDate: Date | null;
+  updatedAt: Date;
+};
+
+export async function listProfessionalClientRecords(): Promise<{
+  success: boolean;
+  error?: string;
+  records?: ClientRecordSummary[];
+}> {
+  try {
+    const session = await auth();
+
+    if (
+      !session?.user?.id ||
+      session.user.userType !== "PROFESSIONAL" ||
+      session.user.industry !== "HEALTH"
+    ) {
+      return { success: false, error: "Nao autorizado." };
+    }
+
+    const records = await db.clientRecord.findMany({
+      where: { professionalId: session.user.id },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        patientId: true,
+        patientName: true,
+        patientEmail: true,
+        patientCity: true,
+        specialty: true,
+        chiefComplaint: true,
+        updatedAt: true,
+        sessionNotes: {
+          orderBy: { sessionDate: "desc" },
+          take: 1,
+          select: { sessionDate: true },
+        },
+        _count: {
+          select: { sessionNotes: true },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      records: records.map((record) => ({
+        id: record.id,
+        patientId: record.patientId,
+        patientName: record.patientName,
+        patientEmail: record.patientEmail,
+        patientCity: record.patientCity,
+        specialty: record.specialty,
+        chiefComplaint: record.chiefComplaint,
+        totalNotes: record._count.sessionNotes,
+        lastSessionDate: record.sessionNotes[0]?.sessionDate ?? null,
+        updatedAt: record.updatedAt,
+      })),
+    };
+  } catch (error) {
+    console.error("[LIST_PROFESSIONAL_CLIENT_RECORDS]", error);
+    return { success: false, error: "Erro ao carregar prontuarios." };
+  }
+}
+
+// =========================================================
 // HELPERS
 // =========================================================
 
@@ -394,6 +531,17 @@ function serializeClientRecord(record: {
   patientCity: string | null;
   chiefComplaint: string | null;
   generalNotes: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  emergencyContactRel: string | null;
+  occupation: string | null;
+  previousTreatments: string | null;
+  familyHistory: string | null;
+  continuousMedications: string | null;
+  sessionValueAgreed: Prisma.Decimal | number | null;
+  sessionFrequency: string | null;
+  fixedSessionDay: string | null;
+  fixedSessionTime: string | null;
   specialtyData: unknown;
   createdAt: Date;
   updatedAt: Date;
@@ -401,6 +549,10 @@ function serializeClientRecord(record: {
 }): ClientRecordWithNotes {
   return {
     ...record,
+    sessionValueAgreed:
+      record.sessionValueAgreed !== null
+        ? Number(record.sessionValueAgreed)
+        : null,
     specialtyData:
       record.specialtyData &&
       typeof record.specialtyData === "object" &&

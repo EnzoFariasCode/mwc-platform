@@ -19,6 +19,18 @@ type Props = {
     chiefComplaint: string | null;
     generalNotes: string | null;
     specialtyData: Record<string, unknown>;
+    updatedAt: Date;
+    emergencyContactName: string | null;
+    emergencyContactPhone: string | null;
+    emergencyContactRel: string | null;
+    occupation: string | null;
+    previousTreatments: string | null;
+    familyHistory: string | null;
+    continuousMedications: string | null;
+    sessionValueAgreed: number | null;
+    sessionFrequency: string | null;
+    fixedSessionDay: string | null;
+    fixedSessionTime: string | null;
   };
 };
 
@@ -131,6 +143,37 @@ export function ClientRecordForm({ record }: Props) {
   const [specialtyData, setSpecialtyData] = useState<Record<string, unknown>>(
     record.specialtyData ?? {},
   );
+  const [emergencyContactName, setEmergencyContactName] = useState(
+    record.emergencyContactName ?? "",
+  );
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState(
+    record.emergencyContactPhone ?? "",
+  );
+  const [emergencyContactRel, setEmergencyContactRel] = useState(
+    record.emergencyContactRel ?? "",
+  );
+  const [occupation, setOccupation] = useState(record.occupation ?? "");
+  const [previousTreatments, setPreviousTreatments] = useState(
+    record.previousTreatments ?? "",
+  );
+  const [familyHistory, setFamilyHistory] = useState(
+    record.familyHistory ?? "",
+  );
+  const [continuousMedications, setContinuousMedications] = useState(
+    record.continuousMedications ?? "",
+  );
+  const [sessionValueAgreed, setSessionValueAgreed] = useState(
+    record.sessionValueAgreed != null ? String(record.sessionValueAgreed) : "",
+  );
+  const [sessionFrequency, setSessionFrequency] = useState(
+    record.sessionFrequency ?? "",
+  );
+  const [fixedSessionDay, setFixedSessionDay] = useState(
+    record.fixedSessionDay ?? "",
+  );
+  const [fixedSessionTime, setFixedSessionTime] = useState(
+    record.fixedSessionTime ?? "",
+  );
 
   const fields = specialtyFields[record.specialty] ?? [];
 
@@ -144,6 +187,19 @@ export function ClientRecordForm({ record }: Props) {
         chiefComplaint,
         generalNotes,
         specialtyData,
+        emergencyContactName,
+        emergencyContactPhone,
+        emergencyContactRel,
+        occupation,
+        previousTreatments,
+        familyHistory,
+        continuousMedications,
+        sessionValueAgreed: sessionValueAgreed
+          ? Number(sessionValueAgreed)
+          : null,
+        sessionFrequency,
+        fixedSessionDay,
+        fixedSessionTime,
       });
 
       if (result.error) {
@@ -206,6 +262,186 @@ export function ClientRecordForm({ record }: Props) {
           placeholder="Anotacoes gerais sobre o paciente..."
         />
       </div>
+
+      {record.specialty === "PSYCHOLOGIST" && (
+        <>
+          <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Contato de Emergencia
+            </p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Nome
+                </label>
+                <input
+                  type="text"
+                  value={emergencyContactName}
+                  onChange={(event) =>
+                    setEmergencyContactName(event.target.value)
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  placeholder="Nome do contato"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Telefone
+                </label>
+                <input
+                  type="text"
+                  value={emergencyContactPhone}
+                  onChange={(event) =>
+                    setEmergencyContactPhone(event.target.value)
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  placeholder="(11) 99999-9999"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Parentesco
+                </label>
+                <input
+                  type="text"
+                  value={emergencyContactRel}
+                  onChange={(event) =>
+                    setEmergencyContactRel(event.target.value)
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  placeholder="Ex: Mae, Conjuge"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Profissao
+              </label>
+              <input
+                type="text"
+                value={occupation}
+                onChange={(event) => setOccupation(event.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                placeholder="Ex: Professora, Engenheiro"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Medicamentos continuos
+              </label>
+              <input
+                type="text"
+                value={continuousMedications}
+                onChange={(event) =>
+                  setContinuousMedications(event.target.value)
+                }
+                className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                placeholder="Ex: Sertralina 50mg"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+              Tratamentos anteriores
+            </label>
+            <textarea
+              value={previousTreatments}
+              onChange={(event) => setPreviousTreatments(event.target.value)}
+              rows={3}
+              className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+              placeholder="Historico de tratamentos psicologicos ou psiquiatricos anteriores..."
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+              Historico familiar relevante
+            </label>
+            <textarea
+              value={familyHistory}
+              onChange={(event) => setFamilyHistory(event.target.value)}
+              rows={3}
+              className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+              placeholder="Historico familiar relevante para o tratamento..."
+            />
+          </div>
+
+          <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Configuracoes do Tratamento
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Valor acordado por sessao (R$)
+                </label>
+                <input
+                  type="number"
+                  value={sessionValueAgreed}
+                  onChange={(event) =>
+                    setSessionValueAgreed(event.target.value)
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  placeholder="0,00"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Frequencia
+                </label>
+                <select
+                  value={sessionFrequency}
+                  onChange={(event) =>
+                    setSessionFrequency(event.target.value)
+                  }
+                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                >
+                  <option value="">Selecionar...</option>
+                  <option value="semanal">Semanal</option>
+                  <option value="quinzenal">Quinzenal</option>
+                  <option value="mensal">Mensal</option>
+                  <option value="sob_demanda">Sob demanda</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Dia fixo
+                </label>
+                <select
+                  value={fixedSessionDay}
+                  onChange={(event) => setFixedSessionDay(event.target.value)}
+                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                >
+                  <option value="">Sem dia fixo</option>
+                  <option value="segunda">Segunda-feira</option>
+                  <option value="terca">Terca-feira</option>
+                  <option value="quarta">Quarta-feira</option>
+                  <option value="quinta">Quinta-feira</option>
+                  <option value="sexta">Sexta-feira</option>
+                  <option value="sabado">Sabado</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Horario fixo
+                </label>
+                <input
+                  type="time"
+                  value={fixedSessionTime}
+                  onChange={(event) => setFixedSessionTime(event.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {fields.length > 0 && (
         <div className="space-y-4">

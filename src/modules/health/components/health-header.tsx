@@ -90,12 +90,20 @@ export function HealthHeader() {
             Minhas Consultas
           </Link>
           {isPro && (
-            <Link
-              href="/agendar-consulta/financeiro"
-              className="hover:text-[#d73cbe] transition-colors"
-            >
-              Financeiro
-            </Link>
+            <>
+              <Link
+                href="/agendar-consulta/prontuarios"
+                className="hover:text-[#d73cbe] transition-colors"
+              >
+                Prontuarios
+              </Link>
+              <Link
+                href="/agendar-consulta/financeiro"
+                className="hover:text-[#d73cbe] transition-colors"
+              >
+                Financeiro
+              </Link>
+            </>
           )}
         </nav>
 

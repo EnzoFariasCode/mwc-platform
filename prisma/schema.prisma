@@ -379,6 +379,20 @@ model ClientRecord {
   chiefComplaint String? @db.Text
   generalNotes   String? @db.Text
 
+  // Psychology-specific permanent fields
+  // These are stored as dedicated columns for querying and reporting
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  emergencyContactRel   String?
+  occupation            String?
+  previousTreatments    String?  @db.Text
+  familyHistory         String?  @db.Text
+  continuousMedications String?  @db.Text
+  sessionValueAgreed    Decimal?
+  sessionFrequency      String?
+  fixedSessionDay       String?
+  fixedSessionTime      String?
+
   // Specialty-specific fields stored as flexible JSON
   specialtyData Json? @default("{}")
 
