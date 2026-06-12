@@ -70,7 +70,7 @@ function RegisterContent() {
     e.preventDefault();
 
     if (!isPasswordValid) {
-      toast.error("A senha nÃ£o atende aos requisitos de seguranÃ§a.");
+      toast.error("A senha nao atende aos requisitos de seguranca.");
       return;
     }
 
@@ -111,7 +111,7 @@ function RegisterContent() {
             </div>
             <div>
               <p className="text-foreground text-sm font-medium">
-                VocÃª estÃ¡ se cadastrando para falar com{" "}
+                Voce esta se cadastrando para falar com{" "}
                 <span className="text-primary">{proName}</span>.
               </p>
               <p className="text-muted-foreground text-xs mt-0.5">
@@ -121,7 +121,7 @@ function RegisterContent() {
           </div>
         ) : (
           <p className="text-muted-foreground">
-            JÃ¡ tem uma conta?{" "}
+            Ja tem uma conta?{" "}
             <Link
               href={`/login${queryParams}`}
               className="text-primary hover:underline font-medium transition-all"
@@ -162,7 +162,7 @@ function RegisterContent() {
             <input
               name="displayName"
               type="text"
-              placeholder="Ex: JoÃ£o da Silva"
+              placeholder="Ex: Joao da Silva"
               required
               className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground"
             />
@@ -237,11 +237,11 @@ function RegisterContent() {
           {(passwordFocus || password.length > 0) && (
             <div className="grid grid-cols-2 gap-2 mt-2 p-3 bg-card border border-border rounded-lg animate-in fade-in slide-in-from-top-1">
               <PasswordRequirement met={reqs.length} text="8 a 20 caracteres" />
-              <PasswordRequirement met={reqs.upper} text="Letra maiÃºscula" />
-              <PasswordRequirement met={reqs.lower} text="Letra minÃºscula" />
+              <PasswordRequirement met={reqs.upper} text="Letra maiuscula" />
+              <PasswordRequirement met={reqs.lower} text="Letra minuscula" />
               <PasswordRequirement
                 met={reqs.numberOrSymbol}
-                text="NÃºmero ou sÃ­mbolo"
+                text="Numero ou simbolo"
               />
             </div>
           )}
@@ -275,7 +275,7 @@ function RegisterContent() {
             <div className="space-y-4 pl-4 border-l-2 border-primary/20 animate-in slide-in-from-top-2 fade-in duration-300">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
-                  Ãrea de atuaÃ§Ã£o principal
+                  Area de atuacao principal
                 </label>
                 <div className="relative group">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
@@ -295,7 +295,7 @@ function RegisterContent() {
                     <option value="" disabled className="text-muted-foreground">
                       Selecione o seu setor...
                     </option>
-                    <option value="TECH">Tecnologia, Design & NegÃ³cios</option>
+                    <option value="TECH">Tecnologia, Design & Negocios</option>
                     <option value="HEALTH">
                       MWC Online - Consultorias e Atendimentos
                     </option>
@@ -328,10 +328,10 @@ function RegisterContent() {
                       </option>
                       <option value="Personal Trainer">Personal Trainer</option>
                       <option value="Nutricionista">Nutricionista</option>
-                      <option value="Professor(a) de InglÃªs">
-                        Professor(a) de InglÃªs
+                      <option value="Professor(a) de Ingles">
+                        Professor(a) de Ingles
                       </option>
-                      <option value="PsicÃ³logo(a)">PsicÃ³logo(a)</option>
+                      <option value="Psicologo(a)">Psicologo(a)</option>
                       <option value="Advogado(a)">Advogado(a)</option>
                     </select>
                   ) : (
@@ -349,7 +349,7 @@ function RegisterContent() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
-                  Tempo de experiÃªncia
+                  Tempo de experiencia
                 </label>
                 <div className="relative group">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
@@ -387,7 +387,7 @@ function RegisterContent() {
                   <span className="text-xs leading-relaxed text-muted-foreground">
                     Li e aceito os termos profissionais da MWC Online,
                     incluindo taxa da plataforma de 10%, regras de repasse em
-                    escrow, liberaÃ§Ã£o de saldo apÃ³s conclusÃ£o, polÃ­tica de
+                    escrow, liberacao de saldo apos conclusao, politica de
                     cancelamento pelo profissional, no-show do paciente e
                     regras de saque.
                   </span>

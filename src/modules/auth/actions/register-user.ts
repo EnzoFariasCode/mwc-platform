@@ -28,12 +28,12 @@ export async function registerUser(
   const experienceRaw = formData.get("experienceLevel")?.toString();
   const industryRaw = formData.get("industry")?.toString(); // Extraindo o novo campo
 
-  // 1. ValidaÃ§Ã£o BÃ¡sica
+  // 1. Validacao basica
   if (!name || !email || !password) {
-    return { success: false, error: "Preencha todos os campos obrigatÃ³rios." };
+    return { success: false, error: "Preencha todos os campos obrigatorios." };
   }
 
-  // 2. ValidaÃ§Ã£o Profissional
+  // 2. Validacao profissional
   if (isPro) {
     if (!jobTitle) {
       return {
@@ -44,7 +44,7 @@ export async function registerUser(
     if (!industryRaw) {
       return {
         success: false,
-        error: "Profissionais precisam selecionar a Ã¡rea de atuaÃ§Ã£o.",
+        error: "Profissionais precisam selecionar a area de atuacao.",
       };
     }
     if (!acceptedProfessionalTerms) {
@@ -64,7 +64,7 @@ export async function registerUser(
     const userExists = await findUserByEmail(email);
 
     if (userExists) {
-      return { success: false, error: "Este email jÃ¡ estÃ¡ em uso." };
+      return { success: false, error: "Este email ja esta em uso." };
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -108,7 +108,7 @@ export async function registerUser(
 
     return { success: true };
   } catch (error) {
-    console.error("Erro ao registrar usuÃ¡rio:", error);
+    console.error("Erro ao registrar usuario:", error);
     return { success: false, error: "Erro ao criar conta." };
   }
 }
