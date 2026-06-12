@@ -1,0 +1,15 @@
+-- AlterTable
+ALTER TABLE "ClientRecord" ADD COLUMN     "alcoholConsumption" TEXT,
+ADD COLUMN     "foodAllergies" TEXT,
+ADD COLUMN     "foodAversions" TEXT,
+ADD COLUMN     "foodPattern" TEXT,
+ADD COLUMN     "foodPreferences" TEXT,
+ADD COLUMN     "intestinalFunction" TEXT,
+ADD COLUMN     "nutritionDiagnosedPathologies" TEXT,
+ADD COLUMN     "nutritionFamilyHistory" TEXT,
+ADD COLUMN     "nutritionMedications" TEXT,
+ADD COLUMN     "physicalActivity" TEXT,
+ADD COLUMN     "sleepQuality" TEXT,
+ADD COLUMN     "smokingStatus" TEXT,
+ADD COLUMN     "stressLevel" TEXT,
+ADD COLUMN     "waterIntakeLiters" DECIMAL(65,30);

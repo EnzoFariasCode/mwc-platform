@@ -393,6 +393,22 @@ model ClientRecord {
   fixedSessionDay       String?
   fixedSessionTime      String?
 
+  // Nutrition-specific permanent fields
+  nutritionDiagnosedPathologies String?  @db.Text
+  nutritionFamilyHistory        String?  @db.Text
+  nutritionMedications          String?  @db.Text
+  intestinalFunction            String?
+  sleepQuality                  String?
+  stressLevel                   String?
+  physicalActivity              String?  @db.Text
+  waterIntakeLiters             Decimal?
+  alcoholConsumption            String?
+  smokingStatus                 String?
+  foodAllergies                 String?  @db.Text
+  foodAversions                 String?  @db.Text
+  foodPreferences               String?  @db.Text
+  foodPattern                   String?
+
   // Specialty-specific fields stored as flexible JSON
   specialtyData Json? @default("{}")
 

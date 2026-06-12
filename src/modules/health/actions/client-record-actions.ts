@@ -54,6 +54,20 @@ export type ClientRecordResult = {
     sessionFrequency: string | null;
     fixedSessionDay: string | null;
     fixedSessionTime: string | null;
+    nutritionDiagnosedPathologies: string | null;
+    nutritionFamilyHistory: string | null;
+    nutritionMedications: string | null;
+    intestinalFunction: string | null;
+    sleepQuality: string | null;
+    stressLevel: string | null;
+    physicalActivity: string | null;
+    waterIntakeLiters: number | null;
+    alcoholConsumption: string | null;
+    smokingStatus: string | null;
+    foodAllergies: string | null;
+    foodAversions: string | null;
+    foodPreferences: string | null;
+    foodPattern: string | null;
     specialtyData: Record<string, unknown>;
     createdAt: Date;
     updatedAt: Date;
@@ -171,6 +185,20 @@ export async function updateClientRecord(
     sessionFrequency?: string;
     fixedSessionDay?: string;
     fixedSessionTime?: string;
+    nutritionDiagnosedPathologies?: string;
+    nutritionFamilyHistory?: string;
+    nutritionMedications?: string;
+    intestinalFunction?: string;
+    sleepQuality?: string;
+    stressLevel?: string;
+    physicalActivity?: string;
+    waterIntakeLiters?: number | null;
+    alcoholConsumption?: string;
+    smokingStatus?: string;
+    foodAllergies?: string;
+    foodAversions?: string;
+    foodPreferences?: string;
+    foodPattern?: string;
   },
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -237,6 +265,49 @@ export async function updateClientRecord(
         }),
         ...(data.fixedSessionTime !== undefined && {
           fixedSessionTime: data.fixedSessionTime || null,
+        }),
+        ...(data.nutritionDiagnosedPathologies !== undefined && {
+          nutritionDiagnosedPathologies:
+            data.nutritionDiagnosedPathologies || null,
+        }),
+        ...(data.nutritionFamilyHistory !== undefined && {
+          nutritionFamilyHistory: data.nutritionFamilyHistory || null,
+        }),
+        ...(data.nutritionMedications !== undefined && {
+          nutritionMedications: data.nutritionMedications || null,
+        }),
+        ...(data.intestinalFunction !== undefined && {
+          intestinalFunction: data.intestinalFunction || null,
+        }),
+        ...(data.sleepQuality !== undefined && {
+          sleepQuality: data.sleepQuality || null,
+        }),
+        ...(data.stressLevel !== undefined && {
+          stressLevel: data.stressLevel || null,
+        }),
+        ...(data.physicalActivity !== undefined && {
+          physicalActivity: data.physicalActivity || null,
+        }),
+        ...(data.waterIntakeLiters !== undefined && {
+          waterIntakeLiters: data.waterIntakeLiters,
+        }),
+        ...(data.alcoholConsumption !== undefined && {
+          alcoholConsumption: data.alcoholConsumption || null,
+        }),
+        ...(data.smokingStatus !== undefined && {
+          smokingStatus: data.smokingStatus || null,
+        }),
+        ...(data.foodAllergies !== undefined && {
+          foodAllergies: data.foodAllergies || null,
+        }),
+        ...(data.foodAversions !== undefined && {
+          foodAversions: data.foodAversions || null,
+        }),
+        ...(data.foodPreferences !== undefined && {
+          foodPreferences: data.foodPreferences || null,
+        }),
+        ...(data.foodPattern !== undefined && {
+          foodPattern: data.foodPattern || null,
         }),
       },
     });
@@ -542,6 +613,20 @@ function serializeClientRecord(record: {
   sessionFrequency: string | null;
   fixedSessionDay: string | null;
   fixedSessionTime: string | null;
+  nutritionDiagnosedPathologies: string | null;
+  nutritionFamilyHistory: string | null;
+  nutritionMedications: string | null;
+  intestinalFunction: string | null;
+  sleepQuality: string | null;
+  stressLevel: string | null;
+  physicalActivity: string | null;
+  waterIntakeLiters: Prisma.Decimal | number | null;
+  alcoholConsumption: string | null;
+  smokingStatus: string | null;
+  foodAllergies: string | null;
+  foodAversions: string | null;
+  foodPreferences: string | null;
+  foodPattern: string | null;
   specialtyData: unknown;
   createdAt: Date;
   updatedAt: Date;
@@ -552,6 +637,10 @@ function serializeClientRecord(record: {
     sessionValueAgreed:
       record.sessionValueAgreed !== null
         ? Number(record.sessionValueAgreed)
+        : null,
+    waterIntakeLiters:
+      record.waterIntakeLiters !== null
+        ? Number(record.waterIntakeLiters)
         : null,
     specialtyData:
       record.specialtyData &&

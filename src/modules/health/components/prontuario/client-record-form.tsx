@@ -31,6 +31,20 @@ type Props = {
     sessionFrequency: string | null;
     fixedSessionDay: string | null;
     fixedSessionTime: string | null;
+    nutritionDiagnosedPathologies: string | null;
+    nutritionFamilyHistory: string | null;
+    nutritionMedications: string | null;
+    intestinalFunction: string | null;
+    sleepQuality: string | null;
+    stressLevel: string | null;
+    physicalActivity: string | null;
+    waterIntakeLiters: number | null;
+    alcoholConsumption: string | null;
+    smokingStatus: string | null;
+    foodAllergies: string | null;
+    foodAversions: string | null;
+    foodPreferences: string | null;
+    foodPattern: string | null;
   };
 };
 
@@ -174,6 +188,41 @@ export function ClientRecordForm({ record }: Props) {
   const [fixedSessionTime, setFixedSessionTime] = useState(
     record.fixedSessionTime ?? "",
   );
+  const [nutritionDiagnosedPathologies, setNutritionDiagnosedPathologies] =
+    useState(record.nutritionDiagnosedPathologies ?? "");
+  const [nutritionFamilyHistory, setNutritionFamilyHistory] = useState(
+    record.nutritionFamilyHistory ?? "",
+  );
+  const [nutritionMedications, setNutritionMedications] = useState(
+    record.nutritionMedications ?? "",
+  );
+  const [intestinalFunction, setIntestinalFunction] = useState(
+    record.intestinalFunction ?? "",
+  );
+  const [sleepQuality, setSleepQuality] = useState(record.sleepQuality ?? "");
+  const [stressLevel, setStressLevel] = useState(record.stressLevel ?? "");
+  const [physicalActivity, setPhysicalActivity] = useState(
+    record.physicalActivity ?? "",
+  );
+  const [waterIntakeLiters, setWaterIntakeLiters] = useState(
+    record.waterIntakeLiters != null ? String(record.waterIntakeLiters) : "",
+  );
+  const [alcoholConsumption, setAlcoholConsumption] = useState(
+    record.alcoholConsumption ?? "",
+  );
+  const [smokingStatus, setSmokingStatus] = useState(
+    record.smokingStatus ?? "",
+  );
+  const [foodAllergies, setFoodAllergies] = useState(
+    record.foodAllergies ?? "",
+  );
+  const [foodAversions, setFoodAversions] = useState(
+    record.foodAversions ?? "",
+  );
+  const [foodPreferences, setFoodPreferences] = useState(
+    record.foodPreferences ?? "",
+  );
+  const [foodPattern, setFoodPattern] = useState(record.foodPattern ?? "");
 
   const fields = specialtyFields[record.specialty] ?? [];
 
@@ -200,6 +249,22 @@ export function ClientRecordForm({ record }: Props) {
         sessionFrequency,
         fixedSessionDay,
         fixedSessionTime,
+        nutritionDiagnosedPathologies,
+        nutritionFamilyHistory,
+        nutritionMedications,
+        intestinalFunction,
+        sleepQuality,
+        stressLevel,
+        physicalActivity,
+        waterIntakeLiters: waterIntakeLiters
+          ? Number(waterIntakeLiters)
+          : null,
+        alcoholConsumption,
+        smokingStatus,
+        foodAllergies,
+        foodAversions,
+        foodPreferences,
+        foodPattern,
       });
 
       if (result.error) {
@@ -438,6 +503,234 @@ export function ClientRecordForm({ record }: Props) {
                   className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
                 />
               </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {record.specialty === "NUTRITIONIST" && (
+        <>
+          <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Historico Clinico e Familiar
+            </p>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Patologias diagnosticadas
+              </label>
+              <textarea
+                value={nutritionDiagnosedPathologies}
+                onChange={(event) =>
+                  setNutritionDiagnosedPathologies(event.target.value)
+                }
+                rows={3}
+                className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                placeholder="Ex: diabetes, hipertensao, hipotireoidismo, colesterol alto..."
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Historico familiar de doencas
+              </label>
+              <textarea
+                value={nutritionFamilyHistory}
+                onChange={(event) =>
+                  setNutritionFamilyHistory(event.target.value)
+                }
+                rows={3}
+                className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                placeholder="Doencas cardiovasculares, cancer, diabetes, obesidade..."
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Medicamentos continuos e suplementos
+              </label>
+              <textarea
+                value={nutritionMedications}
+                onChange={(event) =>
+                  setNutritionMedications(event.target.value)
+                }
+                rows={3}
+                className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                placeholder="Medicamentos, vitaminas, fitoterapicos e suplementos atuais..."
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Rastreamento Metabolico e Habitos
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Funcionamento intestinal
+                </label>
+                <select
+                  value={intestinalFunction}
+                  onChange={(event) =>
+                    setIntestinalFunction(event.target.value)
+                  }
+                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                >
+                  <option value="">Selecionar...</option>
+                  <option value="diario">Diario</option>
+                  <option value="constipado">Constipado</option>
+                  <option value="solto">Solto</option>
+                  <option value="irregular">Irregular</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Qualidade do sono
+                </label>
+                <select
+                  value={sleepQuality}
+                  onChange={(event) => setSleepQuality(event.target.value)}
+                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                >
+                  <option value="">Selecionar...</option>
+                  <option value="boa">Boa</option>
+                  <option value="regular">Regular</option>
+                  <option value="ruim">Ruim</option>
+                  <option value="insonia">Insonia</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Nivel de estresse
+                </label>
+                <select
+                  value={stressLevel}
+                  onChange={(event) => setStressLevel(event.target.value)}
+                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                >
+                  <option value="">Selecionar...</option>
+                  <option value="baixo">Baixo</option>
+                  <option value="medio">Medio</option>
+                  <option value="alto">Alto</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Consumo de agua (litros/dia)
+                </label>
+                <input
+                  type="number"
+                  value={waterIntakeLiters}
+                  onChange={(event) => setWaterIntakeLiters(event.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  placeholder="Ex: 2.5"
+                  min="0"
+                  step="0.1"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Consumo de alcool
+                </label>
+                <select
+                  value={alcoholConsumption}
+                  onChange={(event) =>
+                    setAlcoholConsumption(event.target.value)
+                  }
+                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                >
+                  <option value="">Selecionar...</option>
+                  <option value="nao">Nao</option>
+                  <option value="social">Social</option>
+                  <option value="frequente">Frequente</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Tabagismo
+                </label>
+                <select
+                  value={smokingStatus}
+                  onChange={(event) => setSmokingStatus(event.target.value)}
+                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                >
+                  <option value="">Selecionar...</option>
+                  <option value="nao">Nao</option>
+                  <option value="ex_fumante">Ex-fumante</option>
+                  <option value="fumante">Fumante</option>
+                </select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Pratica de atividade fisica
+              </label>
+              <textarea
+                value={physicalActivity}
+                onChange={(event) => setPhysicalActivity(event.target.value)}
+                rows={3}
+                className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                placeholder="Tipo, frequencia e duracao..."
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Perfil Alimentar
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Padrao alimentar
+                </label>
+                <select
+                  value={foodPattern}
+                  onChange={(event) => setFoodPattern(event.target.value)}
+                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                >
+                  <option value="">Selecionar...</option>
+                  <option value="onivoro">Onivoro</option>
+                  <option value="vegetariano">Vegetariano</option>
+                  <option value="vegano">Vegano</option>
+                  <option value="flexitariano">Flexitariano</option>
+                  <option value="outro">Outro</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Preferencias alimentares
+                </label>
+                <input
+                  type="text"
+                  value={foodPreferences}
+                  onChange={(event) => setFoodPreferences(event.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  placeholder="Alimentos preferidos"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Alergias ou intolerancias alimentares
+              </label>
+              <textarea
+                value={foodAllergies}
+                onChange={(event) => setFoodAllergies(event.target.value)}
+                rows={3}
+                className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                placeholder="Ex: gluten, lactose, frutos do mar..."
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Aversoes alimentares
+              </label>
+              <textarea
+                value={foodAversions}
+                onChange={(event) => setFoodAversions(event.target.value)}
+                rows={3}
+                className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                placeholder="O que o paciente nao come de jeito nenhum..."
+              />
             </div>
           </div>
         </>
