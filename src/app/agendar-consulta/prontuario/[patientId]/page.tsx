@@ -4,10 +4,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText } from "lucide-react";
 import { getOrCreateClientRecord } from "@/modules/health/actions/client-record-actions";
+import { listLegalCases } from "@/modules/health/actions/legal-case-actions";
 import { ClientRecordForm } from "@/modules/health/components/prontuario/client-record-form";
 import { SessionNotesList } from "@/modules/health/components/prontuario/session-notes-list";
 import { AddSessionNoteForm } from "@/modules/health/components/prontuario/add-session-note-form";
 import { PatientInfoCard } from "@/modules/health/components/prontuario/patient-info-card";
+import { LegalCasesPanel } from "@/modules/health/components/prontuario/legal-cases-panel";
 
 type Props = {
   params: Promise<{ patientId: string }>;
@@ -53,6 +55,11 @@ export default async function ProntuarioPage({ params }: Props) {
 
   const record = result.record;
   const label = specialtyLabel[record.specialty] ?? record.specialty;
+  const legalCasesResult =
+    record.specialty === "LAWYER"
+      ? await listLegalCases(record.id)
+      : { success: true, cases: [] };
+  const legalCases = legalCasesResult.cases ?? [];
 
   return (
     <div className="min-h-screen bg-[#020617] px-4 py-10 font-poppins text-white selection:bg-[#d73cbe]/30">
@@ -95,12 +102,21 @@ export default async function ProntuarioPage({ params }: Props) {
               key={record.updatedAt.toISOString()}
               record={record}
             />
-            <AddSessionNoteForm
-              clientRecordId={record.id}
-              patientId={patientId}
-              specialty={record.specialty}
-            />
-            <SessionNotesList notes={record.sessionNotes} />
+            {record.specialty === "LAWYER" ? (
+              <LegalCasesPanel
+                clientRecordId={record.id}
+                initialCases={legalCases}
+              />
+            ) : (
+              <>
+                <AddSessionNoteForm
+                  clientRecordId={record.id}
+                  patientId={patientId}
+                  specialty={record.specialty}
+                />
+                <SessionNotesList notes={record.sessionNotes} />
+              </>
+            )}
           </div>
           <div>
             <PatientInfoCard record={record} />

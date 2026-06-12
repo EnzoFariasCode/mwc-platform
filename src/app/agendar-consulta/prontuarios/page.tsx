@@ -35,6 +35,14 @@ function formatDate(date: Date | null) {
   );
 }
 
+function entryLabel(isLawyerRecord: boolean, totalEntries: number) {
+  if (isLawyerRecord) {
+    return totalEntries === 1 ? "caso" : "casos";
+  }
+
+  return totalEntries === 1 ? "nota" : "notas";
+}
+
 export default async function ProntuariosPage() {
   const session = await auth();
 
@@ -108,6 +116,13 @@ export default async function ProntuariosPage() {
                 specialtyColor[record.specialty] ??
                 "bg-white/10 text-slate-300 border-white/10";
               const label = specialtyLabel[record.specialty] ?? record.specialty;
+              const isLawyerRecord = record.specialty === "LAWYER";
+              const totalEntries = isLawyerRecord
+                ? record.totalLegalCases
+                : record.totalNotes;
+              const lastActivityDate = isLawyerRecord
+                ? record.lastLegalActivityDate
+                : record.lastSessionDate;
 
               return (
                 <Link
@@ -148,13 +163,13 @@ export default async function ProntuariosPage() {
                   <div className="flex items-center justify-between border-t border-white/5 pt-2 text-xs text-slate-500">
                     <span className="flex items-center gap-1.5">
                       <NotebookPen className="h-3.5 w-3.5" />
-                      {record.totalNotes}{" "}
-                      {record.totalNotes === 1 ? "nota" : "notas"}
+                      {totalEntries} {entryLabel(isLawyerRecord, totalEntries)}
                     </span>
-                    {record.lastSessionDate ? (
+                    {lastActivityDate ? (
                       <span className="flex items-center gap-1.5">
                         <CalendarClock className="h-3.5 w-3.5" />
-                        Ultima sessao: {formatDate(record.lastSessionDate)}
+                        {isLawyerRecord ? "Ultimo andamento" : "Ultima sessao"}
+                        : {formatDate(lastActivityDate)}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1.5">

@@ -45,6 +45,28 @@ type Props = {
     foodAversions: string | null;
     foodPreferences: string | null;
     foodPattern: string | null;
+    englishCurrentLevel: string | null;
+    englishMainGoal: string | null;
+    englishPreviousExperience: string | null;
+    englishInitialDifficulties: string | null;
+    englishClassMode: string | null;
+    englishClassFrequency: string | null;
+    englishClassDuration: string | null;
+    englishBillingAmount: number | null;
+    legalPersonType: string | null;
+    legalNationality: string | null;
+    legalCpf: string | null;
+    legalRg: string | null;
+    legalMaritalStatus: string | null;
+    legalCompanyName: string | null;
+    legalTradeName: string | null;
+    legalCnpj: string | null;
+    legalStateRegistration: string | null;
+    legalRepresentativeName: string | null;
+    legalRepresentativeCpf: string | null;
+    legalContactEmail: string | null;
+    legalContactPhones: string | null;
+    legalAddress: string | null;
   };
 };
 
@@ -96,18 +118,6 @@ const specialtyFields: Record<string, SpecialtyField[]> = {
       options: ["beginner", "intermediate", "advanced"],
     },
     { key: "currentProgram", label: "Programa atual", type: "textarea" },
-  ],
-  LAWYER: [
-    { key: "caseType", label: "Tipo de caso", type: "text" },
-    { key: "processNumber", label: "Numero do processo", type: "text" },
-    {
-      key: "relevantDocuments",
-      label: "Documentos relevantes",
-      type: "textarea",
-    },
-    { key: "legalStatus", label: "Status juridico atual", type: "text" },
-    { key: "opposingParty", label: "Parte contraria", type: "text" },
-    { key: "nextHearing", label: "Proxima audiencia", type: "text" },
   ],
   ENGLISH_TEACHER: [
     {
@@ -223,6 +233,66 @@ export function ClientRecordForm({ record }: Props) {
     record.foodPreferences ?? "",
   );
   const [foodPattern, setFoodPattern] = useState(record.foodPattern ?? "");
+  const [englishCurrentLevel, setEnglishCurrentLevel] = useState(
+    record.englishCurrentLevel ?? "",
+  );
+  const [englishMainGoal, setEnglishMainGoal] = useState(
+    record.englishMainGoal ?? "",
+  );
+  const [englishPreviousExperience, setEnglishPreviousExperience] = useState(
+    record.englishPreviousExperience ?? "",
+  );
+  const [englishInitialDifficulties, setEnglishInitialDifficulties] = useState(
+    record.englishInitialDifficulties ?? "",
+  );
+  const [englishClassMode, setEnglishClassMode] = useState(
+    record.englishClassMode ?? "",
+  );
+  const [englishClassFrequency, setEnglishClassFrequency] = useState(
+    record.englishClassFrequency ?? "",
+  );
+  const [englishClassDuration, setEnglishClassDuration] = useState(
+    record.englishClassDuration ?? "",
+  );
+  const [englishBillingAmount, setEnglishBillingAmount] = useState(
+    record.englishBillingAmount != null
+      ? String(record.englishBillingAmount)
+      : "",
+  );
+  const [legalPersonType, setLegalPersonType] = useState(
+    record.legalPersonType ?? "PF",
+  );
+  const [legalNationality, setLegalNationality] = useState(
+    record.legalNationality ?? "",
+  );
+  const [legalCpf, setLegalCpf] = useState(record.legalCpf ?? "");
+  const [legalRg, setLegalRg] = useState(record.legalRg ?? "");
+  const [legalMaritalStatus, setLegalMaritalStatus] = useState(
+    record.legalMaritalStatus ?? "",
+  );
+  const [legalCompanyName, setLegalCompanyName] = useState(
+    record.legalCompanyName ?? "",
+  );
+  const [legalTradeName, setLegalTradeName] = useState(
+    record.legalTradeName ?? "",
+  );
+  const [legalCnpj, setLegalCnpj] = useState(record.legalCnpj ?? "");
+  const [legalStateRegistration, setLegalStateRegistration] = useState(
+    record.legalStateRegistration ?? "",
+  );
+  const [legalRepresentativeName, setLegalRepresentativeName] = useState(
+    record.legalRepresentativeName ?? "",
+  );
+  const [legalRepresentativeCpf, setLegalRepresentativeCpf] = useState(
+    record.legalRepresentativeCpf ?? "",
+  );
+  const [legalContactEmail, setLegalContactEmail] = useState(
+    record.legalContactEmail ?? "",
+  );
+  const [legalContactPhones, setLegalContactPhones] = useState(
+    record.legalContactPhones ?? "",
+  );
+  const [legalAddress, setLegalAddress] = useState(record.legalAddress ?? "");
 
   const fields = specialtyFields[record.specialty] ?? [];
 
@@ -265,6 +335,30 @@ export function ClientRecordForm({ record }: Props) {
         foodAversions,
         foodPreferences,
         foodPattern,
+        englishCurrentLevel,
+        englishMainGoal,
+        englishPreviousExperience,
+        englishInitialDifficulties,
+        englishClassMode,
+        englishClassFrequency,
+        englishClassDuration,
+        englishBillingAmount: englishBillingAmount
+          ? Number(englishBillingAmount)
+          : null,
+        legalPersonType,
+        legalNationality,
+        legalCpf,
+        legalRg,
+        legalMaritalStatus,
+        legalCompanyName,
+        legalTradeName,
+        legalCnpj,
+        legalStateRegistration,
+        legalRepresentativeName,
+        legalRepresentativeCpf,
+        legalContactEmail,
+        legalContactPhones,
+        legalAddress,
       });
 
       if (result.error) {
@@ -730,6 +824,367 @@ export function ClientRecordForm({ record }: Props) {
                 rows={3}
                 className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
                 placeholder="O que o paciente nao come de jeito nenhum..."
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {record.specialty === "ENGLISH_TEACHER" && (
+        <>
+          <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Perfil de Aprendizagem e Objetivos
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Nivel atual
+                </label>
+                <select
+                  value={englishCurrentLevel}
+                  onChange={(event) =>
+                    setEnglishCurrentLevel(event.target.value)
+                  }
+                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                >
+                  <option value="">Selecionar...</option>
+                  <option value="iniciante">Iniciante</option>
+                  <option value="A1">A1</option>
+                  <option value="A2">A2</option>
+                  <option value="B1">B1</option>
+                  <option value="B2">B2</option>
+                  <option value="C1">C1</option>
+                  <option value="C2">C2</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Motivo principal do estudo
+                </label>
+                <select
+                  value={englishMainGoal}
+                  onChange={(event) => setEnglishMainGoal(event.target.value)}
+                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                >
+                  <option value="">Selecionar...</option>
+                  <option value="viagem">Viagem</option>
+                  <option value="trabalho">Trabalho</option>
+                  <option value="certificacao">Certificacao TOEFL/IELTS</option>
+                  <option value="lazer">Lazer</option>
+                  <option value="conversacao">Conversacao</option>
+                  <option value="outro">Outro</option>
+                </select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Experiencias anteriores com o idioma
+              </label>
+              <textarea
+                value={englishPreviousExperience}
+                onChange={(event) =>
+                  setEnglishPreviousExperience(event.target.value)
+                }
+                rows={3}
+                className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                placeholder="Ja estudou antes? Morou fora? Teve contato profissional?"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Dificuldades mapeadas inicialmente
+              </label>
+              <textarea
+                value={englishInitialDifficulties}
+                onChange={(event) =>
+                  setEnglishInitialDifficulties(event.target.value)
+                }
+                rows={3}
+                className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                placeholder="Ex: trava ao falar, nao entende nativos, gramatica fraca..."
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Configuracoes de Contrato
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Modalidade
+                </label>
+                <select
+                  value={englishClassMode}
+                  onChange={(event) => setEnglishClassMode(event.target.value)}
+                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                >
+                  <option value="">Selecionar...</option>
+                  <option value="online">Online</option>
+                  <option value="presencial">Presencial</option>
+                  <option value="hibrido">Hibrido</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Frequencia
+                </label>
+                <input
+                  type="text"
+                  value={englishClassFrequency}
+                  onChange={(event) =>
+                    setEnglishClassFrequency(event.target.value)
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  placeholder="Ex: 2x por semana"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Carga horaria
+                </label>
+                <input
+                  type="text"
+                  value={englishClassDuration}
+                  onChange={(event) =>
+                    setEnglishClassDuration(event.target.value)
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  placeholder="Ex: 1 hora por aula"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Mensalidade ou hora/aula (R$)
+                </label>
+                <input
+                  type="number"
+                  value={englishBillingAmount}
+                  onChange={(event) =>
+                    setEnglishBillingAmount(event.target.value)
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  min="0"
+                  step="0.01"
+                  placeholder="0,00"
+                />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {record.specialty === "LAWYER" && (
+        <>
+          <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Cadastro do Cliente
+            </p>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Tipo de pessoa
+              </label>
+              <select
+                value={legalPersonType}
+                onChange={(event) => setLegalPersonType(event.target.value)}
+                className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+              >
+                <option value="PF">Pessoa Fisica</option>
+                <option value="PJ">Pessoa Juridica</option>
+              </select>
+            </div>
+
+            {legalPersonType === "PF" ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    Nacionalidade
+                  </label>
+                  <input
+                    type="text"
+                    value={legalNationality}
+                    onChange={(event) =>
+                      setLegalNationality(event.target.value)
+                    }
+                    className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    Profissao
+                  </label>
+                  <input
+                    type="text"
+                    value={occupation}
+                    onChange={(event) => setOccupation(event.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    Estado civil
+                  </label>
+                  <select
+                    value={legalMaritalStatus}
+                    onChange={(event) =>
+                      setLegalMaritalStatus(event.target.value)
+                    }
+                    className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  >
+                    <option value="">Selecionar...</option>
+                    <option value="solteiro">Solteiro(a)</option>
+                    <option value="casado">Casado(a)</option>
+                    <option value="divorciado">Divorciado(a)</option>
+                    <option value="viuvo">Viuvo(a)</option>
+                    <option value="uniao_estavel">Uniao estavel</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    CPF
+                  </label>
+                  <input
+                    type="text"
+                    value={legalCpf}
+                    onChange={(event) => setLegalCpf(event.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    RG
+                  </label>
+                  <input
+                    type="text"
+                    value={legalRg}
+                    onChange={(event) => setLegalRg(event.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    Razao social
+                  </label>
+                  <input
+                    type="text"
+                    value={legalCompanyName}
+                    onChange={(event) =>
+                      setLegalCompanyName(event.target.value)
+                    }
+                    className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    Nome fantasia
+                  </label>
+                  <input
+                    type="text"
+                    value={legalTradeName}
+                    onChange={(event) => setLegalTradeName(event.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    CNPJ
+                  </label>
+                  <input
+                    type="text"
+                    value={legalCnpj}
+                    onChange={(event) => setLegalCnpj(event.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    Inscricao estadual
+                  </label>
+                  <input
+                    type="text"
+                    value={legalStateRegistration}
+                    onChange={(event) =>
+                      setLegalStateRegistration(event.target.value)
+                    }
+                    className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    Representante legal
+                  </label>
+                  <input
+                    type="text"
+                    value={legalRepresentativeName}
+                    onChange={(event) =>
+                      setLegalRepresentativeName(event.target.value)
+                    }
+                    className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    CPF do representante
+                  </label>
+                  <input
+                    type="text"
+                    value={legalRepresentativeCpf}
+                    onChange={(event) =>
+                      setLegalRepresentativeCpf(event.target.value)
+                    }
+                    className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Contatos e Endereco
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  value={legalContactEmail}
+                  onChange={(event) => setLegalContactEmail(event.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Telefones
+                </label>
+                <input
+                  type="text"
+                  value={legalContactPhones}
+                  onChange={(event) =>
+                    setLegalContactPhones(event.target.value)
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  placeholder="Telefone, WhatsApp, comercial..."
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                Endereco completo
+              </label>
+              <textarea
+                value={legalAddress}
+                onChange={(event) => setLegalAddress(event.target.value)}
+                rows={3}
+                className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                placeholder="Rua, numero, complemento, bairro, cidade, UF, CEP..."
               />
             </div>
           </div>

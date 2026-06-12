@@ -22,6 +22,8 @@ const moodOptions = [
   "Fechado",
 ];
 
+const englishSkillOptions = ["Speaking", "Listening", "Reading", "Writing"];
+
 export function AddSessionNoteForm({
   clientRecordId,
   specialty,
@@ -52,6 +54,19 @@ export function AddSessionNoteForm({
   const [dietAdherenceNotes, setDietAdherenceNotes] = useState("");
   const [nutritionPlan, setNutritionPlan] = useState("");
   const [nutritionFilesNotes, setNutritionFilesNotes] = useState("");
+  const [englishAttendance, setEnglishAttendance] = useState("");
+  const [englishLessonTopic, setEnglishLessonTopic] = useState("");
+  const [englishFocusedSkills, setEnglishFocusedSkills] = useState<string[]>(
+    [],
+  );
+  const [englishMaterialUsed, setEnglishMaterialUsed] = useState("");
+  const [englishEngagementLevel, setEnglishEngagementLevel] = useState("");
+  const [englishRecurringErrors, setEnglishRecurringErrors] = useState("");
+  const [englishHomework, setEnglishHomework] = useState("");
+  const [englishPreviousHomeworkStatus, setEnglishPreviousHomeworkStatus] =
+    useState("");
+  const [englishNextLessonPlan, setEnglishNextLessonPlan] = useState("");
+  const [englishFilesNotes, setEnglishFilesNotes] = useState("");
 
   const parsedWeight = Number(nutritionWeight.replace(",", "."));
   const parsedHeight = Number(nutritionHeight.replace(",", "."));
@@ -127,9 +142,44 @@ export function AddSessionNoteForm({
         ? `${fullContent}\n\n---\n${nutritionExtra}`
         : fullContent;
 
+      const englishExtra =
+        specialty === "ENGLISH_TEACHER"
+          ? [
+              "Diario de aula:",
+              englishAttendance ? `Presenca: ${englishAttendance}` : "",
+              englishLessonTopic ? `Topico da aula: ${englishLessonTopic}` : "",
+              englishFocusedSkills.length > 0
+                ? `Habilidades focadas: ${englishFocusedSkills.join(", ")}`
+                : "",
+              englishMaterialUsed ? `Material utilizado: ${englishMaterialUsed}` : "",
+              englishEngagementLevel
+                ? `Participacao/engajamento: ${englishEngagementLevel}`
+                : "",
+              englishRecurringErrors
+                ? `Erros recorrentes/pontos de atencao: ${englishRecurringErrors}`
+                : "",
+              englishHomework ? `Homework enviado: ${englishHomework}` : "",
+              englishPreviousHomeworkStatus
+                ? `Homework anterior: ${englishPreviousHomeworkStatus}`
+                : "",
+              englishNextLessonPlan
+                ? `Planejamento da proxima aula: ${englishNextLessonPlan}`
+                : "",
+              englishFilesNotes
+                ? `Meus envios/materiais: ${englishFilesNotes}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join("\n")
+          : "";
+
+      const noteContent = englishExtra
+        ? `${finalContent}\n\n---\n${englishExtra}`
+        : finalContent;
+
       const result = await createSessionNote(clientRecordId, {
         sessionDate,
-        content: finalContent,
+        content: noteContent,
         evolution: evolution || undefined,
         nextSteps: nextSteps || undefined,
         privateNotes: privateNotes || undefined,
@@ -162,6 +212,16 @@ export function AddSessionNoteForm({
       setDietAdherenceNotes("");
       setNutritionPlan("");
       setNutritionFilesNotes("");
+      setEnglishAttendance("");
+      setEnglishLessonTopic("");
+      setEnglishFocusedSkills([]);
+      setEnglishMaterialUsed("");
+      setEnglishEngagementLevel("");
+      setEnglishRecurringErrors("");
+      setEnglishHomework("");
+      setEnglishPreviousHomeworkStatus("");
+      setEnglishNextLessonPlan("");
+      setEnglishFilesNotes("");
       setIsOpen(false);
     });
   };
@@ -385,6 +445,91 @@ export function AddSessionNoteForm({
             </div>
           )}
 
+          {specialty === "ENGLISH_TEACHER" && (
+            <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                Metadados da Aula
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    Presenca
+                  </label>
+                  <select
+                    value={englishAttendance}
+                    onChange={(event) =>
+                      setEnglishAttendance(event.target.value)
+                    }
+                    className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  >
+                    <option value="">Selecionar...</option>
+                    <option value="presente">Presente</option>
+                    <option value="falta_justificada">Falta justificada</option>
+                    <option value="falta_nao_justificada">
+                      Falta nao justificada
+                    </option>
+                    <option value="atraso">Atraso</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    Topico da aula
+                  </label>
+                  <input
+                    type="text"
+                    value={englishLessonTopic}
+                    onChange={(event) =>
+                      setEnglishLessonTopic(event.target.value)
+                    }
+                    className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                    placeholder="Ex: Present Perfect, Business Vocabulary..."
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Habilidades focadas na sessao
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {englishSkillOptions.map((skill) => (
+                    <button
+                      key={skill}
+                      type="button"
+                      onClick={() =>
+                        setEnglishFocusedSkills((prev) =>
+                          prev.includes(skill)
+                            ? prev.filter((item) => item !== skill)
+                            : [...prev, skill],
+                        )
+                      }
+                      className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-bold transition-all ${
+                        englishFocusedSkills.includes(skill)
+                          ? "border-[#d73cbe]/50 bg-[#d73cbe]/20 text-[#d73cbe]"
+                          : "border-white/10 bg-white/5 text-slate-400 hover:border-white/20 hover:text-white"
+                      }`}
+                    >
+                      {skill}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Material utilizado
+                </label>
+                <input
+                  type="text"
+                  value={englishMaterialUsed}
+                  onChange={(event) =>
+                    setEnglishMaterialUsed(event.target.value)
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  placeholder="Livro, unidade, artigo, video, audio..."
+                />
+              </div>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
               Nota da sessao <span className="text-red-400">*</span>
@@ -482,6 +627,103 @@ export function AddSessionNoteForm({
                   }
                   rows={3}
                   placeholder="Registre exames, PDFs de dieta ou arquivos recebidos/enviados. O upload real pode ser integrado depois."
+                  className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
+
+          {specialty === "ENGLISH_TEACHER" && (
+            <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                Desempenho, Homework e Proximos Passos
+              </p>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Participacao / engajamento
+                </label>
+                <select
+                  value={englishEngagementLevel}
+                  onChange={(event) =>
+                    setEnglishEngagementLevel(event.target.value)
+                  }
+                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                >
+                  <option value="">Selecionar...</option>
+                  <option value="baixo">Baixo</option>
+                  <option value="medio">Medio</option>
+                  <option value="alto">Alto</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Erros recorrentes / Pontos de atencao
+                </label>
+                <textarea
+                  value={englishRecurringErrors}
+                  onChange={(event) =>
+                    setEnglishRecurringErrors(event.target.value)
+                  }
+                  rows={3}
+                  placeholder="Pronuncia, gramatica, vocabulário ou confusoes recorrentes..."
+                  className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    Homework enviado
+                  </label>
+                  <textarea
+                    value={englishHomework}
+                    onChange={(event) => setEnglishHomework(event.target.value)}
+                    rows={3}
+                    placeholder="Licao de casa enviada ao aluno..."
+                    className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                    Status do homework anterior
+                  </label>
+                  <select
+                    value={englishPreviousHomeworkStatus}
+                    onChange={(event) =>
+                      setEnglishPreviousHomeworkStatus(event.target.value)
+                    }
+                    className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  >
+                    <option value="">Selecionar...</option>
+                    <option value="entregue">Entregue</option>
+                    <option value="nao_entregue">Nao entregue</option>
+                    <option value="parcial">Feito parcialmente</option>
+                    <option value="nao_aplicavel">Nao aplicavel</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Planejamento para a proxima aula
+                </label>
+                <textarea
+                  value={englishNextLessonPlan}
+                  onChange={(event) =>
+                    setEnglishNextLessonPlan(event.target.value)
+                  }
+                  rows={3}
+                  placeholder="Rascunho interno da proxima aula..."
+                  className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Meus envios / Materiais e arquivos
+                </label>
+                <textarea
+                  value={englishFilesNotes}
+                  onChange={(event) => setEnglishFilesNotes(event.target.value)}
+                  rows={3}
+                  placeholder="Registre PDFs, audios, exercicios, gabaritos ou links enviados. O upload real pode ser integrado depois."
                   className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
                 />
               </div>

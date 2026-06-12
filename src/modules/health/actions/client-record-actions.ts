@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-// ==========d===============================================
+// =========================================================
 // TYPES
 // =========================================================
 
@@ -68,6 +68,28 @@ export type ClientRecordResult = {
     foodAversions: string | null;
     foodPreferences: string | null;
     foodPattern: string | null;
+    englishCurrentLevel: string | null;
+    englishMainGoal: string | null;
+    englishPreviousExperience: string | null;
+    englishInitialDifficulties: string | null;
+    englishClassMode: string | null;
+    englishClassFrequency: string | null;
+    englishClassDuration: string | null;
+    englishBillingAmount: number | null;
+    legalPersonType: string | null;
+    legalNationality: string | null;
+    legalCpf: string | null;
+    legalRg: string | null;
+    legalMaritalStatus: string | null;
+    legalCompanyName: string | null;
+    legalTradeName: string | null;
+    legalCnpj: string | null;
+    legalStateRegistration: string | null;
+    legalRepresentativeName: string | null;
+    legalRepresentativeCpf: string | null;
+    legalContactEmail: string | null;
+    legalContactPhones: string | null;
+    legalAddress: string | null;
     specialtyData: Record<string, unknown>;
     createdAt: Date;
     updatedAt: Date;
@@ -199,6 +221,28 @@ export async function updateClientRecord(
     foodAversions?: string;
     foodPreferences?: string;
     foodPattern?: string;
+    englishCurrentLevel?: string;
+    englishMainGoal?: string;
+    englishPreviousExperience?: string;
+    englishInitialDifficulties?: string;
+    englishClassMode?: string;
+    englishClassFrequency?: string;
+    englishClassDuration?: string;
+    englishBillingAmount?: number | null;
+    legalPersonType?: string;
+    legalNationality?: string;
+    legalCpf?: string;
+    legalRg?: string;
+    legalMaritalStatus?: string;
+    legalCompanyName?: string;
+    legalTradeName?: string;
+    legalCnpj?: string;
+    legalStateRegistration?: string;
+    legalRepresentativeName?: string;
+    legalRepresentativeCpf?: string;
+    legalContactEmail?: string;
+    legalContactPhones?: string;
+    legalAddress?: string;
   },
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -308,6 +352,72 @@ export async function updateClientRecord(
         }),
         ...(data.foodPattern !== undefined && {
           foodPattern: data.foodPattern || null,
+        }),
+        ...(data.englishCurrentLevel !== undefined && {
+          englishCurrentLevel: data.englishCurrentLevel || null,
+        }),
+        ...(data.englishMainGoal !== undefined && {
+          englishMainGoal: data.englishMainGoal || null,
+        }),
+        ...(data.englishPreviousExperience !== undefined && {
+          englishPreviousExperience: data.englishPreviousExperience || null,
+        }),
+        ...(data.englishInitialDifficulties !== undefined && {
+          englishInitialDifficulties: data.englishInitialDifficulties || null,
+        }),
+        ...(data.englishClassMode !== undefined && {
+          englishClassMode: data.englishClassMode || null,
+        }),
+        ...(data.englishClassFrequency !== undefined && {
+          englishClassFrequency: data.englishClassFrequency || null,
+        }),
+        ...(data.englishClassDuration !== undefined && {
+          englishClassDuration: data.englishClassDuration || null,
+        }),
+        ...(data.englishBillingAmount !== undefined && {
+          englishBillingAmount: data.englishBillingAmount,
+        }),
+        ...(data.legalPersonType !== undefined && {
+          legalPersonType: data.legalPersonType || null,
+        }),
+        ...(data.legalNationality !== undefined && {
+          legalNationality: data.legalNationality || null,
+        }),
+        ...(data.legalCpf !== undefined && {
+          legalCpf: data.legalCpf || null,
+        }),
+        ...(data.legalRg !== undefined && {
+          legalRg: data.legalRg || null,
+        }),
+        ...(data.legalMaritalStatus !== undefined && {
+          legalMaritalStatus: data.legalMaritalStatus || null,
+        }),
+        ...(data.legalCompanyName !== undefined && {
+          legalCompanyName: data.legalCompanyName || null,
+        }),
+        ...(data.legalTradeName !== undefined && {
+          legalTradeName: data.legalTradeName || null,
+        }),
+        ...(data.legalCnpj !== undefined && {
+          legalCnpj: data.legalCnpj || null,
+        }),
+        ...(data.legalStateRegistration !== undefined && {
+          legalStateRegistration: data.legalStateRegistration || null,
+        }),
+        ...(data.legalRepresentativeName !== undefined && {
+          legalRepresentativeName: data.legalRepresentativeName || null,
+        }),
+        ...(data.legalRepresentativeCpf !== undefined && {
+          legalRepresentativeCpf: data.legalRepresentativeCpf || null,
+        }),
+        ...(data.legalContactEmail !== undefined && {
+          legalContactEmail: data.legalContactEmail || null,
+        }),
+        ...(data.legalContactPhones !== undefined && {
+          legalContactPhones: data.legalContactPhones || null,
+        }),
+        ...(data.legalAddress !== undefined && {
+          legalAddress: data.legalAddress || null,
         }),
       },
     });
@@ -502,6 +612,8 @@ export type ClientRecordSummary = {
   chiefComplaint: string | null;
   totalNotes: number;
   lastSessionDate: Date | null;
+  totalLegalCases: number;
+  lastLegalActivityDate: Date | null;
   updatedAt: Date;
 };
 
@@ -538,8 +650,20 @@ export async function listProfessionalClientRecords(): Promise<{
           take: 1,
           select: { sessionDate: true },
         },
+        legalCases: {
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+          select: {
+            updatedAt: true,
+            activities: {
+              orderBy: { activityDate: "desc" },
+              take: 1,
+              select: { activityDate: true },
+            },
+          },
+        },
         _count: {
-          select: { sessionNotes: true },
+          select: { sessionNotes: true, legalCases: true },
         },
       },
     });
@@ -556,6 +680,11 @@ export async function listProfessionalClientRecords(): Promise<{
         chiefComplaint: record.chiefComplaint,
         totalNotes: record._count.sessionNotes,
         lastSessionDate: record.sessionNotes[0]?.sessionDate ?? null,
+        totalLegalCases: record._count.legalCases,
+        lastLegalActivityDate:
+          record.legalCases[0]?.activities[0]?.activityDate ??
+          record.legalCases[0]?.updatedAt ??
+          null,
         updatedAt: record.updatedAt,
       })),
     };
@@ -627,6 +756,28 @@ function serializeClientRecord(record: {
   foodAversions: string | null;
   foodPreferences: string | null;
   foodPattern: string | null;
+  englishCurrentLevel: string | null;
+  englishMainGoal: string | null;
+  englishPreviousExperience: string | null;
+  englishInitialDifficulties: string | null;
+  englishClassMode: string | null;
+  englishClassFrequency: string | null;
+  englishClassDuration: string | null;
+  englishBillingAmount: Prisma.Decimal | number | null;
+  legalPersonType: string | null;
+  legalNationality: string | null;
+  legalCpf: string | null;
+  legalRg: string | null;
+  legalMaritalStatus: string | null;
+  legalCompanyName: string | null;
+  legalTradeName: string | null;
+  legalCnpj: string | null;
+  legalStateRegistration: string | null;
+  legalRepresentativeName: string | null;
+  legalRepresentativeCpf: string | null;
+  legalContactEmail: string | null;
+  legalContactPhones: string | null;
+  legalAddress: string | null;
   specialtyData: unknown;
   createdAt: Date;
   updatedAt: Date;
@@ -641,6 +792,10 @@ function serializeClientRecord(record: {
     waterIntakeLiters:
       record.waterIntakeLiters !== null
         ? Number(record.waterIntakeLiters)
+        : null,
+    englishBillingAmount:
+      record.englishBillingAmount !== null
+        ? Number(record.englishBillingAmount)
         : null,
     specialtyData:
       record.specialtyData &&

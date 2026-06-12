@@ -175,6 +175,8 @@ model User {
   clientRecordsAsPro           ClientRecord[]                @relation("ProfessionalRecords")
   clientRecordsAsPat           ClientRecord[]                @relation("PatientRecords")
   sessionNotesWritten          SessionNote[]                 @relation("ProfessionalSessionNotes")
+  legalCasesWritten            LegalCase[]                   @relation("ProfessionalLegalCases")
+  legalActivitiesWritten       LegalCaseActivity[]           @relation("ProfessionalLegalActivities")
 
   // --- Relacionamentos Tech ---
   projectsOwned    Project[]     @relation("ClientProjects")
@@ -409,6 +411,32 @@ model ClientRecord {
   foodPreferences               String?  @db.Text
   foodPattern                   String?
 
+  // English teacher-specific permanent fields
+  englishCurrentLevel        String?
+  englishMainGoal            String?
+  englishPreviousExperience  String?  @db.Text
+  englishInitialDifficulties String?  @db.Text
+  englishClassMode           String?
+  englishClassFrequency      String?
+  englishClassDuration       String?
+  englishBillingAmount       Decimal?
+
+  // Lawyer-specific permanent fields
+  legalPersonType         String?
+  legalNationality        String?
+  legalCpf                String?
+  legalRg                 String?
+  legalMaritalStatus      String?
+  legalCompanyName        String?
+  legalTradeName          String?
+  legalCnpj               String?
+  legalStateRegistration  String?
+  legalRepresentativeName String?
+  legalRepresentativeCpf  String?
+  legalContactEmail       String?
+  legalContactPhones      String?
+  legalAddress            String? @db.Text
+
   // Specialty-specific fields stored as flexible JSON
   specialtyData Json? @default("{}")
 
@@ -418,10 +446,64 @@ model ClientRecord {
   professional User          @relation("ProfessionalRecords", fields: [professionalId], references: [id])
   patient      User          @relation("PatientRecords", fields: [patientId], references: [id])
   sessionNotes SessionNote[]
+  legalCases   LegalCase[]
 
   @@unique([professionalId, patientId])
   @@index([professionalId])
   @@index([patientId])
+}
+
+model LegalCase {
+  id             String @id @default(cuid())
+  clientRecordId String
+  professionalId String
+
+  title           String
+  legalArea       String?
+  processNumber   String?
+  court           String?
+  clientPosition  String?
+  opposingParty   String?
+  opposingCounsel String?
+  factsSummary    String? @db.Text
+  feeType         String?
+  feeDetails      String? @db.Text
+  status          String  @default("ACTIVE")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientRecord ClientRecord        @relation(fields: [clientRecordId], references: [id], onDelete: Cascade)
+  professional User                @relation("ProfessionalLegalCases", fields: [professionalId], references: [id])
+  activities   LegalCaseActivity[]
+
+  @@index([clientRecordId])
+  @@index([professionalId])
+  @@index([processNumber])
+}
+
+model LegalCaseActivity {
+  id             String @id @default(cuid())
+  legalCaseId    String
+  professionalId String
+
+  activityDate     DateTime
+  activityType     String
+  timeSpentMinutes Int?
+  description      String    @db.Text
+  deadlineDate     DateTime?
+  reminderDays     Int?
+  filesNotes       String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  legalCase    LegalCase @relation(fields: [legalCaseId], references: [id], onDelete: Cascade)
+  professional User      @relation("ProfessionalLegalActivities", fields: [professionalId], references: [id])
+
+  @@index([legalCaseId])
+  @@index([professionalId])
+  @@index([deadlineDate])
 }
 
 model SessionNote {
