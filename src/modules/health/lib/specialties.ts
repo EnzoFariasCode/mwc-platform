@@ -34,10 +34,8 @@ export const healthSpecialties: HealthSpecialty[] = [
       "Psicologa",
       "Psicologa(a)",
       "Psicologia",
-      "Psicólogo",
-      "Psicólogo(a)",
-      "Psicóloga",
-      "Psicóloga(a)",
+      "Psicologo clinico",
+      "Psicologa clinica",
     ],
   },
   {
@@ -50,7 +48,7 @@ export const healthSpecialties: HealthSpecialty[] = [
       "group-hover:border-emerald-500/50 group-hover:shadow-[0_0_30px_rgba(16,185,129,0.15)]",
     accentText: "text-emerald-400",
     accentBg: "bg-emerald-500",
-    terms: ["Nutricionista", "Nutricao", "Nutrição"],
+    terms: ["Nutricionista", "Nutricao"],
   },
   {
     id: "personal",
@@ -62,7 +60,7 @@ export const healthSpecialties: HealthSpecialty[] = [
       "group-hover:border-orange-500/50 group-hover:shadow-[0_0_30px_rgba(249,115,22,0.15)]",
     accentText: "text-orange-400",
     accentBg: "bg-orange-500",
-    terms: ["Personal Trainer", "Personal", "Educador Fisico", "Educador Físico"],
+    terms: ["Personal Trainer", "Personal", "Educador Fisico"],
   },
   {
     id: "ingles",
@@ -76,9 +74,9 @@ export const healthSpecialties: HealthSpecialty[] = [
     accentBg: "bg-blue-500",
     terms: [
       "Professor de Ingles",
-      "Professor de Inglês",
+      "Professor(a) de Ingles",
+      "Professora de Ingles",
       "Ingles",
-      "Inglês",
       "English Teacher",
     ],
   },
@@ -92,7 +90,7 @@ export const healthSpecialties: HealthSpecialty[] = [
       "group-hover:border-amber-500/50 group-hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]",
     accentText: "text-amber-400",
     accentBg: "bg-amber-500",
-    terms: ["Advogado", "Advogada", "Juridico", "Jurídico"],
+    terms: ["Advogado", "Advogada", "Juridico"],
   },
 ];
 

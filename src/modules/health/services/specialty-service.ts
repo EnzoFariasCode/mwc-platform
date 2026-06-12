@@ -10,25 +10,15 @@ export async function getHealthSpecialtyCards() {
         where: {
           userType: "PROFESSIONAL",
           industry: "HEALTH",
-          // Filtros de integridade do perfil
-          documentReg: { not: null },
           jobTitle: { not: null },
-          consultationFee: { not: null },
-          sessionDuration: { not: null },
-
-          // O "coração" da nova lógica:
-          // Só conta quem tem disponibilidade configurada na tabela nova
-          availabilities: {
-            some: { isActive: true },
-          },
 
           OR: [
-            {
+            ...specialty.terms.map((term) => ({
               jobTitle: {
-                in: specialty.terms,
-                mode: "insensitive",
+                contains: term,
+                mode: "insensitive" as const,
               },
-            },
+            })),
             {
               approach: {
                 contains: specialty.id, // Assume que specialty.id é o termo da abordagem

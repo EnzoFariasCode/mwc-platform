@@ -15,21 +15,14 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
       where: {
         userType: "PROFESSIONAL",
         industry: "HEALTH",
-        documentReg: { not: null },
         jobTitle: { not: null },
-        consultationFee: { not: null },
-        sessionDuration: { not: null },
-        // [NOVO] O banco já faz o filtro por nós! Só traz quem tem a agenda configurada e ativa.
-        availabilities: {
-          some: { isActive: true },
-        },
         OR: [
-          {
+          ...specialty.terms.map((term) => ({
             jobTitle: {
-              in: specialty.terms,
-              mode: "insensitive",
+              contains: term,
+              mode: "insensitive" as const,
             },
-          },
+          })),
           {
             approach: {
               contains: specialty.id,
@@ -61,10 +54,9 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
     // Filtro JS muito mais leve, apenas para remover espaços em branco vazios
     const validProfessionals = professionals
       .filter((pro) => {
-        const hasValidDoc = pro.documentReg && pro.documentReg.trim() !== "";
         const hasValidJobTitle = pro.jobTitle && pro.jobTitle.trim() !== "";
 
-        return hasValidDoc && hasValidJobTitle;
+        return hasValidJobTitle;
       })
       .map(({ profileImageBytes, ...pro }) => ({
         ...pro,
