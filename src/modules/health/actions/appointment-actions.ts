@@ -937,7 +937,7 @@ export async function rescheduleHealthAppointment(
         professionalId: appointment.professionalId,
         date: parsedNewDate.dateOnly,
         time: newTime,
-        status: { not: "CANCELED" },
+        status: { in: ["PENDING_PAYMENT", "PAID", "CONFIRMED"] },
         id: { not: appointmentId },
       },
       select: { id: true },

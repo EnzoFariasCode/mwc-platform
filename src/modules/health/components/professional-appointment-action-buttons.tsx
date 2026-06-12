@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, CalendarClock, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -22,6 +23,7 @@ export function ProfessionalAppointmentActionButtons({
   appointmentDate: string;
   appointmentTime: string;
 }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [modalType, setModalType] = useState<"cancel" | "no-show" | null>(
     null,
@@ -42,6 +44,7 @@ export function ProfessionalAppointmentActionButtons({
 
       setModalType(null);
       toast.success("Consulta cancelada e reembolso solicitado.");
+      router.refresh();
     });
   };
 
@@ -56,6 +59,7 @@ export function ProfessionalAppointmentActionButtons({
 
       setModalType(null);
       toast.success("Ausencia do paciente registrada.");
+      router.refresh();
     });
   };
 
@@ -74,6 +78,7 @@ export function ProfessionalAppointmentActionButtons({
 
       setShowReschedule(false);
       toast.success("Consulta reagendada com sucesso. O paciente foi notificado.");
+      router.refresh();
     });
   };
 

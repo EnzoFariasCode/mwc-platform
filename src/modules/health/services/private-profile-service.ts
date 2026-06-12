@@ -78,6 +78,7 @@ export async function getHealthPatientHistoryById(userId: string) {
               name: true,
               displayName: true,
               image: true,
+              profileImageBytes: true,
               jobTitle: true,
               approach: true,
             },

@@ -15,6 +15,8 @@ import {
   XCircle,
 } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
@@ -65,6 +67,15 @@ function statusBadge(status: string) {
   };
 }
 
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
 export default async function HistoricoConsultasPage() {
   const session = await auth();
 
@@ -93,6 +104,8 @@ export default async function HistoricoConsultasPage() {
               const professional = appointment.professional;
               const professionalName =
                 professional.displayName || professional.name;
+              const hasProfessionalImage =
+                Boolean(professional.profileImageBytes);
               const badge = statusBadge(appointment.status);
               const BadgeIcon = badge.icon;
               const canCancel =
@@ -115,13 +128,19 @@ export default async function HistoricoConsultasPage() {
                 >
                   <div className="flex items-center gap-5 w-full md:w-auto">
                     <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/10 shrink-0">
-                      <Image
-                        src={`/api/images/user/${professional.id}`}
-                        alt={professionalName}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
+                      {hasProfessionalImage ? (
+                        <Image
+                          src={`/api/images/user/${professional.id}`}
+                          alt={professionalName}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-[#d73cbe]/15 text-sm font-bold uppercase text-[#d73cbe]">
+                          {initials(professionalName) || "MW"}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <h3 className="font-bold text-white leading-tight">

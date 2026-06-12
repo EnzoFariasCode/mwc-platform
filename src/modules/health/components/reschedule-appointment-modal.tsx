@@ -42,6 +42,12 @@ export function RescheduleAppointmentModal({
     }
   };
 
+  const formattedCurrentDate = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(currentDate));
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="bg-[#0f172a] border border-white/10 rounded-2xl max-w-md w-full mx-4">
@@ -67,7 +73,7 @@ export function RescheduleAppointmentModal({
           <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-slate-400">
             <p className="text-slate-300 font-medium mb-1">Horario atual</p>
             <p>
-              {currentDate} as {currentTime}
+              {formattedCurrentDate} as {currentTime}
             </p>
           </div>
 
@@ -89,10 +95,16 @@ export function RescheduleAppointmentModal({
               value={newDate}
               min={minDate}
               max={maxDateStr}
+              onKeyDown={(event) => event.preventDefault()}
+              onPaste={(event) => event.preventDefault()}
               onChange={(event) => setNewDate(event.target.value)}
               disabled={isLoading}
-              className="w-full bg-[#020617] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#d73cbe]/50 transition-colors disabled:opacity-50"
+              className="w-full cursor-pointer bg-[#020617] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#d73cbe]/50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             />
+            <p className="text-xs text-slate-500">
+              Selecione a data pelo calendario. Datas fora da agenda do
+              profissional serao recusadas automaticamente.
+            </p>
           </div>
 
           <div className="space-y-2">
