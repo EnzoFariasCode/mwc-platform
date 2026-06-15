@@ -226,6 +226,7 @@ export async function finalizeHealthAppointmentPayment({
       await tx.transaction.create({
         data: {
           userId: proId,
+          appointmentId: createdAppointment.id,
           amount: professionalAmount,
           type: "CREDIT",
           status: "PENDING",

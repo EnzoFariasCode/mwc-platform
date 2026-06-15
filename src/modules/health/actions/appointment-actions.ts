@@ -26,18 +26,12 @@ async function findPendingCreditTransaction(
   tx: Prisma.TransactionClient,
   appointment: EscrowAppointment,
 ) {
-  if (!appointment.stripeSessionId) {
-    throw new Error("Consulta sem referencia de pagamento Stripe.");
-  }
-
   return await tx.transaction.findFirst({
     where: {
+      appointmentId: appointment.id,
       userId: appointment.professionalId,
       type: "CREDIT",
       status: "PENDING",
-      description: {
-        contains: appointment.stripeSessionId,
-      },
     },
     select: {
       id: true,

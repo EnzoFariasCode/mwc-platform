@@ -356,7 +356,8 @@ model Appointment {
   serviceTypeId String?
   serviceType   ServiceType? @relation(fields: [serviceTypeId], references: [id])
 
-  sessionNote SessionNote?
+  sessionNote  SessionNote?
+  transactions Transaction[]
 
   // Ajuda a prevenir consultas duplicadas no mesmo horário
   @@index([patientId])
@@ -548,6 +549,13 @@ model Transaction {
   updatedAt DateTime @updatedAt
 
   projectId String?
+
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@index([projectId])
+  @@index([appointmentId])
+  @@index([userId, status])
 }
 
 model WithdrawalRequest {

@@ -171,9 +171,9 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
   await db.$transaction(async (tx) => {
     const pendingTransaction = await tx.transaction.findFirst({
       where: {
+        appointmentId: appt.id,
         userId: appt.professionalId,
         status: "PENDING",
-        description: { contains: checkoutSessionId },
       },
       select: { id: true, amount: true },
     });
@@ -268,9 +268,9 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
   await db.$transaction(async (tx) => {
     const pendingTransaction = await tx.transaction.findFirst({
       where: {
+        appointmentId: appt.id,
         userId: appt.professionalId,
         status: "PENDING",
-        description: { contains: checkoutSessionId },
       },
       select: { id: true, amount: true },
     });
@@ -338,9 +338,9 @@ async function handleDisputeClosed(dispute: Stripe.Dispute) {
     await db.$transaction(async (tx) => {
       const disputedTransaction = await tx.transaction.findFirst({
         where: {
+          appointmentId: appt.id,
           userId: appt.professionalId,
           status: "DISPUTED",
-          description: { contains: checkoutSessionId },
         },
         select: { id: true, amount: true },
       });
@@ -380,9 +380,9 @@ async function handleDisputeClosed(dispute: Stripe.Dispute) {
 
       await tx.transaction.updateMany({
         where: {
+          appointmentId: appt.id,
           userId: appt.professionalId,
           status: "DISPUTED",
-          description: { contains: checkoutSessionId },
         },
         data: { status: "CANCELED" },
       });
