@@ -3,12 +3,12 @@
 import { requireAdminUser } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 
-export async function getPendingWithdrawals() {
+export async function getAdminWithdrawals() {
   await requireAdminUser();
 
   return await db.withdrawalRequest.findMany({
-    where: { status: "PENDING" },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    take: 100,
     select: {
       id: true,
       amount: true,
@@ -28,3 +28,5 @@ export async function getPendingWithdrawals() {
     },
   });
 }
+
+export const getPendingWithdrawals = getAdminWithdrawals;

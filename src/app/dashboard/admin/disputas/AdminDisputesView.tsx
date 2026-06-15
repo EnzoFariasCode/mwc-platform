@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, CreditCard, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CreditCard,
+  ShieldCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { TechProjectReasonModal } from "@/modules/projects/components/TechProjectReasonModal";
 import { resolveHealthAppointmentDispute } from "@/modules/health/actions/appointment-actions";
@@ -15,7 +20,11 @@ export type AdminDisputeItem = {
   status: string;
   amount: number | null;
   reason: string | null;
+  resolutionReason: string | null;
+  resolution: "REFUND" | "RELEASE" | null;
+  isOpen: boolean;
   openedAt: string | null;
+  resolvedAt: string | null;
   updatedAt: string;
   requesterLabel: "Cliente" | "Paciente";
   requesterName: string;
@@ -56,9 +65,18 @@ export default function AdminDisputesView({
   const [pendingDecision, setPendingDecision] =
     useState<PendingDecision | null>(null);
   const [isResolving, setIsResolving] = useState(false);
+  const [filter, setFilter] = useState<"OPEN" | "RESOLVED" | "ALL">("OPEN");
 
-  const healthCount = disputes.filter((item) => item.kind === "HEALTH").length;
-  const techCount = disputes.filter((item) => item.kind === "TECH").length;
+  const openDisputes = disputes.filter((item) => item.isOpen);
+  const resolvedDisputes = disputes.filter((item) => !item.isOpen);
+  const filteredDisputes =
+    filter === "OPEN"
+      ? openDisputes
+      : filter === "RESOLVED"
+        ? resolvedDisputes
+        : disputes;
+  const healthCount = openDisputes.filter((item) => item.kind === "HEALTH").length;
+  const techCount = openDisputes.filter((item) => item.kind === "TECH").length;
 
   async function handleResolve(reason: string) {
     if (!pendingDecision) return;
@@ -105,31 +123,59 @@ export default function AdminDisputesView({
             Admin
           </div>
           <h1 className="text-2xl font-bold text-white font-futura">
-            Mediação de Disputas
+            Mediacao de Disputas
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            Decida reembolsos e liberações financeiras dos setores Tech e Saúde.
+            Decida reembolsos e liberacoes financeiras, e consulte o historico
+            dos setores Tech e Saude.
           </p>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          <Metric label="Total" value={disputes.length} />
+          <Metric label="Abertas" value={openDisputes.length} />
           <Metric label="Tech" value={techCount} />
-          <Metric label="Saúde" value={healthCount} />
+          <Metric label="Saude" value={healthCount} />
         </div>
       </div>
 
-      {disputes.length === 0 ? (
+      <div className="flex flex-wrap gap-2">
+        {[
+          { value: "OPEN" as const, label: "Abertas", count: openDisputes.length },
+          {
+            value: "RESOLVED" as const,
+            label: "Historico",
+            count: resolvedDisputes.length,
+          },
+          { value: "ALL" as const, label: "Todas", count: disputes.length },
+        ].map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => setFilter(item.value)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
+              filter === item.value
+                ? "border-red-300 bg-red-300 text-slate-950"
+                : "border-white/10 bg-slate-900 text-slate-300 hover:border-white/20 hover:bg-slate-800"
+            }`}
+          >
+            {item.label} ({item.count})
+          </button>
+        ))}
+      </div>
+
+      {filteredDisputes.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-12 text-center">
           <CheckCircle2 className="mx-auto mb-4 h-10 w-10 text-emerald-400" />
-          <h2 className="text-lg font-bold text-white">Sem disputas abertas</h2>
+          <h2 className="text-lg font-bold text-white">
+            Nenhuma disputa neste filtro
+          </h2>
           <p className="mt-2 text-sm text-slate-400">
-            Quando houver mediação pendente, ela aparecerá aqui.
+            Alterne entre abertas e historico para consultar outros registros.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-          {disputes.map((dispute) => (
+          {filteredDisputes.map((dispute) => (
             <article
               key={`${dispute.kind}-${dispute.id}`}
               className="rounded-2xl border border-white/5 bg-slate-900 p-6 shadow-lg shadow-black/10"
@@ -144,11 +190,24 @@ export default function AdminDisputesView({
                           : "bg-emerald-500/10 text-emerald-300"
                       }`}
                     >
-                      {dispute.kind === "TECH" ? "Tech" : "Saúde"}
+                      {dispute.kind === "TECH" ? "Tech" : "Saude"}
                     </span>
-                    <span className="rounded-full bg-red-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-red-300">
-                      {dispute.status}
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                        dispute.isOpen
+                          ? "bg-red-500/10 text-red-300"
+                          : "bg-slate-500/10 text-slate-300"
+                      }`}
+                    >
+                      {dispute.isOpen ? dispute.status : "RESOLVIDA"}
                     </span>
+                    {dispute.resolution && (
+                      <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-300">
+                        {dispute.resolution === "REFUND"
+                          ? "Reembolso"
+                          : "Liberado"}
+                      </span>
+                    )}
                   </div>
                   <h2 className="line-clamp-2 text-lg font-bold text-white">
                     {dispute.title}
@@ -187,33 +246,54 @@ export default function AdminDisputesView({
                 </p>
               </div>
 
+              {dispute.resolutionReason && (
+                <div className="mt-3 rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-4">
+                  <p className="mb-1 flex items-center gap-2 text-xs font-bold uppercase text-emerald-300">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Decisao
+                  </p>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-300">
+                    {dispute.resolutionReason}
+                  </p>
+                </div>
+              )}
+
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
                 <span>Aberta: {formatDate(dispute.openedAt)}</span>
+                {dispute.resolvedAt && (
+                  <span>Resolvida: {formatDate(dispute.resolvedAt)}</span>
+                )}
                 <span>Atualizada: {formatDate(dispute.updatedAt)}</span>
               </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPendingDecision({ dispute, decision: "REFUND" })
-                  }
-                  className="flex items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-300 transition-colors hover:bg-red-500 hover:text-white"
-                >
-                  <CreditCard className="h-4 w-4" />
-                  Reembolsar
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPendingDecision({ dispute, decision: "RELEASE" })
-                  }
-                  className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  Liberar ao profissional
-                </button>
-              </div>
+              {dispute.isOpen ? (
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPendingDecision({ dispute, decision: "REFUND" })
+                    }
+                    className="flex items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-300 transition-colors hover:bg-red-500 hover:text-white"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Reembolsar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPendingDecision({ dispute, decision: "RELEASE" })
+                    }
+                    className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Liberar ao profissional
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-5 rounded-xl border border-white/5 bg-slate-950 px-4 py-3 text-xs font-bold text-slate-400">
+                  Registro historico sem acao pendente.
+                </div>
+              )}
             </article>
           ))}
         </div>
@@ -238,8 +318,8 @@ export default function AdminDisputesView({
         }
         description={
           pendingDecision?.decision === "REFUND"
-            ? "Registre o motivo da decisão antes de solicitar o reembolso."
-            : "Registre o motivo da decisão antes de liberar o valor ao profissional."
+            ? "Registre o motivo da decisao antes de solicitar o reembolso."
+            : "Registre o motivo da decisao antes de liberar o valor ao profissional."
         }
         confirmLabel={
           pendingDecision?.decision === "REFUND"

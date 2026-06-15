@@ -6,6 +6,14 @@ import { CheckCircle2, CircleDollarSign, Landmark, Loader2 } from "lucide-react"
 import { toast } from "sonner";
 import { approveWithdrawal } from "@/modules/admin/actions/approve-withdrawal";
 
+type WithdrawalStatusFilter =
+  | "ALL"
+  | "PENDING"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELED";
+
 export type AdminWithdrawalItem = {
   id: string;
   amount: number;
@@ -20,6 +28,22 @@ export type AdminWithdrawalItem = {
     email: string;
     walletBalance: number;
   };
+};
+
+const statusLabels: Record<string, string> = {
+  PENDING: "Pendente",
+  PROCESSING: "Processando",
+  COMPLETED: "Transferido",
+  FAILED: "Falhou",
+  CANCELED: "Cancelado",
+};
+
+const statusClasses: Record<string, string> = {
+  PENDING: "border-amber-500/20 bg-amber-500/10 text-amber-300",
+  PROCESSING: "border-blue-500/20 bg-blue-500/10 text-blue-300",
+  COMPLETED: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+  FAILED: "border-red-500/20 bg-red-500/10 text-red-300",
+  CANCELED: "border-slate-500/20 bg-slate-500/10 text-slate-300",
 };
 
 function formatMoney(amount: number) {
@@ -43,6 +67,8 @@ export default function AdminFinanceiroView({
 }) {
   const router = useRouter();
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] =
+    useState<WithdrawalStatusFilter>("PENDING");
 
   async function handleApprove(withdrawalId: string) {
     setApprovingId(withdrawalId);
@@ -58,7 +84,28 @@ export default function AdminFinanceiroView({
     setApprovingId(null);
   }
 
-  const totalAmount = withdrawals.reduce((sum, item) => sum + item.amount, 0);
+  const pendingWithdrawals = withdrawals.filter(
+    (item) => item.status === "PENDING",
+  );
+  const filteredWithdrawals =
+    statusFilter === "ALL"
+      ? withdrawals
+      : withdrawals.filter((item) => item.status === statusFilter);
+  const pendingAmount = pendingWithdrawals.reduce(
+    (sum, item) => sum + item.amount,
+    0,
+  );
+  const completedAmount = withdrawals
+    .filter((item) => item.status === "COMPLETED")
+    .reduce((sum, item) => sum + item.amount, 0);
+  const filters: Array<{ value: WithdrawalStatusFilter; label: string }> = [
+    { value: "PENDING", label: "Pendentes" },
+    { value: "COMPLETED", label: "Transferidos" },
+    { value: "PROCESSING", label: "Processando" },
+    { value: "FAILED", label: "Falhas" },
+    { value: "CANCELED", label: "Cancelados" },
+    { value: "ALL", label: "Todos" },
+  ];
 
   return (
     <div className="space-y-8">
@@ -69,34 +116,60 @@ export default function AdminFinanceiroView({
             Tesouraria
           </div>
           <h1 className="text-2xl font-bold text-white font-futura">
-            Aprovação de Saques PIX
+            Saques PIX
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            Confira as solicitações pendentes e marque como transferidas após o
-            pagamento manual via PIX.
+            Confira solicitacoes pendentes e consulte o historico de
+            transferencias PIX.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Metric label="Pendentes" value={withdrawals.length.toString()} />
-          <Metric label="Total" value={formatMoney(totalAmount)} />
+        <div className="grid grid-cols-3 gap-3">
+          <Metric label="Pendentes" value={pendingWithdrawals.length.toString()} />
+          <Metric label="A transferir" value={formatMoney(pendingAmount)} />
+          <Metric label="Transferido" value={formatMoney(completedAmount)} />
         </div>
       </div>
 
-      {withdrawals.length === 0 ? (
+      <div className="flex flex-wrap gap-2">
+        {filters.map((filter) => {
+          const count =
+            filter.value === "ALL"
+              ? withdrawals.length
+              : withdrawals.filter((item) => item.status === filter.value)
+                  .length;
+
+          return (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => setStatusFilter(filter.value)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
+                statusFilter === filter.value
+                  ? "border-emerald-400 bg-emerald-400 text-black"
+                  : "border-white/10 bg-slate-900 text-slate-300 hover:border-white/20 hover:bg-slate-800"
+              }`}
+            >
+              {filter.label} ({count})
+            </button>
+          );
+        })}
+      </div>
+
+      {filteredWithdrawals.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-12 text-center">
           <CheckCircle2 className="mx-auto mb-4 h-10 w-10 text-emerald-400" />
           <h2 className="text-lg font-bold text-white">
-            Nenhum saque pendente
+            Nenhum registro neste filtro
           </h2>
           <p className="mt-2 text-sm text-slate-400">
-            Novas solicitações PIX aparecerão aqui.
+            Use os filtros acima para alternar entre pendencias e historico.
           </p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-white/5 bg-slate-900 shadow-lg shadow-black/10">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] text-left text-sm">
+            <table className="w-full min-w-[1040px] text-left text-sm">
               <thead className="border-b border-white/5 bg-slate-950 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-5 py-4">Data</th>
@@ -104,11 +177,12 @@ export default function AdminFinanceiroView({
                   <th className="px-5 py-4">Valor</th>
                   <th className="px-5 py-4">Chave PIX</th>
                   <th className="px-5 py-4">Tipo</th>
-                  <th className="px-5 py-4 text-right">Ação</th>
+                  <th className="px-5 py-4">Status</th>
+                  <th className="px-5 py-4 text-right">Acao</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {withdrawals.map((withdrawal) => (
+                {filteredWithdrawals.map((withdrawal) => (
                   <tr
                     key={withdrawal.id}
                     className="transition-colors hover:bg-white/[0.02]"
@@ -140,20 +214,36 @@ export default function AdminFinanceiroView({
                         {withdrawal.pixKeyType}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleApprove(withdrawal.id)}
-                        disabled={approvingId === withdrawal.id}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-black transition-colors hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60"
+                    <td className="px-5 py-4">
+                      <span
+                        className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
+                          statusClasses[withdrawal.status] ??
+                          "border-white/10 bg-slate-800 text-slate-300"
+                        }`}
                       >
-                        {approvingId === withdrawal.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="h-4 w-4" />
-                        )}
-                        Marcar como Transferido
-                      </button>
+                        {statusLabels[withdrawal.status] ?? withdrawal.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      {withdrawal.status === "PENDING" ? (
+                        <button
+                          type="button"
+                          onClick={() => handleApprove(withdrawal.id)}
+                          disabled={approvingId === withdrawal.id}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-black transition-colors hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          {approvingId === withdrawal.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="h-4 w-4" />
+                          )}
+                          Marcar como transferido
+                        </button>
+                      ) : (
+                        <span className="text-xs font-bold text-slate-500">
+                          Sem acao pendente
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

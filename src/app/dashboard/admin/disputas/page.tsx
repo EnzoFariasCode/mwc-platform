@@ -29,8 +29,22 @@ export default async function AdminDisputasPage() {
 
   const [techProjects, healthAppointments] = await Promise.all([
     db.project.findMany({
-      where: { status: "DISPUTE" },
+      where: {
+        OR: [
+          { status: "DISPUTE" },
+          {
+            deliverables: {
+              some: {
+                description: {
+                  startsWith: "DISPUTE_",
+                },
+              },
+            },
+          },
+        ],
+      },
       orderBy: { updatedAt: "desc" },
+      take: 100,
       select: {
         id: true,
         title: true,
@@ -39,12 +53,13 @@ export default async function AdminDisputasPage() {
         updatedAt: true,
         deliverables: {
           where: {
-            description: {
-              startsWith: "DISPUTE_OPENED",
-            },
+            OR: [
+              { description: { startsWith: "DISPUTE_OPENED" } },
+              { description: { startsWith: "DISPUTE_RESOLVED" } },
+            ],
           },
           orderBy: { createdAt: "desc" },
-          take: 1,
+          take: 5,
           select: {
             description: true,
             createdAt: true,
@@ -65,8 +80,14 @@ export default async function AdminDisputasPage() {
       } as Prisma.ProjectSelect,
     }) as Promise<TechDisputeRecord[]>,
     db.appointment.findMany({
-      where: { status: "DISPUTED" },
+      where: {
+        OR: [
+          { status: "DISPUTED" },
+          { notes: { contains: "DISPUTE_RESOLVED" } },
+        ],
+      },
       orderBy: { updatedAt: "desc" },
+      take: 100,
       select: {
         id: true,
         date: true,
@@ -75,6 +96,7 @@ export default async function AdminDisputasPage() {
         status: true,
         disputeReason: true,
         disputeOpenedAt: true,
+        notes: true,
         updatedAt: true,
         patient: {
           select: {
@@ -93,42 +115,83 @@ export default async function AdminDisputasPage() {
   ]);
 
   const disputes: AdminDisputeItem[] = [
-    ...techProjects.map((project) => ({
-      id: project.id,
-      kind: "TECH" as const,
-      title: project.title,
-      status: project.status,
-      amount: project.agreedPrice ? project.agreedPrice.toNumber() : null,
-      reason:
-        project.deliverables[0]?.description?.replace(
-          /^DISPUTE_OPENED\s*-\s*/,
-          "",
-        ) ?? null,
-      openedAt: project.deliverables[0]?.createdAt.toISOString() ?? null,
-      updatedAt: project.updatedAt.toISOString(),
-      requesterLabel: "Cliente" as const,
-      requesterName: project.owner.name || "Cliente",
-      requesterEmail: project.owner.email,
-      professionalName: project.professional?.name || "Profissional",
-      professionalEmail: project.professional?.email ?? null,
-    })),
-    ...healthAppointments.map((appointment) => ({
-      id: appointment.id,
-      kind: "HEALTH" as const,
-      title: `Consulta em ${appointment.date.toLocaleDateString("pt-BR")} as ${
-        appointment.time
-      }`,
-      status: appointment.status,
-      amount: appointment.price.toNumber(),
-      reason: appointment.disputeReason,
-      openedAt: appointment.disputeOpenedAt?.toISOString() ?? null,
-      updatedAt: appointment.updatedAt.toISOString(),
-      requesterLabel: "Paciente" as const,
-      requesterName: appointment.patient.name || "Paciente",
-      requesterEmail: appointment.patient.email,
-      professionalName: appointment.professional.name || "Profissional",
-      professionalEmail: appointment.professional.email,
-    })),
+    ...techProjects.map((project) => {
+      const opened = project.deliverables.find((item) =>
+        item.description?.startsWith("DISPUTE_OPENED"),
+      );
+      const resolved = project.deliverables.find((item) =>
+        item.description?.startsWith("DISPUTE_RESOLVED"),
+      );
+      const resolvedDescription = resolved?.description ?? "";
+      const resolution: AdminDisputeItem["resolution"] =
+        resolvedDescription.startsWith("DISPUTE_RESOLVED_REFUND")
+          ? "REFUND"
+          : resolvedDescription.startsWith("DISPUTE_RESOLVED_RELEASE")
+            ? "RELEASE"
+            : null;
+
+      return {
+        id: project.id,
+        kind: "TECH" as const,
+        title: project.title,
+        status: project.status,
+        amount: project.agreedPrice ? project.agreedPrice.toNumber() : null,
+        reason:
+          opened?.description?.replace(/^DISPUTE_OPENED\s*-\s*/, "") ?? null,
+        resolutionReason:
+          resolvedDescription.replace(
+            /^DISPUTE_RESOLVED_(REFUND|RELEASE)\s*-\s*/,
+            "",
+          ) ||
+          null,
+        resolution,
+        isOpen: project.status === "DISPUTE",
+        openedAt: opened?.createdAt.toISOString() ?? null,
+        resolvedAt: resolved?.createdAt.toISOString() ?? null,
+        updatedAt: project.updatedAt.toISOString(),
+        requesterLabel: "Cliente" as const,
+        requesterName: project.owner.name || "Cliente",
+        requesterEmail: project.owner.email,
+        professionalName: project.professional?.name || "Profissional",
+        professionalEmail: project.professional?.email ?? null,
+      };
+    }),
+    ...healthAppointments.map((appointment) => {
+      const notes = appointment.notes ?? "";
+      const resolution: AdminDisputeItem["resolution"] = notes.includes(
+        "DISPUTE_RESOLVED_REFUND",
+      )
+        ? "REFUND"
+        : notes.includes("DISPUTE_RESOLVED_RELEASE")
+          ? "RELEASE"
+          : null;
+      const resolutionReason =
+        notes
+          .match(/Motivo:\s*([^.\n]+)/)?.[1]
+          ?.trim() || null;
+
+      return {
+        id: appointment.id,
+        kind: "HEALTH" as const,
+        title: `Consulta em ${appointment.date.toLocaleDateString("pt-BR")} as ${
+          appointment.time
+        }`,
+        status: appointment.status,
+        amount: appointment.price.toNumber(),
+        reason: appointment.disputeReason,
+        resolutionReason,
+        resolution,
+        isOpen: appointment.status === "DISPUTED",
+        openedAt: appointment.disputeOpenedAt?.toISOString() ?? null,
+        resolvedAt: resolution ? appointment.updatedAt.toISOString() : null,
+        updatedAt: appointment.updatedAt.toISOString(),
+        requesterLabel: "Paciente" as const,
+        requesterName: appointment.patient.name || "Paciente",
+        requesterEmail: appointment.patient.email,
+        professionalName: appointment.professional.name || "Profissional",
+        professionalEmail: appointment.professional.email,
+      };
+    }),
   ].sort((a, b) => {
     return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   });

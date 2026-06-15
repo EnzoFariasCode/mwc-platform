@@ -1,9 +1,9 @@
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
-import { getPendingWithdrawals } from "@/modules/admin/actions/get-withdrawals";
+import { getAdminWithdrawals } from "@/modules/admin/actions/get-withdrawals";
 import AdminFinanceiroView, { AdminWithdrawalItem } from "./AdminFinanceiroView";
 
 export default async function AdminFinanceiroPage() {
-  const withdrawals = await getPendingWithdrawals();
+  const withdrawals = await getAdminWithdrawals();
 
   const safeWithdrawals: AdminWithdrawalItem[] = withdrawals.map(
     (withdrawal) => ({
