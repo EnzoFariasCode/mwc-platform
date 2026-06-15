@@ -2,6 +2,8 @@
 "use client";
 
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Search,
@@ -13,12 +15,31 @@ import {
   Filter,
   CheckCircle2,
 } from "lucide-react";
+import { withdrawProposal } from "@/modules/projects/actions/project-state-actions";
+import { toast } from "sonner";
 
 interface MyProposalsViewProps {
   proposals: any[];
 }
 
 export default function MyProposalsView({ proposals }: MyProposalsViewProps) {
+  const router = useRouter();
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+
+  const handleWithdraw = async (proposalId: string) => {
+    setWithdrawingId(proposalId);
+    const result = await withdrawProposal(proposalId);
+
+    if (result.success) {
+      toast.success("Proposta retirada.");
+      router.refresh();
+    } else {
+      toast.error(result.error || "Nao foi possivel retirar a proposta.");
+    }
+
+    setWithdrawingId(null);
+  };
+
   return (
     <PageContainer>
       <div className="space-y-8">
@@ -141,6 +162,20 @@ export default function MyProposalsView({ proposals }: MyProposalsViewProps) {
                         </button>
                       </Link>
                     </div>
+                  )}
+
+                  {proposal.status === "PENDING" &&
+                    proposal.project.status === "OPEN" && (
+                    <button
+                      onClick={() => handleWithdraw(proposal.id)}
+                      disabled={withdrawingId === proposal.id}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white text-xs font-bold rounded-lg transition-all border border-red-500/20 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      {withdrawingId === proposal.id
+                        ? "Retirando..."
+                        : "Retirar Proposta"}
+                    </button>
                   )}
 
                   <div className="text-center">

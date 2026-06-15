@@ -3,6 +3,7 @@
 
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   MessageSquare,
@@ -12,11 +13,15 @@ import {
   Briefcase,
   UploadCloud, // <--- Ícone Novo
   Star,
+  AlertTriangle,
 } from "lucide-react";
 import { ProjectDetailsModal } from "@/modules/projects/components/ProjectDetailsModal";
 import { DeliverProjectModal } from "@/modules/projects/components/DeliverProjectModal"; // <--- Import Novo
 import { ReviewModal } from "@/modules/reviews/components/ReviewModal";
 import { submitReview } from "@/modules/reviews/actions/submit-review";
+import { TechProjectReasonModal } from "@/modules/projects/components/TechProjectReasonModal";
+import { openTechProjectDispute } from "@/modules/projects/actions/project-state-actions";
+import { toast } from "sonner";
 
 interface ActiveProjectsViewProps {
   projects: any[];
@@ -25,6 +30,7 @@ interface ActiveProjectsViewProps {
 export default function ActiveProjectsView({
   projects,
 }: ActiveProjectsViewProps) {
+  const router = useRouter();
   // Estado para Detalhes
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -34,6 +40,8 @@ export default function ActiveProjectsView({
   const [isDeliverModalOpen, setIsDeliverModalOpen] = useState(false);
   const [projectToReview, setProjectToReview] = useState<any>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [projectToDispute, setProjectToDispute] = useState<any>(null);
+  const [isDisputeLoading, setIsDisputeLoading] = useState(false);
 
   const handleOpenDetails = (project: any) => {
     setSelectedProject(project);
@@ -55,6 +63,23 @@ export default function ActiveProjectsView({
       return { success: false, error: "Projeto invalido." };
     }
     return submitReview(projectToReview.id, rating, comment);
+  };
+
+  const handleOpenDispute = async (reason: string) => {
+    if (!projectToDispute?.id) return;
+
+    setIsDisputeLoading(true);
+    const result = await openTechProjectDispute(projectToDispute.id, reason);
+
+    if (result.success) {
+      toast.success("Disputa aberta para mediacao.");
+      setProjectToDispute(null);
+      router.refresh();
+    } else {
+      toast.error(result.error || "Nao foi possivel abrir disputa.");
+    }
+
+    setIsDisputeLoading(false);
   };
 
   return (
@@ -149,6 +174,17 @@ export default function ActiveProjectsView({
                     </button>
                   )}
 
+                  {(project.status === "IN_PROGRESS" ||
+                    project.status === "UNDER_REVIEW") && (
+                    <button
+                      onClick={() => setProjectToDispute(project)}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white text-xs font-bold transition-all border border-red-500/20 cursor-pointer animate-in fade-in"
+                    >
+                      <AlertTriangle className="w-4 h-4" />
+                      Abrir Disputa
+                    </button>
+                  )}
+
                   {project.status === "COMPLETED" &&
                     (!project.reviews || project.reviews.length === 0) && (
                       <button
@@ -221,6 +257,21 @@ export default function ActiveProjectsView({
           }?`}
           confirmLabel="Enviar Avaliacao"
           onConfirm={handleSubmitReview}
+        />
+
+        <TechProjectReasonModal
+          key={projectToDispute?.id || "closed"}
+          isOpen={!!projectToDispute}
+          onClose={() => {
+            if (!isDisputeLoading) setProjectToDispute(null);
+          }}
+          onConfirm={handleOpenDispute}
+          isLoading={isDisputeLoading}
+          title="Abrir disputa"
+          description="Descreva o problema para que a equipe MWC possa mediar o conflito."
+          confirmLabel="Abrir disputa"
+          minLength={10}
+          tone="danger"
         />
       </div>
     </PageContainer>

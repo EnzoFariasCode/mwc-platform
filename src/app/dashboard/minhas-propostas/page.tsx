@@ -29,6 +29,7 @@ export default async function MinhasPropostasPage() {
         select: {
           id: true,
           title: true,
+          status: true,
           owner: {
             select: {
               id: true,

@@ -17,14 +17,21 @@ import {
   Download,
   ThumbsUp,
   ThumbsDown,
+  AlertTriangle,
   Hourglass,
   CheckCircle,
   Briefcase,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { SendProposalModal } from "@/modules/proposals/components/SendProposalModal";
 import { getProjectProposals } from "@/modules/proposals/actions/get-project-proposals";
 import { approveProject } from "@/modules/proposals/actions/approve-project";
+import {
+  openTechProjectDispute,
+  requestTechProjectRevision,
+} from "@/modules/projects/actions/project-state-actions";
+import { TechProjectReasonModal } from "@/modules/projects/components/TechProjectReasonModal";
 import { toast } from "sonner";
 import Link from "next/link";
 import { ReviewModal } from "@/modules/reviews/components/ReviewModal";
@@ -44,11 +51,16 @@ export function ProjectDetailsModal({
   allowProposal = false,
   isOwner = false,
 }: ProjectDetailsModalProps) {
+  const router = useRouter();
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [proposals, setProposals] = useState<any[]>([]);
   const [isLoadingProposals, setIsLoadingProposals] = useState(false);
   const [showProposals, setShowProposals] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reasonAction, setReasonAction] = useState<"revision" | "dispute" | null>(
+    null,
+  );
+  const [isReasonLoading, setIsReasonLoading] = useState(false);
 
   useEffect(() => {
     if (
@@ -80,6 +92,31 @@ export function ProjectDetailsModal({
     }
 
     return result;
+  };
+
+  const handleConfirmReasonAction = async (reason: string) => {
+    if (!project?.id || !reasonAction) return;
+
+    setIsReasonLoading(true);
+    const result =
+      reasonAction === "revision"
+        ? await requestTechProjectRevision(project.id, reason)
+        : await openTechProjectDispute(project.id, reason);
+
+    if (result.success) {
+      toast.success(
+        reasonAction === "revision"
+          ? "Pedido de revisao enviado."
+          : "Disputa aberta para mediacao.",
+      );
+      setReasonAction(null);
+      onClose();
+      router.refresh();
+    } else {
+      toast.error(result.error || "Nao foi possivel concluir a acao.");
+    }
+
+    setIsReasonLoading(false);
   };
 
   if (!isOpen || !project) return null;
@@ -191,7 +228,10 @@ export function ProjectDetailsModal({
 
                 {/* Botões de Ação */}
                 <div className="grid grid-cols-2 gap-3">
-                  <button className="flex items-center justify-center gap-2 py-3 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 font-bold text-xs transition-colors cursor-pointer">
+                  <button
+                    onClick={() => setReasonAction("revision")}
+                    className="flex items-center justify-center gap-2 py-3 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 font-bold text-xs transition-colors cursor-pointer"
+                  >
                     <ThumbsDown className="w-4 h-4" /> Solicitar Revisão
                   </button>
                   <button
@@ -203,6 +243,13 @@ export function ProjectDetailsModal({
                     </>
                   </button>
                 </div>
+                <button
+                  onClick={() => setReasonAction("dispute")}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 py-3 text-xs font-bold text-red-400 transition-colors hover:bg-red-500 hover:text-white"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  Abrir Disputa
+                </button>
               </div>
             )}
 
@@ -312,6 +359,13 @@ export function ProjectDetailsModal({
                     </div>
                   </div>
                 </div>
+                <button
+                  onClick={() => setReasonAction("dispute")}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 py-3 text-xs font-bold text-red-400 transition-colors hover:bg-red-500 hover:text-white"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  Abrir Disputa
+                </button>
               </div>
             )}
 
@@ -553,6 +607,27 @@ export function ProjectDetailsModal({
         successMessage="Projeto finalizado com sucesso!"
         errorMessage="Erro ao aprovar."
         onConfirm={handleApprove}
+      />
+
+      <TechProjectReasonModal
+        key={reasonAction || "closed"}
+        isOpen={!!reasonAction}
+        onClose={() => {
+          if (!isReasonLoading) setReasonAction(null);
+        }}
+        onConfirm={handleConfirmReasonAction}
+        isLoading={isReasonLoading}
+        title={reasonAction === "revision" ? "Solicitar revisao" : "Abrir disputa"}
+        description={
+          reasonAction === "revision"
+            ? "Explique ao profissional quais ajustes devem ser feitos."
+            : "Descreva o problema para que a equipe MWC possa mediar o conflito."
+        }
+        confirmLabel={
+          reasonAction === "revision" ? "Solicitar revisao" : "Abrir disputa"
+        }
+        minLength={10}
+        tone={reasonAction === "revision" ? "warning" : "danger"}
       />
     </>
   );

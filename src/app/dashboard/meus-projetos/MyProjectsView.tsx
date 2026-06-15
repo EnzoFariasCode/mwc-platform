@@ -9,11 +9,14 @@ import {
   Trash2,
   CalendarClock,
   AlertCircle,
+  AlertTriangle,
   DollarSign,
   Plus,
   Eye,
   Users,
   Briefcase,
+  RotateCcw,
+  XCircle,
   CheckCircle2, // <--- Importado para o Card de Sucesso
 } from "lucide-react";
 import gsap from "gsap";
@@ -22,6 +25,12 @@ import { NewProjectModal } from "@/modules/projects/components/NewProjectModal";
 import { ProjectDetailsModal } from "@/modules/projects/components/ProjectDetailsModal";
 import { DelMyProjectsModal } from "@/modules/projects/components/DelMyProjectsModal";
 import { deleteProject } from "@/modules/projects/actions/delete-project";
+import { TechProjectReasonModal } from "@/modules/projects/components/TechProjectReasonModal";
+import {
+  cancelTechProject,
+  openTechProjectDispute,
+  requestTechProjectRevision,
+} from "@/modules/projects/actions/project-state-actions";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -46,6 +55,11 @@ export default function MyProjectsView({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [reasonAction, setReasonAction] = useState<
+    "cancel" | "revision" | "dispute" | null
+  >(null);
+  const [projectForAction, setProjectForAction] = useState<any>(null);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   // Limpa a URL se o pagamento foi sucesso (remove o ?success=true)
   useEffect(() => {
@@ -98,6 +112,75 @@ export default function MyProjectsView({
       toast.error("Erro ao excluir projeto.");
     }
     setIsDeleting(false);
+  };
+
+  const handleOpenReasonAction = (
+    project: any,
+    action: "cancel" | "revision" | "dispute",
+  ) => {
+    setProjectForAction(project);
+    setReasonAction(action);
+  };
+
+  const handleCloseReasonAction = () => {
+    if (isActionLoading) return;
+    setProjectForAction(null);
+    setReasonAction(null);
+  };
+
+  const handleConfirmReasonAction = async (reason: string) => {
+    if (!projectForAction || !reasonAction) return;
+
+    setIsActionLoading(true);
+
+    const result =
+      reasonAction === "cancel"
+        ? await cancelTechProject(projectForAction.id, reason)
+        : reasonAction === "revision"
+          ? await requestTechProjectRevision(projectForAction.id, reason)
+          : await openTechProjectDispute(projectForAction.id, reason);
+
+    if (result.success) {
+      const successMessage =
+        reasonAction === "cancel"
+          ? "Projeto cancelado."
+          : reasonAction === "revision"
+            ? "Pedido de revisao enviado."
+            : "Disputa aberta para mediacao.";
+      toast.success(successMessage);
+      setProjectForAction(null);
+      setReasonAction(null);
+      router.refresh();
+    } else {
+      toast.error(result.error || "Nao foi possivel concluir a acao.");
+    }
+
+    setIsActionLoading(false);
+  };
+
+  const reasonModalCopy = {
+    cancel: {
+      title: "Cancelar projeto",
+      description: "Informe o motivo do cancelamento antes de encerrar o pedido.",
+      confirmLabel: "Cancelar projeto",
+      minLength: 0,
+      tone: "danger" as const,
+    },
+    revision: {
+      title: "Solicitar revisao",
+      description: "Explique ao profissional quais ajustes devem ser feitos.",
+      confirmLabel: "Solicitar revisao",
+      minLength: 10,
+      tone: "warning" as const,
+    },
+    dispute: {
+      title: "Abrir disputa",
+      description:
+        "Descreva o problema para que a equipe MWC possa mediar o conflito.",
+      confirmLabel: "Abrir disputa",
+      minLength: 10,
+      tone: "danger" as const,
+    },
   };
 
   return (
@@ -264,6 +347,41 @@ export default function MyProjectsView({
                       Chat
                     </Link>
                   )}
+
+                  {project.status === "WAITING_PAYMENT" && (
+                    <button
+                      onClick={() => handleOpenReasonAction(project, "cancel")}
+                      className="col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white text-xs font-bold transition-all border border-red-500/20 cursor-pointer"
+                    >
+                      <XCircle className="w-3 h-3" />
+                      Cancelar Pedido
+                    </button>
+                  )}
+
+                  {project.status === "UNDER_REVIEW" && (
+                    <button
+                      onClick={() =>
+                        handleOpenReasonAction(project, "revision")
+                      }
+                      className="col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-yellow-500/10 hover:bg-yellow-500 text-yellow-400 hover:text-black text-xs font-bold transition-all border border-yellow-500/20 cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Pedir Revisao
+                    </button>
+                  )}
+
+                  {(project.status === "IN_PROGRESS" ||
+                    project.status === "UNDER_REVIEW") && (
+                    <button
+                      onClick={() =>
+                        handleOpenReasonAction(project, "dispute")
+                      }
+                      className="col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white text-xs font-bold transition-all border border-red-500/20 cursor-pointer"
+                    >
+                      <AlertTriangle className="w-3 h-3" />
+                      Abrir Disputa
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -312,6 +430,16 @@ export default function MyProjectsView({
           projectTitle={projectToDelete?.title || ""}
           isLoading={isDeleting}
         />
+
+        {reasonAction && (
+          <TechProjectReasonModal
+            isOpen={!!reasonAction}
+            onClose={handleCloseReasonAction}
+            onConfirm={handleConfirmReasonAction}
+            isLoading={isActionLoading}
+            {...reasonModalCopy[reasonAction]}
+          />
+        )}
       </div>
     </PageContainer>
   );
