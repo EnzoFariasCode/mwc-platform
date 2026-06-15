@@ -224,6 +224,17 @@ model Project {
 
   status ProjectStatus @default(OPEN)
 
+  stripeSessionId       String?   @unique
+  stripePaymentIntentId String?
+  canceledAt            DateTime?
+  cancellationReason    String?   @db.Text
+  revisionRequestedAt   DateTime?
+  revisionReason        String?   @db.Text
+  disputeReason         String?   @db.Text
+  disputeOpenedAt       DateTime?
+  disputeResolvedAt     DateTime?
+  disputeResolution     String?   @db.Text
+
   attachments Json? @default("[]")
 
   createdAt DateTime @default(now())
@@ -240,6 +251,9 @@ model Project {
   proposals    Proposal[]
   deliverables Deliverable[]
   reviews      Review[]
+
+  @@index([status])
+  @@index([stripePaymentIntentId])
 }
 
 model Proposal {

@@ -27,7 +27,7 @@ export function ReportAppointmentDisputeButton({
       }
 
       setIsModalOpen(false);
-      toast.success("Solicitacao registrada. O reembolso foi solicitado ao Stripe.");
+      toast.success("Disputa aberta. A equipe MWC vai analisar o caso.");
     });
   };
 
@@ -40,15 +40,15 @@ export function ReportAppointmentDisputeButton({
         className="flex cursor-pointer items-center gap-2 px-4 py-2.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-300 text-xs font-bold rounded-xl transition-all border border-yellow-500/20 disabled:opacity-60 disabled:cursor-wait"
       >
         <AlertTriangle className="w-4 h-4" />
-        {isPending ? "Solicitando..." : "Solicitar reembolso"}
+        {isPending ? "Enviando..." : "Abrir disputa"}
       </button>
 
       <AppointmentReasonModal
         isOpen={isModalOpen}
-        title="Solicitar reembolso"
+        title="Abrir disputa"
         description="Explique o problema ocorrido na consulta."
-        summary="Se o profissional cancelou ou nao compareceu, o reembolso integral sera solicitado ao Stripe e o valor pendente sera removido do profissional."
-        confirmLabel="Solicitar reembolso"
+        summary="A equipe MWC analisara o caso antes de decidir entre reembolso ao paciente ou liberacao do valor ao profissional."
+        confirmLabel="Abrir disputa"
         isLoading={isPending}
         options={[
           { value: "profissional_ausente", label: "Profissional nao compareceu" },

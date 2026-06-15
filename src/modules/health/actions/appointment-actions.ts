@@ -95,6 +95,112 @@ async function cancelAppointmentEscrow(
   return pendingTransaction;
 }
 
+async function disputeAppointmentEscrow(
+  tx: Prisma.TransactionClient,
+  appointment: EscrowAppointment,
+  description?: string,
+) {
+  const pendingTransaction = await findPendingCreditTransaction(tx, appointment);
+
+  if (!pendingTransaction) {
+    throw new Error(
+      "Transacao financeira pendente nao encontrada para esta consulta.",
+    );
+  }
+
+  await tx.transaction.update({
+    where: { id: pendingTransaction.id },
+    data: {
+      status: "DISPUTED",
+      ...(description ? { description } : {}),
+    },
+  });
+
+  await tx.user.update({
+    where: { id: appointment.professionalId },
+    data: {
+      pendingBalance: { decrement: pendingTransaction.amount },
+    },
+  });
+
+  return pendingTransaction;
+}
+
+async function findDisputedCreditTransaction(
+  tx: Prisma.TransactionClient,
+  appointment: EscrowAppointment,
+) {
+  return await tx.transaction.findFirst({
+    where: {
+      appointmentId: appointment.id,
+      userId: appointment.professionalId,
+      type: "CREDIT",
+      status: "DISPUTED",
+    },
+    select: {
+      id: true,
+      amount: true,
+    },
+  });
+}
+
+async function releaseDisputedAppointmentEscrow(
+  tx: Prisma.TransactionClient,
+  appointment: EscrowAppointment,
+  description?: string,
+) {
+  const disputedTransaction = await findDisputedCreditTransaction(
+    tx,
+    appointment,
+  );
+
+  if (!disputedTransaction) {
+    throw new Error(
+      "Transacao financeira em disputa nao encontrada para esta consulta.",
+    );
+  }
+
+  await tx.transaction.update({
+    where: { id: disputedTransaction.id },
+    data: {
+      status: "COMPLETED",
+      ...(description ? { description } : {}),
+    },
+  });
+
+  await tx.user.update({
+    where: { id: appointment.professionalId },
+    data: {
+      walletBalance: { increment: disputedTransaction.amount },
+    },
+  });
+
+  return disputedTransaction;
+}
+
+async function cancelDisputedAppointmentEscrow(
+  tx: Prisma.TransactionClient,
+  appointment: EscrowAppointment,
+  description?: string,
+) {
+  const disputedTransaction = await findDisputedCreditTransaction(
+    tx,
+    appointment,
+  );
+
+  if (!disputedTransaction) return;
+
+  await tx.transaction.update({
+    where: { id: disputedTransaction.id },
+    data: {
+      status: "CANCELED",
+      ...(description ? { description } : {}),
+    },
+  });
+
+  return disputedTransaction;
+}
+
 async function refundStripeCheckoutSession(
   stripeSessionId: string,
   idempotencyKey: string,
@@ -512,15 +618,6 @@ export async function reportHealthAppointmentDispute(
       throw new Error("A disputa so pode ser aberta apos o horario da consulta.");
     }
 
-    if (!appointment.stripeSessionId) {
-      throw new Error("Consulta sem referencia de pagamento Stripe.");
-    }
-
-    const refund = await refundStripeCheckoutSession(
-      appointment.stripeSessionId,
-      `health-appointment-dispute-refund-${appointment.id}`,
-    );
-
     const result = await db.$transaction(async (tx) => {
       const freshAppointment = await tx.appointment.findUnique({
         where: { id: appointment.id },
@@ -539,9 +636,13 @@ export async function reportHealthAppointmentDispute(
         throw new Error("Apenas consultas confirmadas podem ser disputadas.");
       }
 
-      await cancelAppointmentEscrow(tx, freshAppointment);
+      const disputedTransaction = await disputeAppointmentEscrow(
+        tx,
+        freshAppointment,
+        `DISPUTE_OPENED - Disputa aberta pelo paciente em ${new Date().toLocaleString("pt-BR")}. Motivo: ${normalizedReason}`,
+      );
 
-      const disputeNote = `Disputa aberta pelo paciente em ${new Date().toLocaleString("pt-BR")}: ${normalizedReason}. Reembolso Stripe solicitado: ${refund.id}.`;
+      const disputeNote = `Disputa aberta pelo paciente em ${new Date().toLocaleString("pt-BR")}: ${normalizedReason}. Valor retido para mediacao. Transacao: ${disputedTransaction.id}.`;
       const notes = freshAppointment.notes
         ? `${freshAppointment.notes}\n\n${disputeNote}`
         : disputeNote;
@@ -549,7 +650,7 @@ export async function reportHealthAppointmentDispute(
       await tx.appointment.update({
         where: { id: freshAppointment.id },
         data: {
-          status: "REFUNDED",
+          status: "DISPUTED",
           disputeReason: normalizedReason,
           disputeOpenedAt: new Date(),
           notes,
@@ -560,16 +661,6 @@ export async function reportHealthAppointmentDispute(
     });
 
     revalidateHealthAppointmentPaths(result.professionalId);
-
-    await sendRefundProcessedEmail({
-      patient: appointment.patient,
-      professional: appointment.professional,
-      date: appointment.date,
-      time: appointment.time,
-      price: appointment.price,
-      reason: normalizedReason,
-      refundId: refund.id,
-    });
 
     return { success: true };
   } catch (error) {
@@ -582,6 +673,168 @@ export async function reportHealthAppointmentDispute(
     };
   }
 }
+
+export async function resolveHealthAppointmentDispute({
+  appointmentId,
+  decision,
+  reason,
+}: {
+  appointmentId: string;
+  decision: "REFUND_PATIENT" | "RELEASE_TO_PROFESSIONAL";
+  reason?: string;
+}) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return { error: "Nao autorizado." };
+  }
+
+  if (session.user.role !== "ADMIN" && session.user.userType !== "ADMIN") {
+    return { error: "Acao restrita a administradores." };
+  }
+
+  if (!appointmentId) {
+    return { error: "Consulta invalida." };
+  }
+
+  const normalizedReason = normalizeActionReason(reason);
+
+  try {
+    const appointment = await db.appointment.findUnique({
+      where: { id: appointmentId },
+      select: {
+        id: true,
+        date: true,
+        time: true,
+        price: true,
+        status: true,
+        professionalId: true,
+        stripeSessionId: true,
+        disputeReason: true,
+        notes: true,
+        patient: { select: { name: true, email: true } },
+        professional: { select: { name: true, email: true } },
+      },
+    });
+
+    if (!appointment) throw new Error("Consulta nao encontrada.");
+
+    if (appointment.status !== "DISPUTED") {
+      throw new Error("Apenas consultas em disputa podem ser resolvidas.");
+    }
+
+    if (
+      decision !== "REFUND_PATIENT" &&
+      decision !== "RELEASE_TO_PROFESSIONAL"
+    ) {
+      throw new Error("Decisao de disputa invalida.");
+    }
+
+    let refundId: string | undefined;
+
+    if (decision === "REFUND_PATIENT") {
+      if (!appointment.stripeSessionId) {
+        throw new Error("Consulta sem referencia de pagamento Stripe.");
+      }
+
+      const refund = await refundStripeCheckoutSession(
+        appointment.stripeSessionId,
+        `health-appointment-admin-dispute-refund-${appointment.id}`,
+      );
+      refundId = refund.id;
+    }
+
+    await db.$transaction(async (tx) => {
+      const freshAppointment = await tx.appointment.findUnique({
+        where: { id: appointment.id },
+        select: {
+          id: true,
+          status: true,
+          professionalId: true,
+          stripeSessionId: true,
+          notes: true,
+        },
+      });
+
+      if (!freshAppointment) throw new Error("Consulta nao encontrada.");
+
+      if (freshAppointment.status !== "DISPUTED") {
+        throw new Error("Apenas consultas em disputa podem ser resolvidas.");
+      }
+
+      const resolvedAt = new Date().toLocaleString("pt-BR");
+
+      if (decision === "REFUND_PATIENT") {
+        const canceledTransaction = await cancelDisputedAppointmentEscrow(
+          tx,
+          freshAppointment,
+          `DISPUTE_RESOLVED_REFUND - Reembolso aprovado pela mediacao em ${resolvedAt}. Motivo: ${normalizedReason || "Nao informado"}.`,
+        );
+
+        const resolutionNote = `Disputa resolvida pela mediacao em ${resolvedAt}: reembolso aprovado ao paciente. Motivo: ${normalizedReason || "Nao informado"}. Reembolso Stripe: ${refundId}. Transacao: ${canceledTransaction?.id ?? "nao encontrada"}.`;
+        const notes = freshAppointment.notes
+          ? `${freshAppointment.notes}\n\n${resolutionNote}`
+          : resolutionNote;
+
+        await tx.appointment.update({
+          where: { id: freshAppointment.id },
+          data: { status: "REFUNDED", notes },
+        });
+
+        return;
+      }
+
+      const releasedTransaction = await releaseDisputedAppointmentEscrow(
+        tx,
+        freshAppointment,
+        `DISPUTE_RESOLVED_RELEASE - Valor liberado ao profissional pela mediacao em ${resolvedAt}. Motivo: ${normalizedReason || "Nao informado"}.`,
+      );
+
+      const resolutionNote = `Disputa resolvida pela mediacao em ${resolvedAt}: valor liberado ao profissional. Motivo: ${normalizedReason || "Nao informado"}. Transacao: ${releasedTransaction.id}.`;
+      const notes = freshAppointment.notes
+        ? `${freshAppointment.notes}\n\n${resolutionNote}`
+        : resolutionNote;
+
+      await tx.appointment.update({
+        where: { id: freshAppointment.id },
+        data: { status: "COMPLETED", notes },
+      });
+    });
+
+    revalidateHealthAppointmentPaths(appointment.professionalId);
+
+    if (decision === "REFUND_PATIENT") {
+      await sendRefundProcessedEmail({
+        patient: appointment.patient,
+        professional: appointment.professional,
+        date: appointment.date,
+        time: appointment.time,
+        price: appointment.price,
+        reason: normalizedReason || appointment.disputeReason || undefined,
+        refundId,
+      });
+    } else {
+      await sendAppointmentCompletedEmail({
+        patient: appointment.patient,
+        professional: appointment.professional,
+        date: appointment.date,
+        time: appointment.time,
+        price: appointment.price,
+      });
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("[RESOLVE_HEALTH_APPOINTMENT_DISPUTE_ERROR]", error);
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel resolver a disputa da consulta.",
+    };
+  }
+}
+
 export async function completeHealthAppointment(appointmentId: string) {
   const session = await auth();
 

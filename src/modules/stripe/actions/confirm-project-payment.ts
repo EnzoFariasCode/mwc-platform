@@ -97,6 +97,11 @@ export async function confirmProjectPayment(
     proposalId,
     buyerId,
     source: "confirm",
+    stripeSessionId: checkoutSession.id,
+    stripePaymentIntentId:
+      typeof checkoutSession.payment_intent === "string"
+        ? checkoutSession.payment_intent
+        : checkoutSession.payment_intent?.id,
   });
 
   if (!result.success) {

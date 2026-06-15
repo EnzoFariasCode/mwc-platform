@@ -430,11 +430,20 @@ export async function POST(req: Request) {
     },
   });
 
-  const handleProjectPayment = async (proposalId: string, buyerId: string) => {
+  const handleProjectPayment = async (
+    proposalId: string,
+    buyerId: string,
+    session: Stripe.Checkout.Session,
+  ) => {
     const result = await finalizeProjectPayment({
       proposalId,
       buyerId,
       source: "webhook",
+      stripeSessionId: session.id,
+      stripePaymentIntentId:
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : session.payment_intent?.id,
     });
 
     if (!result.success) {
@@ -484,6 +493,7 @@ export async function POST(req: Request) {
           await handleProjectPayment(
             session.metadata.proposalId,
             session.metadata.buyerId,
+            session,
           );
           return new NextResponse(null, { status: 200 });
         }
