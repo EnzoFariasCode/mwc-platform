@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import { ActionResponse } from "@/modules/users/types/user-types";
-import { Prisma, UserType } from "@prisma/client";
+import { Industry, Prisma, UserType } from "@prisma/client";
 
 type PublicReview = {
   id: string;
@@ -20,6 +20,7 @@ type PublicProfile = {
   city: string | null;
   state: string | null;
   userType: UserType;
+  industry: Industry;
   jobTitle: string | null;
   hourlyRate: number | null;
   rating: number;
@@ -91,23 +92,39 @@ export async function getPublicProfile(
 
     // --- 🛡️ BARREIRA DE QUALIDADE (QA & Back-end) ---
     if (professional.userType === "PROFESSIONAL") {
-      const hasValidDoc =
-        professional.documentReg && professional.documentReg.trim() !== "";
-      const hasValidJobTitle =
-        professional.jobTitle && professional.jobTitle.trim() !== "";
-      const hasFee =
-        professional.consultationFee !== null ||
-        professional.hourlyRate !== null;
+      if (professional.industry === "HEALTH") {
+        const hasValidDoc =
+          professional.documentReg && professional.documentReg.trim() !== "";
+        const hasValidJobTitle =
+          professional.jobTitle && professional.jobTitle.trim() !== "";
+        const hasFee = professional.consultationFee !== null;
 
-      const hasValidAgenda =
-        Array.isArray(professional.availabilities) &&
-        professional.availabilities.length > 0;
+        const hasValidAgenda =
+          Array.isArray(professional.availabilities) &&
+          professional.availabilities.length > 0;
 
-      if (!hasValidDoc || !hasValidJobTitle || !hasValidAgenda || !hasFee) {
-        return {
-          success: false,
-          error: "Este perfil está indisponível no momento.",
-        };
+        if (!hasValidDoc || !hasValidJobTitle || !hasValidAgenda || !hasFee) {
+          return {
+            success: false,
+            error: "Este perfil está indisponível no momento.",
+          };
+        }
+      }
+
+      if (professional.industry === "TECH") {
+        const hasValidJobTitle =
+          professional.jobTitle && professional.jobTitle.trim() !== "";
+        const hasRate = professional.hourlyRate !== null;
+        const hasProfileContent =
+          (professional.bio && professional.bio.trim().length >= 20) ||
+          professional.skills.length > 0;
+
+        if (!hasValidJobTitle || !hasRate || !hasProfileContent) {
+          return {
+            success: false,
+            error: "Este perfil está indisponível no momento.",
+          };
+        }
       }
     }
     // ------------------------------------------------
@@ -129,7 +146,6 @@ export async function getPublicProfile(
       availabilities: _av,
       sessionDuration: _sd,
       consultationFee: _cf,
-      industry: _ind,
       reviewsReceived: rawReviews, // Extraímos as avaliações com tipagem imperfeita
       ...rest
     } = professional;
@@ -140,7 +156,6 @@ export async function getPublicProfile(
     void _av;
     void _sd;
     void _cf;
-    void _ind;
 
     // --- 🛠️ CORREÇÃO DE TIPAGEM PARA O TYPESCRIPT ---
     // Mapeamos o array e garantimos ao TS que o comment é string (já filtramos no banco)
