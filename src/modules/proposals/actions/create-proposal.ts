@@ -24,6 +24,16 @@ export async function createProposal(
       return { success: false, error: "Você precisa estar logado." };
     }
 
+    if (
+      session?.userType !== "PROFESSIONAL" ||
+      session?.industry !== "TECH"
+    ) {
+      return {
+        success: false,
+        error: "Ação restrita a profissionais de Tecnologia.",
+      };
+    }
+
     // 1. Verifica se o usuário é Profissional
     const user = await db.user.findUnique({
       where: { id: userId },

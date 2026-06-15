@@ -56,6 +56,13 @@ export async function getProjectContext(
       return { success: false, error: "Nao autorizado." };
     }
 
+    if (session?.industry !== "TECH") {
+      return {
+        success: false,
+        error: "Ação restrita ao Marketplace Tech.",
+      };
+    }
+
     if (!projectId) {
       return { success: false, error: "Projeto invalido." };
     }
@@ -114,6 +121,13 @@ export async function getBasicUserInfo(
 
     if (!myId) {
       return { success: false, error: "Nao autorizado." };
+    }
+
+    if (session?.industry !== "TECH") {
+      return {
+        success: false,
+        error: "Ação restrita ao Marketplace Tech.",
+      };
     }
 
     if (!userId) {

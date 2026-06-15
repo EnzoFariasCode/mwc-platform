@@ -16,6 +16,16 @@ export async function submitDelivery(
 
     if (!userId) return { success: false, error: "Nao autorizado" };
 
+    if (
+      session?.userType !== "PROFESSIONAL" ||
+      session?.industry !== "TECH"
+    ) {
+      return {
+        success: false,
+        error: "Ação restrita a profissionais de Tecnologia.",
+      };
+    }
+
     const project = await db.project.findUnique({
       where: { id: projectId },
       select: { professionalId: true, status: true },

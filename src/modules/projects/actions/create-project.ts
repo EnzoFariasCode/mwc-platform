@@ -28,6 +28,13 @@ export async function createProject(
     if (!userId) {
       return { success: false, error: "Usuário não autenticado." };
     }
+
+    if (session?.userType !== "CLIENT") {
+      return {
+        success: false,
+        error: "Ação restrita a clientes.",
+      };
+    }
     // ---------------------------------
 
     const prefix = data.budgetType === "fixed" ? "R$ " : "R$ ";

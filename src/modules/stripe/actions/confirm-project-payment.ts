@@ -58,6 +58,10 @@ export async function confirmProjectPayment(
     return { success: false, error: "Nao autorizado." };
   }
 
+  if (session?.userType !== "CLIENT") {
+    return { success: false, error: "Ação restrita a clientes." };
+  }
+
   if (!sessionId) {
     return { success: false, error: "Session invalida." };
   }

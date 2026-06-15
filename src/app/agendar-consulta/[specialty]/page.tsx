@@ -2,6 +2,7 @@
 
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Star, Video, ShieldCheck, ArrowLeft } from "lucide-react";
 
 import { getProfessionalsBySpecialty } from "@/modules/users/actions/get-professionals";
@@ -37,6 +38,7 @@ export default function SpecialtyPage({
   const specialty = resolvedParams.specialty;
   const specialtyConfig = getHealthSpecialtyById(specialty);
   const specialtyName = specialtyConfig?.name ?? "Especialidade";
+  const { data: session } = useSession();
 
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
@@ -160,6 +162,7 @@ export default function SpecialtyPage({
         <div className="space-y-8">
           {professionals.map((pro) => {
             const displayName = pro.displayName ?? pro.name;
+            const isOwnProfile = session?.user?.id === pro.id;
 
             return (
               <div
@@ -212,6 +215,7 @@ export default function SpecialtyPage({
                 {/* COLUNA DIREITA: Calendário (Sanitização aplicada aqui!) */}
                 <div className="lg:w-[55%] border-t lg:border-t-0 lg:border-l border-white/10 pt-6 lg:pt-0 lg:pl-8 flex flex-col z-10">
                   <MonthlyScheduleClient
+                    readOnly={isOwnProfile}
                     pro={{
                       ...pro,
                       consultationFee: pro.consultationFee ?? 0,

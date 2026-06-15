@@ -16,6 +16,10 @@ export async function approveProject(
 
     if (!userId) return { success: false, error: "Nao autorizado" };
 
+    if (session?.userType !== "CLIENT") {
+      return { success: false, error: "Ação restrita a clientes." };
+    }
+
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
       return { success: false, error: "Nota invalida (1 a 5)." };
     }

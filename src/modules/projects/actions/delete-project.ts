@@ -16,6 +16,13 @@ export async function deleteProject(
       return { success: false, error: "Não autorizado" };
     }
 
+    if (session?.userType !== "CLIENT") {
+      return {
+        success: false,
+        error: "Ação restrita a clientes.",
+      };
+    }
+
     // Verifica se o projeto existe e pertence ao usuário
     const project = await db.project.findUnique({
       where: { id: projectId },

@@ -12,6 +12,25 @@ type AuthUserExtras = {
   jobTitle?: string | null;
 };
 
+async function getAuthUserFields(userId?: string, email?: string | null) {
+  if (!userId && !email) return null;
+
+  return db.user.findFirst({
+    where: {
+      OR: [
+        ...(userId ? [{ id: userId }] : []),
+        ...(email ? [{ email }] : []),
+      ],
+    },
+    select: {
+      id: true,
+      userType: true,
+      industry: true,
+      jobTitle: true,
+    },
+  });
+}
+
 async function storeRemoteProfileImage(userId: string, imageUrl: string) {
   const existing = await db.user.findUnique({
     where: { id: userId },
@@ -88,24 +107,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
+      if (user?.id) {
+        token.id = user.id;
+      }
+
+      const dbUser = await getAuthUserFields(
+        token.id as string | undefined,
+        token.email,
+      );
+
+      if (dbUser) {
+        token.id = dbUser.id;
+        token.role = dbUser.userType;
+        token.userType = dbUser.userType;
+        token.industry = dbUser.industry;
+        token.jobTitle = dbUser.jobTitle;
+        return token;
+      }
+
       if (user) {
         const authUser = user as typeof user & AuthUserExtras;
-        token.id = user.id;
         token.role = authUser.userType || "CLIENT";
         token.userType = authUser.userType || "CLIENT";
         token.industry = authUser.industry || "TECH";
         token.jobTitle = authUser.jobTitle || null;
       }
+
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
-        const sessionUser = session.user as typeof session.user & AuthUserExtras;
         session.user.id = token.id as string;
         session.user.role = token.role as "CLIENT" | "PROFESSIONAL" | "ADMIN";
-        sessionUser.userType = token.userType as AuthUserExtras["userType"];
-        sessionUser.industry = token.industry as AuthUserExtras["industry"];
-        sessionUser.jobTitle = token.jobTitle as AuthUserExtras["jobTitle"];
+        session.user.userType = token.userType as AuthUserExtras["userType"];
+        session.user.industry = token.industry as AuthUserExtras["industry"];
+        session.user.jobTitle = token.jobTitle as AuthUserExtras["jobTitle"];
       }
       return session;
     },

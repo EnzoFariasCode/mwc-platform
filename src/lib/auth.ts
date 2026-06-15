@@ -1,9 +1,12 @@
 import "server-only";
 import { auth, signOut } from "@/auth";
+import { Industry, UserType } from "@prisma/client";
 
 type SessionPayload = {
   sub: string;
   role?: string;
+  industry?: Industry | string;
+  userType?: UserType | string;
 };
 
 // --- VERIFICAR SESSAO (NEXTAUTH) ---
@@ -15,6 +18,8 @@ export async function verifySession(): Promise<SessionPayload | null> {
   return {
     sub: session.user.id,
     role: session.user.role,
+    industry: session.user.industry,
+    userType: session.user.userType,
   };
 }
 

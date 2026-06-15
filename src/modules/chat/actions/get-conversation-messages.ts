@@ -29,6 +29,13 @@ export async function getConversationMessages(
 
     if (!myId) return { success: false, error: "Nao autorizado." };
 
+    if (session?.industry !== "TECH") {
+      return {
+        success: false,
+        error: "Ação restrita ao Marketplace Tech.",
+      };
+    }
+
     // Busca conversa onde EU e o ALVO estamos
     const conversation = await db.conversation.findFirst({
       where: {

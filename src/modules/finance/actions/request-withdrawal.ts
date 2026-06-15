@@ -40,6 +40,13 @@ export async function requestWithdrawal(
   const session = await getUserSession();
   if (!session) return { success: false, error: "Nao autorizado." };
 
+  if (session.userType !== "PROFESSIONAL") {
+    return {
+      success: false,
+      error: "Ação restrita a profissionais.",
+    };
+  }
+
   const amount = parseMoneyInput(formData.get("amount"));
   const pixKey = normalizePixKey(formData.get("pixKey"));
   const pixKeyType = normalizePixKeyType(formData.get("pixKeyType"));

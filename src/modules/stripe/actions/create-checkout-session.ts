@@ -19,6 +19,16 @@ export async function createCheckoutSession(
     return { success: false, error: "Você precisa estar logado para assinar." };
   }
 
+  if (
+    session.userType !== "PROFESSIONAL" ||
+    session.industry !== "TECH"
+  ) {
+    return {
+      success: false,
+      error: "Ação restrita a profissionais de Tecnologia.",
+    };
+  }
+
   const user = await db.user.findUnique({
     where: { id: session.id },
   });

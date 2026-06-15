@@ -9,6 +9,7 @@ export async function getCategories(): Promise<ActionResponse<string[]>> {
     const professionals = await db.user.findMany({
       where: {
         userType: "PROFESSIONAL",
+        industry: "TECH",
         jobTitle: { not: null }, // Garante que não pega nulos
       },
       select: {

@@ -33,6 +33,10 @@ export async function getProjectProposals(
 
     if (!userId) return { success: false, error: "Não autorizado" };
 
+    if (session?.userType !== "CLIENT") {
+      return { success: false, error: "Ação restrita a clientes." };
+    }
+
     // 1. Verifica se o projeto é MEU (Segurança)
     const project = await db.project.findUnique({
       where: { id: projectId },

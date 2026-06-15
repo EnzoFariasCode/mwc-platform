@@ -16,6 +16,16 @@ export async function submitReview(
 
     if (!userId) return { success: false, error: "Nao autorizado" };
 
+    if (
+      session?.userType !== "PROFESSIONAL" ||
+      session?.industry !== "TECH"
+    ) {
+      return {
+        success: false,
+        error: "Ação restrita a profissionais de Tecnologia.",
+      };
+    }
+
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
       return { success: false, error: "Nota invalida (1 a 5)." };
     }

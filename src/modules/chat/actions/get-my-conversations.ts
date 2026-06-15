@@ -23,6 +23,13 @@ export async function getMyConversations(): Promise<
 
   if (!userId) return { success: false, error: "Nao autorizado." };
 
+  if (session?.industry !== "TECH") {
+    return {
+      success: false,
+      error: "Ação restrita ao Marketplace Tech.",
+    };
+  }
+
   const conversations = await db.conversation.findMany({
     where: {
       AND: [

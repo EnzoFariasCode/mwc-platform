@@ -26,9 +26,13 @@ interface MonthlyScheduleProps {
     consultationFee?: number | string;
     availability?: HealthAvailability;
   };
+  readOnly?: boolean;
 }
 
-export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
+export function MonthlyScheduleClient({
+  pro,
+  readOnly = false,
+}: MonthlyScheduleProps) {
   const router = useRouter();
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -89,6 +93,8 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
     : [];
 
   const handleProceed = () => {
+    if (readOnly) return;
+
     if (selectedDate && selectedTime) {
       router.push(
         `/checkout-saude?proId=${pro.id}&time=${selectedTime}&date=${format(
@@ -168,12 +174,12 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
               key={date.toISOString()}
               type="button"
               onClick={() => {
-                if (isAvailable) {
+                if (isAvailable && !readOnly) {
                   setSelectedDate(date);
                   setSelectedTime(null);
                 }
               }}
-              disabled={!isAvailable}
+              disabled={!isAvailable || readOnly}
               className={`
                 h-7 w-full rounded-md text-xs flex items-center justify-center transition-all
                 ${
@@ -182,12 +188,12 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
                     : ""
                 }
                 ${
-                  !isSelected && isAvailable
+                  !isSelected && isAvailable && !readOnly
                     ? "text-slate-200 bg-white/5 hover:bg-white/10 hover:text-[#d73cbe] border border-white/10 cursor-pointer"
                     : ""
                 }
                 ${
-                  !isSelected && !isAvailable
+                  !isSelected && (!isAvailable || readOnly)
                     ? "text-slate-700 opacity-30 cursor-not-allowed"
                     : ""
                 }
@@ -219,11 +225,16 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
                   <button
                     key={time}
                     type="button"
-                    onClick={() => setSelectedTime(time)}
+                    onClick={() => {
+                      if (!readOnly) setSelectedTime(time);
+                    }}
+                    disabled={readOnly}
                     className={`py-1.5 text-[11px] font-medium text-center rounded-lg transition-all ${
                       isSelectedTime
                         ? "bg-[#d73cbe] text-white border border-[#d73cbe] shadow-md shadow-[#d73cbe]/30"
-                        : "text-slate-300 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-[#d73cbe] hover:border-[#d73cbe]/50"
+                        : readOnly
+                          ? "text-slate-600 bg-white/5 border border-white/10 cursor-not-allowed"
+                          : "text-slate-300 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-[#d73cbe] hover:border-[#d73cbe]/50 cursor-pointer"
                     }`}
                   >
                     {time}
@@ -242,14 +253,16 @@ export function MonthlyScheduleClient({ pro }: MonthlyScheduleProps) {
       {/* RODAPÉ & BOTÃO PROSSEGUIR */}
       <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between gap-4">
         <p className="text-[9px] text-slate-600 leading-relaxed max-w-[120px]">
-          Cancelamento gratuito até 24h antes.
+          {readOnly
+            ? "Visualizacao da sua agenda publica."
+            : "Cancelamento gratuito até 24h antes."}
         </p>
 
         <button
           onClick={handleProceed}
-          disabled={!selectedTime}
+          disabled={!selectedTime || readOnly}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
-            selectedTime
+            selectedTime && !readOnly
               ? "bg-[#d73cbe] text-white shadow-lg shadow-[#d73cbe]/30 hover:bg-[#b02b9b] cursor-pointer active:scale-95"
               : "bg-white/5 text-slate-500 cursor-not-allowed"
           }`}

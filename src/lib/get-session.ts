@@ -9,5 +9,8 @@ export async function getUserSession() {
   return {
     id: session.user.id,
     role: session.user.role,
+    userType: session.user.userType,
+    industry: session.user.industry,
+    jobTitle: session.user.jobTitle,
   };
 }

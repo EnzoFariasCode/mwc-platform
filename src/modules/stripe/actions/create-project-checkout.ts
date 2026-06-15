@@ -19,6 +19,10 @@ export async function createProjectCheckout(
     return { success: false, error: "Nao autorizado. Faca login novamente." };
   }
 
+  if (session.userType !== "CLIENT") {
+    return { success: false, error: "Ação restrita a clientes." };
+  }
+
   // Buscando o e-mail real do usuario no banco
   const user = await db.user.findUnique({
     where: { id: session.id },

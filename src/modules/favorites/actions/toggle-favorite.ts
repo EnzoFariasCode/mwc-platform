@@ -14,6 +14,26 @@ export async function toggleFavorite(
 
     if (!userId) return { success: false, error: "Não autorizado" };
 
+    if (session?.userType !== "CLIENT") {
+      return { success: false, error: "Ação restrita a clientes." };
+    }
+
+    const professional = await db.user.findFirst({
+      where: {
+        id: professionalId,
+        userType: "PROFESSIONAL",
+        industry: "TECH",
+      },
+      select: { id: true },
+    });
+
+    if (!professional) {
+      return {
+        success: false,
+        error: "Profissional de Tecnologia não encontrado.",
+      };
+    }
+
     // Verifica se já é favorito
     const existing = await db.favorite.findUnique({
       where: {

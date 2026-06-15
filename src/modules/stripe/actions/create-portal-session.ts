@@ -19,6 +19,16 @@ export async function createPortalSession(): Promise<
     return { success: false, error: "Não autorizado" };
   }
 
+  if (
+    session.userType !== "PROFESSIONAL" ||
+    session.industry !== "TECH"
+  ) {
+    return {
+      success: false,
+      error: "Ação restrita a profissionais de Tecnologia.",
+    };
+  }
+
   // 1. Buscar o Customer ID no banco
   const user = await db.user.findUnique({
     where: { id: session.id },

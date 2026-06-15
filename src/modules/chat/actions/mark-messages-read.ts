@@ -14,6 +14,13 @@ export async function markMessagesAsRead(
 
     if (!myId) return { success: false, error: "Nao autorizado." };
 
+    if (session?.industry !== "TECH") {
+      return {
+        success: false,
+        error: "Ação restrita ao Marketplace Tech.",
+      };
+    }
+
     // Busca a conversa
     const conversation = await db.conversation.findFirst({
       where: {

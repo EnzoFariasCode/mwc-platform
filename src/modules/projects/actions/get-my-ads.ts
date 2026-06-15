@@ -23,6 +23,10 @@ export async function getMyOpenAds(): Promise<ActionResponse<MyAd[]>> {
 
     if (!userId) return { success: false, error: "Nao autorizado." };
 
+    if (session?.userType !== "CLIENT") {
+      return { success: false, error: "Ação restrita a clientes." };
+    }
+
     const ads = await db.project.findMany({
       where: { ownerId: userId, status: ProjectStatus.OPEN },
       orderBy: { createdAt: "desc" },

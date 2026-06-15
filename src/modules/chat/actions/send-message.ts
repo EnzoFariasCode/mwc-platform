@@ -14,6 +14,12 @@ export async function sendMessage(
     const senderId = session?.sub as string;
 
     if (!senderId) return { success: false, error: "Não autorizado" };
+    if (session?.industry !== "TECH") {
+      return {
+        success: false,
+        error: "Ação restrita ao Marketplace Tech.",
+      };
+    }
     if (!content.trim()) return { success: false, error: "Mensagem vazia" };
 
     // 1. Tenta achar conversa existente

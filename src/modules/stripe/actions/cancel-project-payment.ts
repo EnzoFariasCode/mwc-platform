@@ -14,6 +14,9 @@ export async function cancelProjectPayment(
     const userId = session?.sub as string;
 
     if (!userId) return { success: false, error: "Nao autorizado." };
+    if (session?.userType !== "CLIENT") {
+      return { success: false, error: "Ação restrita a clientes." };
+    }
     if (!proposalId) return { success: false, error: "Proposta invalida." };
 
     const proposal = await db.proposal.findUnique({

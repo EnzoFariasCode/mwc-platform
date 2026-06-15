@@ -92,6 +92,7 @@ export async function getProfessionals({
 
     const where: Prisma.UserWhereInput = {
       userType: "PROFESSIONAL",
+      industry: "TECH",
 
       ...(safeQuery && {
         OR: [

@@ -355,6 +355,13 @@ export async function cancelProfessionalAppointment(
     return { error: "Voce precisa estar logado para cancelar." };
   }
 
+  if (
+    session.user.userType !== "PROFESSIONAL" ||
+    session.user.industry !== "HEALTH"
+  ) {
+    return { error: "Ação restrita a profissionais de Saúde." };
+  }
+
   if (!appointmentId) {
     return { error: "Consulta invalida." };
   }
@@ -588,6 +595,13 @@ export async function completeHealthAppointment(appointmentId: string) {
     return { error: "Voce precisa estar logado para concluir a consulta." };
   }
 
+  if (
+    session.user.userType !== "PROFESSIONAL" ||
+    session.user.industry !== "HEALTH"
+  ) {
+    return { error: "Ação restrita a profissionais de Saúde." };
+  }
+
   if (!appointmentId) {
     return { error: "Consulta invalida." };
   }
@@ -659,6 +673,13 @@ export async function markPatientNoShowAppointment(
 
   if (!session?.user?.id) {
     return { error: "Voce precisa estar logado para marcar ausencia." };
+  }
+
+  if (
+    session.user.userType !== "PROFESSIONAL" ||
+    session.user.industry !== "HEALTH"
+  ) {
+    return { error: "Ação restrita a profissionais de Saúde." };
   }
 
   if (!appointmentId) {
@@ -815,6 +836,13 @@ export async function rescheduleHealthAppointment(
     const session = await auth();
     if (!session?.user?.id) {
       return { error: "Nao autorizado." };
+    }
+
+    if (
+      session.user.userType !== "PROFESSIONAL" ||
+      session.user.industry !== "HEALTH"
+    ) {
+      return { error: "Ação restrita a profissionais de Saúde." };
     }
 
     if (!appointmentId) {

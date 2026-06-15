@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { Star, MapPin, Video, ShieldCheck } from "lucide-react";
+import { auth } from "@/auth";
 import { getHealthProfessionalById } from "@/modules/health/services/professional-service";
 import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
 import { ProfileViewClient } from "./profile-view-client";
@@ -12,13 +13,14 @@ export default async function ProfessionalHealthProfile({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const pro = await getHealthProfessionalById(id);
+  const [pro, session] = await Promise.all([getHealthProfessionalById(id), auth()]);
 
   if (!pro) {
     notFound();
   }
 
   const proName = pro.displayName || pro.name;
+  const isOwnProfile = session?.user?.id === id;
 
   return (
     <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8">
@@ -130,6 +132,7 @@ export default async function ProfessionalHealthProfile({
           {/* COLUNA DIREITA: CALENDÁRIO INTELIGENTE */}
           <div className="w-full lg:w-1/3 lg:sticky lg:top-28">
             <MonthlyScheduleClient
+              readOnly={isOwnProfile}
               pro={{
                 ...pro,
                 sessionDuration: pro.sessionDuration ?? undefined,

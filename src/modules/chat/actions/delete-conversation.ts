@@ -16,6 +16,13 @@ export async function deleteConversation(
       return { success: false, error: "Não autorizado" };
     }
 
+    if (session?.industry !== "TECH") {
+      return {
+        success: false,
+        error: "Ação restrita ao Marketplace Tech.",
+      };
+    }
+
     // Busca a conversa para ver se participo
     const conversation = await db.conversation.findUnique({
       where: { id: conversationId },
