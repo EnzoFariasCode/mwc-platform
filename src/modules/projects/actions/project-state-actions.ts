@@ -173,10 +173,18 @@ export async function cancelTechProject(
         where: { id: project.id },
         data: {
           status: ProjectStatus.CANCELED,
-          canceledAt: new Date(),
-          cancellationReason: normalizedReason || null,
-        } as Prisma.ProjectUncheckedUpdateInput,
+        },
       });
+
+      if (normalizedReason) {
+        await tx.deliverable.create({
+          data: {
+            projectId: project.id,
+            senderId: userId,
+            description: `PROJECT_CANCELED - ${normalizedReason}`,
+          },
+        });
+      }
 
       await tx.proposal.updateMany({
         where: {
@@ -253,9 +261,7 @@ export async function requestTechProjectRevision(
         where: { id: project.id },
         data: {
           status: ProjectStatus.IN_PROGRESS,
-          revisionRequestedAt: new Date(),
-          revisionReason: normalizedReason,
-        } as Prisma.ProjectUncheckedUpdateInput,
+        },
       });
     });
 
@@ -326,15 +332,21 @@ export async function openTechProjectDispute(
       };
     }
 
-    await db.project.update({
-      where: { id: project.id },
-      data: {
-        status: ProjectStatus.DISPUTE,
-        disputeReason: normalizedReason,
-        disputeOpenedAt: new Date(),
-        disputeResolvedAt: null,
-        disputeResolution: null,
-      } as Prisma.ProjectUncheckedUpdateInput,
+    await db.$transaction(async (tx) => {
+      await tx.deliverable.create({
+        data: {
+          projectId: project.id,
+          senderId: userId,
+          description: `DISPUTE_OPENED - ${normalizedReason}`,
+        },
+      });
+
+      await tx.project.update({
+        where: { id: project.id },
+        data: {
+          status: ProjectStatus.DISPUTE,
+        },
+      });
     });
 
     techProjectPaths(project.id, project.professionalId);
@@ -379,7 +391,6 @@ export async function resolveTechProjectDispute({
       professionalId: string | null;
       agreedPrice: Prisma.Decimal | null;
       status: ProjectStatus;
-      stripePaymentIntentId: string | null;
     };
 
     const project = (await db.project.findUnique({
@@ -391,7 +402,6 @@ export async function resolveTechProjectDispute({
         professionalId: true,
         agreedPrice: true,
         status: true,
-        stripePaymentIntentId: true,
       } as Prisma.ProjectSelect,
     })) as ProjectDisputePayment | null;
 
@@ -416,15 +426,42 @@ export async function resolveTechProjectDispute({
     let refundId: string | undefined;
 
     if (decision === "REFUND_CLIENT") {
-      if (!project.stripePaymentIntentId) {
+      const paymentTransaction = await db.transaction.findFirst({
+        where: {
+          projectId: project.id,
+          userId: project.ownerId,
+          type: "DEBIT",
+          status: "COMPLETED",
+        },
+        orderBy: { createdAt: "desc" },
+        select: { description: true },
+      });
+      const stripeSessionId = paymentTransaction?.description.match(
+        /Stripe:\s*(cs_[^\s]+)/,
+      )?.[1];
+
+      if (!stripeSessionId) {
         return {
           success: false,
           error: "Projeto sem referencia Stripe para reembolso.",
         };
       }
 
+      const checkoutSession =
+        await stripe.checkout.sessions.retrieve(stripeSessionId);
+      const paymentIntent = checkoutSession.payment_intent;
+      const paymentIntentId =
+        typeof paymentIntent === "string" ? paymentIntent : paymentIntent?.id;
+
+      if (!paymentIntentId) {
+        return {
+          success: false,
+          error: "Pagamento Stripe nao encontrado para reembolso.",
+        };
+      }
+
       const refund = await stripe.refunds.create(
-        { payment_intent: project.stripePaymentIntentId },
+        { payment_intent: paymentIntentId },
         { idempotencyKey: `tech-project-dispute-refund-${project.id}` },
       );
       refundId = refund.id;
@@ -453,17 +490,12 @@ export async function resolveTechProjectDispute({
         throw new Error("Projeto sem profissional ou valor acordado.");
       }
 
-      const resolvedAt = new Date();
-
       if (decision === "REFUND_CLIENT") {
         await tx.project.update({
           where: { id: freshProject.id },
           data: {
             status: ProjectStatus.CANCELED,
-            canceledAt: resolvedAt,
-            disputeResolvedAt: resolvedAt,
-            disputeResolution: `REFUND_CLIENT - ${normalizedReason || "Nao informado"}${refundId ? ` - Stripe: ${refundId}` : ""}`,
-          } as Prisma.ProjectUncheckedUpdateInput,
+          },
         });
 
         await tx.transaction.create({
@@ -474,6 +506,14 @@ export async function resolveTechProjectDispute({
             status: "COMPLETED",
             description: `Reembolso aprovado em disputa - Projeto: ${freshProject.title}${refundId ? ` - Stripe: ${refundId}` : ""}`,
             projectId: freshProject.id,
+          },
+        });
+
+        await tx.deliverable.create({
+          data: {
+            projectId: freshProject.id,
+            senderId: admin.session.sub,
+            description: `DISPUTE_RESOLVED_REFUND - ${normalizedReason || "Nao informado"}${refundId ? ` - Stripe: ${refundId}` : ""}`,
           },
         });
 
@@ -518,9 +558,15 @@ export async function resolveTechProjectDispute({
         where: { id: freshProject.id },
         data: {
           status: ProjectStatus.COMPLETED,
-          disputeResolvedAt: resolvedAt,
-          disputeResolution: `RELEASE_TO_PROFESSIONAL - ${normalizedReason || "Nao informado"}`,
-        } as Prisma.ProjectUncheckedUpdateInput,
+        },
+      });
+
+      await tx.deliverable.create({
+        data: {
+          projectId: freshProject.id,
+          senderId: admin.session.sub,
+          description: `DISPUTE_RESOLVED_RELEASE - ${normalizedReason || "Nao informado"}`,
+        },
       });
     });
 

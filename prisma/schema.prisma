@@ -96,6 +96,7 @@ model User {
   password      String?
   birthDate     DateTime?
   userType      UserType  @default(CLIENT)
+  isActive      Boolean   @default(true)
 
   // Campo que define de qual "setor" o utilizador é
   industry Industry @default(TECH)
@@ -201,6 +202,8 @@ model User {
   reviewsReceived  Review[]       @relation("ReviewsReceived")
   accounts         Account[]
   sessions         Session[]
+
+  @@index([isActive])
 }
 
 // =========================================================

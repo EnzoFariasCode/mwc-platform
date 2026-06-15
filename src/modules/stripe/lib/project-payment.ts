@@ -1,7 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/prisma";
-import { Prisma, ProjectStatus, ProposalStatus } from "@prisma/client";
+import { ProjectStatus, ProposalStatus } from "@prisma/client";
 
 type FinalizeProjectPaymentInput = {
   proposalId: string;
@@ -20,7 +20,6 @@ export async function finalizeProjectPayment({
   buyerId,
   source,
   stripeSessionId,
-  stripePaymentIntentId,
 }: FinalizeProjectPaymentInput): Promise<FinalizeProjectPaymentResult> {
   if (!proposalId || !buyerId) {
     return { success: false, error: "Dados de pagamento invalidos." };
@@ -80,20 +79,10 @@ export async function finalizeProjectPayment({
           status: ProjectStatus.IN_PROGRESS,
           professionalId: proposal.professionalId,
           agreedPrice: proposal.price,
-          stripeSessionId,
-          stripePaymentIntentId,
-          canceledAt: null,
-          cancellationReason: null,
-          revisionRequestedAt: null,
-          revisionReason: null,
-          disputeReason: null,
-          disputeOpenedAt: null,
-          disputeResolvedAt: null,
-          disputeResolution: null,
           deadline: new Date(
             Date.now() + proposal.estimatedDays * 24 * 60 * 60 * 1000,
           ).toLocaleDateString("pt-BR"),
-        } as Prisma.ProjectUncheckedUpdateManyInput,
+        },
       });
 
       if (updated.count === 0) {
@@ -141,7 +130,9 @@ export async function finalizeProjectPayment({
           amount: proposal.price,
           type: "DEBIT",
           status: "COMPLETED",
-          description: `Pagamento retido (Escrow) - Projeto: ${proposal.project.title} (${source})`,
+          description: `Pagamento retido (Escrow) - Projeto: ${proposal.project.title} (${source})${
+            stripeSessionId ? ` - Stripe: ${stripeSessionId}` : ""
+          }`,
           projectId: proposal.projectId,
         },
       });

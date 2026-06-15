@@ -17,6 +17,7 @@ import {
   Briefcase,
   RotateCcw,
   XCircle,
+  Copy,
   CheckCircle2, // <--- Importado para o Card de Sucesso
 } from "lucide-react";
 import gsap from "gsap";
@@ -94,6 +95,11 @@ export default function MyProjectsView({
   const handleOpenDelete = (project: any) => {
     setProjectToDelete(project);
     setIsDeleteModalOpen(true);
+  };
+
+  const handleCopyProjectId = async (projectId: string) => {
+    await navigator.clipboard.writeText(projectId);
+    toast.success("ID real do projeto copiado.");
   };
 
   const handleConfirmDelete = async () => {
@@ -263,6 +269,25 @@ export default function MyProjectsView({
                     <h3 className="text-lg font-bold text-white mb-2 line-clamp-2 leading-tight min-h-[3.5rem]">
                       {project.title}
                     </h3>
+
+                    <div className="mb-3 flex items-center gap-2 rounded-lg border border-white/5 bg-slate-950/40 px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                          ID real do projeto
+                        </p>
+                        <p className="truncate font-mono text-[11px] text-slate-300">
+                          {project.id}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyProjectId(project.id)}
+                        className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+                        title="Copiar ID real do projeto"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
 
                     {/* Mostra o Profissional se já tiver */}
                     {project.professional ? (

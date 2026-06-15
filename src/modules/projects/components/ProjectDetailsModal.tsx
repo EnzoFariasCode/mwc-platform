@@ -21,6 +21,7 @@ import {
   Hourglass,
   CheckCircle,
   Briefcase,
+  Copy,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -94,6 +95,11 @@ export function ProjectDetailsModal({
     return result;
   };
 
+  const handleCopyProjectId = async () => {
+    await navigator.clipboard.writeText(project.id);
+    toast.success("ID real do projeto copiado.");
+  };
+
   const handleConfirmReasonAction = async (reason: string) => {
     if (!project?.id || !reasonAction) return;
 
@@ -147,9 +153,18 @@ export function ProjectDetailsModal({
           <div className="p-6 border-b border-white/5 bg-[#0B1121]">
             <div className="flex justify-between items-start gap-4">
               <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className="px-2 py-1 rounded bg-slate-800 text-[10px] font-bold text-slate-400">
-                  #{project.id.slice(0, 4).toUpperCase()}
-                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyProjectId}
+                  className="flex max-w-full items-center gap-2 rounded bg-slate-800 px-2 py-1 text-left text-[10px] font-bold text-slate-400 transition-colors hover:bg-slate-700 hover:text-white"
+                  title="Copiar ID real do projeto"
+                >
+                  <span>#{project.id.slice(0, 8).toUpperCase()}</span>
+                  <span className="hidden max-w-[260px] truncate font-mono normal-case text-slate-500 sm:inline">
+                    {project.id}
+                  </span>
+                  <Copy className="h-3 w-3 shrink-0" />
+                </button>
                 <StatusBadge status={project.status} />
                 <span className="px-2 py-1 rounded-full bg-slate-800 border border-white/5 text-[10px] font-bold text-slate-300 uppercase">
                   {category}

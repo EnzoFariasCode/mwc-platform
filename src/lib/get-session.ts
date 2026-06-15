@@ -1,5 +1,6 @@
 import "server-only";
 import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
 export async function getUserSession() {
   const session = await auth();
@@ -13,4 +14,14 @@ export async function getUserSession() {
     industry: session.user.industry,
     jobTitle: session.user.jobTitle,
   };
+}
+
+export async function requireAdminUser() {
+  const session = await getUserSession();
+
+  if (session?.userType !== "ADMIN") {
+    redirect("/");
+  }
+
+  return session;
 }

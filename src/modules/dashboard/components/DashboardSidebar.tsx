@@ -18,6 +18,7 @@ import {
   ChevronUp,
   Heart,
   Store,
+  ShieldCheck,
 } from "lucide-react";
 import Logo from "@/assets/images/landingPage/logo.png";
 import { useDashboard } from "@/context/DashboardContext";
@@ -59,6 +60,8 @@ function UserMenu({ user }: { user: UserData | null }) {
   const displayName = user?.displayName || user?.name || "Usuário";
   const subTitle = user?.jobTitle
     ? user.jobTitle
+    : user?.userType === "ADMIN"
+      ? "Admin"
     : user?.userType === "PROFESSIONAL"
       ? "Profissional"
       : "Cliente";
@@ -240,7 +243,30 @@ export default function DashboardSidebar() {
     { icon: Heart, label: "Favoritos", href: "/dashboard/favoritos" },
   ];
 
-  const menuItems = viewMode === "CLIENT" ? clientLinks : professionalLinks;
+  const adminLinks = [
+    {
+      icon: User,
+      label: "Usuários",
+      href: "/dashboard/admin/usuarios",
+    },
+    {
+      icon: ShieldCheck,
+      label: "Mediação",
+      href: "/dashboard/admin/disputas",
+    },
+    {
+      icon: Wallet,
+      label: "Tesouraria",
+      href: "/dashboard/admin/financeiro",
+    },
+  ];
+
+  const isAdmin = user?.userType === "ADMIN";
+  const menuItems = isAdmin
+    ? adminLinks
+    : viewMode === "CLIENT"
+      ? clientLinks
+      : professionalLinks;
 
   return (
     <>
@@ -258,7 +284,7 @@ export default function DashboardSidebar() {
       >
         <div className="h-20 flex items-center justify-between px-6 border-b border-white/5 shrink-0">
           <Link
-            href="/dashboard"
+            href="/"
             onClick={closeMobileMenu}
             className="flex items-center gap-3 hover:opacity-80 transition-opacity"
           >
@@ -283,7 +309,7 @@ export default function DashboardSidebar() {
 
         <nav className="flex-1 py-8 px-4 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
           <div className="px-4 mb-4 text-xs font-bold text-slate-500 uppercase tracking-widest opacity-50">
-            Menu {viewMode === "CLIENT" ? "Cliente" : "Profissional"}
+            Menu {isAdmin ? "Admin" : viewMode === "CLIENT" ? "Cliente" : "Profissional"}
           </div>
 
           {menuItems.map((item) => {

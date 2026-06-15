@@ -26,30 +26,41 @@ async function getDashboardStats(userId: string) {
 
 export default async function ClienteDashboardPage() {
   const session = await verifySession();
-  if (!session || !session.sub) redirect("/login");
+  if (!session?.sub) redirect("/login");
 
-  const userId = session.sub as string;
+  const userId = session.sub;
 
-  // --- BUSCA OTIMIZADA ---
   const [stats, user] = await Promise.all([
     getDashboardStats(userId),
     db.user.findUnique({
       where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        displayName: true,
+        email: true,
+        userType: true,
+        industry: true,
+        city: true,
+        state: true,
+        profileImageBytes: true,
+        updatedAt: true,
+      },
     }),
   ]);
 
   if (!user) redirect("/login");
 
   const isProfileIncomplete = !user.city || !user.state;
-
-  // --- A CORREÇÃO MÁGICA ---
-  // Removemos o peso morto da imagem antes de enviar para o cliente
   const userSafe = {
-    ...user,
-    hourlyRate: user.hourlyRate ? user.hourlyRate.toNumber() : null,
-    walletBalance: user.walletBalance ? user.walletBalance.toNumber() : 0,
-    profileImageBytes: undefined, // <--- Remove os dados binários pesados
-    // Se quiser que a foto apareça no header/dashboard, gere a URL igual fizemos no perfil:
+    id: user.id,
+    name: user.name,
+    displayName: user.displayName,
+    email: user.email,
+    userType: user.userType,
+    industry: user.industry,
+    city: user.city,
+    state: user.state,
     avatarUrl: user.profileImageBytes
       ? `/api/images/user/${user.id}?t=${user.updatedAt.getTime()}`
       : null,
@@ -59,8 +70,7 @@ export default async function ClienteDashboardPage() {
     <ClientDashboardView
       stats={stats}
       isProfileIncomplete={isProfileIncomplete}
-      user={userSafe} // Passamos o usuário "leve"
+      user={userSafe}
     />
   );
 }
-
