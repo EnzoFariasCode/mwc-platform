@@ -7,6 +7,7 @@ interface ExtendedAuthUser {
   id?: string;
   userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN";
   industry?: "TECH" | "HEALTH";
+  isActive?: boolean;
   email?: string | null;
   name?: string | null;
   image?: string | null;
@@ -28,6 +29,16 @@ export default auth((req) => {
   // No Next-Auth v5, a sessão fica em req.auth
   const isLoggedIn = !!req.auth;
   const user = req.auth?.user as ExtendedAuthUser | undefined;
+
+  if (isLoggedIn && user?.isActive === false && !isAuthRoute) {
+    return NextResponse.redirect(
+      new URL("/login?error=account_suspended", req.nextUrl),
+    );
+  }
+
+  if (isLoggedIn && user?.isActive === false && isAuthRoute) {
+    return NextResponse.next();
+  }
 
   // 2. Bloqueio de Segurança: Acesso Protegido sem Login
   if (isProtectedRoute && !isLoggedIn) {

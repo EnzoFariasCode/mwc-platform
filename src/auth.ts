@@ -4,31 +4,36 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
 type AuthUserExtras = {
   userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN";
   industry?: "TECH" | "HEALTH";
   jobTitle?: string | null;
+  isActive?: boolean;
 };
 
 async function getAuthUserFields(userId?: string, email?: string | null) {
   if (!userId && !email) return null;
 
-  return db.user.findFirst({
-    where: {
-      OR: [
-        ...(userId ? [{ id: userId }] : []),
-        ...(email ? [{ email }] : []),
-      ],
-    },
-    select: {
-      id: true,
-      userType: true,
-      industry: true,
-      jobTitle: true,
-    },
-  });
+  const users = await db.$queryRaw<
+    Array<{
+      id: string;
+      userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
+      industry: "TECH" | "HEALTH";
+      jobTitle: string | null;
+      isActive: boolean;
+    }>
+  >`
+    SELECT id, "userType", industry, "jobTitle", "isActive"
+    FROM "User"
+    WHERE ${userId ? Prisma.sql`id = ${userId}` : Prisma.sql`false`}
+      OR ${email ? Prisma.sql`email = ${email}` : Prisma.sql`false`}
+    LIMIT 1
+  `;
+
+  return users[0] ?? null;
 }
 
 async function storeRemoteProfileImage(userId: string, imageUrl: string) {
@@ -93,6 +98,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const isValid = await bcrypt.compare(password, user.password);
         if (!isValid) return null;
 
+        const authUser = await getAuthUserFields(user.id, user.email);
+
         return {
           id: user.id,
           name: user.name,
@@ -101,11 +108,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           userType: user.userType,
           industry: user.industry,
           jobTitle: user.jobTitle,
+          isActive: authUser?.isActive ?? true,
         };
       },
     }),
   ],
   callbacks: {
+    async signIn({ user }) {
+      const dbUser = await getAuthUserFields(user.id, user.email);
+
+      if (dbUser?.isActive === false) {
+        return "/login?error=account_suspended";
+      }
+
+      return true;
+    },
     async jwt({ token, user }) {
       if (user?.id) {
         token.id = user.id;
@@ -122,6 +139,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.userType = dbUser.userType;
         token.industry = dbUser.industry;
         token.jobTitle = dbUser.jobTitle;
+        token.isActive = dbUser.isActive;
         return token;
       }
 
@@ -131,6 +149,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.userType = authUser.userType || "CLIENT";
         token.industry = authUser.industry || "TECH";
         token.jobTitle = authUser.jobTitle || null;
+        token.isActive = authUser.isActive ?? true;
       }
 
       return token;
@@ -142,6 +161,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.userType = token.userType as AuthUserExtras["userType"];
         session.user.industry = token.industry as AuthUserExtras["industry"];
         session.user.jobTitle = token.jobTitle as AuthUserExtras["jobTitle"];
+        session.user.isActive = token.isActive as boolean | undefined;
       }
       return session;
     },

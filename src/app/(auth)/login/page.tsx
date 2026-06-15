@@ -4,9 +4,12 @@ import Link from "next/link";
 import { Mail, Lock, CheckCircle2, Loader2, Eye, EyeOff } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense, useEffect, useRef } from "react";
-import { signIn, getSession } from "next-auth/react";
+import { signIn, getSession, signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { WelcomeModal } from "./components/LoginModal";
+
+const SUSPENDED_ACCOUNT_MESSAGE =
+  "Sua conta esta suspensa. Entre em contato com o suporte MWC para entender o motivo e solicitar revisao.";
 
 function LoginContent() {
   const router = useRouter();
@@ -16,13 +19,22 @@ function LoginContent() {
   const proName = searchParams.get("proName");
   const proId = searchParams.get("proId");
   const registered = searchParams.get("registered");
+  const error = searchParams.get("error");
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSocialLoading, setIsSocialLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState(() =>
+    error === "account_suspended" ? SUSPENDED_ACCOUNT_MESSAGE : "",
+  );
   const [showPassword, setShowPassword] = useState(false);
 
   const toastShown = useRef(false);
+
+  useEffect(() => {
+    if (error === "account_suspended") {
+      signOut({ redirect: false });
+    }
+  }, [error]);
 
   useEffect(() => {
     if (registered === "true" && !toastShown.current) {
@@ -66,10 +78,19 @@ function LoginContent() {
       redirect: false,
     });
 
+    if (result?.url?.includes("account_suspended")) {
+      setErrorMessage(SUSPENDED_ACCOUNT_MESSAGE);
+      toast.error("Conta suspensa", { description: SUSPENDED_ACCOUNT_MESSAGE });
+      setIsLoading(false);
+      return;
+    }
+
     if (result?.error) {
       const message =
         result.error === "CredentialsSignin"
           ? "Email ou senha incorretos."
+          : result.error === "AccessDenied"
+            ? SUSPENDED_ACCOUNT_MESSAGE
           : "Erro ao autenticar.";
       setErrorMessage(message);
       toast.error(message);
@@ -89,8 +110,17 @@ function LoginContent() {
           userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN";
           industry?: "TECH" | "HEALTH";
           jobTitle?: string | null;
+          isActive?: boolean;
         }
       | undefined;
+
+    if (user?.isActive === false) {
+      await signOut({ redirect: false });
+      setErrorMessage(SUSPENDED_ACCOUNT_MESSAGE);
+      toast.error("Conta suspensa", { description: SUSPENDED_ACCOUNT_MESSAGE });
+      setIsLoading(false);
+      return;
+    }
 
     toast.success("Login realizado!");
 

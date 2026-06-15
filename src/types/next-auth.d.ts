@@ -8,6 +8,7 @@ declare module "next-auth" {
       userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN";
       industry?: "TECH" | "HEALTH";
       jobTitle?: string | null;
+      isActive?: boolean;
     } & DefaultSession["user"];
   }
 
@@ -15,6 +16,7 @@ declare module "next-auth" {
     userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN";
     industry?: "TECH" | "HEALTH";
     jobTitle?: string | null;
+    isActive?: boolean;
   }
 }
 
@@ -25,5 +27,6 @@ declare module "next-auth/jwt" {
     userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN";
     industry?: "TECH" | "HEALTH";
     jobTitle?: string | null;
+    isActive?: boolean;
   }
 }
