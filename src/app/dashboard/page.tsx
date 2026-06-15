@@ -22,7 +22,7 @@ export default async function DashboardPage({
   // 3. Verifica no banco quem é esse usuário
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { userType: true },
+    select: { userType: true, industry: true },
   });
 
   if (!user) {
@@ -31,6 +31,10 @@ export default async function DashboardPage({
 
   // 4. Redirecionamento baseado no Role (UserType)
   if (user.userType === UserType.PROFESSIONAL) {
+    if (user.industry === "HEALTH") {
+      redirect("/agendar-consulta/dashboard-profissional");
+    }
+
     redirect("/dashboard/profissional");
   }
 
