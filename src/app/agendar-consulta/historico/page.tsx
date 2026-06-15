@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { getHealthPatientHistoryById } from "@/modules/health/services/private-profile-service";
 import { CancelAppointmentButton } from "@/modules/health/components/cancel-appointment-button";
 import { ReportAppointmentDisputeButton } from "@/modules/health/components/report-appointment-dispute-button";
-import Image from "next/image";
+import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -67,15 +67,6 @@ function statusBadge(status: string) {
   };
 }
 
-function initials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-}
-
 export default async function HistoricoConsultasPage() {
   const session = await auth();
 
@@ -127,21 +118,12 @@ export default async function HistoricoConsultasPage() {
                   className="bg-[#0f172a]/60 backdrop-blur-md border border-white/10 rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-6 hover:border-white/20 transition-all group"
                 >
                   <div className="flex items-center gap-5 w-full md:w-auto">
-                    <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/10 shrink-0">
-                      {hasProfessionalImage ? (
-                        <Image
-                          src={`/api/images/user/${professional.id}`}
-                          alt={professionalName}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-[#d73cbe]/15 text-sm font-bold uppercase text-[#d73cbe]">
-                          {initials(professionalName) || "MW"}
-                        </div>
-                      )}
-                    </div>
+                    <ProfileInitialsAvatar
+                      name={professionalName}
+                      src={`/api/images/user/${professional.id}`}
+                      hasImage={hasProfessionalImage}
+                      className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/10 shrink-0 bg-slate-800"
+                    />
                     <div>
                       <h3 className="font-bold text-white leading-tight">
                         {professionalName}

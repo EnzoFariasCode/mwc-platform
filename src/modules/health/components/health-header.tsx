@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
 import {
   User,
   ChevronDown,
@@ -116,19 +116,12 @@ export function HealthHeader() {
               onClick={() => setIsOpen(!isOpen)}
               className="flex items-center gap-3 cursor-pointer group"
             >
-              <div className="relative w-10 h-10 rounded-full bg-[#1e293b] border border-white/10 flex items-center justify-center text-slate-300 group-hover:border-[#d73cbe]/50 overflow-hidden transition-colors">
-                {session?.user?.image ? (
-                  <Image
-                    src={session.user.image}
-                    alt={firstName}
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                ) : (
-                  <User className="w-5 h-5" />
-                )}
-              </div>
+              <ProfileInitialsAvatar
+                name={sessionUser.name || firstName}
+                src={sessionUser.image}
+                className="relative w-10 h-10 rounded-full bg-[#1e293b] border border-white/10 group-hover:border-[#d73cbe]/50 overflow-hidden transition-colors"
+                textClassName="text-xs"
+              />
               <div className="hidden sm:flex flex-col items-start">
                 <span className="text-sm font-semibold leading-none text-white">
                   {firstName}

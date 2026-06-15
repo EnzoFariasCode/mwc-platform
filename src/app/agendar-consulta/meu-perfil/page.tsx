@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
-import Image from "next/image";
 import { EditProfileModal } from "@/modules/health/components/edit-profile-modal";
+import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
 import {
   getCurrentPatientProfile,
   type PatientProfileData,
@@ -23,10 +23,6 @@ export default function MeuPerfilPage() {
 
   const imageUrl =
     previewImage || (userId ? `/api/images/user/${userId}` : null);
-
-  const initials = session?.user?.name
-    ? session.user.name.substring(0, 2).toUpperCase()
-    : "US";
 
   // Carrega os dados reais do banco
   const loadProfile = async () => {
@@ -122,19 +118,14 @@ export default function MeuPerfilPage() {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[#d73cbe]/5 rounded-full blur-3xl pointer-events-none" />
 
                 <div className="relative w-28 h-28 mb-4 group">
-                  <div className="w-full h-full rounded-full bg-[#020617] border-2 border-white/10 flex items-center justify-center text-4xl font-bold shadow-2xl overflow-hidden relative">
-                    {imageUrl ? (
-                      <Image
-                        src={imageUrl}
-                        alt="Perfil"
-                        fill
-                        className={`object-cover transition-opacity ${isUploading ? "opacity-50" : "opacity-100"}`}
-                        unoptimized
-                      />
-                    ) : (
-                      <span>{initials}</span>
-                    )}
-                  </div>
+                  <ProfileInitialsAvatar
+                    name={profileName}
+                    src={imageUrl}
+                    className={`relative w-full h-full rounded-full bg-[#020617] border-2 border-white/10 shadow-2xl overflow-hidden transition-opacity ${
+                      isUploading ? "opacity-50" : "opacity-100"
+                    }`}
+                    textClassName="text-4xl"
+                  />
 
                   <input
                     type="file"

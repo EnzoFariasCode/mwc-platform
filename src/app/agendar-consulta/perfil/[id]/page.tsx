@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import { Star, MapPin, Video, ShieldCheck } from "lucide-react";
 import { getHealthProfessionalById } from "@/modules/health/services/professional-service";
+import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
 import { ProfileViewClient } from "./profile-view-client";
 import { MonthlyScheduleClient } from "./monthly-schedule-client";
 import { BackButtonClient } from "./back-button-client"; // <-- Importamos o novo botão inteligente
@@ -37,15 +37,13 @@ export default async function ProfessionalHealthProfile({
             <div className="bg-[#0f172a] border border-white/10 rounded-2xl p-8 flex flex-col md:flex-row gap-8 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-[#d73cbe]/5 rounded-full blur-[100px] pointer-events-none" />
 
-              <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-2xl overflow-hidden shrink-0 border-2 border-white/10 shadow-2xl">
-                <Image
-                  src={`/api/images/user/${id}`}
-                  alt={proName}
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
-              </div>
+              <ProfileInitialsAvatar
+                name={proName}
+                src={`/api/images/user/${id}`}
+                hasImage={pro.hasProfileImage}
+                className="relative w-32 h-32 md:w-40 md:h-40 rounded-2xl overflow-hidden shrink-0 border-2 border-white/10 shadow-2xl bg-slate-800"
+                textClassName="text-3xl"
+              />
 
               <div className="flex flex-col justify-center relative z-10">
                 <div className="flex items-center gap-2 mb-2">
@@ -76,10 +74,10 @@ export default async function ProfessionalHealthProfile({
                   <div className="flex items-center gap-1.5">
                     <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
                     <span className="font-bold">
-                      {(pro.rating || 5.0).toFixed(1)}
+                      {(pro.rating ?? 0).toFixed(1)}
                     </span>
                     <span className="text-slate-500 text-sm">
-                      ({pro.ratingCount || 0} avaliações)
+                      ({pro.ratingCount ?? 0} avaliações)
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 text-slate-400 text-sm">

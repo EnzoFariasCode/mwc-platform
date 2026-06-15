@@ -1,13 +1,13 @@
 "use client";
 
 import { use, useState, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Star, Video, ShieldCheck, ArrowLeft } from "lucide-react";
 
 import { getProfessionalsBySpecialty } from "@/modules/users/actions/get-professionals";
 import { MonthlyScheduleClient } from "@/app/agendar-consulta/perfil/[id]/monthly-schedule-client";
 import { getHealthSpecialtyById } from "@/modules/health/lib/specialties";
+import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
 
 // ─── Tipagem Corrigida (Visão do Arquiteto Back-end) ──────────────────────────
 interface Professional {
@@ -171,35 +171,13 @@ export default function SpecialtyPage({
                 {/* COLUNA ESQUERDA: Perfil */}
                 <div className="lg:w-[45%] flex flex-col gap-5 z-10">
                   <div className="flex gap-5 items-start">
-                    {/* AJUSTE: Avatar Dinâmico Seguro */}
-                    <div className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0 border border-white/10 shadow-lg bg-slate-800 flex items-center justify-center">
-                      {pro.hasProfileImage ? (
-                        <Image
-                          src={`/api/images/user/${pro.id}`}
-                          alt={displayName}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                          /* Se a imagem oficial falhar, ele carrega as iniciais como fallback */
-                          onError={(e) => {
-                            const target = e.currentTarget;
-                            target.src = `https://ui-avatars.com/api/?background=random&name=${encodeURIComponent(
-                              displayName,
-                            )}&color=fff&background=d73cbe`;
-                          }}
-                        />
-                      ) : (
-                        <Image
-                          src={`https://ui-avatars.com/api/?background=random&name=${encodeURIComponent(
-                            displayName,
-                          )}&color=fff&background=d73cbe`}
-                          alt={displayName}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      )}
-                    </div>
+                    <ProfileInitialsAvatar
+                      name={displayName}
+                      src={`/api/images/user/${pro.id}`}
+                      hasImage={pro.hasProfileImage}
+                      className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0 border border-white/10 shadow-lg bg-slate-800"
+                      textClassName="text-xl"
+                    />
                     <div className="pt-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h2 className="font-bold text-xl leading-tight text-white">

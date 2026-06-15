@@ -19,6 +19,7 @@ export type HealthProfessionalProfile = {
   approach?: string | null;
   consultationFee?: unknown;
   sessionDuration?: number | null;
+  hasProfileImage?: boolean;
   availabilities?: Array<{
     dayOfWeek: number;
     isActive: boolean;

@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { HealthHeader } from "@/modules/health/components/health-header";
 import { PaymentTermsModal } from "@/modules/health/components/payment-terms-modal";
-import Image from "next/image";
+import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
 import {
   ArrowLeft,
   User,
@@ -230,24 +230,12 @@ export default function CheckoutSaudePage({
                 </h3>
 
                 <div className="flex gap-4 items-center mb-6">
-                  {/* Adicionado bg-slate-800 para dar fundo ao avatar de iniciais se precisar */}
-                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 bg-slate-800 flex items-center justify-center">
-                    <Image
-                      src={`/api/images/user/${professional.id}`}
-                      /* FIX DO TYPESCRIPT: Fallback para string vazia ou texto padrÃ£o */
-                      alt={professional.name || "Profissional"}
-                      fill
-                      className="object-cover"
-                      unoptimized
-                      /* Fallback para caso nÃ£o tenha foto no banco, usa iniciais */
-                      onError={(e) => {
-                        const target = e.currentTarget;
-                        target.src = `https://ui-avatars.com/api/?background=random&name=${encodeURIComponent(
-                          professional.name || "P",
-                        )}&color=fff&background=d73cbe`;
-                      }}
-                    />
-                  </div>
+                  <ProfileInitialsAvatar
+                    name={professional.name || "Profissional"}
+                    src={`/api/images/user/${professional.id}`}
+                    hasImage={professional.hasProfileImage}
+                    className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 bg-slate-800"
+                  />
                   <div>
                     <h4 className="font-bold text-white text-sm line-clamp-1">
                       {/* Tratando o null aqui tambÃ©m por seguranÃ§a */}
