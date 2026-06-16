@@ -5,6 +5,10 @@ import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { createAdminAuditLog } from "./audit-log";
+import { consumeRateLimit } from "@/lib/action-rate-limit";
+
+const ADMIN_WITHDRAWAL_DECISION_LIMIT = 30;
+const ADMIN_WITHDRAWAL_DECISION_WINDOW_MS = 10 * 60 * 1000;
 
 export async function approveWithdrawal(
   withdrawalId: string,
@@ -13,6 +17,17 @@ export async function approveWithdrawal(
 
   if (!withdrawalId) {
     return { success: false, error: "Solicitacao de saque invalida." };
+  }
+
+  const rateLimitError = await consumeRateLimit({
+    key: `admin:withdrawal-decision:user:${admin.id}`,
+    limit: ADMIN_WITHDRAWAL_DECISION_LIMIT,
+    windowMs: ADMIN_WITHDRAWAL_DECISION_WINDOW_MS,
+    message: "Muitas decisoes financeiras em sequencia. Aguarde um instante.",
+  });
+
+  if (rateLimitError) {
+    return { success: false, error: rateLimitError };
   }
 
   try {

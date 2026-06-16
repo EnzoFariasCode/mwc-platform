@@ -765,6 +765,11 @@ function formatAuditAction(action: string) {
     HEALTH_DISPUTE_REFUND_PATIENT: "Reembolso Health aprovado",
     HEALTH_DISPUTE_RELEASE_PROFESSIONAL: "Pagamento Health liberado",
     PIX_WITHDRAWAL_MARK_COMPLETED: "Saque PIX transferido",
+    PIX_WITHDRAWAL_REJECTED: "Saque PIX reprovado",
+    PIX_WITHDRAWAL_CANCELED: "Saque PIX cancelado",
+    PIX_WITHDRAWAL_RECEIPT_ATTACHED: "Comprovante PIX anexado",
+    USER_ACCOUNT_SUSPENDED: "Usuario suspenso",
+    USER_ACCOUNT_REACTIVATED: "Usuario reativado",
   };
 
   return labels[action] ?? action;

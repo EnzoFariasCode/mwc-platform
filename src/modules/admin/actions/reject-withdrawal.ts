@@ -6,8 +6,11 @@ import { ActionResponse } from "@/modules/users/types/user-types";
 import { WithdrawalStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { createAdminAuditLog } from "./audit-log";
+import { consumeRateLimit } from "@/lib/action-rate-limit";
 
 type WithdrawalDecision = "FAILED" | "CANCELED";
+const ADMIN_WITHDRAWAL_DECISION_LIMIT = 30;
+const ADMIN_WITHDRAWAL_DECISION_WINDOW_MS = 10 * 60 * 1000;
 
 const auditActionByDecision = {
   FAILED: "PIX_WITHDRAWAL_REJECTED",
@@ -39,6 +42,17 @@ export async function rejectWithdrawal(
       success: false,
       error: "Informe um motivo com pelo menos 10 caracteres.",
     };
+  }
+
+  const rateLimitError = await consumeRateLimit({
+    key: `admin:withdrawal-decision:user:${admin.id}`,
+    limit: ADMIN_WITHDRAWAL_DECISION_LIMIT,
+    windowMs: ADMIN_WITHDRAWAL_DECISION_WINDOW_MS,
+    message: "Muitas decisoes financeiras em sequencia. Aguarde um instante.",
+  });
+
+  if (rateLimitError) {
+    return { success: false, error: rateLimitError };
   }
 
   try {

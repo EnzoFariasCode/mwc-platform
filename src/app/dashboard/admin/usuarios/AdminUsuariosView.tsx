@@ -15,10 +15,25 @@ export type AdminUserItem = {
   industry: "TECH" | "HEALTH";
   isActive: boolean;
   createdAt: string;
+  auditLog: {
+    id: string;
+    action: string;
+    reason: string | null;
+    createdAt: string;
+    actorName: string | null;
+    actorEmail: string | null;
+  } | null;
 };
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("pt-BR");
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
 }
 
 function isWithinDateRange(value: string, dateFrom: string, dateTo: string) {
@@ -49,6 +64,15 @@ function userTypeLabel(userType: AdminUserItem["userType"]) {
 
 function industryLabel(industry: AdminUserItem["industry"]) {
   return industry === "HEALTH" ? "Saúde" : "Tech";
+}
+
+function auditActionLabel(action: string) {
+  const labels: Record<string, string> = {
+    USER_ACCOUNT_SUSPENDED: "Suspensao",
+    USER_ACCOUNT_REACTIVATED: "Reativacao",
+  };
+
+  return labels[action] ?? action;
 }
 
 export default function AdminUsuariosView({
@@ -95,6 +119,10 @@ export default function AdminUsuariosView({
       user.userType,
       user.industry,
       user.isActive ? "ativo active" : "suspenso suspended",
+      user.auditLog?.action,
+      user.auditLog?.actorName,
+      user.auditLog?.actorEmail,
+      user.auditLog?.reason,
     ]
       .join(" ")
       .toLowerCase();
@@ -220,7 +248,7 @@ export default function AdminUsuariosView({
 
       <div className="overflow-hidden rounded-2xl border border-white/5 bg-slate-900 shadow-lg shadow-black/10">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left text-sm">
+          <table className="w-full min-w-[1040px] text-left text-sm">
             <thead className="border-b border-white/5 bg-slate-950 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-5 py-4">Criado em</th>
@@ -229,6 +257,7 @@ export default function AdminUsuariosView({
                 <th className="px-5 py-4">Tipo</th>
                 <th className="px-5 py-4">Setor</th>
                 <th className="px-5 py-4">Status</th>
+                <th className="px-5 py-4">Auditoria</th>
                 <th className="px-5 py-4 text-right">Ação</th>
               </tr>
             </thead>
@@ -278,6 +307,26 @@ export default function AdminUsuariosView({
                       )}
                       {user.isActive ? "Ativo" : "Suspenso"}
                     </span>
+                  </td>
+                  <td className="max-w-[260px] px-5 py-4">
+                    {user.auditLog ? (
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-300">
+                          {auditActionLabel(user.auditLog.action)}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {user.auditLog.actorName || "Admin"} -{" "}
+                          {formatDateTime(user.auditLog.createdAt)}
+                        </p>
+                        <p className="truncate text-xs text-slate-400">
+                          {user.auditLog.reason || "Sem motivo registrado"}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-600">
+                        Sem log administrativo
+                      </span>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-right">
                     <button

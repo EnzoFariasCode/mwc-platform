@@ -5,10 +5,13 @@ import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { consumeRateLimit } from "@/lib/action-rate-limit";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
 });
+const CONFIRM_PAYMENT_LIMIT = 10;
+const CONFIRM_PAYMENT_WINDOW_MS = 10 * 60 * 1000;
 
 async function validateCheckoutAmount(
   proposalId: string,
@@ -64,6 +67,17 @@ export async function confirmProjectPayment(
 
   if (!sessionId) {
     return { success: false, error: "Session invalida." };
+  }
+
+  const rateLimitError = await consumeRateLimit({
+    key: `finance:confirm-project-payment:user:${userId}`,
+    limit: CONFIRM_PAYMENT_LIMIT,
+    windowMs: CONFIRM_PAYMENT_WINDOW_MS,
+    message: "Muitas confirmacoes de pagamento. Tente novamente em instantes.",
+  });
+
+  if (rateLimitError) {
+    return { success: false, error: rateLimitError };
   }
 
   const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);

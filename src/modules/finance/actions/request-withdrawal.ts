@@ -7,9 +7,12 @@ import { getUserSession } from "@/lib/get-session";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { sendWithdrawalRequestedEmail } from "@/modules/finance/services/withdrawal-email-service";
+import { consumeRateLimit } from "@/lib/action-rate-limit";
 
 const MIN_WITHDRAWAL_AMOUNT = new Prisma.Decimal(50);
 const PIX_KEY_TYPES = ["CPF", "CNPJ", "EMAIL", "PHONE", "EVP"] as const;
+const WITHDRAWAL_LIMIT = 3;
+const WITHDRAWAL_WINDOW_MS = 60 * 60 * 1000;
 
 function parseMoneyInput(value: FormDataEntryValue | null) {
   const raw = value?.toString().trim();
@@ -45,6 +48,17 @@ export async function requestWithdrawal(
       success: false,
       error: "Ação restrita a profissionais.",
     };
+  }
+
+  const rateLimitError = await consumeRateLimit({
+    key: `finance:withdrawal:user:${session.id}`,
+    limit: WITHDRAWAL_LIMIT,
+    windowMs: WITHDRAWAL_WINDOW_MS,
+    message: "Muitas solicitacoes de saque. Tente novamente mais tarde.",
+  });
+
+  if (rateLimitError) {
+    return { success: false, error: rateLimitError };
   }
 
   const amount = parseMoneyInput(formData.get("amount"));

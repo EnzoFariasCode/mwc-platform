@@ -4,6 +4,11 @@ import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { consumeRateLimit } from "@/lib/action-rate-limit";
+
+const CHAT_USER_LIMIT = 30;
+const CHAT_PAIR_LIMIT = 12;
+const CHAT_WINDOW_MS = 60 * 1000;
 
 async function hasSharedTechContext(senderId: string, receiverId: string) {
   const project = await db.project.findFirst({
@@ -51,6 +56,27 @@ export async function sendMessage(
 
     if (!normalizedContent) {
       return { success: false, error: "Mensagem vazia." };
+    }
+
+    const pairKey = [senderId, receiverId].sort().join(":");
+    const userLimitError = await consumeRateLimit({
+      key: `chat:send:user:${senderId}`,
+      limit: CHAT_USER_LIMIT,
+      windowMs: CHAT_WINDOW_MS,
+      message: "Voce esta enviando mensagens rapido demais.",
+    });
+    const pairLimitError = await consumeRateLimit({
+      key: `chat:send:pair:${pairKey}`,
+      limit: CHAT_PAIR_LIMIT,
+      windowMs: CHAT_WINDOW_MS,
+      message: "Aguarde um instante antes de enviar novas mensagens.",
+    });
+
+    if (userLimitError || pairLimitError) {
+      return {
+        success: false,
+        error: userLimitError || pairLimitError || "Muitas tentativas.",
+      };
     }
 
     const receiver = await db.user.findUnique({

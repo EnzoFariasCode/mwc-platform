@@ -5,8 +5,12 @@ import bcrypt from "bcryptjs";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { getRateLimitKeys, rateLimit } from "@/lib/rate-limit";
 
 const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
+const LOGIN_LIMIT_EMAIL = 5;
+const LOGIN_LIMIT_IP = 15;
+const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 type AuthUserExtras = {
   userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN";
   industry?: "TECH" | "HEALTH";
@@ -88,6 +92,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = credentials?.password?.toString();
 
         if (!email || !password) return null;
+
+        const [ipKey, emailKey] = await getRateLimitKeys("auth-login", email);
+        const ipLimit = await rateLimit(
+          ipKey,
+          LOGIN_LIMIT_IP,
+          LOGIN_WINDOW_MS,
+        );
+        const emailLimit = await rateLimit(
+          emailKey,
+          LOGIN_LIMIT_EMAIL,
+          LOGIN_WINDOW_MS,
+        );
+
+        if (!ipLimit.allowed || !emailLimit.allowed) {
+          return null;
+        }
 
         const user = await db.user.findUnique({
           where: { email },

@@ -16,6 +16,10 @@ import {
   parseAppointmentDateTime,
 } from "@/modules/health/actions/slot-helpers";
 import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
+import { consumeRateLimit } from "@/lib/action-rate-limit";
+
+const ADMIN_HEALTH_DISPUTE_DECISION_LIMIT = 20;
+const ADMIN_HEALTH_DISPUTE_DECISION_WINDOW_MS = 10 * 60 * 1000;
 
 type EscrowAppointment = {
   id: string;
@@ -692,6 +696,17 @@ export async function resolveHealthAppointmentDispute({
 
   if (session.user.role !== "ADMIN" && session.user.userType !== "ADMIN") {
     return { error: "Acao restrita a administradores." };
+  }
+
+  const rateLimitError = await consumeRateLimit({
+    key: `admin:health-dispute-decision:user:${session.user.id}`,
+    limit: ADMIN_HEALTH_DISPUTE_DECISION_LIMIT,
+    windowMs: ADMIN_HEALTH_DISPUTE_DECISION_WINDOW_MS,
+    message: "Muitas decisoes de disputa em sequencia. Aguarde um instante.",
+  });
+
+  if (rateLimitError) {
+    return { error: rateLimitError };
   }
 
   if (!appointmentId) {

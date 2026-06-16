@@ -7,8 +7,11 @@ import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { Prisma, ProjectStatus, ProposalStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { consumeRateLimit } from "@/lib/action-rate-limit";
 
 const PLATFORM_FEE_PERCENT = 10;
+const ADMIN_DISPUTE_DECISION_LIMIT = 20;
+const ADMIN_DISPUTE_DECISION_WINDOW_MS = 10 * 60 * 1000;
 
 type DisputeDecision = "REFUND_CLIENT" | "RELEASE_TO_PROFESSIONAL";
 
@@ -373,6 +376,17 @@ export async function resolveTechProjectDispute({
 
     if ("error" in admin) {
       return { success: false, error: admin.error };
+    }
+
+    const rateLimitError = await consumeRateLimit({
+      key: `admin:tech-dispute-decision:user:${admin.session.sub}`,
+      limit: ADMIN_DISPUTE_DECISION_LIMIT,
+      windowMs: ADMIN_DISPUTE_DECISION_WINDOW_MS,
+      message: "Muitas decisoes de disputa em sequencia. Aguarde um instante.",
+    });
+
+    if (rateLimitError) {
+      return { success: false, error: rateLimitError };
     }
 
     if (!projectId) {

@@ -6,10 +6,14 @@ import { getUserSession } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { ProjectCheckoutHoldStatus } from "@prisma/client";
+import { consumeRateLimit } from "@/lib/action-rate-limit";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
 });
+const CHECKOUT_USER_LIMIT = 8;
+const CHECKOUT_PROPOSAL_LIMIT = 4;
+const CHECKOUT_WINDOW_MS = 10 * 60 * 1000;
 
 export async function createProjectCheckout(
   proposalId: string,
@@ -22,6 +26,26 @@ export async function createProjectCheckout(
 
   if (session.userType !== "CLIENT") {
     return { success: false, error: "Ação restrita a clientes." };
+  }
+
+  const userLimitError = await consumeRateLimit({
+    key: `finance:checkout:user:${session.id}`,
+    limit: CHECKOUT_USER_LIMIT,
+    windowMs: CHECKOUT_WINDOW_MS,
+    message: "Muitas tentativas de checkout. Aguarde alguns minutos.",
+  });
+  const proposalLimitError = await consumeRateLimit({
+    key: `finance:checkout:proposal:${proposalId}`,
+    limit: CHECKOUT_PROPOSAL_LIMIT,
+    windowMs: CHECKOUT_WINDOW_MS,
+    message: "Muitas tentativas para esta proposta. Aguarde alguns minutos.",
+  });
+
+  if (userLimitError || proposalLimitError) {
+    return {
+      success: false,
+      error: userLimitError || proposalLimitError || "Muitas tentativas.",
+    };
   }
 
   // Buscando o e-mail real do usuario no banco

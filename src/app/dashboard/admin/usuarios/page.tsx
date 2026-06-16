@@ -13,6 +13,16 @@ export default async function AdminUsuariosPage() {
     industry: user.industry,
     isActive: user.isActive,
     createdAt: user.createdAt.toISOString(),
+    auditLog: user.auditLog
+      ? {
+          id: user.auditLog.id,
+          action: user.auditLog.action,
+          reason: user.auditLog.reason,
+          createdAt: user.auditLog.createdAt.toISOString(),
+          actorName: user.auditLog.actorName,
+          actorEmail: user.auditLog.actorEmail,
+        }
+      : null,
   }));
 
   return (
