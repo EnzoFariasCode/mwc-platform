@@ -9,9 +9,11 @@ import {
   Landmark,
   Loader2,
   Search,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { approveWithdrawal } from "@/modules/admin/actions/approve-withdrawal";
+import { rejectWithdrawal } from "@/modules/admin/actions/reject-withdrawal";
 import { uploadWithdrawalReceipt } from "@/modules/admin/actions/upload-withdrawal-receipt";
 
 type WithdrawalStatusFilter =
@@ -102,7 +104,11 @@ export default function AdminFinanceiroView({
 }) {
   const router = useRouter();
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [uploadingAuditId, setUploadingAuditId] = useState<string | null>(null);
+  const [withdrawalReasons, setWithdrawalReasons] = useState<
+    Record<string, string>
+  >({});
   const [statusFilter, setStatusFilter] =
     useState<WithdrawalStatusFilter>("PENDING");
   const [searchTerm, setSearchTerm] = useState("");
@@ -121,6 +127,39 @@ export default function AdminFinanceiroView({
     }
 
     setApprovingId(null);
+  }
+
+  async function handleReject(
+    withdrawalId: string,
+    decision: "FAILED" | "CANCELED",
+  ) {
+    const reason = withdrawalReasons[withdrawalId]?.trim() ?? "";
+
+    if (reason.length < 10) {
+      toast.error("Informe um motivo com pelo menos 10 caracteres.");
+      return;
+    }
+
+    setRejectingId(`${decision}:${withdrawalId}`);
+    const result = await rejectWithdrawal(withdrawalId, decision, reason);
+
+    if (result.success) {
+      toast.success(
+        decision === "FAILED"
+          ? "Saque reprovado e saldo devolvido."
+          : "Saque cancelado e saldo devolvido.",
+      );
+      setWithdrawalReasons((current) => {
+        const next = { ...current };
+        delete next[withdrawalId];
+        return next;
+      });
+      router.refresh();
+    } else {
+      toast.error(result.error || "Nao foi possivel processar o saque.");
+    }
+
+    setRejectingId(null);
   }
 
   async function handleReceiptUpload(event: FormEvent<HTMLFormElement>) {
@@ -413,19 +452,68 @@ export default function AdminFinanceiroView({
                     </td>
                     <td className="px-5 py-4 text-right">
                       {withdrawal.status === "PENDING" ? (
-                        <button
-                          type="button"
-                          onClick={() => handleApprove(withdrawal.id)}
-                          disabled={approvingId === withdrawal.id}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-black transition-colors hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60"
-                        >
-                          {approvingId === withdrawal.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="h-4 w-4" />
-                          )}
-                          Marcar como transferido
-                        </button>
+                        <div className="ml-auto flex max-w-[260px] flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleApprove(withdrawal.id)}
+                            disabled={approvingId === withdrawal.id}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-black transition-colors hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60"
+                          >
+                            {approvingId === withdrawal.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="h-4 w-4" />
+                            )}
+                            Marcar como transferido
+                          </button>
+                          <textarea
+                            value={withdrawalReasons[withdrawal.id] ?? ""}
+                            onChange={(event) =>
+                              setWithdrawalReasons((current) => ({
+                                ...current,
+                                [withdrawal.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Motivo para reprovar ou cancelar"
+                            className="min-h-[72px] resize-none rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white outline-none transition-colors placeholder:text-slate-600 focus:border-red-300"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleReject(withdrawal.id, "FAILED")
+                              }
+                              disabled={
+                                rejectingId === `FAILED:${withdrawal.id}`
+                              }
+                              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300 transition-colors hover:bg-red-500 hover:text-white disabled:cursor-wait disabled:opacity-60"
+                            >
+                              {rejectingId === `FAILED:${withdrawal.id}` ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <XCircle className="h-3.5 w-3.5" />
+                              )}
+                              Reprovar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleReject(withdrawal.id, "CANCELED")
+                              }
+                              disabled={
+                                rejectingId === `CANCELED:${withdrawal.id}`
+                              }
+                              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-500/20 bg-slate-800 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60"
+                            >
+                              {rejectingId === `CANCELED:${withdrawal.id}` ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <XCircle className="h-3.5 w-3.5" />
+                              )}
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
                       ) : (
                         <span className="text-xs font-bold text-slate-500">
                           Sem acao pendente
