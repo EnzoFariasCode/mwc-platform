@@ -34,20 +34,26 @@ export async function getAdminWithdrawals() {
     withdrawalIds.length > 0
       ? await db.$queryRaw<
           Array<{
+            id: string;
             entityId: string;
             action: string;
             reason: string | null;
             receiptUrl: string | null;
+            receiptFileName: string | null;
+            receiptFileType: string | null;
             createdAt: Date;
             actorName: string | null;
             actorEmail: string | null;
           }>
         >`
           SELECT DISTINCT ON (audit."entityId")
+            audit."id",
             audit."entityId",
             audit."action",
             audit."reason",
             audit."receiptUrl",
+            audit."receiptFileName",
+            audit."receiptFileType",
             audit."createdAt",
             actor."name" AS "actorName",
             actor."email" AS "actorEmail"

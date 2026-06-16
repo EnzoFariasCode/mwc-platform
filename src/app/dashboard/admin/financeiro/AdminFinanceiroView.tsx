@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, CircleDollarSign, Landmark, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { approveWithdrawal } from "@/modules/admin/actions/approve-withdrawal";
+import { uploadWithdrawalReceipt } from "@/modules/admin/actions/upload-withdrawal-receipt";
 
 type WithdrawalStatusFilter =
   | "ALL"
@@ -23,9 +25,12 @@ export type AdminWithdrawalItem = {
   createdAt: string;
   transactionId: string;
   auditLog: {
+    id: string;
     action: string;
     reason: string | null;
     receiptUrl: string | null;
+    receiptFileName: string | null;
+    receiptFileType: string | null;
     createdAt: string;
     actorName: string | null;
     actorEmail: string | null;
@@ -75,6 +80,7 @@ export default function AdminFinanceiroView({
 }) {
   const router = useRouter();
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [uploadingAuditId, setUploadingAuditId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] =
     useState<WithdrawalStatusFilter>("PENDING");
 
@@ -90,6 +96,29 @@ export default function AdminFinanceiroView({
     }
 
     setApprovingId(null);
+  }
+
+  async function handleReceiptUpload(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const auditLogId = formData.get("auditLogId")?.toString() ?? null;
+
+    if (!auditLogId) return;
+
+    setUploadingAuditId(auditLogId);
+    const result = await uploadWithdrawalReceipt(formData);
+
+    if (result.success) {
+      toast.success("Comprovante anexado.");
+      form.reset();
+      router.refresh();
+    } else {
+      toast.error(result.error || "Nao foi possivel anexar o comprovante.");
+    }
+
+    setUploadingAuditId(null);
   }
 
   const pendingWithdrawals = withdrawals.filter(
@@ -257,9 +286,34 @@ export default function AdminFinanceiroView({
                               Ver comprovante
                             </a>
                           ) : (
-                            <p className="text-xs text-slate-600">
-                              Sem comprovante
-                            </p>
+                            <form
+                              onSubmit={handleReceiptUpload}
+                              className="mt-2 flex max-w-[240px] flex-col gap-2"
+                            >
+                              <input
+                                type="hidden"
+                                name="auditLogId"
+                                value={withdrawal.auditLog.id}
+                              />
+                              <input
+                                name="receipt"
+                                type="file"
+                                accept="application/pdf,image/png,image/jpeg,image/webp"
+                                required
+                                className="block w-full text-xs text-slate-400 file:mr-2 file:rounded-lg file:border-0 file:bg-slate-800 file:px-2 file:py-1 file:text-xs file:font-bold file:text-slate-200 hover:file:bg-slate-700"
+                              />
+                              <button
+                                type="submit"
+                                disabled={
+                                  uploadingAuditId === withdrawal.auditLog.id
+                                }
+                                className="inline-flex items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1.5 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black disabled:cursor-wait disabled:opacity-60"
+                              >
+                                {uploadingAuditId === withdrawal.auditLog.id
+                                  ? "Anexando..."
+                                  : "Anexar comprovante"}
+                              </button>
+                            </form>
                           )}
                         </div>
                       ) : (

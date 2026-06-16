@@ -20,6 +20,7 @@ export async function finalizeProjectPayment({
   buyerId,
   source,
   stripeSessionId,
+  stripePaymentIntentId,
 }: FinalizeProjectPaymentInput): Promise<FinalizeProjectPaymentResult> {
   if (!proposalId || !buyerId) {
     return { success: false, error: "Dados de pagamento invalidos." };
@@ -79,6 +80,8 @@ export async function finalizeProjectPayment({
           status: ProjectStatus.IN_PROGRESS,
           professionalId: proposal.professionalId,
           agreedPrice: proposal.price,
+          stripeSessionId,
+          stripePaymentIntentId,
           deadline: new Date(
             Date.now() + proposal.estimatedDays * 24 * 60 * 60 * 1000,
           ).toLocaleDateString("pt-BR"),

@@ -253,11 +253,11 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
   });
 
   if (!appt) {
-    console.warn(
-      "[WEBHOOK_DISPUTE] No appointment found for session:",
+    return await handleTechDisputeCreated(
+      dispute,
+      paymentIntentId,
       checkoutSessionId,
     );
-    return new NextResponse(null, { status: 200 });
   }
 
   if (appt.status === "DISPUTED" || appt.status === "REFUNDED") {
@@ -305,6 +305,181 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
   return new NextResponse(null, { status: 200 });
 }
 
+async function findTechProjectFromStripePayment(
+  paymentIntentId: string,
+  checkoutSessionId: string | null,
+) {
+  const project = await db.project.findFirst({
+    where: {
+      OR: [
+        { stripePaymentIntentId: paymentIntentId },
+        ...(checkoutSessionId ? [{ stripeSessionId: checkoutSessionId }] : []),
+      ],
+    },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      ownerId: true,
+      professionalId: true,
+      agreedPrice: true,
+      disputeResolution: true,
+    },
+  });
+
+  if (project) return project;
+
+  if (!checkoutSessionId) return null;
+
+  const transaction = await db.transaction.findFirst({
+    where: {
+      projectId: { not: null },
+      description: { contains: checkoutSessionId },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { projectId: true },
+  });
+
+  if (!transaction?.projectId) return null;
+
+  return db.project.findUnique({
+    where: { id: transaction.projectId },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      ownerId: true,
+      professionalId: true,
+      agreedPrice: true,
+      disputeResolution: true,
+    },
+  });
+}
+
+function stripeDisputeSummary(
+  dispute: Stripe.Dispute,
+  paymentIntentId: string,
+  checkoutSessionId: string | null,
+  previousStatus?: string,
+) {
+  const dueBy = dispute.evidence_details?.due_by
+    ? new Date(dispute.evidence_details.due_by * 1000).toISOString()
+    : "nao informado";
+
+  return [
+    `STRIPE_DISPUTE`,
+    `Stripe dispute: ${dispute.id}`,
+    `PaymentIntent: ${paymentIntentId}`,
+    `CheckoutSession: ${checkoutSessionId ?? "nao encontrada"}`,
+    `Status Stripe: ${dispute.status}`,
+    `Motivo Stripe: ${dispute.reason}`,
+    `Valor contestado: ${dispute.amount}`,
+    `Prazo evidencia: ${dueBy}`,
+    previousStatus ? `Previous status: ${previousStatus}` : null,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+}
+
+function previousProjectStatusFromResolution(value: string | null) {
+  return value?.match(/Previous status:\s*([A-Z_]+)/)?.[1] ?? null;
+}
+
+async function handleTechDisputeCreated(
+  dispute: Stripe.Dispute,
+  paymentIntentId: string,
+  checkoutSessionId: string | null,
+) {
+  const project = await findTechProjectFromStripePayment(
+    paymentIntentId,
+    checkoutSessionId,
+  );
+
+  if (!project) {
+    console.warn("[WEBHOOK_TECH_DISPUTE] No project found:", {
+      disputeId: dispute.id,
+      paymentIntentId,
+      checkoutSessionId,
+    });
+    return new NextResponse(null, { status: 200 });
+  }
+
+  if (project.status === "DISPUTE") {
+    await db.project.update({
+      where: { id: project.id },
+      data: {
+        disputeReason: `Stripe: ${dispute.reason}`,
+        disputeResolution: stripeDisputeSummary(
+          dispute,
+          paymentIntentId,
+          checkoutSessionId,
+          previousProjectStatusFromResolution(project.disputeResolution) ??
+            undefined,
+        ),
+      },
+    });
+
+    return new NextResponse(null, { status: 200 });
+  }
+
+  await db.$transaction(async (tx) => {
+    await tx.project.update({
+      where: { id: project.id },
+      data: {
+        status: "DISPUTE",
+        disputeReason: `Stripe: ${dispute.reason}`,
+        disputeOpenedAt: new Date(),
+        disputeResolution: stripeDisputeSummary(
+          dispute,
+          paymentIntentId,
+          checkoutSessionId,
+          project.status,
+        ),
+      },
+    });
+
+    await tx.transaction.updateMany({
+      where: {
+        projectId: project.id,
+        status: { in: ["COMPLETED", "PROCESSING", "PENDING"] },
+      },
+      data: { status: "DISPUTED" },
+    });
+  });
+
+  console.log("[WEBHOOK_TECH_DISPUTE] Project marked as DISPUTE:", project.id);
+  return new NextResponse(null, { status: 200 });
+}
+
+async function handleTechDisputeUpdated(
+  dispute: Stripe.Dispute,
+  paymentIntentId: string,
+  checkoutSessionId: string | null,
+) {
+  const project = await findTechProjectFromStripePayment(
+    paymentIntentId,
+    checkoutSessionId,
+  );
+
+  if (!project) return new NextResponse(null, { status: 200 });
+
+  await db.project.update({
+    where: { id: project.id },
+    data: {
+      disputeReason: `Stripe: ${dispute.reason}`,
+      disputeResolution: stripeDisputeSummary(
+        dispute,
+        paymentIntentId,
+        checkoutSessionId,
+        previousProjectStatusFromResolution(project.disputeResolution) ??
+          project.status,
+      ),
+    },
+  });
+
+  return new NextResponse(null, { status: 200 });
+}
+
 async function handleDisputeClosed(dispute: Stripe.Dispute) {
   const paymentIntentId = getStripeId(dispute.payment_intent);
 
@@ -332,7 +507,13 @@ async function handleDisputeClosed(dispute: Stripe.Dispute) {
     },
   });
 
-  if (!appt) return new NextResponse(null, { status: 200 });
+  if (!appt) {
+    return await handleTechDisputeClosed(
+      dispute,
+      paymentIntentId,
+      checkoutSessionId,
+    );
+  }
 
   if (dispute.status === "won" || dispute.status === "warning_closed") {
     await db.$transaction(async (tx) => {
@@ -392,6 +573,83 @@ async function handleDisputeClosed(dispute: Stripe.Dispute) {
       "[WEBHOOK_DISPUTE_CLOSED] Dispute lost - appointment marked REFUNDED:",
       appt.id,
     );
+  }
+
+  return new NextResponse(null, { status: 200 });
+}
+
+async function handleTechDisputeClosed(
+  dispute: Stripe.Dispute,
+  paymentIntentId: string,
+  checkoutSessionId: string | null,
+) {
+  const project = await findTechProjectFromStripePayment(
+    paymentIntentId,
+    checkoutSessionId,
+  );
+
+  if (!project) return new NextResponse(null, { status: 200 });
+
+  const previousStatus =
+    previousProjectStatusFromResolution(project.disputeResolution) ??
+    "IN_PROGRESS";
+  const resolution = stripeDisputeSummary(
+    dispute,
+    paymentIntentId,
+    checkoutSessionId,
+    previousStatus,
+  );
+
+  if (dispute.status === "won" || dispute.status === "warning_closed") {
+    await db.$transaction(async (tx) => {
+      await tx.project.update({
+        where: { id: project.id },
+        data: {
+          status:
+            previousStatus === "COMPLETED" ||
+            previousStatus === "UNDER_REVIEW" ||
+            previousStatus === "IN_PROGRESS"
+              ? previousStatus
+              : "IN_PROGRESS",
+          disputeResolvedAt: new Date(),
+          disputeResolution: `${resolution} | Resultado: WON`,
+        },
+      });
+
+      await tx.transaction.updateMany({
+        where: {
+          projectId: project.id,
+          status: "DISPUTED",
+        },
+        data: { status: "COMPLETED" },
+      });
+    });
+
+    console.log("[WEBHOOK_TECH_DISPUTE_CLOSED] Dispute won:", project.id);
+    return new NextResponse(null, { status: 200 });
+  }
+
+  if (dispute.status === "lost") {
+    await db.$transaction(async (tx) => {
+      await tx.project.update({
+        where: { id: project.id },
+        data: {
+          status: "CANCELED",
+          disputeResolvedAt: new Date(),
+          disputeResolution: `${resolution} | Resultado: LOST`,
+        },
+      });
+
+      await tx.transaction.updateMany({
+        where: {
+          projectId: project.id,
+          status: "DISPUTED",
+        },
+        data: { status: "CANCELED" },
+      });
+    });
+
+    console.log("[WEBHOOK_TECH_DISPUTE_CLOSED] Dispute lost:", project.id);
   }
 
   return new NextResponse(null, { status: 200 });
@@ -546,6 +804,34 @@ export async function POST(req: Request) {
       case "charge.dispute.created": {
         const dispute = event.data.object as Stripe.Dispute;
         return await handleDisputeCreated(dispute);
+      }
+
+      case "charge.dispute.updated":
+      case "charge.dispute.funds_withdrawn":
+      case "charge.dispute.funds_reinstated": {
+        const dispute = event.data.object as Stripe.Dispute;
+        const paymentIntentId = getStripeId(dispute.payment_intent);
+
+        if (!paymentIntentId) {
+          return new NextResponse(null, { status: 200 });
+        }
+
+        const checkoutSessionId =
+          await getCheckoutSessionIdFromPaymentIntent(paymentIntentId);
+        const appt = checkoutSessionId
+          ? await db.appointment.findUnique({
+              where: { stripeSessionId: checkoutSessionId },
+              select: { id: true },
+            })
+          : null;
+
+        if (appt) return new NextResponse(null, { status: 200 });
+
+        return await handleTechDisputeUpdated(
+          dispute,
+          paymentIntentId,
+          checkoutSessionId,
+        );
       }
 
       case "charge.dispute.closed": {

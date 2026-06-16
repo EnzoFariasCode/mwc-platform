@@ -16,9 +16,12 @@ export default async function AdminFinanceiroPage() {
       transactionId: withdrawal.transactionId,
       auditLog: withdrawal.auditLog
         ? {
+            id: withdrawal.auditLog.id,
             action: withdrawal.auditLog.action,
             reason: withdrawal.auditLog.reason,
             receiptUrl: withdrawal.auditLog.receiptUrl,
+            receiptFileName: withdrawal.auditLog.receiptFileName,
+            receiptFileType: withdrawal.auditLog.receiptFileType,
             createdAt: withdrawal.auditLog.createdAt.toISOString(),
             actorName: withdrawal.auditLog.actorName,
             actorEmail: withdrawal.auditLog.actorEmail,

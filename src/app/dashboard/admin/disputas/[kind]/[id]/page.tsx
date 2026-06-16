@@ -178,6 +178,16 @@ async function TechDisputeDetail({ id }: { id: string }) {
             label="Valor acordado"
             value={formatMoney(project.agreedPrice?.toNumber() ?? null)}
           />
+          <InfoCard
+            label="Stripe Session"
+            value={project.stripeSessionId ?? "Nao informado"}
+            mono
+          />
+          <InfoCard
+            label="PaymentIntent"
+            value={project.stripePaymentIntentId ?? "Nao informado"}
+            mono
+          />
         </SummaryGrid>
 
         <TwoColumns>
@@ -228,15 +238,19 @@ async function TechDisputeDetail({ id }: { id: string }) {
           <div className="grid gap-4 lg:grid-cols-3">
             <InfoCard
               label="Abertura"
-              value={formatDate(openedEvent?.createdAt)}
+              value={formatDate(openedEvent?.createdAt ?? project.disputeOpenedAt)}
             />
             <InfoCard
               label="Resolucao"
-              value={formatDate(resolvedEvent?.createdAt)}
+              value={formatDate(
+                resolvedEvent?.createdAt ?? project.disputeResolvedAt,
+              )}
             />
             <InfoCard
               label="Decisao"
-              value={extractResolutionLabel(resolvedEvent?.description)}
+              value={extractResolutionLabel(
+                resolvedEvent?.description ?? project.disputeResolution,
+              )}
             />
           </div>
           <TextBlock
@@ -244,14 +258,21 @@ async function TechDisputeDetail({ id }: { id: string }) {
             value={openedEvent?.description?.replace(
               /^DISPUTE_OPENED\s*-\s*/,
               "",
-            )}
+            ) ?? project.disputeReason}
           />
           <TextBlock
             label="Motivo da decisao"
-            value={resolvedEvent?.description?.replace(
-              /^DISPUTE_RESOLVED_(REFUND|RELEASE)\s*-\s*/,
-              "",
-            )}
+            value={
+              resolvedEvent?.description?.replace(
+                /^DISPUTE_RESOLVED_(REFUND|RELEASE)\s*-\s*/,
+                "",
+              ) ?? project.disputeResolution
+            }
+          />
+          <TextBlock
+            label="Payload resumido Stripe"
+            value={project.disputeResolution}
+            mono
           />
         </Section>
 

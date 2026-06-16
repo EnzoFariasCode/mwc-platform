@@ -9,6 +9,10 @@ type TechDisputeRecord = {
   title: string;
   status: ProjectStatus;
   agreedPrice: Prisma.Decimal | null;
+  disputeReason: string | null;
+  disputeOpenedAt: Date | null;
+  disputeResolvedAt: Date | null;
+  disputeResolution: string | null;
   updatedAt: Date;
   deliverables: Array<{
     description: string | null;
@@ -32,6 +36,7 @@ export default async function AdminDisputasPage() {
       where: {
         OR: [
           { status: "DISPUTE" },
+          { disputeOpenedAt: { not: null } },
           {
             deliverables: {
               some: {
@@ -50,6 +55,10 @@ export default async function AdminDisputasPage() {
         title: true,
         status: true,
         agreedPrice: true,
+        disputeReason: true,
+        disputeOpenedAt: true,
+        disputeResolvedAt: true,
+        disputeResolution: true,
         updatedAt: true,
         deliverables: {
           where: {
@@ -124,9 +133,11 @@ export default async function AdminDisputasPage() {
       );
       const resolvedDescription = resolved?.description ?? "";
       const resolution: AdminDisputeItem["resolution"] =
-        resolvedDescription.startsWith("DISPUTE_RESOLVED_REFUND")
+        resolvedDescription.startsWith("DISPUTE_RESOLVED_REFUND") ||
+        project.disputeResolution?.includes("Resultado: LOST")
           ? "REFUND"
-          : resolvedDescription.startsWith("DISPUTE_RESOLVED_RELEASE")
+          : resolvedDescription.startsWith("DISPUTE_RESOLVED_RELEASE") ||
+              project.disputeResolution?.includes("Resultado: WON")
             ? "RELEASE"
             : null;
 
@@ -137,17 +148,24 @@ export default async function AdminDisputasPage() {
         status: project.status,
         amount: project.agreedPrice ? project.agreedPrice.toNumber() : null,
         reason:
-          opened?.description?.replace(/^DISPUTE_OPENED\s*-\s*/, "") ?? null,
+          opened?.description?.replace(/^DISPUTE_OPENED\s*-\s*/, "") ??
+          project.disputeReason,
         resolutionReason:
           resolvedDescription.replace(
             /^DISPUTE_RESOLVED_(REFUND|RELEASE)\s*-\s*/,
             "",
           ) ||
-          null,
+          project.disputeResolution,
         resolution,
         isOpen: project.status === "DISPUTE",
-        openedAt: opened?.createdAt.toISOString() ?? null,
-        resolvedAt: resolved?.createdAt.toISOString() ?? null,
+        openedAt:
+          opened?.createdAt.toISOString() ??
+          project.disputeOpenedAt?.toISOString() ??
+          null,
+        resolvedAt:
+          resolved?.createdAt.toISOString() ??
+          project.disputeResolvedAt?.toISOString() ??
+          null,
         updatedAt: project.updatedAt.toISOString(),
         requesterLabel: "Cliente" as const,
         requesterName: project.owner.name || "Cliente",

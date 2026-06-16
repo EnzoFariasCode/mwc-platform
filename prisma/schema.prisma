@@ -596,16 +596,19 @@ model WithdrawalRequest {
 }
 
 model AdminAuditLog {
-  id         String   @id @default(uuid())
-  actorId    String
-  actor      User     @relation("AdminAuditActor", fields: [actorId], references: [id])
-  action     String
-  entityType String
-  entityId   String
-  reason     String?  @db.Text
-  receiptUrl String?  @db.Text
-  metadata   Json?    @default("{}")
-  createdAt  DateTime @default(now())
+  id               String   @id @default(uuid())
+  actorId          String
+  actor            User     @relation("AdminAuditActor", fields: [actorId], references: [id])
+  action           String
+  entityType       String
+  entityId         String
+  reason           String?  @db.Text
+  receiptUrl       String?  @db.Text
+  receiptFileBytes Bytes?
+  receiptFileType  String?
+  receiptFileName  String?
+  metadata         Json?    @default("{}")
+  createdAt        DateTime @default(now())
 
   @@index([actorId])
   @@index([entityType, entityId])
