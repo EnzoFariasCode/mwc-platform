@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -267,7 +268,13 @@ export default function AdminDisputesView({
               </div>
 
               {dispute.isOpen ? (
-                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Link
+                    href={`/dashboard/admin/disputas/${dispute.kind.toLowerCase()}/${dispute.id}`}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-xs font-bold text-slate-200 transition-colors hover:border-white/20 hover:bg-slate-800"
+                  >
+                    Ver detalhes
+                  </Link>
                   <button
                     type="button"
                     onClick={() =>
@@ -290,8 +297,16 @@ export default function AdminDisputesView({
                   </button>
                 </div>
               ) : (
-                <div className="mt-5 rounded-xl border border-white/5 bg-slate-950 px-4 py-3 text-xs font-bold text-slate-400">
-                  Registro historico sem acao pendente.
+                <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+                  <div className="rounded-xl border border-white/5 bg-slate-950 px-4 py-3 text-xs font-bold text-slate-400">
+                    Registro historico sem acao pendente.
+                  </div>
+                  <Link
+                    href={`/dashboard/admin/disputas/${dispute.kind.toLowerCase()}/${dispute.id}`}
+                    className="flex items-center justify-center rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-xs font-bold text-slate-200 transition-colors hover:border-white/20 hover:bg-slate-800"
+                  >
+                    Ver detalhes
+                  </Link>
                 </div>
               )}
             </article>
