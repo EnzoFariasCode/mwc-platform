@@ -3,7 +3,13 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, CircleDollarSign, Landmark, Loader2 } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleDollarSign,
+  Landmark,
+  Loader2,
+  Search,
+} from "lucide-react";
 import { toast } from "sonner";
 import { approveWithdrawal } from "@/modules/admin/actions/approve-withdrawal";
 import { uploadWithdrawalReceipt } from "@/modules/admin/actions/upload-withdrawal-receipt";
@@ -73,6 +79,22 @@ function formatDate(value: string) {
   });
 }
 
+function isWithinDateRange(value: string, dateFrom: string, dateTo: string) {
+  const date = new Date(value);
+
+  if (dateFrom) {
+    const from = new Date(`${dateFrom}T00:00:00`);
+    if (date < from) return false;
+  }
+
+  if (dateTo) {
+    const to = new Date(`${dateTo}T23:59:59`);
+    if (date > to) return false;
+  }
+
+  return true;
+}
+
 export default function AdminFinanceiroView({
   withdrawals,
 }: {
@@ -83,6 +105,9 @@ export default function AdminFinanceiroView({
   const [uploadingAuditId, setUploadingAuditId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] =
     useState<WithdrawalStatusFilter>("PENDING");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   async function handleApprove(withdrawalId: string) {
     setApprovingId(withdrawalId);
@@ -124,10 +149,35 @@ export default function AdminFinanceiroView({
   const pendingWithdrawals = withdrawals.filter(
     (item) => item.status === "PENDING",
   );
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const searchedWithdrawals = withdrawals.filter((item) => {
+    const haystack = [
+      item.id,
+      item.status,
+      item.pixKey,
+      item.pixKeyType,
+      item.transactionId,
+      item.user.id,
+      item.user.name,
+      item.user.email,
+      item.auditLog?.id,
+      item.auditLog?.actorName,
+      item.auditLog?.actorEmail,
+      item.auditLog?.reason,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return (
+      (!normalizedSearch || haystack.includes(normalizedSearch)) &&
+      isWithinDateRange(item.createdAt, dateFrom, dateTo)
+    );
+  });
   const filteredWithdrawals =
     statusFilter === "ALL"
-      ? withdrawals
-      : withdrawals.filter((item) => item.status === statusFilter);
+      ? searchedWithdrawals
+      : searchedWithdrawals.filter((item) => item.status === statusFilter);
   const pendingAmount = pendingWithdrawals.reduce(
     (sum, item) => sum + item.amount,
     0,
@@ -168,13 +218,52 @@ export default function AdminFinanceiroView({
         </div>
       </div>
 
+      <div className="rounded-2xl border border-white/5 bg-slate-900 p-4">
+        <div className="grid gap-3 lg:grid-cols-[1.6fr_0.8fr_0.8fr_auto]">
+          <label className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Buscar por ID real, email, PIX, transacao..."
+              className="h-11 w-full rounded-xl border border-white/10 bg-slate-950 pl-9 pr-3 text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-emerald-300"
+            />
+          </label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(event) => setDateFrom(event.target.value)}
+            className="h-11 rounded-xl border border-white/10 bg-slate-950 px-3 text-sm font-bold text-slate-300 outline-none focus:border-emerald-300"
+          />
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(event) => setDateTo(event.target.value)}
+            className="h-11 rounded-xl border border-white/10 bg-slate-950 px-3 text-sm font-bold text-slate-300 outline-none focus:border-emerald-300"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setSearchTerm("");
+              setDateFrom("");
+              setDateTo("");
+              setStatusFilter("PENDING");
+            }}
+            className="h-11 rounded-xl border border-white/10 bg-slate-950 px-4 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800"
+          >
+            Limpar
+          </button>
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-2">
         {filters.map((filter) => {
           const count =
             filter.value === "ALL"
-              ? withdrawals.length
-              : withdrawals.filter((item) => item.status === filter.value)
-                  .length;
+              ? searchedWithdrawals.length
+              : searchedWithdrawals.filter(
+                  (item) => item.status === filter.value,
+                ).length;
 
           return (
             <button

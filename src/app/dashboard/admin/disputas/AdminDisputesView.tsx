@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   CreditCard,
+  Search,
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -57,6 +58,22 @@ function formatDate(value: string | null) {
   });
 }
 
+function isWithinDateRange(value: string, dateFrom: string, dateTo: string) {
+  const date = new Date(value);
+
+  if (dateFrom) {
+    const from = new Date(`${dateFrom}T00:00:00`);
+    if (date < from) return false;
+  }
+
+  if (dateTo) {
+    const to = new Date(`${dateTo}T23:59:59`);
+    if (date > to) return false;
+  }
+
+  return true;
+}
+
 export default function AdminDisputesView({
   disputes,
 }: {
@@ -67,17 +84,50 @@ export default function AdminDisputesView({
     useState<PendingDecision | null>(null);
   const [isResolving, setIsResolving] = useState(false);
   const [filter, setFilter] = useState<"OPEN" | "RESOLVED" | "ALL">("OPEN");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [kindFilter, setKindFilter] = useState<"ALL" | "TECH" | "HEALTH">(
+    "ALL",
+  );
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-  const openDisputes = disputes.filter((item) => item.isOpen);
-  const resolvedDisputes = disputes.filter((item) => !item.isOpen);
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const searchedDisputes = disputes.filter((item) => {
+    const haystack = [
+      item.id,
+      item.kind,
+      item.status,
+      item.title,
+      item.reason,
+      item.resolutionReason,
+      item.requesterName,
+      item.requesterEmail,
+      item.professionalName,
+      item.professionalEmail,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return (
+      (!normalizedSearch || haystack.includes(normalizedSearch)) &&
+      (kindFilter === "ALL" || item.kind === kindFilter) &&
+      (statusFilter === "ALL" || item.status === statusFilter) &&
+      isWithinDateRange(item.updatedAt, dateFrom, dateTo)
+    );
+  });
+  const openDisputes = searchedDisputes.filter((item) => item.isOpen);
+  const resolvedDisputes = searchedDisputes.filter((item) => !item.isOpen);
   const filteredDisputes =
     filter === "OPEN"
       ? openDisputes
       : filter === "RESOLVED"
         ? resolvedDisputes
-        : disputes;
+        : searchedDisputes;
   const healthCount = openDisputes.filter((item) => item.kind === "HEALTH").length;
   const techCount = openDisputes.filter((item) => item.kind === "TECH").length;
+  const statuses = Array.from(new Set(disputes.map((item) => item.status)));
 
   async function handleResolve(reason: string) {
     if (!pendingDecision) return;
@@ -139,6 +189,68 @@ export default function AdminDisputesView({
         </div>
       </div>
 
+      <div className="rounded-2xl border border-white/5 bg-slate-900 p-4">
+        <div className="grid gap-3 lg:grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_0.7fr_auto]">
+          <label className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Buscar por ID real, email, nome, motivo..."
+              className="h-11 w-full rounded-xl border border-white/10 bg-slate-950 pl-9 pr-3 text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-red-300"
+            />
+          </label>
+          <select
+            value={kindFilter}
+            onChange={(event) =>
+              setKindFilter(event.target.value as "ALL" | "TECH" | "HEALTH")
+            }
+            className="h-11 rounded-xl border border-white/10 bg-slate-950 px-3 text-sm font-bold text-slate-300 outline-none focus:border-red-300"
+          >
+            <option value="ALL">Todos setores</option>
+            <option value="TECH">Tech</option>
+            <option value="HEALTH">Saude</option>
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            className="h-11 rounded-xl border border-white/10 bg-slate-950 px-3 text-sm font-bold text-slate-300 outline-none focus:border-red-300"
+          >
+            <option value="ALL">Todos status</option>
+            {statuses.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(event) => setDateFrom(event.target.value)}
+            className="h-11 rounded-xl border border-white/10 bg-slate-950 px-3 text-sm font-bold text-slate-300 outline-none focus:border-red-300"
+          />
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(event) => setDateTo(event.target.value)}
+            className="h-11 rounded-xl border border-white/10 bg-slate-950 px-3 text-sm font-bold text-slate-300 outline-none focus:border-red-300"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setSearchTerm("");
+              setKindFilter("ALL");
+              setStatusFilter("ALL");
+              setDateFrom("");
+              setDateTo("");
+            }}
+            className="h-11 rounded-xl border border-white/10 bg-slate-950 px-4 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800"
+          >
+            Limpar
+          </button>
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-2">
         {[
           { value: "OPEN" as const, label: "Abertas", count: openDisputes.length },
@@ -147,7 +259,7 @@ export default function AdminDisputesView({
             label: "Historico",
             count: resolvedDisputes.length,
           },
-          { value: "ALL" as const, label: "Todas", count: disputes.length },
+          { value: "ALL" as const, label: "Todas", count: searchedDisputes.length },
         ].map((item) => (
           <button
             key={item.value}
