@@ -13,6 +13,106 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
+function responseIsSuccess(response: NextResponse) {
+  return response.status >= 200 && response.status < 300;
+}
+
+function errorToMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+async function claimStripeEvent(event: Stripe.Event) {
+  const existing = await db.stripeEventLog.findUnique({
+    where: { stripeEventId: event.id },
+    select: { id: true, status: true },
+  });
+
+  if (existing?.status === "PROCESSED") {
+    return false;
+  }
+
+  const now = new Date();
+
+  if (existing) {
+    await db.stripeEventLog.update({
+      where: { id: existing.id },
+      data: {
+        type: event.type,
+        status: "PROCESSING",
+        attempts: { increment: 1 },
+        lastError: null,
+        failedAt: null,
+        processingStartedAt: now,
+      },
+    });
+
+    return true;
+  }
+
+  try {
+    await db.stripeEventLog.create({
+      data: {
+        stripeEventId: event.id,
+        type: event.type,
+        status: "PROCESSING",
+        attempts: 1,
+        processingStartedAt: now,
+      },
+    });
+  } catch {
+    const current = await db.stripeEventLog.findUnique({
+      where: { stripeEventId: event.id },
+      select: { id: true, status: true },
+    });
+
+    if (current?.status === "PROCESSED") {
+      return false;
+    }
+
+    if (current) {
+      await db.stripeEventLog.update({
+        where: { id: current.id },
+        data: {
+          type: event.type,
+          status: "PROCESSING",
+          attempts: { increment: 1 },
+          lastError: null,
+          failedAt: null,
+          processingStartedAt: now,
+        },
+      });
+    }
+  }
+
+  return true;
+}
+
+async function markStripeEventProcessed(event: Stripe.Event) {
+  await db.stripeEventLog.update({
+    where: { stripeEventId: event.id },
+    data: {
+      type: event.type,
+      status: "PROCESSED",
+      lastError: null,
+      failedAt: null,
+      processedAt: new Date(),
+    },
+  });
+}
+
+async function markStripeEventFailed(event: Stripe.Event, error: string) {
+  await db.stripeEventLog.update({
+    where: { stripeEventId: event.id },
+    data: {
+      type: event.type,
+      status: "FAILED",
+      lastError: error.slice(0, 4000),
+      failedAt: new Date(),
+    },
+  });
+}
+
 async function validateProjectPaymentAmount(
   proposalId: string,
   amountInCents: number | null | undefined,
@@ -671,22 +771,12 @@ export async function POST(req: Request) {
     return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 });
   }
 
-  // [TASK 3] Idempotency guard - skip already-processed events
-  const alreadyProcessed = await db.stripeEventLog.findUnique({
-    where: { stripeEventId: event.id },
-  });
+  const shouldProcess = await claimStripeEvent(event);
 
-  if (alreadyProcessed) {
-    console.log(`[WEBHOOK] Skipping already-processed event: ${event.id}`);
+  if (!shouldProcess) {
+    console.log(`[WEBHOOK] Skipping processed event: ${event.id}`);
     return new NextResponse(null, { status: 200 });
   }
-
-  await db.stripeEventLog.create({
-    data: {
-      stripeEventId: event.id,
-      type: event.type,
-    },
-  });
 
   const handleProjectPayment = async (
     proposalId: string,
@@ -728,7 +818,7 @@ export async function POST(req: Request) {
     });
   };
 
-  try {
+  const processEvent = async () => {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
@@ -757,7 +847,9 @@ export async function POST(req: Request) {
         }
 
         if (session.mode === "subscription") {
-          if (!session?.metadata?.userId) break;
+          if (!session?.metadata?.userId) {
+            return new NextResponse(null, { status: 200 });
+          }
 
           const subscriptionDetails = (await stripe.subscriptions.retrieve(
             session.subscription as string,
@@ -842,8 +934,21 @@ export async function POST(req: Request) {
       default:
         return new NextResponse(null, { status: 200 });
     }
+  };
+
+  try {
+    const response = await processEvent();
+
+    if (responseIsSuccess(response)) {
+      await markStripeEventProcessed(event);
+    } else {
+      await markStripeEventFailed(event, `HTTP ${response.status}`);
+    }
+
+    return response;
   } catch (error) {
     console.error("Erro ao processar webhook:", error);
+    await markStripeEventFailed(event, errorToMessage(error));
     return new NextResponse("Database Error", { status: 500 });
   }
 }

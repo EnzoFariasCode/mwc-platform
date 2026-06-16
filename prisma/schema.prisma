@@ -735,12 +735,20 @@ model PaymentTermsAcceptance {
 }
 
 model StripeEventLog {
-  id            String   @id @default(cuid())
-  stripeEventId String   @unique
-  type          String
-  processedAt   DateTime @default(now())
+  id                  String            @id @default(cuid())
+  stripeEventId       String            @unique
+  type                String
+  status              StripeEventStatus @default(RECEIVED)
+  attempts            Int               @default(0)
+  lastError           String?           @db.Text
+  processingStartedAt DateTime?
+  processedAt         DateTime?
+  failedAt            DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   @@index([stripeEventId])
+  @@index([status])
 }
 
 model ProfessionalTermsAcceptance {
@@ -754,4 +762,11 @@ model ProfessionalTermsAcceptance {
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
+}
+
+enum StripeEventStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
 }
