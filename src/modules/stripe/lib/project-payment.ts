@@ -1,7 +1,11 @@
 import "server-only";
 
 import { db } from "@/lib/prisma";
-import { ProjectStatus, ProposalStatus } from "@prisma/client";
+import {
+  ProjectCheckoutHoldStatus,
+  ProjectStatus,
+  ProposalStatus,
+} from "@prisma/client";
 
 type FinalizeProjectPaymentInput = {
   proposalId: string;
@@ -33,6 +37,47 @@ export async function finalizeProjectPayment({
 
   if (!proposal) {
     return { success: false, error: "Proposta nao encontrada." };
+  }
+
+  const checkoutHold = stripeSessionId
+    ? await db.projectCheckoutHold.findUnique({
+        where: { stripeSessionId },
+        select: {
+          id: true,
+          projectId: true,
+          proposalId: true,
+          buyerId: true,
+          amount: true,
+          status: true,
+          expiresAt: true,
+        },
+      })
+    : null;
+
+  if (stripeSessionId && !checkoutHold) {
+    return { success: false, error: "Checkout pendente nao encontrado." };
+  }
+
+  if (checkoutHold) {
+    if (
+      checkoutHold.projectId !== proposal.projectId ||
+      checkoutHold.proposalId !== proposalId ||
+      checkoutHold.buyerId !== buyerId
+    ) {
+      return { success: false, error: "Checkout nao pertence ao projeto." };
+    }
+
+    if (checkoutHold.status === ProjectCheckoutHoldStatus.COMPLETED) {
+      return { success: true, alreadyProcessed: true };
+    }
+
+    if (checkoutHold.status !== ProjectCheckoutHoldStatus.PENDING) {
+      return { success: false, error: "Checkout nao esta pendente." };
+    }
+
+    if (checkoutHold.amount.comparedTo(proposal.price) !== 0) {
+      return { success: false, error: "Valor do checkout divergente." };
+    }
   }
 
   if (proposal.project.ownerId !== buyerId) {
@@ -126,6 +171,29 @@ export async function finalizeProjectPayment({
         },
         data: { status: ProposalStatus.REJECTED },
       });
+
+      if (checkoutHold) {
+        await tx.projectCheckoutHold.update({
+          where: { id: checkoutHold.id },
+          data: {
+            status: ProjectCheckoutHoldStatus.COMPLETED,
+            stripePaymentIntentId,
+            completedAt: new Date(),
+          },
+        });
+
+        await tx.projectCheckoutHold.updateMany({
+          where: {
+            projectId: proposal.projectId,
+            id: { not: checkoutHold.id },
+            status: ProjectCheckoutHoldStatus.PENDING,
+          },
+          data: {
+            status: ProjectCheckoutHoldStatus.CANCELED,
+            canceledAt: new Date(),
+          },
+        });
+      }
 
       await tx.transaction.create({
         data: {

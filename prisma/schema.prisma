@@ -78,6 +78,14 @@ enum WithdrawalStatus {
   CANCELED
 }
 
+enum ProjectCheckoutHoldStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+  CANCELED
+  FAILED
+}
+
 enum HealthSpecialty {
   PSYCHOLOGIST
   NUTRITIONIST
@@ -287,6 +295,32 @@ model Deliverable {
   senderId    String
   sender      User     @relation("UserDeliverables", fields: [senderId], references: [id])
   createdAt   DateTime @default(now())
+}
+
+model ProjectCheckoutHold {
+  id                    String                    @id @default(cuid())
+  projectId             String
+  proposalId            String
+  buyerId               String
+  stripeSessionId       String?                   @unique
+  stripePaymentIntentId String?
+  checkoutUrl           String?                   @db.Text
+  amount                Decimal
+  currency              String                    @default("brl")
+  status                ProjectCheckoutHoldStatus @default(PENDING)
+  expiresAt             DateTime
+  completedAt           DateTime?
+  canceledAt            DateTime?
+  failedAt              DateTime?
+  failureReason         String?                   @db.Text
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  @@index([projectId])
+  @@index([proposalId])
+  @@index([buyerId])
+  @@index([status])
+  @@index([stripeSessionId])
 }
 
 // =========================================================

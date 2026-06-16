@@ -2,7 +2,7 @@
 
 import { verifySession } from "@/lib/auth";
 import { db } from "@/lib/prisma";
-import { ProjectStatus, ProposalStatus } from "@prisma/client";
+import { ProjectCheckoutHoldStatus, ProposalStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 
@@ -35,25 +35,23 @@ export async function cancelProjectPayment(
       };
     }
 
-    if (proposal.project.status !== ProjectStatus.WAITING_PAYMENT) {
-      return {
-        success: false,
-        error: "Projeto nao esta aguardando pagamento.",
-      };
-    }
-
-    const updated = await db.project.updateMany({
+    const updated = await db.projectCheckoutHold.updateMany({
       where: {
-        id: proposal.projectId,
-        status: ProjectStatus.WAITING_PAYMENT,
+        proposalId: proposal.id,
+        projectId: proposal.projectId,
+        buyerId: userId,
+        status: ProjectCheckoutHoldStatus.PENDING,
       },
-      data: { status: ProjectStatus.OPEN },
+      data: {
+        status: ProjectCheckoutHoldStatus.CANCELED,
+        canceledAt: new Date(),
+      },
     });
 
     if (updated.count === 0) {
       return {
         success: false,
-        error: "Nao foi possivel reabrir o projeto.",
+        error: "Nenhum checkout pendente encontrado.",
       };
     }
 

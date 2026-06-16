@@ -6,6 +6,7 @@ import { db } from "@/lib/prisma";
 import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
 import { finalizeHealthAppointmentPayment } from "@/modules/health/actions/appointment-payment";
 import { sendRefundProcessedEmail } from "@/modules/health/services/transactional-email-service";
+import { ProjectCheckoutHoldStatus } from "@prisma/client";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
@@ -147,26 +148,25 @@ async function validateProjectPaymentAmount(
 async function reopenProjectOnCheckoutExpired(
   proposalId: string,
   buyerId?: string | null,
+  stripeSessionId?: string | null,
+  holdId?: string | null,
 ) {
   if (!proposalId) return;
 
-  const proposal = await db.proposal.findUnique({
-    where: { id: proposalId },
-    select: {
-      status: true,
-      projectId: true,
-      project: { select: { status: true, ownerId: true } },
+  await db.projectCheckoutHold.updateMany({
+    where: {
+      proposalId,
+      ...(buyerId ? { buyerId } : {}),
+      status: ProjectCheckoutHoldStatus.PENDING,
+      OR: [
+        holdId ? { id: holdId } : undefined,
+        stripeSessionId ? { stripeSessionId } : undefined,
+      ].filter(Boolean) as Array<Record<string, unknown>>,
     },
-  });
-
-  if (!proposal) return;
-  if (buyerId && proposal.project.ownerId !== buyerId) return;
-  if (proposal.project.status !== "WAITING_PAYMENT") return;
-  if (proposal.status !== "PENDING") return;
-
-  await db.project.update({
-    where: { id: proposal.projectId },
-    data: { status: "OPEN" },
+    data: {
+      status: ProjectCheckoutHoldStatus.EXPIRED,
+      canceledAt: new Date(),
+    },
   });
 }
 
@@ -428,6 +428,32 @@ async function findTechProjectFromStripePayment(
   });
 
   if (project) return project;
+
+  const hold = await db.projectCheckoutHold.findFirst({
+    where: {
+      OR: [
+        ...(checkoutSessionId ? [{ stripeSessionId: checkoutSessionId }] : []),
+        { stripePaymentIntentId: paymentIntentId },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    select: { projectId: true },
+  });
+
+  if (hold?.projectId) {
+    return db.project.findUnique({
+      where: { id: hold.projectId },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        ownerId: true,
+        professionalId: true,
+        agreedPrice: true,
+        disputeResolution: true,
+      },
+    });
+  }
 
   if (!checkoutSessionId) return null;
 
@@ -796,10 +822,11 @@ export async function POST(req: Request) {
 
     if (!result.success) {
       console.error("Webhook: Payment processing failed.", result.error);
-      return;
+      return new NextResponse(result.error, { status: 400 });
     }
 
     console.log(`Project payment processed for proposal ${proposalId}.`);
+    return new NextResponse(null, { status: 200 });
   };
 
   const handleHealthCheckoutExpired = async (
@@ -838,12 +865,11 @@ export async function POST(req: Request) {
             return new NextResponse("Invalid payment amount", { status: 400 });
           }
 
-          await handleProjectPayment(
+          return await handleProjectPayment(
             session.metadata.proposalId,
             session.metadata.buyerId,
             session,
           );
-          return new NextResponse(null, { status: 200 });
         }
 
         if (session.mode === "subscription") {
@@ -878,6 +904,8 @@ export async function POST(req: Request) {
           await reopenProjectOnCheckoutExpired(
             session.metadata.proposalId,
             session.metadata.buyerId,
+            session.id,
+            session.metadata.holdId,
           );
         }
 
