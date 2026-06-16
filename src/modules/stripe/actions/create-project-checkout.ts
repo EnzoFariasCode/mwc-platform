@@ -11,7 +11,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 export async function createProjectCheckout(
-  proposalId: string
+  proposalId: string,
 ): Promise<ActionResponse<{ url: string }>> {
   const session = await getUserSession();
 
@@ -108,12 +108,16 @@ export async function createProjectCheckout(
       throw new Error("Falha ao gerar URL.");
     }
 
-    if (proposal.project.status === "OPEN") {
-      await db.project.update({
-        where: { id: proposal.projectId },
-        data: { status: "WAITING_PAYMENT" },
-      });
-    }
+    await db.project.update({
+      where: { id: proposal.projectId },
+      data: {
+        stripeSessionId: checkoutSession.id,
+        stripePaymentIntentId:
+          typeof checkoutSession.payment_intent === "string"
+            ? checkoutSession.payment_intent
+            : checkoutSession.payment_intent?.id,
+      },
+    });
 
     return { success: true, data: { url: checkoutSession.url } };
   } catch (error: any) {

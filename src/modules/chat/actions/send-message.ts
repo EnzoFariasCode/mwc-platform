@@ -5,24 +5,71 @@ import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 
+async function hasSharedTechContext(senderId: string, receiverId: string) {
+  const project = await db.project.findFirst({
+    where: {
+      OR: [
+        { ownerId: senderId, professionalId: receiverId },
+        { ownerId: receiverId, professionalId: senderId },
+        {
+          ownerId: senderId,
+          proposals: { some: { professionalId: receiverId } },
+        },
+        {
+          ownerId: receiverId,
+          proposals: { some: { professionalId: senderId } },
+        },
+      ],
+    },
+    select: { id: true },
+  });
+
+  return Boolean(project);
+}
+
 export async function sendMessage(
   receiverId: string,
-  content: string
+  content: string,
 ): Promise<ActionResponse<{ id: string; createdAt: Date }>> {
   try {
     const session = await verifySession();
     const senderId = session?.sub as string;
+    const normalizedContent = content.trim();
 
-    if (!senderId) return { success: false, error: "Não autorizado" };
+    if (!senderId) return { success: false, error: "Nao autorizado." };
+
     if (session?.industry !== "TECH") {
       return {
         success: false,
-        error: "Ação restrita ao Marketplace Tech.",
+        error: "Acao restrita ao Marketplace Tech.",
       };
     }
-    if (!content.trim()) return { success: false, error: "Mensagem vazia" };
 
-    // 1. Tenta achar conversa existente
+    if (!receiverId || receiverId === senderId) {
+      return { success: false, error: "Destinatario invalido." };
+    }
+
+    if (!normalizedContent) {
+      return { success: false, error: "Mensagem vazia." };
+    }
+
+    const receiver = await db.user.findUnique({
+      where: { id: receiverId },
+      select: {
+        id: true,
+        userType: true,
+        industry: true,
+        isActive: true,
+      },
+    });
+
+    if (!receiver || !receiver.isActive || receiver.industry !== "TECH") {
+      return {
+        success: false,
+        error: "Usuario de Tecnologia nao encontrado.",
+      };
+    }
+
     let conversation = await db.conversation.findFirst({
       where: {
         OR: [
@@ -32,13 +79,24 @@ export async function sendMessage(
       },
     });
 
-    // 2. Se não existir, cria
     if (!conversation) {
+      const receiverIsPublicTechProfessional =
+        receiver.userType === "PROFESSIONAL" && receiver.industry === "TECH";
+      const hasSharedContext = await hasSharedTechContext(senderId, receiverId);
+
+      if (!receiverIsPublicTechProfessional && !hasSharedContext) {
+        return {
+          success: false,
+          error:
+            "Conversa permitida apenas com profissional Tech ou usuarios com projeto/proposta em comum.",
+        };
+      }
+
       conversation = await db.conversation.create({
         data: {
           participantAId: senderId,
           participantBId: receiverId,
-          lastMessage: content,
+          lastMessage: normalizedContent,
           lastMessageTime: new Date(),
           unreadCountA: 0,
           unreadCountB: 1,
@@ -46,13 +104,12 @@ export async function sendMessage(
         },
       });
     } else {
-      // 3. Se já existe, atualiza
       const isSenderA = conversation.participantAId === senderId;
 
       await db.conversation.update({
         where: { id: conversation.id },
         data: {
-          lastMessage: content,
+          lastMessage: normalizedContent,
           lastMessageTime: new Date(),
           unreadCountA: isSenderA
             ? conversation.unreadCountA
@@ -60,16 +117,15 @@ export async function sendMessage(
           unreadCountB: !isSenderA
             ? conversation.unreadCountB
             : { increment: 1 },
-          deletedByIds: [], // Ressuscita conversa
+          deletedByIds: [],
         },
       });
     }
 
-    // 4. Cria a mensagem
     const newMessage = await db.message.create({
       data: {
-        content: content,
-        senderId: senderId,
+        content: normalizedContent,
+        senderId,
         conversationId: conversation.id,
       },
     });
@@ -78,6 +134,6 @@ export async function sendMessage(
     return { success: true, data: newMessage };
   } catch (error) {
     console.error("Erro ao enviar mensagem:", error);
-    return { success: false, error: "Erro ao enviar" };
+    return { success: false, error: "Erro ao enviar mensagem." };
   }
 }

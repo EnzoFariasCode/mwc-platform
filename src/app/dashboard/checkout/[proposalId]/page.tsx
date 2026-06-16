@@ -15,13 +15,14 @@ export default async function CheckoutPage({
   }
 
   const { proposalId } = await params;
+  const userId = session.sub as string;
 
   // Busca a Proposta com os dados do Projeto e do Profissional
   const proposal = await db.proposal.findUnique({
     where: { id: proposalId },
     include: {
       project: {
-        select: { title: true },
+        select: { title: true, ownerId: true },
       },
       professional: {
         select: { name: true },
@@ -30,6 +31,10 @@ export default async function CheckoutPage({
   });
 
   if (!proposal) {
+    notFound();
+  }
+
+  if (session.userType !== "CLIENT" || proposal.project.ownerId !== userId) {
     notFound();
   }
 

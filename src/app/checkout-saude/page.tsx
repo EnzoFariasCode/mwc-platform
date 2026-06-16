@@ -41,10 +41,6 @@ export default function CheckoutSaudePage({
   // Modal de termos
   const [showTermsModal, setShowTermsModal] = useState(false);
 
-  // Estados dos inputs editÃ¡veis
-  const [clientName, setClientName] = useState<string | null>(null);
-  const [clientEmail, setClientEmail] = useState<string | null>(null);
-
   // FormataÃ§Ã£o de data (de YYYY-MM-DD para DD/MM/YYYY)
   const formattedDate = dateStr.includes("-")
     ? dateStr.split("-").reverse().join("/")
@@ -143,7 +139,6 @@ export default function CheckoutSaudePage({
                 </h2>
                 {step === 1 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-                    {/* 3. Campos agora sÃ£o EditÃ¡veis (Inputs controlados) */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
                         Nome Completo
@@ -152,10 +147,10 @@ export default function CheckoutSaudePage({
                         <User className="w-5 h-5 text-slate-500" />
                         <input
                           type="text"
-                          value={clientName ?? session?.user?.name ?? ""}
-                          onChange={(e) => setClientName(e.target.value)}
-                          className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
-                          placeholder="Como deseja ser chamado?"
+                          value={session?.user?.name ?? ""}
+                          readOnly
+                          className="w-full cursor-not-allowed border-none bg-transparent text-sm text-slate-300 outline-none placeholder:text-slate-600"
+                          placeholder="Nome da conta"
                         />
                       </div>
                     </div>
@@ -168,10 +163,10 @@ export default function CheckoutSaudePage({
                         <Mail className="w-5 h-5 text-slate-500" />
                         <input
                           type="email"
-                          value={clientEmail ?? session?.user?.email ?? ""}
-                          onChange={(e) => setClientEmail(e.target.value)}
-                          className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
-                          placeholder="seu.email@exemplo.com"
+                          value={session?.user?.email ?? ""}
+                          readOnly
+                          className="w-full cursor-not-allowed border-none bg-transparent text-sm text-slate-300 outline-none placeholder:text-slate-600"
+                          placeholder="Email da conta"
                         />
                       </div>
                     </div>
