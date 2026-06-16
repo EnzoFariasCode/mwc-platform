@@ -86,6 +86,13 @@ enum ProjectCheckoutHoldStatus {
   FAILED
 }
 
+enum ChargebackLiabilityStatus {
+  OPEN
+  PARTIALLY_RECOVERED
+  RECOVERED
+  WAIVED
+}
+
 enum HealthSpecialty {
   PSYCHOLOGIST
   NUTRITIONIST
@@ -174,6 +181,7 @@ model User {
   // =========================================================
   pendingBalance Decimal @default(0)
   walletBalance  Decimal @default(0)
+  chargebackDebt Decimal @default(0)
   pixKey         String?
   pixKeyType     String?
 
@@ -626,6 +634,26 @@ model WithdrawalRequest {
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
+  @@index([status])
+}
+
+model TechChargebackLiability {
+  id                 String                    @id @default(cuid())
+  projectId          String
+  professionalId     String
+  stripeDisputeId    String                    @unique
+  stripePaymentId    String?
+  grossAmount        Decimal
+  professionalAmount Decimal
+  recoveredAmount    Decimal                   @default(0)
+  outstandingAmount  Decimal                   @default(0)
+  status             ChargebackLiabilityStatus @default(OPEN)
+  reason             String?                   @db.Text
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  @@index([projectId])
+  @@index([professionalId])
   @@index([status])
 }
 

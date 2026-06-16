@@ -6,13 +6,14 @@ import { db } from "@/lib/prisma";
 import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
 import { finalizeHealthAppointmentPayment } from "@/modules/health/actions/appointment-payment";
 import { sendRefundProcessedEmail } from "@/modules/health/services/transactional-email-service";
-import { ProjectCheckoutHoldStatus } from "@prisma/client";
+import { Prisma, ProjectCheckoutHoldStatus } from "@prisma/client";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const PLATFORM_FEE_PERCENT = 10;
 
 function responseIsSuccess(response: NextResponse) {
   return response.status >= 200 && response.status < 300;
@@ -21,6 +22,13 @@ function responseIsSuccess(response: NextResponse) {
 function errorToMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   return String(error);
+}
+
+function projectProfessionalAmount(amount: Prisma.Decimal) {
+  return amount
+    .mul(100 - PLATFORM_FEE_PERCENT)
+    .div(100)
+    .toDecimalPlaces(2);
 }
 
 async function claimStripeEvent(event: Stripe.Event) {
@@ -757,6 +765,25 @@ async function handleTechDisputeClosed(
 
   if (dispute.status === "lost") {
     await db.$transaction(async (tx) => {
+      const releasedCredit =
+        project.professionalId && project.agreedPrice
+          ? await tx.transaction.findFirst({
+              where: {
+                projectId: project.id,
+                userId: project.professionalId,
+                type: "CREDIT",
+                status: { in: ["COMPLETED", "DISPUTED"] },
+              },
+              orderBy: { createdAt: "desc" },
+              select: { id: true, amount: true },
+            })
+          : null;
+
+      const existingLiability = await tx.techChargebackLiability.findUnique({
+        where: { stripeDisputeId: dispute.id },
+        select: { id: true },
+      });
+
       await tx.project.update({
         where: { id: project.id },
         data: {
@@ -773,6 +800,101 @@ async function handleTechDisputeClosed(
         },
         data: { status: "CANCELED" },
       });
+
+      if (
+        project.professionalId &&
+        project.agreedPrice &&
+        releasedCredit &&
+        !existingLiability
+      ) {
+        const professional = await tx.user.findUnique({
+          where: { id: project.professionalId },
+          select: { walletBalance: true },
+        });
+
+        if (!professional) {
+          throw new Error("Profissional do projeto nao encontrado.");
+        }
+
+        const professionalAmount = releasedCredit.amount.greaterThan(0)
+          ? releasedCredit.amount
+          : projectProfessionalAmount(project.agreedPrice);
+        const recoveredAmount = professional.walletBalance.greaterThanOrEqualTo(
+          professionalAmount,
+        )
+          ? professionalAmount
+          : professional.walletBalance;
+        const outstandingAmount = professionalAmount.minus(recoveredAmount);
+        const liabilityStatus = outstandingAmount.lessThanOrEqualTo(0)
+          ? "RECOVERED"
+          : recoveredAmount.greaterThan(0)
+            ? "PARTIALLY_RECOVERED"
+            : "OPEN";
+
+        await tx.techChargebackLiability.create({
+          data: {
+            projectId: project.id,
+            professionalId: project.professionalId,
+            stripeDisputeId: dispute.id,
+            stripePaymentId: paymentIntentId,
+            grossAmount: project.agreedPrice,
+            professionalAmount,
+            recoveredAmount,
+            outstandingAmount,
+            status: liabilityStatus,
+            reason: stripeDisputeSummary(
+              dispute,
+              paymentIntentId,
+              checkoutSessionId,
+              previousStatus,
+            ),
+          },
+        });
+
+        if (recoveredAmount.greaterThan(0)) {
+          await tx.user.update({
+            where: { id: project.professionalId },
+            data: {
+              walletBalance: {
+                decrement: recoveredAmount,
+              },
+            },
+          });
+
+          await tx.transaction.create({
+            data: {
+              userId: project.professionalId,
+              amount: recoveredAmount,
+              type: "DEBIT",
+              status: "COMPLETED",
+              description: `Recuperacao automatica de chargeback Stripe - Projeto: ${project.title} - Disputa: ${dispute.id}`,
+              projectId: project.id,
+            },
+          });
+        }
+
+        if (outstandingAmount.greaterThan(0)) {
+          await tx.user.update({
+            where: { id: project.professionalId },
+            data: {
+              chargebackDebt: {
+                increment: outstandingAmount,
+              },
+            },
+          });
+
+          await tx.transaction.create({
+            data: {
+              userId: project.professionalId,
+              amount: outstandingAmount,
+              type: "DEBIT",
+              status: "PENDING",
+              description: `Debito pendente por chargeback Stripe - Projeto: ${project.title} - Disputa: ${dispute.id}`,
+              projectId: project.id,
+            },
+          });
+        }
+      }
     });
 
     console.log("[WEBHOOK_TECH_DISPUTE_CLOSED] Dispute lost:", project.id);

@@ -59,7 +59,8 @@ export default async function AdminDisputeDetailPage({ params }: PageProps) {
 }
 
 async function TechDisputeDetail({ id }: { id: string }) {
-  const [project, transactions, auditLogs] = await Promise.all([
+  const [project, transactions, chargebackLiabilities, auditLogs] =
+    await Promise.all([
     db.project.findUnique({
       where: { id },
       include: {
@@ -139,6 +140,23 @@ async function TechDisputeDetail({ id }: { id: string }) {
             email: true,
           },
         },
+      },
+    }),
+    db.techChargebackLiability.findMany({
+      where: { projectId: id },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        stripeDisputeId: true,
+        stripePaymentId: true,
+        grossAmount: true,
+        professionalAmount: true,
+        recoveredAmount: true,
+        outstandingAmount: true,
+        status: true,
+        reason: true,
+        createdAt: true,
+        updatedAt: true,
       },
     }),
     getAdminAuditLogs({ entityType: "TECH_PROJECT", entityId: id }),
@@ -278,6 +296,18 @@ async function TechDisputeDetail({ id }: { id: string }) {
 
         <Section title="Auditoria formal">
           <AuditLogList logs={auditLogs} />
+        </Section>
+
+        <Section title="Responsabilidade financeira">
+          <ChargebackLiabilityList
+            liabilities={chargebackLiabilities.map((liability) => ({
+              ...liability,
+              grossAmount: liability.grossAmount.toNumber(),
+              professionalAmount: liability.professionalAmount.toNumber(),
+              recoveredAmount: liability.recoveredAmount.toNumber(),
+              outstandingAmount: liability.outstandingAmount.toNumber(),
+            }))}
+          />
         </Section>
 
         <Section title="Transacoes financeiras">
@@ -738,6 +768,76 @@ function formatAuditAction(action: string) {
   };
 
   return labels[action] ?? action;
+}
+
+function ChargebackLiabilityList({
+  liabilities,
+}: {
+  liabilities: Array<{
+    id: string;
+    stripeDisputeId: string;
+    stripePaymentId: string | null;
+    grossAmount: number;
+    professionalAmount: number;
+    recoveredAmount: number;
+    outstandingAmount: number;
+    status: string;
+    reason: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }>;
+}) {
+  if (liabilities.length === 0) {
+    return (
+      <EmptyText>
+        Nenhuma responsabilidade financeira de chargeback registrada.
+      </EmptyText>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {liabilities.map((liability) => (
+        <article
+          key={liability.id}
+          className="rounded-xl border border-red-500/10 bg-red-950/10 p-4"
+        >
+          <div className="grid gap-4 lg:grid-cols-4">
+            <InfoCard label="Status" value={liability.status} />
+            <InfoCard
+              label="Valor profissional"
+              value={formatMoney(liability.professionalAmount)}
+            />
+            <InfoCard
+              label="Recuperado"
+              value={formatMoney(liability.recoveredAmount)}
+            />
+            <InfoCard
+              label="Pendente"
+              value={formatMoney(liability.outstandingAmount)}
+            />
+          </div>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <InfoCard
+              label="Stripe Dispute"
+              value={liability.stripeDisputeId}
+              mono
+            />
+            <InfoCard
+              label="PaymentIntent"
+              value={liability.stripePaymentId ?? "Nao informado"}
+              mono
+            />
+          </div>
+          <TextBlock label="Motivo e contexto" value={liability.reason} mono />
+          <p className="mt-3 text-xs font-bold text-slate-500">
+            Criado em {formatDate(liability.createdAt)} - Atualizado em{" "}
+            {formatDate(liability.updatedAt)}
+          </p>
+        </article>
+      ))}
+    </div>
+  );
 }
 
 function TransactionTable({
