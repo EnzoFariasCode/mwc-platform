@@ -193,15 +193,16 @@ model User {
   exceptions          AvailabilityException[]    @relation("ProExceptions")
 
   // --- Relacionamentos Gerais ---
-  conversationsAsA Conversation[] @relation("ParticipantA")
-  conversationsAsB Conversation[] @relation("ParticipantB")
-  sentMessages     Message[]      @relation("SentMessages")
-  favorites        Favorite[]     @relation("UserFavorites")
-  favoritedBy      Favorite[]     @relation("FavoritedBy")
-  reviewsWritten   Review[]       @relation("ReviewsAuthored")
-  reviewsReceived  Review[]       @relation("ReviewsReceived")
+  conversationsAsA Conversation[]  @relation("ParticipantA")
+  conversationsAsB Conversation[]  @relation("ParticipantB")
+  sentMessages     Message[]       @relation("SentMessages")
+  favorites        Favorite[]      @relation("UserFavorites")
+  favoritedBy      Favorite[]      @relation("FavoritedBy")
+  reviewsWritten   Review[]        @relation("ReviewsAuthored")
+  reviewsReceived  Review[]        @relation("ReviewsReceived")
   accounts         Account[]
   sessions         Session[]
+  adminAuditLogs   AdminAuditLog[] @relation("AdminAuditActor")
 
   @@index([isActive])
 }
@@ -592,6 +593,24 @@ model WithdrawalRequest {
 
   @@index([userId])
   @@index([status])
+}
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  actor      User     @relation("AdminAuditActor", fields: [actorId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  reason     String?  @db.Text
+  receiptUrl String?  @db.Text
+  metadata   Json?    @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model Review {

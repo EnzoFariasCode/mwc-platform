@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, ReceiptText, ShieldCheck } from "lucide-react"
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { requireAdminUser } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
+import { getAdminAuditLogs } from "@/modules/admin/actions/audit-log";
 
 type PageProps = {
   params: Promise<{ kind: string; id: string }>;
@@ -58,7 +59,7 @@ export default async function AdminDisputeDetailPage({ params }: PageProps) {
 }
 
 async function TechDisputeDetail({ id }: { id: string }) {
-  const [project, transactions] = await Promise.all([
+  const [project, transactions, auditLogs] = await Promise.all([
     db.project.findUnique({
       where: { id },
       include: {
@@ -140,6 +141,7 @@ async function TechDisputeDetail({ id }: { id: string }) {
         },
       },
     }),
+    getAdminAuditLogs({ entityType: "TECH_PROJECT", entityId: id }),
   ]);
 
   if (!project) notFound();
@@ -253,6 +255,10 @@ async function TechDisputeDetail({ id }: { id: string }) {
           />
         </Section>
 
+        <Section title="Auditoria formal">
+          <AuditLogList logs={auditLogs} />
+        </Section>
+
         <Section title="Transacoes financeiras">
           <TransactionTable
             transactions={transactions.map((transaction) => ({
@@ -308,60 +314,63 @@ async function TechDisputeDetail({ id }: { id: string }) {
 }
 
 async function HealthDisputeDetail({ id }: { id: string }) {
-  const appointment = await db.appointment.findUnique({
-    where: { id },
-    include: {
-      patient: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          city: true,
-          state: true,
-          createdAt: true,
+  const [appointment, auditLogs] = await Promise.all([
+    db.appointment.findUnique({
+      where: { id },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            city: true,
+            state: true,
+            createdAt: true,
+          },
         },
-      },
-      professional: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          jobTitle: true,
-          documentReg: true,
-          city: true,
-          state: true,
-          createdAt: true,
+        professional: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            jobTitle: true,
+            documentReg: true,
+            city: true,
+            state: true,
+            createdAt: true,
+          },
         },
-      },
-      serviceType: {
-        select: {
-          name: true,
-          duration: true,
-          price: true,
+        serviceType: {
+          select: {
+            name: true,
+            duration: true,
+            price: true,
+          },
         },
-      },
-      transactions: {
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          amount: true,
-          type: true,
-          status: true,
-          description: true,
-          createdAt: true,
-          updatedAt: true,
-          user: {
-            select: {
-              name: true,
-              email: true,
+        transactions: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            amount: true,
+            type: true,
+            status: true,
+            description: true,
+            createdAt: true,
+            updatedAt: true,
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    }),
+    getAdminAuditLogs({ entityType: "HEALTH_APPOINTMENT", entityId: id }),
+  ]);
 
   if (!appointment) notFound();
 
@@ -462,6 +471,10 @@ async function HealthDisputeDetail({ id }: { id: string }) {
           </div>
           <TextBlock label="Motivo informado" value={appointment.disputeReason} />
           <TextBlock label="Motivo da decisao" value={resolutionReason} />
+        </Section>
+
+        <Section title="Auditoria formal">
+          <AuditLogList logs={auditLogs} />
         </Section>
 
         <Section title="Transacoes financeiras">
@@ -618,6 +631,92 @@ function PersonDetails({
       <InfoCard label="Conta criada" value={formatDate(createdAt)} />
     </div>
   );
+}
+
+function AuditLogList({
+  logs,
+}: {
+  logs: Array<{
+    id: string;
+    action: string;
+    reason: string | null;
+    receiptUrl: string | null;
+    metadata: unknown;
+    createdAt: Date;
+    actor: {
+      id: string;
+      name: string | null;
+      email: string | null;
+    };
+  }>;
+}) {
+  if (logs.length === 0) {
+    return <EmptyText>Nenhum registro formal de auditoria ainda.</EmptyText>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {logs.map((log) => (
+        <article
+          key={log.id}
+          className="rounded-xl border border-white/5 bg-slate-950 p-4"
+        >
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-300">
+                {formatAuditAction(log.action)}
+              </p>
+              <h3 className="mt-1 font-bold text-white">
+                {log.actor.name || "Administrador"}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {log.actor.email || "Sem email"} - {formatDate(log.createdAt)}
+              </p>
+            </div>
+            <span className="rounded-full border border-white/10 bg-slate-900 px-3 py-1 text-xs font-bold text-slate-300">
+              {log.action}
+            </span>
+          </div>
+
+          <TextBlock label="Motivo registrado" value={log.reason} />
+
+          {log.receiptUrl ? (
+            <a
+              href={log.receiptUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black"
+            >
+              Ver comprovante PIX
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          ) : (
+            <p className="mt-3 text-xs font-bold text-slate-500">
+              Sem comprovante PIX anexado.
+            </p>
+          )}
+
+          <TextBlock
+            label="Metadados"
+            value={JSON.stringify(log.metadata ?? {}, null, 2)}
+            mono
+          />
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function formatAuditAction(action: string) {
+  const labels: Record<string, string> = {
+    TECH_DISPUTE_REFUND_CLIENT: "Reembolso Tech aprovado",
+    TECH_DISPUTE_RELEASE_PROFESSIONAL: "Pagamento Tech liberado",
+    HEALTH_DISPUTE_REFUND_PATIENT: "Reembolso Health aprovado",
+    HEALTH_DISPUTE_RELEASE_PROFESSIONAL: "Pagamento Health liberado",
+    PIX_WITHDRAWAL_MARK_COMPLETED: "Saque PIX transferido",
+  };
+
+  return labels[action] ?? action;
 }
 
 function TransactionTable({

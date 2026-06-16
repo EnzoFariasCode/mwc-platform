@@ -3,6 +3,7 @@
 import { verifySession } from "@/lib/auth";
 import { db } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
+import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { Prisma, ProjectStatus, ProposalStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -517,6 +518,22 @@ export async function resolveTechProjectDispute({
           },
         });
 
+        await createAdminAuditLog(tx, {
+          actorId: admin.session.sub,
+          action: "TECH_DISPUTE_REFUND_CLIENT",
+          entityType: "TECH_PROJECT",
+          entityId: freshProject.id,
+          reason: normalizedReason || "Nao informado",
+          receiptUrl: null,
+          metadata: {
+            projectTitle: freshProject.title,
+            ownerId: freshProject.ownerId,
+            professionalId: freshProject.professionalId,
+            amount: freshProject.agreedPrice.toNumber(),
+            refundId: refundId ?? null,
+          },
+        });
+
         return;
       }
 
@@ -566,6 +583,23 @@ export async function resolveTechProjectDispute({
           projectId: freshProject.id,
           senderId: admin.session.sub,
           description: `DISPUTE_RESOLVED_RELEASE - ${normalizedReason || "Nao informado"}`,
+        },
+      });
+
+      await createAdminAuditLog(tx, {
+        actorId: admin.session.sub,
+        action: "TECH_DISPUTE_RELEASE_PROFESSIONAL",
+        entityType: "TECH_PROJECT",
+        entityId: freshProject.id,
+        reason: normalizedReason || "Nao informado",
+        receiptUrl: null,
+        metadata: {
+          projectTitle: freshProject.title,
+          ownerId: freshProject.ownerId,
+          professionalId: freshProject.professionalId,
+          grossAmount: freshProject.agreedPrice.toNumber(),
+          professionalAmount: professionalAmount.toNumber(),
+          platformFeePercent: PLATFORM_FEE_PERCENT,
         },
       });
     });

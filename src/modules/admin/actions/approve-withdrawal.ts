@@ -4,11 +4,12 @@ import { requireAdminUser } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { createAdminAuditLog } from "./audit-log";
 
 export async function approveWithdrawal(
   withdrawalId: string,
 ): Promise<ActionResponse> {
-  await requireAdminUser();
+  const admin = await requireAdminUser();
 
   if (!withdrawalId) {
     return { success: false, error: "Solicitacao de saque invalida." };
@@ -22,6 +23,10 @@ export async function approveWithdrawal(
           id: true,
           status: true,
           transactionId: true,
+          amount: true,
+          pixKey: true,
+          pixKeyType: true,
+          userId: true,
         },
       });
 
@@ -41,6 +46,22 @@ export async function approveWithdrawal(
       await tx.transaction.update({
         where: { id: withdrawal.transactionId },
         data: { status: "COMPLETED" },
+      });
+
+      await createAdminAuditLog(tx, {
+        actorId: admin.id,
+        action: "PIX_WITHDRAWAL_MARK_COMPLETED",
+        entityType: "WITHDRAWAL_REQUEST",
+        entityId: withdrawal.id,
+        reason: "Saque PIX marcado como transferido pela tesouraria.",
+        receiptUrl: null,
+        metadata: {
+          amount: withdrawal.amount.toNumber(),
+          pixKey: withdrawal.pixKey,
+          pixKeyType: withdrawal.pixKeyType,
+          transactionId: withdrawal.transactionId,
+          userId: withdrawal.userId,
+        },
       });
     });
 

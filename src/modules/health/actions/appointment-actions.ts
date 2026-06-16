@@ -15,6 +15,7 @@ import {
   generateDaySlots,
   parseAppointmentDateTime,
 } from "@/modules/health/actions/slot-helpers";
+import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
 
 type EscrowAppointment = {
   id: string;
@@ -781,6 +782,24 @@ export async function resolveHealthAppointmentDispute({
           data: { status: "REFUNDED", notes },
         });
 
+        await createAdminAuditLog(tx, {
+          actorId: session.user.id,
+          action: "HEALTH_DISPUTE_REFUND_PATIENT",
+          entityType: "HEALTH_APPOINTMENT",
+          entityId: freshAppointment.id,
+          reason: normalizedReason || "Nao informado",
+          receiptUrl: null,
+          metadata: {
+            patientName: appointment.patient.name,
+            patientEmail: appointment.patient.email,
+            professionalName: appointment.professional.name,
+            professionalEmail: appointment.professional.email,
+            price: appointment.price.toNumber(),
+            refundId: refundId ?? null,
+            transactionId: canceledTransaction?.id ?? null,
+          },
+        });
+
         return;
       }
 
@@ -798,6 +817,23 @@ export async function resolveHealthAppointmentDispute({
       await tx.appointment.update({
         where: { id: freshAppointment.id },
         data: { status: "COMPLETED", notes },
+      });
+
+      await createAdminAuditLog(tx, {
+        actorId: session.user.id,
+        action: "HEALTH_DISPUTE_RELEASE_PROFESSIONAL",
+        entityType: "HEALTH_APPOINTMENT",
+        entityId: freshAppointment.id,
+        reason: normalizedReason || "Nao informado",
+        receiptUrl: null,
+        metadata: {
+          patientName: appointment.patient.name,
+          patientEmail: appointment.patient.email,
+          professionalName: appointment.professional.name,
+          professionalEmail: appointment.professional.email,
+          price: appointment.price.toNumber(),
+          transactionId: releasedTransaction.id,
+        },
       });
     });
 

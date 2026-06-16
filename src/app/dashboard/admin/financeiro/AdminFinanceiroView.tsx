@@ -22,6 +22,14 @@ export type AdminWithdrawalItem = {
   status: string;
   createdAt: string;
   transactionId: string;
+  auditLog: {
+    action: string;
+    reason: string | null;
+    receiptUrl: string | null;
+    createdAt: string;
+    actorName: string | null;
+    actorEmail: string | null;
+  } | null;
   user: {
     id: string;
     name: string;
@@ -178,6 +186,7 @@ export default function AdminFinanceiroView({
                   <th className="px-5 py-4">Chave PIX</th>
                   <th className="px-5 py-4">Tipo</th>
                   <th className="px-5 py-4">Status</th>
+                  <th className="px-5 py-4">Auditoria</th>
                   <th className="px-5 py-4 text-right">Acao</th>
                 </tr>
               </thead>
@@ -223,6 +232,41 @@ export default function AdminFinanceiroView({
                       >
                         {statusLabels[withdrawal.status] ?? withdrawal.status}
                       </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      {withdrawal.auditLog ? (
+                        <div className="max-w-[260px]">
+                          <p className="font-bold text-slate-200">
+                            {withdrawal.auditLog.actorName ||
+                              "Administrador"}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {formatDate(withdrawal.auditLog.createdAt)}
+                          </p>
+                          <p className="truncate text-xs text-slate-400">
+                            {withdrawal.auditLog.reason ||
+                              "Motivo nao informado"}
+                          </p>
+                          {withdrawal.auditLog.receiptUrl ? (
+                            <a
+                              href={withdrawal.auditLog.receiptUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs font-bold text-emerald-300 hover:text-emerald-200"
+                            >
+                              Ver comprovante
+                            </a>
+                          ) : (
+                            <p className="text-xs text-slate-600">
+                              Sem comprovante
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-600">
+                          Sem log formal
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-right">
                       {withdrawal.status === "PENDING" ? (
