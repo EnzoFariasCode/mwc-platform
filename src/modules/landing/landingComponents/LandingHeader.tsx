@@ -1,9 +1,22 @@
 "use client";
-import Link from "next/link";
+
 import Image from "next/image";
-import Logo from "@/assets/images/landingPage/logo.png"; // Verifique se o caminho está batendo
+import Link from "next/link";
+
+import Logo from "@/assets/images/landingPage/logo.png";
 
 const LandingHeader = () => {
+  const scrollToSection = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+
+    const headerOffset = 96;
+    const targetTop =
+      section.getBoundingClientRect().top + window.scrollY - headerOffset;
+
+    window.scrollTo({ top: targetTop, behavior: "smooth" });
+  };
+
   return (
     <header className="fixed top-0 w-full z-50 border-b border-white/10 backdrop-blur-md bg-black/20 transition-all duration-300">
       <div className="container mx-auto px-4 h-20 flex items-center justify-between">
@@ -24,34 +37,36 @@ const LandingHeader = () => {
 
         <div className="flex items-center gap-8">
           <nav className="hidden md:flex gap-8 text-sm font-medium text-slate-300">
-            <Link
-              href="#como-funciona"
+            <button
+              type="button"
+              onClick={() => scrollToSection("como-funciona")}
               className="hover:text-[#d73cbe] transition-colors cursor-pointer"
             >
               Como funciona
-            </Link>
-            <Link
-              href="/#servicesSection"
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("servicesSection")}
               className="hover:text-[#d73cbe] transition-colors cursor-pointer"
             >
               Serviços
-            </Link>
+            </button>
             <Link
-              href="/#profissionais"
+              href="/beWorker#planos"
               className="hover:text-[#d73cbe] transition-colors cursor-pointer"
             >
-              Profissionais
+              Planos
             </Link>
           </nav>
-          {/* Botão "Quero ser um profissional" */}
+
           <Link
-            href="/beWorker" // Mudamos de 'to' para 'href'
+            href="/beWorker"
             className="group relative px-6 py-2.5 rounded-full text-white font-bold text-sm transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer bg-[#d73cbe] hover:bg-[#c02aa8] shadow-lg shadow-[#d73cbe]/20 hover:shadow-[#d73cbe]/50 border border-transparent hover:border-white/20 inline-flex items-center"
           >
             <span className="relative z-10 tracking-wide">
               Quero ser um profissional
             </span>
-            <div className="absolute inset-0 rounded-full bg-white/0 group-hover:bg-white/10 transition-colors duration-300"></div>
+            <div className="absolute inset-0 rounded-full bg-white/0 group-hover:bg-white/10 transition-colors duration-300" />
           </Link>
         </div>
       </div>
