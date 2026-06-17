@@ -48,6 +48,7 @@ function PayInfo() {
 
   return (
     <section
+      id="formas-pagamento"
       ref={containerRef}
       className="relative py-24 px-4 bg-slate-950 border-b border-white/5 overflow-hidden"
     >

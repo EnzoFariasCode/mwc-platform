@@ -160,7 +160,9 @@ function FooterContact() {
               </li>
               <li>
                 <Link
-                  href="/politicas"
+                  href="https://sites.google.com/view/mwc-politicasdosite/in%C3%ADcio"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="text-slate-300 hover:text-[#d73cbe] transition-colors"
                 >
                   Políticas do site
@@ -168,7 +170,7 @@ function FooterContact() {
               </li>
               <li>
                 <Link
-                  href="/pagamento"
+                  href="/#formas-pagamento"
                   className="text-slate-300 hover:text-[#d73cbe] transition-colors"
                 >
                   Formas de pagamento
@@ -176,15 +178,7 @@ function FooterContact() {
               </li>
               <li>
                 <Link
-                  href="/contato"
-                  className="text-slate-300 hover:text-[#d73cbe] transition-colors"
-                >
-                  Contato
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/planos"
+                  href="/beWorker#planos"
                   className="text-slate-300 hover:text-[#d73cbe] transition-colors font-medium text-white"
                 >
                   Planos Profissionais
@@ -210,7 +204,7 @@ function FooterContact() {
               </li>
               <li>
                 <Link
-                  href="/criar-site"
+                  href="/search?q=Programador%20de%20sites"
                   className="text-slate-300 hover:text-[#d73cbe] transition-colors"
                 >
                   Criar um site
@@ -218,7 +212,7 @@ function FooterContact() {
               </li>
               <li>
                 <Link
-                  href="/criar-logo"
+                  href="/search?q=Designer%20de%20logo"
                   className="text-slate-300 hover:text-[#d73cbe] transition-colors"
                 >
                   Criar Logo
@@ -226,7 +220,7 @@ function FooterContact() {
               </li>
               <li>
                 <Link
-                  href="/book"
+                  href="/search?q=Fotografo%20book%20de%20fotos"
                   className="text-slate-300 hover:text-[#d73cbe] transition-colors"
                 >
                   Book de Fotos
