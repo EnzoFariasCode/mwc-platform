@@ -1,7 +1,6 @@
 import { Fluxo } from "./landingComponents/Fluxo";
 import { HeroSection } from "./landingComponents/HeroSection";
 import HowToUse from "./landingComponents/HowToUse";
-import Outstanding from "./landingComponents/Outstanding";
 import PayInfo from "./landingComponents/PayInfo";
 import ServicesSection from "./landingComponents/ServicesSection";
 import TelemedicinaSection from "./landingComponents/TelemedicinaSection";
@@ -14,7 +13,6 @@ function LandingPage() {
       <ServicesSection />
       <HowToUse />
       <TelemedicinaSection />
-      <Outstanding />
       <Fluxo />
       <WorkerSection />
       <PayInfo />
