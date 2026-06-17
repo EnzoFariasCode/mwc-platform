@@ -239,10 +239,10 @@ function FooterContact() {
 
           <address className="not-italic flex flex-col items-center md:items-end gap-3 text-slate-400">
             <a
-              href="mailto:contato@mcw.com.br"
+              href="mailto:maximusworldclick@gmail.com"
               className="flex items-center gap-2 hover:text-white transition-colors"
             >
-              <Mail className="w-4 h-4" /> contato@mcw.com.br
+              <Mail className="w-4 h-4" /> maximusworldclick@gmail.com
             </a>
             <a
               href="tel:+551199999999"
@@ -252,9 +252,6 @@ function FooterContact() {
             </a>
           </address>
 
-          <button className="border border-white/20 cursor-pointer hover:border-[#d73cbe] text-white hover:text-[#d73cbe] px-6 py-2 rounded-lg transition-all uppercase text-sm tracking-widest font-medium">
-            Trabalhe conosco
-          </button>
         </div>
       </div>
       <div className="border-t border-white/10 mt-16 pt-8 text-center text-slate-600 text-sm">
