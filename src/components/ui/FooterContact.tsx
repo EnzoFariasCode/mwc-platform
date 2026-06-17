@@ -87,7 +87,7 @@ function FooterContact() {
             <div className="w-32 mb-4">
               <Image
                 src={logoImg}
-                alt="Logo MCW"
+                alt="Logo MWC"
                 width={128}
                 height={128}
                 className="object-contain"

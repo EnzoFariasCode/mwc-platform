@@ -69,7 +69,7 @@ export function HeroSection() {
           {/* SUBTÍTULO */}
           <p className="animate-hero text-base md:text-lg text-slate-400 mb-10 max-w-2xl leading-relaxed">
             Explore perfis detalhados, veja avaliações reais e negocie
-            diretamente pelo chat. Sem intermediários, simples e rápido.
+            diretamente pelo chat, com pagamento protegido pela plataforma.
           </p>
 
           {/* BARRA DE BUSCA */}

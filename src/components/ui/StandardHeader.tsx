@@ -24,7 +24,7 @@ const StandardHeader = async () => {
         >
           <Image
             src={Logo}
-            alt="MCW Logo"
+            alt="MWC Logo"
             className="h-12 w-auto object-contain"
             priority
           />

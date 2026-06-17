@@ -91,7 +91,7 @@ export function WorkerSection() {
               <br />
               <br />
               Veja nosso vídeo e entenda como você pode se tornar um
-              profissional na MCW e começar hoje mesmo.
+              profissional na MWC e começar hoje mesmo.
             </p>
 
             <Link href="/beWorker">
