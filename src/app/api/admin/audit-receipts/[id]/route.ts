@@ -16,6 +16,11 @@ export async function GET(_request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
   }
 
+  const adminRole = session.user.adminRole ?? "OWNER";
+  if (adminRole !== "OWNER" && adminRole !== "FINANCE") {
+    return NextResponse.json({ error: "Acesso restrito." }, { status: 403 });
+  }
+
   const { id } = await params;
   const receipts = await db.$queryRaw<
     Array<{

@@ -17,6 +17,7 @@ import {
 } from "@/modules/health/actions/slot-helpers";
 import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
+import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 
 const ADMIN_HEALTH_DISPUTE_DECISION_LIMIT = 20;
 const ADMIN_HEALTH_DISPUTE_DECISION_WINDOW_MS = 10 * 60 * 1000;
@@ -667,6 +668,18 @@ export async function reportHealthAppointmentDispute(
 
     revalidateHealthAppointmentPaths(result.professionalId);
 
+    await sendAdminNotification({
+      subject: "MWC Admin - Disputa Health aberta",
+      lines: [
+        "Uma disputa de consulta online foi aberta e precisa de mediacao.",
+        `Consulta: ${appointment.id}`,
+        `Paciente: ${appointment.patient.name || "Nao informado"} (${appointment.patient.email || "sem email"})`,
+        `Profissional: ${appointment.professional.name || "Nao informado"} (${appointment.professional.email || "sem email"})`,
+        `Motivo: ${normalizedReason}`,
+      ],
+      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/health/${appointment.id}`,
+    });
+
     return { success: true };
   } catch (error) {
     console.error("[REPORT_HEALTH_APPOINTMENT_DISPUTE_ERROR]", error);
@@ -696,6 +709,13 @@ export async function resolveHealthAppointmentDispute({
 
   if (session.user.role !== "ADMIN" && session.user.userType !== "ADMIN") {
     return { error: "Acao restrita a administradores." };
+  }
+
+  if (
+    session.user.adminRole !== "OWNER" &&
+    session.user.adminRole !== "SUPPORT"
+  ) {
+    return { error: "Acao restrita ao suporte administrativo." };
   }
 
   const rateLimitError = await consumeRateLimit({
@@ -873,6 +893,17 @@ export async function resolveHealthAppointmentDispute({
         price: appointment.price,
       });
     }
+
+    await sendAdminNotification({
+      subject: "MWC Admin - Disputa Health resolvida",
+      lines: [
+        "Uma disputa de consulta online foi resolvida pelo painel admin.",
+        `Consulta: ${appointment.id}`,
+        `Decisao: ${decision}`,
+        `Motivo: ${normalizedReason || "Nao informado"}`,
+      ],
+      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/health/${appointment.id}`,
+    });
 
     return { success: true };
   } catch (error) {

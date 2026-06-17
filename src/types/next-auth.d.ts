@@ -9,6 +9,7 @@ declare module "next-auth" {
       industry?: "TECH" | "HEALTH";
       jobTitle?: string | null;
       isActive?: boolean;
+      adminRole?: "OWNER" | "FINANCE" | "SUPPORT" | null;
     } & DefaultSession["user"];
   }
 
@@ -17,6 +18,7 @@ declare module "next-auth" {
     industry?: "TECH" | "HEALTH";
     jobTitle?: string | null;
     isActive?: boolean;
+    adminRole?: "OWNER" | "FINANCE" | "SUPPORT" | null;
   }
 }
 
@@ -28,5 +30,6 @@ declare module "next-auth/jwt" {
     industry?: "TECH" | "HEALTH";
     jobTitle?: string | null;
     isActive?: boolean;
+    adminRole?: "OWNER" | "FINANCE" | "SUPPORT" | null;
   }
 }

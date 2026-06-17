@@ -12,6 +12,7 @@ type PrivateUserProfile = {
   email: string | null;
   birthDate: Date | null;
   userType: UserType;
+  adminRole: "OWNER" | "FINANCE" | "SUPPORT" | null;
   bio: string | null;
   city: string | null;
   state: string | null;
@@ -87,6 +88,7 @@ export async function getUserProfile(): Promise<ActionResponse<PrivateUserProfil
       success: true,
       data: {
         ...rest,
+        adminRole: session.adminRole ?? null,
         hourlyRate,
         avatarUrl, // O frontend vai usar isso
       },

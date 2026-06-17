@@ -8,6 +8,7 @@ import { ActionResponse } from "@/modules/users/types/user-types";
 import { Prisma, ProjectStatus, ProposalStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
+import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 
 const PLATFORM_FEE_PERCENT = 10;
 const ADMIN_DISPUTE_DECISION_LIMIT = 20;
@@ -51,6 +52,10 @@ async function requireAdmin() {
 
   if (session.role !== "ADMIN" && session.userType !== "ADMIN") {
     return { error: "Acao restrita a administradores." };
+  }
+
+  if (session.adminRole !== "OWNER" && session.adminRole !== "SUPPORT") {
+    return { error: "Acao restrita ao suporte administrativo." };
   }
 
   return { session };
@@ -200,6 +205,17 @@ export async function cancelTechProject(
     });
 
     techProjectPaths(project.id, project.professionalId);
+
+    await sendAdminNotification({
+      subject: "MWC Admin - Disputa Tech aberta",
+      lines: [
+        "Uma disputa Tech foi aberta e precisa de acompanhamento.",
+        `Projeto: ${project.id}`,
+        `Aberta por: ${userId}`,
+        `Motivo: ${normalizedReason}`,
+      ],
+      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
+    });
 
     return { success: true };
   } catch (error) {
@@ -619,6 +635,17 @@ export async function resolveTechProjectDispute({
     });
 
     techProjectPaths(project.id, project.professionalId);
+
+    await sendAdminNotification({
+      subject: "MWC Admin - Disputa Tech resolvida",
+      lines: [
+        "Uma disputa Tech foi resolvida pelo painel admin.",
+        `Projeto: ${project.id}`,
+        `Decisao: ${decision}`,
+        `Motivo: ${normalizedReason || "Nao informado"}`,
+      ],
+      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
+    });
 
     return { success: true };
   } catch (error) {

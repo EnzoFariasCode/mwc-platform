@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { sendWithdrawalRequestedEmail } from "@/modules/finance/services/withdrawal-email-service";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
+import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 
 const MIN_WITHDRAWAL_AMOUNT = new Prisma.Decimal(50);
 const PIX_KEY_TYPES = ["CPF", "CNPJ", "EMAIL", "PHONE", "EVP"] as const;
@@ -140,6 +141,20 @@ export async function requestWithdrawal(
     revalidatePath("/agendar-consulta/financeiro");
 
     await sendWithdrawalRequestedEmail(withdrawal);
+    await sendAdminNotification({
+      subject: "MWC Admin - Novo saque PIX pendente",
+      lines: [
+        "Um profissional solicitou saque PIX.",
+        `Profissional: ${withdrawal.name || "Nao informado"}`,
+        `Email: ${withdrawal.email || "Nao informado"}`,
+        `Valor: ${withdrawal.amount.toNumber().toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        })}`,
+        `Chave PIX: ${withdrawal.pixKeyType} - ${withdrawal.pixKey}`,
+      ],
+      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/financeiro`,
+    });
 
     return {
       success: true,

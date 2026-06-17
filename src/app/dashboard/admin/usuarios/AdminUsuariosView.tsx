@@ -5,7 +5,10 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, Search, UserCog, UserX } from "lucide-react";
 import { toast } from "sonner";
-import { toggleUserStatus } from "@/modules/admin/actions/user-actions";
+import {
+  toggleUserStatus,
+  updateAdminRole,
+} from "@/modules/admin/actions/user-actions";
 
 export type AdminUserItem = {
   id: string;
@@ -13,6 +16,7 @@ export type AdminUserItem = {
   email: string;
   userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
   industry: "TECH" | "HEALTH";
+  adminRole: "OWNER" | "FINANCE" | "SUPPORT" | null;
   isActive: boolean;
   createdAt: string;
   auditLog: {
@@ -66,10 +70,21 @@ function industryLabel(industry: AdminUserItem["industry"]) {
   return industry === "HEALTH" ? "Saúde" : "Tech";
 }
 
+function adminRoleLabel(adminRole: NonNullable<AdminUserItem["adminRole"]>) {
+  const labels = {
+    OWNER: "Dono",
+    FINANCE: "Financeiro",
+    SUPPORT: "Suporte",
+  };
+
+  return labels[adminRole];
+}
+
 function auditActionLabel(action: string) {
   const labels: Record<string, string> = {
     USER_ACCOUNT_SUSPENDED: "Suspensao",
     USER_ACCOUNT_REACTIVATED: "Reativacao",
+    ADMIN_ROLE_UPDATED: "Papel admin atualizado",
   };
 
   return labels[action] ?? action;
@@ -110,6 +125,22 @@ export default function AdminUsuariosView({
     });
   }
 
+  function handleAdminRoleChange(
+    user: AdminUserItem,
+    adminRole: NonNullable<AdminUserItem["adminRole"]>,
+  ) {
+    startTransition(async () => {
+      const result = await updateAdminRole(user.id, adminRole);
+
+      if (result.success) {
+        toast.success("Papel admin atualizado.");
+        router.refresh();
+      } else {
+        toast.error(result.error || "Nao foi possivel alterar o papel admin.");
+      }
+    });
+  }
+
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const filteredUsers = users.filter((user) => {
     const haystack = [
@@ -118,6 +149,7 @@ export default function AdminUsuariosView({
       user.email,
       user.userType,
       user.industry,
+      user.adminRole,
       user.isActive ? "ativo active" : "suspenso suspended",
       user.auditLog?.action,
       user.auditLog?.actorName,
@@ -248,7 +280,7 @@ export default function AdminUsuariosView({
 
       <div className="overflow-hidden rounded-2xl border border-white/5 bg-slate-900 shadow-lg shadow-black/10">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px] text-left text-sm">
+          <table className="w-full min-w-[1120px] text-left text-sm">
             <thead className="border-b border-white/5 bg-slate-950 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-5 py-4">Criado em</th>
@@ -256,6 +288,7 @@ export default function AdminUsuariosView({
                 <th className="px-5 py-4">Email</th>
                 <th className="px-5 py-4">Tipo</th>
                 <th className="px-5 py-4">Setor</th>
+                <th className="px-5 py-4">Papel admin</th>
                 <th className="px-5 py-4">Status</th>
                 <th className="px-5 py-4">Auditoria</th>
                 <th className="px-5 py-4 text-right">Ação</th>
@@ -291,6 +324,35 @@ export default function AdminUsuariosView({
                     >
                       {industryLabel(user.industry)}
                     </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    {user.userType === "ADMIN" ? (
+                      <select
+                        value={user.adminRole ?? "OWNER"}
+                        onChange={(event) =>
+                          handleAdminRoleChange(
+                            user,
+                            event.target.value as NonNullable<
+                              AdminUserItem["adminRole"]
+                            >,
+                          )
+                        }
+                        disabled={isPending}
+                        className="h-9 rounded-xl border border-white/10 bg-slate-950 px-2 text-xs font-bold text-slate-300 outline-none focus:border-[#d73cbe] disabled:cursor-wait disabled:opacity-60"
+                      >
+                        <option value="OWNER">{adminRoleLabel("OWNER")}</option>
+                        <option value="FINANCE">
+                          {adminRoleLabel("FINANCE")}
+                        </option>
+                        <option value="SUPPORT">
+                          {adminRoleLabel("SUPPORT")}
+                        </option>
+                      </select>
+                    ) : (
+                      <span className="rounded-full border border-white/10 bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-300">
+                        N/A
+                      </span>
+                    )}
                   </td>
                   <td className="px-5 py-4">
                     <span

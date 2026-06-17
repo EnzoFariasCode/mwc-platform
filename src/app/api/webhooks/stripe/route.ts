@@ -7,6 +7,7 @@ import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
 import { finalizeHealthAppointmentPayment } from "@/modules/health/actions/appointment-payment";
 import { sendRefundProcessedEmail } from "@/modules/health/services/transactional-email-service";
 import { Prisma, ProjectCheckoutHoldStatus } from "@prisma/client";
+import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
@@ -581,6 +582,19 @@ async function handleTechDisputeCreated(
     });
   });
 
+  await sendAdminNotification({
+    subject: "MWC Admin - Chargeback Tech aberto na Stripe",
+    lines: [
+      "A Stripe abriu uma disputa/chargeback em um projeto Tech.",
+      `Projeto: ${project.id}`,
+      `Stripe dispute: ${dispute.id}`,
+      `PaymentIntent: ${paymentIntentId}`,
+      `Motivo Stripe: ${dispute.reason}`,
+      `Status Stripe: ${dispute.status}`,
+    ],
+    actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
+  });
+
   console.log("[WEBHOOK_TECH_DISPUTE] Project marked as DISPUTE:", project.id);
   return new NextResponse(null, { status: 200 });
 }
@@ -760,6 +774,16 @@ async function handleTechDisputeClosed(
     });
 
     console.log("[WEBHOOK_TECH_DISPUTE_CLOSED] Dispute won:", project.id);
+    await sendAdminNotification({
+      subject: "MWC Admin - Chargeback Tech vencido",
+      lines: [
+        "A Stripe fechou uma disputa Tech como ganha.",
+        `Projeto: ${project.id}`,
+        `Stripe dispute: ${dispute.id}`,
+        `PaymentIntent: ${paymentIntentId}`,
+      ],
+      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
+    });
     return new NextResponse(null, { status: 200 });
   }
 
@@ -898,6 +922,17 @@ async function handleTechDisputeClosed(
     });
 
     console.log("[WEBHOOK_TECH_DISPUTE_CLOSED] Dispute lost:", project.id);
+    await sendAdminNotification({
+      subject: "MWC Admin - Chargeback Tech perdido",
+      lines: [
+        "A Stripe fechou uma disputa Tech como perdida.",
+        `Projeto: ${project.id}`,
+        `Stripe dispute: ${dispute.id}`,
+        `PaymentIntent: ${paymentIntentId}`,
+        "Verifique a responsabilidade financeira do profissional no detalhe da disputa.",
+      ],
+      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
+    });
   }
 
   return new NextResponse(null, { status: 200 });
@@ -1099,6 +1134,16 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Erro ao processar webhook:", error);
     await markStripeEventFailed(event, errorToMessage(error));
+    await sendAdminNotification({
+      subject: "MWC Admin - Falha em webhook Stripe",
+      lines: [
+        "Um webhook Stripe falhou durante o processamento.",
+        `Evento: ${event.id}`,
+        `Tipo: ${event.type}`,
+        `Erro: ${errorToMessage(error)}`,
+      ],
+      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas`,
+    });
     return new NextResponse("Database Error", { status: 500 });
   }
 }

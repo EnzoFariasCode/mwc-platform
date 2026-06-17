@@ -1,11 +1,11 @@
 "use server";
 
-import { requireAdminUser } from "@/lib/get-session";
+import { requireAdminRole } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
 export async function getAdminWithdrawals() {
-  await requireAdminUser();
+  await requireAdminRole(["OWNER", "FINANCE"]);
 
   const withdrawals = await db.withdrawalRequest.findMany({
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],

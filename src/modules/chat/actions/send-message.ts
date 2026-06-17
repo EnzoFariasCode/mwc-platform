@@ -5,10 +5,23 @@ import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
+import {
+  CHAT_MAX_CONTENT_LENGTH,
+  canSendExternalContact,
+  containsExternalContact,
+  isBroadcastDuplicateLimitReached,
+  isMessageTooLong,
+  normalizeMessageContent,
+} from "@/modules/chat/lib/chat-safety";
 
 const CHAT_USER_LIMIT = 30;
 const CHAT_PAIR_LIMIT = 12;
 const CHAT_WINDOW_MS = 60 * 1000;
+const CHAT_NEW_CONVERSATION_LIMIT = 5;
+const CHAT_NEW_CONVERSATION_WINDOW_MS = 60 * 60 * 1000;
+const DUPLICATE_WINDOW_MS = 10 * 60 * 1000;
+const BROADCAST_WINDOW_MS = 30 * 60 * 1000;
+const BROADCAST_DUPLICATE_LIMIT = 3;
 
 async function hasSharedTechContext(senderId: string, receiverId: string) {
   const project = await db.project.findFirst({
@@ -32,6 +45,66 @@ async function hasSharedTechContext(senderId: string, receiverId: string) {
   return Boolean(project);
 }
 
+async function hasPaidTechContext(senderId: string, receiverId: string) {
+  const project = await db.project.findFirst({
+    where: {
+      status: { in: ["IN_PROGRESS", "UNDER_REVIEW", "COMPLETED", "DISPUTE"] },
+      OR: [
+        { ownerId: senderId, professionalId: receiverId },
+        { ownerId: receiverId, professionalId: senderId },
+      ],
+    },
+    select: { id: true },
+  });
+
+  return Boolean(project);
+}
+
+async function hasRecentDuplicateMessage({
+  senderId,
+  receiverId,
+  content,
+}: {
+  senderId: string;
+  receiverId: string;
+  content: string;
+}) {
+  const createdAt = new Date(Date.now() - DUPLICATE_WINDOW_MS);
+
+  const duplicate = await db.message.findFirst({
+    where: {
+      senderId,
+      content,
+      createdAt: { gte: createdAt },
+      conversation: {
+        OR: [
+          { participantAId: senderId, participantBId: receiverId },
+          { participantAId: receiverId, participantBId: senderId },
+        ],
+      },
+    },
+    select: { id: true },
+  });
+
+  return Boolean(duplicate);
+}
+
+async function isBroadcastSpam(senderId: string, content: string) {
+  const createdAt = new Date(Date.now() - BROADCAST_WINDOW_MS);
+  const count = await db.message.count({
+    where: {
+      senderId,
+      content,
+      createdAt: { gte: createdAt },
+    },
+  });
+
+  return isBroadcastDuplicateLimitReached({
+    previousCount: count,
+    limit: BROADCAST_DUPLICATE_LIMIT,
+  });
+}
+
 export async function sendMessage(
   receiverId: string,
   content: string,
@@ -39,7 +112,7 @@ export async function sendMessage(
   try {
     const session = await verifySession();
     const senderId = session?.sub as string;
-    const normalizedContent = content.trim();
+    const normalizedContent = normalizeMessageContent(content);
 
     if (!senderId) return { success: false, error: "Nao autorizado." };
 
@@ -56,6 +129,13 @@ export async function sendMessage(
 
     if (!normalizedContent) {
       return { success: false, error: "Mensagem vazia." };
+    }
+
+    if (isMessageTooLong(normalizedContent)) {
+      return {
+        success: false,
+        error: `Mensagem muito longa. Limite de ${CHAT_MAX_CONTENT_LENGTH} caracteres.`,
+      };
     }
 
     const pairKey = [senderId, receiverId].sort().join(":");
@@ -76,6 +156,28 @@ export async function sendMessage(
       return {
         success: false,
         error: userLimitError || pairLimitError || "Muitas tentativas.",
+      };
+    }
+
+    const duplicate = await hasRecentDuplicateMessage({
+      senderId,
+      receiverId,
+      content: normalizedContent,
+    });
+
+    if (duplicate) {
+      return {
+        success: false,
+        error: "Mensagem repetida detectada. Aguarde antes de reenviar.",
+      };
+    }
+
+    const broadcastSpam = await isBroadcastSpam(senderId, normalizedContent);
+
+    if (broadcastSpam) {
+      return {
+        success: false,
+        error: "Envio repetido para varias conversas bloqueado.",
       };
     }
 
@@ -106,6 +208,17 @@ export async function sendMessage(
     });
 
     if (!conversation) {
+      const newConversationLimitError = await consumeRateLimit({
+        key: `chat:new-conversation:user:${senderId}`,
+        limit: CHAT_NEW_CONVERSATION_LIMIT,
+        windowMs: CHAT_NEW_CONVERSATION_WINDOW_MS,
+        message: "Voce iniciou muitas conversas em pouco tempo.",
+      });
+
+      if (newConversationLimitError) {
+        return { success: false, error: newConversationLimitError };
+      }
+
       const receiverIsPublicTechProfessional =
         receiver.userType === "PROFESSIONAL" && receiver.industry === "TECH";
       const hasSharedContext = await hasSharedTechContext(senderId, receiverId);
@@ -117,7 +230,27 @@ export async function sendMessage(
             "Conversa permitida apenas com profissional Tech ou usuarios com projeto/proposta em comum.",
         };
       }
+    }
 
+    const hasExternalContact = containsExternalContact(normalizedContent);
+    if (hasExternalContact) {
+      const paidContext = await hasPaidTechContext(senderId, receiverId);
+
+      if (
+        !canSendExternalContact({
+          content: normalizedContent,
+          hasPaidContext: paidContext,
+        })
+      ) {
+        return {
+          success: false,
+          error:
+            "Dados de contato externo e links so sao permitidos apos um projeto pago/ativo entre as partes.",
+        };
+      }
+    }
+
+    if (!conversation) {
       conversation = await db.conversation.create({
         data: {
           participantAId: senderId,

@@ -1,5 +1,5 @@
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
-import { requireAdminUser } from "@/lib/get-session";
+import { requireAdminRole } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { Prisma, ProjectStatus } from "@prisma/client";
 import AdminDisputesView, { AdminDisputeItem } from "./AdminDisputesView";
@@ -29,7 +29,7 @@ type TechDisputeRecord = {
 };
 
 export default async function AdminDisputasPage() {
-  await requireAdminUser();
+  await requireAdminRole(["OWNER", "SUPPORT"]);
 
   const [techProjects, healthAppointments] = await Promise.all([
     db.project.findMany({

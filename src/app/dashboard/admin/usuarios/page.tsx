@@ -11,6 +11,7 @@ export default async function AdminUsuariosPage() {
     email: user.email,
     userType: user.userType,
     industry: user.industry,
+    adminRole: user.adminRole,
     isActive: user.isActive,
     createdAt: user.createdAt.toISOString(),
     auditLog: user.auditLog

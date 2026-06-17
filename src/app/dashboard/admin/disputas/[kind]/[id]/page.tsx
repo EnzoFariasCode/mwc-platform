@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, ReceiptText, ShieldCheck } from "lucide-react";
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
-import { requireAdminUser } from "@/lib/get-session";
+import { requireAdminRole } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { getAdminAuditLogs } from "@/modules/admin/actions/audit-log";
 
@@ -42,7 +42,7 @@ function extractResolutionLabel(value: string | null | undefined) {
 }
 
 export default async function AdminDisputeDetailPage({ params }: PageProps) {
-  await requireAdminUser();
+  await requireAdminRole(["OWNER", "SUPPORT"]);
 
   const { kind, id } = await params;
   const normalizedKind = kind.toLowerCase();

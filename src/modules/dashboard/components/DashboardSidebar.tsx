@@ -20,11 +20,16 @@ import {
   Store,
   ShieldCheck,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Logo from "@/assets/images/landingPage/logo.png";
 import { useDashboard } from "@/context/DashboardContext";
 
 import { getUserProfile } from "@/modules/users/actions/get-user-profile";
 import { logoutUser } from "@/modules/auth/actions/logout-user";
+import {
+  AdminRole,
+  canAccessAdminRoles,
+} from "@/modules/admin/lib/admin-permissions";
 
 // --- ATUALIZAÇÃO 1: Adicionados campos id e avatarUrl na tipagem ---
 type UserData = {
@@ -33,6 +38,7 @@ type UserData = {
   displayName: string | null;
   email: string | null;
   userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
+  adminRole?: "OWNER" | "FINANCE" | "SUPPORT" | null;
   jobTitle?: string | null;
   avatarUrl?: string | null; // <--- Importante para a imagem
 };
@@ -243,27 +249,39 @@ export default function DashboardSidebar() {
     { icon: Heart, label: "Favoritos", href: "/dashboard/favoritos" },
   ];
 
-  const adminLinks = [
+  const adminLinks: Array<{
+    icon: LucideIcon;
+    label: string;
+    href: string;
+    roles: AdminRole[];
+  }> = [
     {
       icon: User,
       label: "Usuários",
       href: "/dashboard/admin/usuarios",
+      roles: ["OWNER", "SUPPORT"],
     },
     {
       icon: ShieldCheck,
       label: "Mediação",
       href: "/dashboard/admin/disputas",
+      roles: ["OWNER", "SUPPORT"],
     },
     {
       icon: Wallet,
       label: "Tesouraria",
       href: "/dashboard/admin/financeiro",
+      roles: ["OWNER", "FINANCE"],
     },
   ];
 
   const isAdmin = user?.userType === "ADMIN";
+  const adminRole = user?.adminRole ?? "OWNER";
+  const visibleAdminLinks = adminLinks.filter((item) =>
+    canAccessAdminRoles(adminRole, item.roles),
+  );
   const menuItems = isAdmin
-    ? adminLinks
+    ? visibleAdminLinks
     : viewMode === "CLIENT"
       ? clientLinks
       : professionalLinks;

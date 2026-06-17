@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdminUser } from "@/lib/get-session";
+import { requireAdminRole } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { WithdrawalStatus } from "@prisma/client";
@@ -26,7 +26,7 @@ export async function rejectWithdrawal(
   decision: WithdrawalDecision,
   reason: string,
 ): Promise<ActionResponse> {
-  const admin = await requireAdminUser();
+  const admin = await requireAdminRole(["OWNER", "FINANCE"]);
   const normalizedReason = normalizeReason(reason);
 
   if (!withdrawalId) {

@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdminUser } from "@/lib/get-session";
+import { requireAdminRole } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
@@ -13,7 +13,7 @@ const ADMIN_WITHDRAWAL_DECISION_WINDOW_MS = 10 * 60 * 1000;
 export async function approveWithdrawal(
   withdrawalId: string,
 ): Promise<ActionResponse> {
-  const admin = await requireAdminUser();
+  const admin = await requireAdminRole(["OWNER", "FINANCE"]);
 
   if (!withdrawalId) {
     return { success: false, error: "Solicitacao de saque invalida." };

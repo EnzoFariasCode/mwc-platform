@@ -16,6 +16,7 @@ type AuthUserExtras = {
   industry?: "TECH" | "HEALTH";
   jobTitle?: string | null;
   isActive?: boolean;
+  adminRole?: "OWNER" | "FINANCE" | "SUPPORT" | null;
 };
 
 async function getAuthUserFields(userId?: string, email?: string | null) {
@@ -28,9 +29,10 @@ async function getAuthUserFields(userId?: string, email?: string | null) {
       industry: "TECH" | "HEALTH";
       jobTitle: string | null;
       isActive: boolean;
+      adminRole: "OWNER" | "FINANCE" | "SUPPORT" | null;
     }>
   >`
-    SELECT id, "userType", industry, "jobTitle", "isActive"
+    SELECT id, "userType", industry, "jobTitle", "isActive", "adminRole"
     FROM "User"
     WHERE ${userId ? Prisma.sql`id = ${userId}` : Prisma.sql`false`}
       OR ${email ? Prisma.sql`email = ${email}` : Prisma.sql`false`}
@@ -129,6 +131,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           industry: user.industry,
           jobTitle: user.jobTitle,
           isActive: authUser?.isActive ?? true,
+          adminRole: authUser?.adminRole ?? null,
         };
       },
     }),
@@ -160,6 +163,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.industry = dbUser.industry;
         token.jobTitle = dbUser.jobTitle;
         token.isActive = dbUser.isActive;
+        token.adminRole = dbUser.adminRole;
         return token;
       }
 
@@ -170,6 +174,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.industry = authUser.industry || "TECH";
         token.jobTitle = authUser.jobTitle || null;
         token.isActive = authUser.isActive ?? true;
+        token.adminRole = authUser.adminRole ?? null;
       }
 
       return token;
@@ -182,6 +187,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.industry = token.industry as AuthUserExtras["industry"];
         session.user.jobTitle = token.jobTitle as AuthUserExtras["jobTitle"];
         session.user.isActive = token.isActive as boolean | undefined;
+        session.user.adminRole = token.adminRole as AuthUserExtras["adminRole"];
       }
       return session;
     },

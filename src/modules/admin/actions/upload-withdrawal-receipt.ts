@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdminUser } from "@/lib/get-session";
+import { requireAdminRole } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { createAdminAuditLog } from "./audit-log";
@@ -20,7 +20,7 @@ const ALLOWED_RECEIPT_TYPES = new Set([
 export async function uploadWithdrawalReceipt(
   formData: FormData,
 ): Promise<ActionResponse> {
-  const admin = await requireAdminUser();
+  const admin = await requireAdminRole(["OWNER", "FINANCE"]);
 
   const rateLimitError = await consumeRateLimit({
     key: `admin:receipt-upload:user:${admin.id}`,

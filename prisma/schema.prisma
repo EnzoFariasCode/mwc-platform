@@ -17,6 +17,12 @@ enum UserType {
   ADMIN
 }
 
+enum AdminRole {
+  OWNER
+  FINANCE
+  SUPPORT
+}
+
 // Diferencia os "mundos" dentro da plataforma
 enum Industry {
   TECH // Desenvolvedores, Designers, Freelancers (Padrão atual)
@@ -102,16 +108,17 @@ enum HealthSpecialty {
 }
 
 model User {
-  id            String    @id @default(uuid())
+  id            String     @id @default(uuid())
   name          String
   displayName   String?
-  email         String    @unique
+  email         String     @unique
   emailVerified DateTime?
   image         String?
   password      String?
   birthDate     DateTime?
-  userType      UserType  @default(CLIENT)
-  isActive      Boolean   @default(true)
+  userType      UserType   @default(CLIENT)
+  isActive      Boolean    @default(true)
+  adminRole     AdminRole?
 
   // Campo que define de qual "setor" o utilizador é
   industry Industry @default(TECH)
