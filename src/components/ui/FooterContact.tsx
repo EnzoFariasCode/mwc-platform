@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   Facebook,
   Instagram,
@@ -8,6 +8,7 @@ import {
   Youtube,
   Mail,
   Phone,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -21,6 +22,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 function FooterContact() {
   const containerRef = useRef<HTMLElement>(null);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
 
   useGSAP(
     () => {
@@ -146,7 +148,11 @@ function FooterContact() {
             <ul className="space-y-3">
               <li>
                 <Link
-                  href="/sobre"
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setIsAboutOpen(true);
+                  }}
                   className="text-slate-300 hover:text-[#d73cbe] transition-colors"
                 >
                   Sobre nós
@@ -263,6 +269,51 @@ function FooterContact() {
           direitos reservados.
         </p>
       </div>
+
+      {isAboutOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-8 bg-black/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-950 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setIsAboutOpen(false)}
+              className="absolute right-4 top-4 rounded-full border border-white/10 p-2 text-slate-400 transition-colors hover:border-[#d73cbe]/50 hover:text-white cursor-pointer"
+              aria-label="Fechar sobre nos"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="p-8 md:p-10">
+              <span className="text-sm font-bold uppercase tracking-[0.2em] text-[#d73cbe]">
+                Sobre nos
+              </span>
+              <h2 className="mt-4 text-3xl font-bold text-white font-futura">
+                Maximum World Click
+              </h2>
+
+              <div className="mt-6 space-y-4 text-sm md:text-base leading-relaxed text-slate-300">
+                <p>
+                  A MWC esta sendo criada em {new Date().getFullYear()} a partir
+                  da iniciativa de Daniel Sodre e Enzo Costa.
+                </p>
+                <p>
+                  A ideia central e construir um lugar onde qualquer profissional
+                  consiga se cadastrar, apresentar seu trabalho e encontrar novas
+                  oportunidades.
+                </p>
+                <p>
+                  Do outro lado, a plataforma ajuda clientes a encontrar todo
+                  tipo de profissional de forma rapida, facil e mais proxima da
+                  sua necessidade.
+                </p>
+                <p className="text-slate-500">
+                  Esta historia ainda esta em construcao e sera completada em
+                  breve.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </footer>
   );
 }
