@@ -99,6 +99,13 @@ enum ChargebackLiabilityStatus {
   WAIVED
 }
 
+enum NotificationType {
+  MESSAGE
+  SUCCESS
+  WARNING
+  INFO
+}
+
 enum HealthSpecialty {
   PSYCHOLOGIST
   NUTRITIONIST
@@ -226,6 +233,7 @@ model User {
   accounts         Account[]
   sessions         Session[]
   adminAuditLogs   AdminAuditLog[] @relation("AdminAuditActor")
+  notifications    Notification[]  @relation("UserNotifications")
 
   @@index([isActive])
 }
@@ -729,6 +737,28 @@ model Message {
   sender         User         @relation("SentMessages", fields: [senderId], references: [id])
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  actorId    String?
+  type       NotificationType @default(INFO)
+  eventType  String
+  title      String
+  message    String           @db.Text
+  link       String?
+  entityType String
+  entityId   String
+  metadata   Json?            @default("{}")
+  readAt     DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([userId, entityType, entityId, eventType])
+  @@index([userId, readAt, createdAt])
+  @@index([entityType, entityId])
 }
 
 model Favorite {

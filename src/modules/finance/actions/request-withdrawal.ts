@@ -9,6 +9,7 @@ import { ActionResponse } from "@/modules/users/types/user-types";
 import { sendWithdrawalRequestedEmail } from "@/modules/finance/services/withdrawal-email-service";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
+import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
 const MIN_WITHDRAWAL_AMOUNT = new Prisma.Decimal(50);
 const PIX_KEY_TYPES = ["CPF", "CNPJ", "EMAIL", "PHONE", "EVP"] as const;
@@ -107,7 +108,7 @@ export async function requestWithdrawal(
         },
       });
 
-      await tx.withdrawalRequest.create({
+      const withdrawalRequest = await tx.withdrawalRequest.create({
         data: {
           userId: session.id,
           transactionId: transaction.id,
@@ -129,6 +130,7 @@ export async function requestWithdrawal(
       });
 
       return {
+        id: withdrawalRequest.id,
         email: user.email,
         name: user.name,
         amount,
@@ -141,6 +143,21 @@ export async function requestWithdrawal(
     revalidatePath("/agendar-consulta/financeiro");
 
     await sendWithdrawalRequestedEmail(withdrawal);
+    await upsertNotification({
+      userId: session.id,
+      type: "INFO",
+      eventType: "WITHDRAWAL_REQUESTED",
+      title: "Saque solicitado",
+      message: "Sua solicitacao de saque PIX foi registrada e esta pendente de processamento.",
+      link: "/dashboard/financeiro",
+      entityType: "WITHDRAWAL_REQUEST",
+      entityId: withdrawal.id,
+      metadata: {
+        amount: withdrawal.amount.toNumber(),
+        pixKey: withdrawal.pixKey,
+        pixKeyType: withdrawal.pixKeyType,
+      },
+    });
     await sendAdminNotification({
       subject: "MWC Admin - Novo saque PIX pendente",
       lines: [

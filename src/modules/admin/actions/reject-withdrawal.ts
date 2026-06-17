@@ -7,6 +7,7 @@ import { WithdrawalStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { createAdminAuditLog } from "./audit-log";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
+import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
 type WithdrawalDecision = "FAILED" | "CANCELED";
 const ADMIN_WITHDRAWAL_DECISION_LIMIT = 30;
@@ -56,7 +57,7 @@ export async function rejectWithdrawal(
   }
 
   try {
-    await db.$transaction(async (tx) => {
+    const processed = await db.$transaction(async (tx) => {
       const withdrawal = await tx.withdrawalRequest.findUnique({
         where: { id: withdrawalId },
         select: {
@@ -120,6 +121,32 @@ export async function rejectWithdrawal(
           finalStatus: decision,
         },
       });
+
+      return {
+        id: withdrawal.id,
+        userId: withdrawal.userId,
+        amount: withdrawal.amount,
+      };
+    });
+
+    await upsertNotification({
+      userId: processed.userId,
+      actorId: admin.id,
+      type: "WARNING",
+      eventType:
+        decision === "FAILED" ? "WITHDRAWAL_REJECTED" : "WITHDRAWAL_CANCELED",
+      title: decision === "FAILED" ? "Saque reprovado" : "Saque cancelado",
+      message:
+        decision === "FAILED"
+          ? "Seu saque PIX foi reprovado e o valor voltou para sua carteira."
+          : "Seu saque PIX foi cancelado e o valor voltou para sua carteira.",
+      link: "/dashboard/financeiro",
+      entityType: "WITHDRAWAL_REQUEST",
+      entityId: processed.id,
+      metadata: {
+        amount: processed.amount.toNumber(),
+        reason: normalizedReason,
+      },
     });
 
     revalidatePath("/dashboard/admin/financeiro");

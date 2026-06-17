@@ -13,6 +13,7 @@ import {
   isMessageTooLong,
   normalizeMessageContent,
 } from "@/modules/chat/lib/chat-safety";
+import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
 const CHAT_USER_LIMIT = 30;
 const CHAT_PAIR_LIMIT = 12;
@@ -286,6 +287,22 @@ export async function sendMessage(
         content: normalizedContent,
         senderId,
         conversationId: conversation.id,
+      },
+    });
+
+    await upsertNotification({
+      userId: receiverId,
+      actorId: senderId,
+      type: "MESSAGE",
+      eventType: "CHAT_UNREAD",
+      title: "Nova mensagem",
+      message: "Voce recebeu uma nova mensagem no chat.",
+      link: `/dashboard/chat?id=${conversation.id}`,
+      entityType: "CONVERSATION",
+      entityId: conversation.id,
+      metadata: {
+        senderId,
+        messageId: newMessage.id,
       },
     });
 

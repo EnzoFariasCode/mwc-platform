@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { createAdminAuditLog } from "./audit-log";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
+import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
 const ADMIN_WITHDRAWAL_DECISION_LIMIT = 30;
 const ADMIN_WITHDRAWAL_DECISION_WINDOW_MS = 10 * 60 * 1000;
@@ -31,7 +32,7 @@ export async function approveWithdrawal(
   }
 
   try {
-    await db.$transaction(async (tx) => {
+    const approved = await db.$transaction(async (tx) => {
       const withdrawal = await tx.withdrawalRequest.findUnique({
         where: { id: withdrawalId },
         select: {
@@ -78,6 +79,25 @@ export async function approveWithdrawal(
           userId: withdrawal.userId,
         },
       });
+
+      return {
+        id: withdrawal.id,
+        userId: withdrawal.userId,
+        amount: withdrawal.amount,
+      };
+    });
+
+    await upsertNotification({
+      userId: approved.userId,
+      actorId: admin.id,
+      type: "SUCCESS",
+      eventType: "WITHDRAWAL_COMPLETED",
+      title: "Saque PIX transferido",
+      message: "Seu saque PIX foi marcado como transferido pela tesouraria.",
+      link: "/dashboard/financeiro",
+      entityType: "WITHDRAWAL_REQUEST",
+      entityId: approved.id,
+      metadata: { amount: approved.amount.toNumber() },
     });
 
     revalidatePath("/dashboard/admin/financeiro");

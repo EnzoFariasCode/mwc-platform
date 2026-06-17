@@ -4,11 +4,12 @@ import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
 export async function submitDelivery(
   projectId: string,
   link: string,
-  description: string
+  description: string,
 ): Promise<ActionResponse> {
   try {
     const session = await verifySession();
@@ -28,7 +29,7 @@ export async function submitDelivery(
 
     const project = await db.project.findUnique({
       where: { id: projectId },
-      select: { professionalId: true, status: true },
+      select: { id: true, title: true, ownerId: true, professionalId: true, status: true },
     });
 
     if (!project) {
@@ -63,6 +64,19 @@ export async function submitDelivery(
         data: { status: "UNDER_REVIEW" },
       }),
     ]);
+
+    await upsertNotification({
+      userId: project.ownerId,
+      actorId: userId,
+      type: "WARNING",
+      eventType: "TECH_DELIVERY_SUBMITTED",
+      title: "Entrega aguardando aprovacao",
+      message: `O projeto "${project.title}" foi entregue. Revise para aprovar ou pedir ajustes.`,
+      link: "/dashboard/meus-projetos",
+      entityType: "TECH_PROJECT",
+      entityId: project.id,
+      metadata: { projectId: project.id },
+    });
 
     revalidatePath("/dashboard/projetos-ativos");
     revalidatePath("/dashboard/meus-projetos");

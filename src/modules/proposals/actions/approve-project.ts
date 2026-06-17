@@ -4,11 +4,12 @@ import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
 export async function approveProject(
   projectId: string,
   rating: number,
-  comment?: string
+  comment?: string,
 ): Promise<ActionResponse> {
   try {
     const session = await verifySession();
@@ -137,6 +138,22 @@ export async function approveProject(
           ratingCount: nextCount,
         },
       });
+    });
+
+    await upsertNotification({
+      userId: professionalId,
+      actorId: userId,
+      type: "SUCCESS",
+      eventType: "TECH_PAYMENT_RELEASED",
+      title: "Pagamento liberado",
+      message: `O cliente aprovou "${project.title}". O valor ja esta disponivel na sua carteira.`,
+      link: "/dashboard/financeiro",
+      entityType: "TECH_PROJECT",
+      entityId: project.id,
+      metadata: {
+        projectId: project.id,
+        amount: valorProfissional.toNumber(),
+      },
     });
 
     revalidatePath("/dashboard/meus-projetos");

@@ -8,6 +8,7 @@ import { finalizeHealthAppointmentPayment } from "@/modules/health/actions/appoi
 import { sendRefundProcessedEmail } from "@/modules/health/services/transactional-email-service";
 import { Prisma, ProjectCheckoutHoldStatus } from "@prisma/client";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
+import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
@@ -162,6 +163,14 @@ async function reopenProjectOnCheckoutExpired(
 ) {
   if (!proposalId) return;
 
+  const proposal = await db.proposal.findUnique({
+    where: { id: proposalId },
+    select: {
+      projectId: true,
+      project: { select: { title: true } },
+    },
+  });
+
   await db.projectCheckoutHold.updateMany({
     where: {
       proposalId,
@@ -177,6 +186,24 @@ async function reopenProjectOnCheckoutExpired(
       canceledAt: new Date(),
     },
   });
+
+  if (buyerId && proposal) {
+    await upsertNotification({
+      userId: buyerId,
+      type: "WARNING",
+      eventType: "TECH_CHECKOUT_EXPIRED",
+      title: "Checkout expirado",
+      message: `O checkout do projeto "${proposal.project.title}" expirou sem pagamento.`,
+      link: "/dashboard/meus-projetos",
+      entityType: "TECH_PROJECT",
+      entityId: proposal.projectId,
+      metadata: {
+        proposalId,
+        stripeSessionId: stripeSessionId ?? null,
+        holdId: holdId ?? null,
+      },
+    });
+  }
 }
 
 async function handleHealthAppointment(session: Stripe.Checkout.Session) {
@@ -595,6 +622,41 @@ async function handleTechDisputeCreated(
     actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
   });
 
+  await Promise.all([
+    upsertNotification({
+      userId: project.ownerId,
+      type: "WARNING",
+      eventType: "TECH_STRIPE_DISPUTE_CREATED",
+      title: "Contestacao de pagamento aberta",
+      message: `A Stripe abriu uma contestacao no projeto "${project.title}".`,
+      link: "/dashboard/meus-projetos",
+      entityType: "TECH_PROJECT",
+      entityId: project.id,
+      metadata: {
+        stripeDisputeId: dispute.id,
+        paymentIntentId,
+        checkoutSessionId,
+      },
+    }),
+    project.professionalId
+      ? upsertNotification({
+          userId: project.professionalId,
+          type: "WARNING",
+          eventType: "TECH_STRIPE_DISPUTE_CREATED",
+          title: "Contestacao de pagamento aberta",
+          message: `A Stripe abriu uma contestacao no projeto "${project.title}".`,
+          link: "/dashboard/projetos-ativos",
+          entityType: "TECH_PROJECT",
+          entityId: project.id,
+          metadata: {
+            stripeDisputeId: dispute.id,
+            paymentIntentId,
+            checkoutSessionId,
+          },
+        })
+      : Promise.resolve(null),
+  ]);
+
   console.log("[WEBHOOK_TECH_DISPUTE] Project marked as DISPUTE:", project.id);
   return new NextResponse(null, { status: 200 });
 }
@@ -784,6 +846,32 @@ async function handleTechDisputeClosed(
       ],
       actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
     });
+    await Promise.all([
+      upsertNotification({
+        userId: project.ownerId,
+        type: "SUCCESS",
+        eventType: "TECH_STRIPE_DISPUTE_WON",
+        title: "Contestacao vencida",
+        message: `A contestacao Stripe do projeto "${project.title}" foi encerrada a favor da plataforma.`,
+        link: "/dashboard/meus-projetos",
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        metadata: { stripeDisputeId: dispute.id, paymentIntentId },
+      }),
+      project.professionalId
+        ? upsertNotification({
+            userId: project.professionalId,
+            type: "SUCCESS",
+            eventType: "TECH_STRIPE_DISPUTE_WON",
+            title: "Contestacao vencida",
+            message: `A contestacao Stripe do projeto "${project.title}" foi encerrada a favor da plataforma.`,
+            link: "/dashboard/projetos-ativos",
+            entityType: "TECH_PROJECT",
+            entityId: project.id,
+            metadata: { stripeDisputeId: dispute.id, paymentIntentId },
+          })
+        : Promise.resolve(null),
+    ]);
     return new NextResponse(null, { status: 200 });
   }
 
@@ -933,6 +1021,32 @@ async function handleTechDisputeClosed(
       ],
       actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
     });
+    await Promise.all([
+      upsertNotification({
+        userId: project.ownerId,
+        type: "WARNING",
+        eventType: "TECH_STRIPE_DISPUTE_LOST",
+        title: "Contestacao perdida",
+        message: `A contestacao Stripe do projeto "${project.title}" foi perdida e o projeto foi cancelado.`,
+        link: "/dashboard/meus-projetos",
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        metadata: { stripeDisputeId: dispute.id, paymentIntentId },
+      }),
+      project.professionalId
+        ? upsertNotification({
+            userId: project.professionalId,
+            type: "WARNING",
+            eventType: "TECH_STRIPE_DISPUTE_LOST",
+            title: "Contestacao perdida",
+            message: `A contestacao Stripe do projeto "${project.title}" foi perdida. Verifique seu financeiro.`,
+            link: "/dashboard/financeiro",
+            entityType: "TECH_PROJECT",
+            entityId: project.id,
+            metadata: { stripeDisputeId: dispute.id, paymentIntentId },
+          })
+        : Promise.resolve(null),
+    ]);
   }
 
   return new NextResponse(null, { status: 200 });

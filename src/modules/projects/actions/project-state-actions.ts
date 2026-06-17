@@ -9,6 +9,7 @@ import { Prisma, ProjectStatus, ProposalStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
+import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
 const PLATFORM_FEE_PERCENT = 10;
 const ADMIN_DISPUTE_DECISION_LIMIT = 20;
@@ -88,7 +89,7 @@ export async function withdrawProposal(
         status: true,
         professionalId: true,
         projectId: true,
-        project: { select: { status: true } },
+        project: { select: { status: true, title: true, ownerId: true } },
       },
     });
 
@@ -126,6 +127,19 @@ export async function withdrawProposal(
 
     techProjectPaths(proposal.projectId, userId);
 
+    await upsertNotification({
+      userId: proposal.project.ownerId,
+      actorId: userId,
+      type: "INFO",
+      eventType: "TECH_PROPOSAL_WITHDRAWN",
+      title: "Proposta retirada",
+      message: `Uma proposta para "${proposal.project.title}" foi retirada pelo profissional.`,
+      link: "/dashboard/meus-projetos",
+      entityType: "TECH_PROJECT",
+      entityId: proposal.projectId,
+      metadata: { proposalId: proposal.id, professionalId: userId },
+    });
+
     return { success: true };
   } catch (error) {
     console.error("[WITHDRAW_TECH_PROPOSAL_ERROR]", error);
@@ -157,6 +171,7 @@ export async function cancelTechProject(
       where: { id: projectId },
       select: {
         id: true,
+        title: true,
         ownerId: true,
         status: true,
         professionalId: true,
@@ -207,15 +222,30 @@ export async function cancelTechProject(
     techProjectPaths(project.id, project.professionalId);
 
     await sendAdminNotification({
-      subject: "MWC Admin - Disputa Tech aberta",
+      subject: "MWC Admin - Projeto Tech cancelado",
       lines: [
-        "Uma disputa Tech foi aberta e precisa de acompanhamento.",
+        "Um projeto Tech foi cancelado antes do fluxo de disputa.",
         `Projeto: ${project.id}`,
-        `Aberta por: ${userId}`,
-        `Motivo: ${normalizedReason}`,
+        `Cancelado por: ${userId}`,
+        `Motivo: ${normalizedReason || "Nao informado"}`,
       ],
       actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
     });
+
+    if (project.professionalId) {
+      await upsertNotification({
+        userId: project.professionalId,
+        actorId: userId,
+        type: "WARNING",
+        eventType: "TECH_PROJECT_CANCELED",
+        title: "Projeto cancelado",
+        message: `O projeto "${project.title}" foi cancelado pelo cliente.`,
+        link: "/dashboard/projetos-ativos",
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        metadata: { reason: normalizedReason || null },
+      });
+    }
 
     return { success: true };
   } catch (error) {
@@ -251,6 +281,7 @@ export async function requestTechProjectRevision(
       where: { id: projectId },
       select: {
         id: true,
+        title: true,
         ownerId: true,
         status: true,
         professionalId: true,
@@ -287,6 +318,21 @@ export async function requestTechProjectRevision(
 
     techProjectPaths(project.id, project.professionalId);
 
+    if (project.professionalId) {
+      await upsertNotification({
+        userId: project.professionalId,
+        actorId: userId,
+        type: "WARNING",
+        eventType: "TECH_REVISION_REQUESTED",
+        title: "Revisao solicitada",
+        message: `O cliente pediu ajustes no projeto "${project.title}".`,
+        link: "/dashboard/projetos-ativos",
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        metadata: { reason: normalizedReason },
+      });
+    }
+
     return { success: true };
   } catch (error) {
     console.error("[REQUEST_TECH_PROJECT_REVISION_ERROR]", error);
@@ -317,6 +363,7 @@ export async function openTechProjectDispute(
       where: { id: projectId },
       select: {
         id: true,
+        title: true,
         ownerId: true,
         professionalId: true,
         status: true,
@@ -370,6 +417,24 @@ export async function openTechProjectDispute(
     });
 
     techProjectPaths(project.id, project.professionalId);
+
+    const counterpartyId =
+      project.ownerId === userId ? project.professionalId : project.ownerId;
+
+    if (counterpartyId) {
+      await upsertNotification({
+        userId: counterpartyId,
+        actorId: userId,
+        type: "WARNING",
+        eventType: "TECH_DISPUTE_OPENED",
+        title: "Disputa aberta",
+        message: `Uma disputa foi aberta no projeto "${project.title}".`,
+        link: "/dashboard/projetos-ativos",
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        metadata: { reason: normalizedReason },
+      });
+    }
 
     return { success: true };
   } catch (error) {
@@ -645,6 +710,46 @@ export async function resolveTechProjectDispute({
         `Motivo: ${normalizedReason || "Nao informado"}`,
       ],
       actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
+    });
+
+    const clientWon = decision === "REFUND_CLIENT";
+
+    await upsertNotification({
+      userId: project.ownerId,
+      actorId: admin.session.sub,
+      type: clientWon ? "SUCCESS" : "INFO",
+      eventType: "TECH_DISPUTE_RESOLVED",
+      title: "Disputa resolvida",
+      message: clientWon
+        ? `A mediacao aprovou o reembolso do projeto "${project.title}".`
+        : `A mediacao liberou o pagamento do projeto "${project.title}" ao profissional.`,
+      link: "/dashboard/meus-projetos",
+      entityType: "TECH_PROJECT",
+      entityId: project.id,
+      metadata: {
+        decision,
+        reason: normalizedReason || null,
+        amount: project.agreedPrice.toNumber(),
+      },
+    });
+
+    await upsertNotification({
+      userId: project.professionalId,
+      actorId: admin.session.sub,
+      type: clientWon ? "WARNING" : "SUCCESS",
+      eventType: "TECH_DISPUTE_RESOLVED",
+      title: "Disputa resolvida",
+      message: clientWon
+        ? `A mediacao aprovou o reembolso do projeto "${project.title}".`
+        : `A mediacao liberou o pagamento do projeto "${project.title}" para sua carteira.`,
+      link: "/dashboard/projetos-ativos",
+      entityType: "TECH_PROJECT",
+      entityId: project.id,
+      metadata: {
+        decision,
+        reason: normalizedReason || null,
+        amount: project.agreedPrice.toNumber(),
+      },
     });
 
     return { success: true };

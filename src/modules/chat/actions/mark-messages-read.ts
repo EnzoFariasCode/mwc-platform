@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { markEntityNotificationsRead } from "@/modules/notifications/services/notification-service";
 
 export async function markMessagesAsRead(
   targetUserId: string
@@ -55,6 +56,12 @@ export async function markMessagesAsRead(
         read: false,
       },
       data: { read: true },
+    });
+
+    await markEntityNotificationsRead({
+      userId: myId,
+      entityType: "CONVERSATION",
+      entityId: conversation.id,
     });
 
     revalidatePath("/dashboard/chat");

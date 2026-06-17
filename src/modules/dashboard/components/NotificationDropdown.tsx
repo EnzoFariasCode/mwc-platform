@@ -13,6 +13,10 @@ import {
 import Link from "next/link";
 
 import { getNotifications } from "@/modules/notifications/actions/get-notifications";
+import {
+  markAllUserNotificationsAsRead,
+  markNotificationAsRead,
+} from "@/modules/notifications/actions/mark-notifications-read";
 
 type NotificationItem = {
   id: string | number;
@@ -72,11 +76,16 @@ export function NotificationDropdown() {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
+    const notificationId = String(id);
+    if (!notificationId.startsWith("legacy-")) {
+      void markNotificationAsRead(notificationId);
+    }
     setIsOpen(false);
   };
 
   const markAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    void markAllUserNotificationsAsRead();
   };
 
   return (

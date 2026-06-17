@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth"; // Certifique-se que o verifySession está sendo exportado do seu lib/auth
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
 // 👇 ESSA PARTE É OBRIGATÓRIA PARA O ERRO SUMIR
 interface CreateProposalData {
@@ -79,7 +80,7 @@ export async function createProposal(
     }
 
     // 4. Cria a Proposta
-    await db.proposal.create({
+    const proposal = await db.proposal.create({
       data: {
         projectId: data.projectId,
         professionalId: userId,
@@ -96,7 +97,25 @@ export async function createProposal(
       data: { bidsCount: { increment: 1 } },
     });
 
+    await upsertNotification({
+      userId: project.ownerId,
+      actorId: userId,
+      type: "INFO",
+      eventType: "TECH_PROPOSAL_RECEIVED",
+      title: "Nova proposta recebida",
+      message: `Seu projeto "${project.title}" recebeu uma nova proposta.`,
+      link: "/dashboard/meus-projetos",
+      entityType: "TECH_PROJECT",
+      entityId: project.id,
+      metadata: {
+        proposalId: proposal.id,
+        professionalId: userId,
+        price: data.price,
+      },
+    });
+
     revalidatePath(`/dashboard/encontrar-projetos/${data.projectId}`);
+    revalidatePath("/dashboard/meus-projetos");
     return { success: true };
   } catch (error) {
     console.error("Erro ao criar proposta:", error);

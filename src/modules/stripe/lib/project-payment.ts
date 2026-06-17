@@ -6,6 +6,7 @@ import {
   ProjectStatus,
   ProposalStatus,
 } from "@prisma/client";
+import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
 type FinalizeProjectPaymentInput = {
   proposalId: string;
@@ -211,7 +212,29 @@ export async function finalizeProjectPayment({
       return { success: true };
     });
 
-    return result as FinalizeProjectPaymentResult;
+    const finalResult = result as FinalizeProjectPaymentResult;
+
+    if (finalResult.success && !finalResult.alreadyProcessed) {
+      await upsertNotification({
+        userId: proposal.professionalId,
+        actorId: buyerId,
+        type: "SUCCESS",
+        eventType: "TECH_PROJECT_PAYMENT_CONFIRMED",
+        title: "Pagamento confirmado",
+        message: `O cliente pagou pelo projeto "${proposal.project.title}". Voce ja pode iniciar o trabalho.`,
+        link: "/dashboard/projetos-ativos",
+        entityType: "TECH_PROJECT",
+        entityId: proposal.projectId,
+        metadata: {
+          proposalId,
+          amount: proposal.price.toNumber(),
+          stripeSessionId: stripeSessionId ?? null,
+          source,
+        },
+      });
+    }
+
+    return finalResult;
   } catch (error) {
     console.error("Erro ao finalizar pagamento do projeto:", error);
     return { success: false, error: "Erro interno ao processar pagamento." };

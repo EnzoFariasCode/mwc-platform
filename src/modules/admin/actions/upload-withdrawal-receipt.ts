@@ -6,6 +6,7 @@ import { db } from "@/lib/prisma";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { createAdminAuditLog } from "./audit-log";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
+import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 const RECEIPT_UPLOAD_LIMIT = 10;
@@ -109,6 +110,29 @@ export async function uploadWithdrawalReceipt(
         },
       });
     });
+
+    const withdrawal = await db.withdrawalRequest.findUnique({
+      where: { id: auditLog.entityId },
+      select: { userId: true },
+    });
+
+    if (withdrawal) {
+      await upsertNotification({
+        userId: withdrawal.userId,
+        actorId: admin.id,
+        type: "SUCCESS",
+        eventType: "WITHDRAWAL_RECEIPT_ATTACHED",
+        title: "Comprovante anexado",
+        message: "A tesouraria anexou o comprovante do seu saque PIX.",
+        link: "/dashboard/financeiro",
+        entityType: "WITHDRAWAL_REQUEST",
+        entityId: auditLog.entityId,
+        metadata: {
+          receiptUrl,
+          receiptFileName: file.name,
+        },
+      });
+    }
 
     revalidatePath("/dashboard/admin/financeiro");
     revalidatePath(`/dashboard/admin/disputas`);
