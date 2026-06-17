@@ -125,9 +125,12 @@ export function ProfessionalSearch({
   };
 
   const displayCategories = ["Todas", ...dbCategories];
+  const containerSpacing = isDashboard
+    ? "pt-8 pb-8"
+    : "pt-28 pb-8 md:pt-32";
 
   return (
-    <div className="container mx-auto px-4 pt-28 pb-8 md:pt-8 md:pb-8">
+    <div className={`container mx-auto px-4 ${containerSpacing}`}>
       {/* CABEÇALHO */}
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>

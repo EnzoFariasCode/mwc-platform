@@ -6,7 +6,7 @@ import { ProfessionalSearch } from "@/modules/search/components/professional-sea
 
 export default function SearchPage() {
   return (
-    <div className="container mx-auto px-4 py-8 min-h-screen">
+    <div className="min-h-screen">
       <Suspense
         fallback={
           <div className="p-20 text-center text-white">Carregando busca...</div>
