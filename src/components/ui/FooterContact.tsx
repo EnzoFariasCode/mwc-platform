@@ -1,15 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import {
-  Facebook,
-  Instagram,
-  Linkedin,
-  Youtube,
-  Mail,
-  Phone,
-  X,
-} from "lucide-react";
+import { Instagram, Linkedin, Mail, Phone, X } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import gsap from "gsap";
@@ -108,15 +100,10 @@ function FooterContact() {
 
           {/* Ícones Sociais */}
           <div className="flex gap-4 p-3 border border-white/10 rounded-xl bg-white/5 backdrop-blur-sm">
-            {/* Adicionei 'gsap-social-icon' em cada um */}
             <a
-              href="#"
-              className="gsap-social-icon p-2 hover:bg-white/10 rounded-lg transition-colors group"
-            >
-              <Facebook className="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-colors" />
-            </a>
-            <a
-              href="#"
+              href="https://www.instagram.com/maxi.musworldclick/"
+              target="_blank"
+              rel="noopener noreferrer"
               className="gsap-social-icon p-2 hover:bg-white/10 rounded-lg transition-colors group"
             >
               <Instagram className="w-5 h-5 text-slate-400 group-hover:text-pink-500 transition-colors" />
@@ -126,12 +113,6 @@ function FooterContact() {
               className="gsap-social-icon p-2 hover:bg-white/10 rounded-lg transition-colors group"
             >
               <Linkedin className="w-5 h-5 text-slate-400 group-hover:text-blue-400 transition-colors" />
-            </a>
-            <a
-              href="#"
-              className="gsap-social-icon p-2 hover:bg-white/10 rounded-lg transition-colors group"
-            >
-              <Youtube className="w-5 h-5 text-slate-400 group-hover:text-red-500 transition-colors" />
             </a>
           </div>
         </div>
