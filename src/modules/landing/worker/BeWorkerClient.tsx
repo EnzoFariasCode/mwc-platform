@@ -28,21 +28,22 @@ gsap.registerPlugin(ScrollTrigger);
 // ... (Subcomponentes SvgButton e FeatureCard continuam iguais, não precisa alterar) ...
 const SvgButton = ({ text, href }: { text: string; href: string }) => (
   <div className="relative w-[240px] h-[60px] group">
-    <Link href={href} className="block w-full h-full relative z-10">
-      <button className="w-full h-full cursor-pointer bg-transparent outline-none relative flex items-center justify-center">
-        <svg
-          width="240px"
-          height="60px"
-          viewBox="0 0 240 60"
-          className="absolute top-0 left-0 fill-none stroke-[#d73cbe] transition-all duration-1000 ease-in-out [stroke-dasharray:150_600] [stroke-dashoffset:150] group-hover:[stroke-dashoffset:-600] group-hover:fill-[#d73cbe]/10"
-        >
-          <polyline points="239,1 239,59 1,59 1,1 239,1" strokeWidth="2" />
-        </svg>
-        <div className="absolute inset-0 border border-white/20 pointer-events-none transition-opacity duration-500 group-hover:opacity-0"></div>
-        <span className="text-white text-base font-bold tracking-widest uppercase relative z-20">
-          {text}
-        </span>
-      </button>
+    <Link
+      href={href}
+      className="block w-full h-full cursor-pointer bg-transparent outline-none relative z-10 flex items-center justify-center"
+    >
+      <svg
+        width="240px"
+        height="60px"
+        viewBox="0 0 240 60"
+        className="absolute top-0 left-0 fill-none stroke-[#d73cbe] transition-all duration-1000 ease-in-out [stroke-dasharray:150_600] [stroke-dashoffset:150] group-hover:[stroke-dashoffset:-600] group-hover:fill-[#d73cbe]/10"
+      >
+        <polyline points="239,1 239,59 1,59 1,1 239,1" strokeWidth="2" />
+      </svg>
+      <div className="absolute inset-0 border border-white/20 pointer-events-none transition-opacity duration-500 group-hover:opacity-0" />
+      <span className="text-white text-base font-bold tracking-widest uppercase relative z-20">
+        {text}
+      </span>
     </Link>
   </div>
 );
