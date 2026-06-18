@@ -20,12 +20,10 @@ import heroBg from "@/assets/images/howToBeWorker/hero-bg.jpg";
 import dashboard from "@/assets/images/howToBeWorker/dashboard-mockup.png";
 import type { TechPlanDisplayPrices } from "@/modules/subscriptions/tech-plan-pricing";
 
-// Importa o PricingSection (que agora tem as classes certas)
 import { PricingSection } from "@/modules/landing/PricingSection/index";
 
 gsap.registerPlugin(ScrollTrigger);
 
-// ... (Subcomponentes SvgButton e FeatureCard continuam iguais, não precisa alterar) ...
 const SvgButton = ({ text, href }: { text: string; href: string }) => (
   <div className="relative w-[240px] h-[60px] group">
     <Link
@@ -72,7 +70,6 @@ function FeatureCard({
   );
 }
 
-// --- ADICIONADO userType AQUI ---
 interface BeWorkerClientProps {
   isLoggedIn: boolean;
   userStatus: "active" | "inactive" | null;
@@ -84,7 +81,7 @@ interface BeWorkerClientProps {
 export default function BeWorkerClient({
   isLoggedIn,
   userStatus,
-  userType, // --- ADICIONADO AQUI ---
+  userType,
   industry,
   planPrices,
 }: BeWorkerClientProps) {
@@ -122,11 +119,9 @@ export default function BeWorkerClient({
 
   useGSAP(
     (context, contextSafe) => {
-      // contextSafe é necessário para os eventos de mouse
       const tl = gsap.timeline();
       const hoverCleanups: Array<() => void> = [];
 
-      // 1. HERO ANIMATION
       tl.fromTo(
         ".gsap-hero-title",
         { y: 50, opacity: 0 },
@@ -145,7 +140,6 @@ export default function BeWorkerClient({
           "-=0.5",
         );
 
-      // 2. FEATURES ANIMATION
       gsap.fromTo(
         ".gsap-feature-card",
         { y: 50, opacity: 0 },
@@ -159,7 +153,6 @@ export default function BeWorkerClient({
         },
       );
 
-      // 3. DASHBOARD ANIMATION
       gsap.fromTo(
         ".gsap-dash-content",
         { x: -50, opacity: 0 },
@@ -184,9 +177,8 @@ export default function BeWorkerClient({
         },
       );
 
-      // 4. PLANOS PREMIUM ANIMATION (RESTAURADO)
       gsap.fromTo(
-        ".gsap-plan-card-premium", // Agora essa classe existe dentro do PricingSection
+        ".gsap-plan-card-premium",
         { y: 60, opacity: 0, scale: 0.95 },
         {
           y: 0,
@@ -196,13 +188,12 @@ export default function BeWorkerClient({
           stagger: 0.2,
           ease: "power3.out",
           scrollTrigger: {
-            trigger: "#planos", // O ID #planos está no PricingSection, o ScrollTrigger consegue ver
+            trigger: "#planos",
             start: "top 70%",
           },
         },
       );
 
-      // 5. HOVER EFFECTS NOS CARDS (RESTAURADO)
       if (contextSafe) {
         const cards = gsap.utils.toArray<HTMLElement>(
           ".gsap-plan-card-premium",
@@ -213,7 +204,7 @@ export default function BeWorkerClient({
             card.querySelector<HTMLButtonElement>(".gsap-cta-button");
           const blurOverlay =
             ctaButton?.querySelector<HTMLSpanElement>(".cta-blur");
-          const isHighlighted = card.dataset.highlighted === "true"; // Pegamos o data attribute
+          const isHighlighted = card.dataset.highlighted === "true";
           const originalScale = 1;
 
           const onEnter = contextSafe(() => {
@@ -287,7 +278,6 @@ export default function BeWorkerClient({
       ref={containerRef}
       className="flex flex-col gap-0 bg-slate-950 overflow-x-hidden"
     >
-      {/* ... Hero, Como Funciona e Dashboard ... (Mantém igual) */}
       <section className="relative py-24 lg:py-32 overflow-hidden min-h-[650px] flex items-center">
         <div
           className="absolute inset-0 z-0 bg-no-repeat bg-cover bg-fixed bg-center-bottom opacity-60"
@@ -394,7 +384,6 @@ export default function BeWorkerClient({
         </div>
       </section>
 
-      {/* --- REPASSANDO O userType PARA O PRICING SECTION --- */}
       <PricingSection 
         isLoggedIn={isLoggedIn} 
         userStatus={userStatus} 

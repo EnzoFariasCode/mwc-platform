@@ -8,7 +8,7 @@ import {
   Zap,
   Settings,
   ArrowRight,
-  AlertTriangle, // <-- Adicionado para o ícone do Modal
+  AlertTriangle,
 } from "lucide-react";
 import { createCheckoutSession } from "@/modules/stripe/actions/create-checkout-session";
 import { createPortalSession } from "@/modules/stripe/actions/create-portal-session";
@@ -68,7 +68,7 @@ const plansData: Array<{
 interface PricingSectionProps {
   userStatus?: "active" | "inactive" | null;
   isLoggedIn: boolean;
-  userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN" | null; // <-- NOVA PROP
+  userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN" | null;
   industry?: "TECH" | "HEALTH" | null;
   planPrices: TechPlanDisplayPrices;
 }
@@ -81,18 +81,16 @@ export function PricingSection({
   planPrices,
 }: PricingSectionProps) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [showClientModal, setShowClientModal] = useState(false); // <-- ESTADO DO MODAL
+  const [showClientModal, setShowClientModal] = useState(false);
   const [showIndustryModal, setShowIndustryModal] = useState(false);
   const router = useRouter();
 
   const handleAction = async (planId: string) => {
-    // 1. Checa se está logado
     if (!isLoggedIn) {
       router.push("/login");
       return;
     }
 
-    // 2. Trava de Segurança: Se for CLIENTE, mostra o modal e para a execução
     if (userType === "CLIENT") {
       setShowClientModal(true);
       return;
@@ -105,12 +103,10 @@ export function PricingSection({
 
     setLoadingId(planId);
 
-    // 3. Se for PROFISSIONAL ativo, manda pro portal
     if (userStatus === "active") {
       try {
         const result = await createPortalSession();
 
-        // 🛡️ CORREÇÃO 1: Abrindo a 'caixa' do ActionResponse
         if (result.success && result.data?.url) {
           window.location.href = result.data.url;
         } else {
@@ -124,17 +120,14 @@ export function PricingSection({
       return;
     }
 
-    // 4. Se for PROFISSIONAL inativo, manda pro checkout
     try {
       const result = await createCheckoutSession(
         planId as "starter" | "advanced",
       );
 
-      // 🛡️ CORREÇÃO 2: Aplicando a mesma blindagem no Checkout (SEM USAR ANY!)
       if (!result.success) {
         toast.error(result.error || "Erro ao iniciar pagamento.");
 
-        // Avisamos ao TypeScript o formato exato que estamos esperando
         const errorData = result.data as { redirectUrl?: string } | undefined;
 
         if (errorData?.redirectUrl) {
@@ -165,7 +158,6 @@ export function PricingSection({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-start">
-            {/* --- PLANO GRATUITO --- */}
             <div className="gsap-plan-card-premium bg-white/5 border border-white/10 p-8 rounded-3xl opacity-0">
               <h3 className="text-xl font-bold text-white mb-2">Gratuito</h3>
               <p className="text-slate-400 text-sm mb-6">
@@ -199,7 +191,6 @@ export function PricingSection({
               </button>
             </div>
 
-            {/* --- PLANOS PAGOS --- */}
             {plansData.map((plan) => (
               <div
                 key={plan.id}
@@ -272,7 +263,6 @@ export function PricingSection({
         </div>
       </section>
 
-      {/* --- MODAL DE AVISO PARA CLIENTES --- */}
       {showClientModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-200">
