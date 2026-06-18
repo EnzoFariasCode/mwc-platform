@@ -145,10 +145,10 @@ export function PricingSection({
 
   return (
     <>
-      <section id="planos" className="py-24 relative bg-slate-900/20">
+      <section id="planos" className="relative bg-slate-900/20 py-16 sm:py-24">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 font-futura">
+          <div className="mb-10 text-center sm:mb-16">
+            <h2 className="mb-4 font-futura text-2xl font-bold text-white sm:text-3xl md:text-4xl">
               Escolha seu nível de atuação
             </h2>
             <p className="text-slate-400 max-w-2xl mx-auto">
@@ -158,12 +158,14 @@ export function PricingSection({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-start">
-            <div className="gsap-plan-card-premium bg-white/5 border border-white/10 p-8 rounded-3xl opacity-0">
+            <div className="gsap-plan-card-premium rounded-3xl border border-white/10 bg-white/5 p-6 opacity-0 sm:p-8">
               <h3 className="text-xl font-bold text-white mb-2">Gratuito</h3>
               <p className="text-slate-400 text-sm mb-6">
                 Para quem está começando.
               </p>
-              <div className="text-4xl font-bold text-white mb-6">R$ 0,00</div>
+              <div className="mb-6 text-3xl font-bold text-white sm:text-4xl">
+                R$ 0,00
+              </div>
               <ul className="space-y-3 mb-8 text-sm text-slate-300">
                 <li className="flex gap-2">
                   <Check className="w-4 h-4 text-slate-500" /> 1 Trabalho por
@@ -195,7 +197,7 @@ export function PricingSection({
               <div
                 key={plan.id}
                 data-highlighted={plan.highlight}
-                className={`gsap-plan-card-premium relative p-8 rounded-3xl transition-colors opacity-0
+                className={`gsap-plan-card-premium relative rounded-3xl p-6 opacity-0 transition-colors sm:p-8
                   ${
                     plan.highlight
                       ? "bg-slate-900/80 border-2 border-[#d73cbe]"
@@ -221,7 +223,7 @@ export function PricingSection({
                   {plan.description}
                 </p>
 
-                <div className="text-4xl font-bold text-white mb-6">
+                <div className="mb-6 text-3xl font-bold text-white sm:text-4xl">
                   {planPrices[plan.id].price}{" "}
                   <span className="text-sm text-slate-500 ml-1">
                     {planPrices[plan.id].period}
@@ -240,7 +242,7 @@ export function PricingSection({
                 <button
                   onClick={() => handleAction(plan.id)}
                   disabled={loadingId !== null}
-                  className={`gsap-cta-button w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden ${plan.buttonStyle}`}
+                  className={`gsap-cta-button relative flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-xl py-4 text-center text-xs font-bold transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm ${plan.buttonStyle}`}
                 >
                   <span className="relative z-10 flex items-center gap-2">
                     {loadingId === plan.id ? (

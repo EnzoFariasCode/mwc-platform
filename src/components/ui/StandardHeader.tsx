@@ -17,7 +17,7 @@ const StandardHeader = async () => {
 
   return (
     <header className="fixed top-0 w-full z-50 border-b border-white/10 backdrop-blur-md bg-slate-950/80 transition-all duration-300">
-      <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+      <div className="container mx-auto flex h-20 items-center justify-between px-3 sm:px-4">
         <Link
           href="/"
           className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity h-full py-4"
@@ -25,17 +25,17 @@ const StandardHeader = async () => {
           <Image
             src={Logo}
             alt="MWC Logo"
-            className="h-12 w-auto object-contain"
+            className="h-10 w-auto object-contain sm:h-12"
             priority
           />
-          <span className="text-white font-bold text-xl tracking-wider font-futura pt-1">
+          <span className="pt-1 font-futura text-lg font-bold tracking-wider text-white sm:text-xl">
             MWC
           </span>
         </Link>
 
         <div className="flex-1"></div>
 
-        <nav className="flex items-center gap-6">
+        <nav className="flex items-center gap-3 sm:gap-6">
           <Link
             href="/"
             className="text-sm font-medium text-slate-300 hover:text-[#d73cbe] transition-colors hidden sm:block"
@@ -53,7 +53,7 @@ const StandardHeader = async () => {
           {session ? (
             <Link
               href={dashboardLink}
-              className="px-6 py-2 rounded-full text-white font-bold text-sm bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all transform hover:-translate-y-0.5 flex items-center gap-2"
+              className="flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-500/20 transition-all hover:-translate-y-0.5 hover:bg-indigo-500 hover:shadow-indigo-500/40 sm:px-6"
             >
               <LayoutDashboard className="w-4 h-4" />
               Dashboard
@@ -61,7 +61,7 @@ const StandardHeader = async () => {
           ) : (
             <Link
               href="/login"
-              className="px-6 py-2 rounded-full text-white font-bold text-sm bg-[#d73cbe] hover:bg-[#c02aa8] shadow-lg shadow-[#d73cbe]/20 hover:shadow-[#d73cbe]/40 transition-all transform hover:-translate-y-0.5"
+              className="rounded-full bg-[#d73cbe] px-4 py-2 text-sm font-bold text-white shadow-lg shadow-[#d73cbe]/20 transition-all hover:-translate-y-0.5 hover:bg-[#c02aa8] hover:shadow-[#d73cbe]/40 sm:px-6"
             >
               Login
             </Link>

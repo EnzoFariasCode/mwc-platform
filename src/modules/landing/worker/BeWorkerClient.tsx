@@ -25,7 +25,7 @@ import { PricingSection } from "@/modules/landing/PricingSection/index";
 gsap.registerPlugin(ScrollTrigger);
 
 const SvgButton = ({ text, href }: { text: string; href: string }) => (
-  <div className="relative w-[240px] h-[60px] group">
+  <div className="relative h-[60px] w-full max-w-[240px] group">
     <Link
       href={href}
       className="block w-full h-full cursor-pointer bg-transparent outline-none relative z-10 flex items-center justify-center"
@@ -278,24 +278,24 @@ export default function BeWorkerClient({
       ref={containerRef}
       className="flex flex-col gap-0 bg-slate-950 overflow-x-hidden"
     >
-      <section className="relative py-24 lg:py-32 overflow-hidden min-h-[650px] flex items-center">
+      <section className="relative flex min-h-[620px] items-center overflow-hidden pb-16 pt-28 sm:min-h-[650px] sm:py-24 lg:py-32">
         <div
-          className="absolute inset-0 z-0 bg-no-repeat bg-cover bg-fixed bg-center-bottom opacity-60"
+          className="absolute inset-0 z-0 bg-cover bg-center-bottom bg-no-repeat opacity-60 lg:bg-fixed"
           style={{ backgroundImage: `url(${heroBg.src})` }}
         />
         <div className="absolute inset-0 z-0 bg-gradient-to-t from-slate-950 via-slate-950/85 to-slate-900/70"></div>
         <div className="container mx-auto px-4 relative z-10 text-center flex flex-col items-center">
-          <h1 className="gsap-hero-title opacity-0 text-4xl md:text-5xl lg:text-6xl font-bold font-futura text-white mb-6 leading-tight drop-shadow-2xl">
+          <h1 className="gsap-hero-title mb-6 font-futura text-3xl font-bold leading-tight text-white opacity-0 drop-shadow-2xl sm:text-4xl md:text-5xl lg:text-6xl">
             Transforme suas habilidades <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d73cbe] to-violet-400">
               em Renda Extra e Recorrente
             </span>
           </h1>
-          <p className="gsap-hero-text opacity-0 text-slate-200 text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed drop-shadow-lg font-medium">
+          <p className="gsap-hero-text mx-auto mb-10 max-w-2xl text-base font-medium leading-relaxed text-slate-200 opacity-0 drop-shadow-lg sm:mb-12 sm:text-lg md:text-xl">
             O método mais seguro e descomplicado do mercado. Você foca no
             trabalho, nós garantimos o pagamento e a segurança.
           </p>
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center w-full">
+          <div className="flex w-full max-w-sm flex-col items-center justify-center gap-6 sm:max-w-none sm:flex-row">
             <div className="gsap-hero-btn opacity-0">
               <SvgButton text={primaryCta.text} href={primaryCta.href} />
             </div>
@@ -306,7 +306,7 @@ export default function BeWorkerClient({
         </div>
       </section>
 
-      <section id="como-funciona" className="py-20 bg-slate-900/50">
+      <section id="como-funciona" className="bg-slate-900/50 py-16 sm:py-20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-white mb-4 font-futura">
@@ -345,10 +345,10 @@ export default function BeWorkerClient({
         </div>
       </section>
 
-      <section className="gsap-dash-section py-20 border-t border-white/5 bg-slate-950 overflow-hidden">
-        <div className="container mx-auto px-4 flex flex-col md:flex-row items-center gap-12">
+      <section className="gsap-dash-section overflow-hidden border-t border-white/5 bg-slate-950 py-16 sm:py-20">
+        <div className="container mx-auto flex flex-col items-center gap-10 px-4 md:flex-row lg:gap-12">
           <div className="gsap-dash-content opacity-0 flex-1 space-y-6">
-            <h2 className="text-4xl font-bold text-white font-futura">
+            <h2 className="font-futura text-3xl font-bold text-white md:text-4xl">
               Controle total na palma da mão
             </h2>
             <p className="text-slate-400 text-lg leading-relaxed">
