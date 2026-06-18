@@ -5,6 +5,7 @@ import { verifySession } from "@/lib/auth"; // Certifique-se que o verifySession
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
+import { getTechPlanLimits } from "@/modules/subscriptions/tech-plan";
 
 // 👇 ESSA PARTE É OBRIGATÓRIA PARA O ERRO SUMIR
 interface CreateProposalData {
@@ -38,7 +39,12 @@ export async function createProposal(
     // 1. Verifica se o usuário é Profissional
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { userType: true },
+      select: {
+        userType: true,
+        stripeSubscriptionStatus: true,
+        stripePriceId: true,
+        professionalPlanTier: true,
+      },
     });
 
     if (user?.userType !== "PROFESSIONAL") {
@@ -49,6 +55,21 @@ export async function createProposal(
     }
 
     // 2. Verifica se o projeto existe e está ABERTO
+    const planLimits = getTechPlanLimits(user);
+    const activeProjectsCount = await db.project.count({
+      where: {
+        professionalId: userId,
+        status: { in: ["IN_PROGRESS", "UNDER_REVIEW", "DISPUTE"] },
+      },
+    });
+
+    if (activeProjectsCount >= planLimits.maxActiveProjects) {
+      return {
+        success: false,
+        error: `Seu plano ${planLimits.label} permite ate ${planLimits.maxActiveProjects} trabalho(s) simultaneo(s). Finalize um projeto ativo ou atualize seu plano para enviar novas propostas.`,
+      };
+    }
+
     const project = await db.project.findUnique({
       where: { id: data.projectId },
     });

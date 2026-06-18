@@ -134,13 +134,21 @@ export async function getProfessionals({
         orderBy = { hourlyRate: "asc" };
         break;
       case "avaliacao":
-        orderBy = [{ ratingCount: "desc" }, { rating: "desc" }];
+        orderBy = [
+          { ratingCount: "desc" },
+          { rating: "desc" },
+          { professionalPlanTier: "desc" },
+        ];
         break;
       case "experiencia":
-        orderBy = { createdAt: "asc" };
+        orderBy = [{ professionalPlanTier: "desc" }, { createdAt: "asc" }];
         break;
       default:
-        orderBy = [{ ratingCount: "desc" }, { rating: "desc" }];
+        orderBy = [
+          { professionalPlanTier: "desc" },
+          { ratingCount: "desc" },
+          { rating: "desc" },
+        ];
     }
 
     const skip = (safePage - 1) * safeLimit;

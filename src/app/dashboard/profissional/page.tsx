@@ -15,6 +15,7 @@ import {
 import { UpgradeBanner } from "@/modules/billing/components/UpgradeBanner";
 import { Prisma } from "@prisma/client";
 import Stripe from "stripe";
+import { getTechPlanTier } from "@/modules/subscriptions/tech-plan";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
@@ -60,6 +61,10 @@ export default async function ProfissionalDashboard({
                 ((subscription as any).current_period_end ?? 0) * 1000
               ),
               stripeSubscriptionStatus: subscription.status,
+              professionalPlanTier: getTechPlanTier({
+                stripeSubscriptionStatus: subscription.status,
+                stripePriceId: subscription.items.data[0]?.price?.id ?? null,
+              }),
             },
           });
         }

@@ -9,6 +9,7 @@ import { sendRefundProcessedEmail } from "@/modules/health/services/transactiona
 import { Prisma, ProjectCheckoutHoldStatus } from "@prisma/client";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
+import { getTechPlanTier } from "@/modules/subscriptions/tech-plan";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
@@ -108,6 +109,44 @@ async function markStripeEventProcessed(event: Stripe.Event) {
       lastError: null,
       failedAt: null,
       processedAt: new Date(),
+    },
+  });
+}
+
+async function syncTechSubscription(subscription: Stripe.Subscription) {
+  const priceId = subscription.items.data[0]?.price?.id ?? null;
+  const customerId =
+    typeof subscription.customer === "string"
+      ? subscription.customer
+      : subscription.customer?.id;
+  const userId = subscription.metadata?.userId;
+
+  if (!userId && !customerId) return;
+
+  const subscriptionWhere: Prisma.UserWhereInput[] = [
+    { stripeSubscriptionId: subscription.id },
+  ];
+  if (userId) subscriptionWhere.push({ id: userId });
+  if (customerId) subscriptionWhere.push({ stripeCustomerId: customerId });
+
+  await db.user.updateMany({
+    where: {
+      OR: subscriptionWhere,
+      userType: "PROFESSIONAL",
+      industry: "TECH",
+    },
+    data: {
+      stripeSubscriptionId: subscription.id,
+      stripeCustomerId: customerId,
+      stripePriceId: priceId,
+      stripeCurrentPeriodEnd: new Date(
+        ((subscription as any).current_period_end ?? 0) * 1000,
+      ),
+      stripeSubscriptionStatus: subscription.status,
+      professionalPlanTier: getTechPlanTier({
+        stripeSubscriptionStatus: subscription.status,
+        stripePriceId: priceId,
+      }),
     },
   });
 }
@@ -1162,6 +1201,10 @@ export async function POST(req: Request) {
                 ((subscriptionDetails as any).current_period_end ?? 0) * 1000,
               ),
               stripeSubscriptionStatus: subscriptionDetails.status,
+              professionalPlanTier: getTechPlanTier({
+                stripeSubscriptionStatus: subscriptionDetails.status,
+                stripePriceId: subscriptionDetails.items.data[0].price.id,
+              }),
             },
           });
         }
@@ -1184,6 +1227,13 @@ export async function POST(req: Request) {
           await handleHealthCheckoutExpired(session);
         }
 
+        return new NextResponse(null, { status: 200 });
+      }
+
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+        await syncTechSubscription(subscription);
         return new NextResponse(null, { status: 200 });
       }
 

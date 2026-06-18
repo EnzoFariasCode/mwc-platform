@@ -28,13 +28,6 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 
-//CONFIGURAÇÃO DOS IDs DOS PLANOS
-
-const PLAN_IDS = {
-  STARTER: "price_1Sz07x2LcuSkaNju6xEbd2cQ",
-  ADVANCED: "rice_1Sz08J2LcuSkaNjuvz3VIcUz",
-};
-
 // Tipagem dos itens de array
 interface PortfolioItem {
   title: string;
@@ -68,6 +61,7 @@ interface UserData {
   // Campos do Stripe
   stripeSubscriptionStatus?: string | null;
   stripePriceId?: string | null; // Necessário para saber qual badge mostrar
+  professionalPlanTier?: number | null;
 }
 
 function getMemberSince(dateInput: Date | string | undefined) {
@@ -93,10 +87,10 @@ function getMemberSince(dateInput: Date | string | undefined) {
 
 // --- COMPONENTE DE BADGE DO PLANO ---
 function PlanBadge({
-  priceId,
+  tier,
   isActive,
 }: {
-  priceId?: string | null;
+  tier?: number | null;
   isActive: boolean;
 }) {
   // 1. Se não estiver ativo (pagamento falhou ou cancelado) ou sem plano -> FREE
@@ -109,7 +103,7 @@ function PlanBadge({
   }
 
   // 2. Se for o Plano Starter
-  if (priceId === PLAN_IDS.STARTER) {
+  if (tier === 1) {
     return (
       <span className="px-2 py-0.5 bg-[#d73cbe]/10 text-[#d73cbe] text-xs font-bold uppercase rounded-md border border-[#d73cbe]/20 tracking-wide mb-1.5 flex items-center gap-1">
         Starter <Rocket className="w-3 h-3" />
@@ -118,7 +112,7 @@ function PlanBadge({
   }
 
   // 3. Se for o Plano Advanced
-  if (priceId === PLAN_IDS.ADVANCED) {
+  if (tier === 2) {
     return (
       <span className="px-2 py-0.5 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 text-violet-400 text-xs font-bold uppercase rounded-md border border-violet-500/20 tracking-wide mb-1.5 flex items-center gap-1">
         Advanced <Zap className="w-3 h-3" />
@@ -383,7 +377,7 @@ export default function PerfilView({ user }: { user: UserData }) {
                     {isProfessionalUser ? (
                       <PlanBadge
                         isActive={isSubscriber}
-                        priceId={currentUser.stripePriceId}
+                        tier={currentUser.professionalPlanTier}
                       />
                     ) : (
                       <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-bold uppercase rounded-md border border-blue-500/20 tracking-wide mb-1.5 flex items-center gap-1">
