@@ -88,6 +88,36 @@ export default function BeWorkerClient({
   planPrices,
 }: BeWorkerClientProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const primaryCta = (() => {
+    if (!isLoggedIn) {
+      return { text: "Começar Agora", href: "/cadastro" };
+    }
+
+    if (userType === "CLIENT") {
+      return { text: "Ir ao Dashboard", href: "/dashboard/cliente" };
+    }
+
+    if (userType === "ADMIN") {
+      return { text: "Ir ao Admin", href: "/dashboard/admin" };
+    }
+
+    if (userType === "PROFESSIONAL" && industry === "HEALTH") {
+      return {
+        text: "Painel Online",
+        href: "/agendar-consulta/dashboard-profissional",
+      };
+    }
+
+    if (userType === "PROFESSIONAL" && userStatus === "active") {
+      return { text: "Ir ao Dashboard", href: "/dashboard/profissional" };
+    }
+
+    if (userType === "PROFESSIONAL") {
+      return { text: "Ver Planos", href: "#planos" };
+    }
+
+    return { text: "Começar Agora", href: "/cadastro" };
+  })();
 
   useGSAP(
     (context, contextSafe) => {
@@ -267,7 +297,7 @@ export default function BeWorkerClient({
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center w-full">
             <div className="gsap-hero-btn opacity-0">
-              <SvgButton text="Começar Agora" href="/login" />
+              <SvgButton text={primaryCta.text} href={primaryCta.href} />
             </div>
             <div className="gsap-hero-btn opacity-0">
               <SvgButton text="Ver Processo" href="#como-funciona" />
