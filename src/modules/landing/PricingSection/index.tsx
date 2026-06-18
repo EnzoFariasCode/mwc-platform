@@ -60,15 +60,18 @@ interface PricingSectionProps {
   userStatus?: "active" | "inactive" | null;
   isLoggedIn: boolean;
   userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN" | null; // <-- NOVA PROP
+  industry?: "TECH" | "HEALTH" | null;
 }
 
 export function PricingSection({
   userStatus,
   isLoggedIn,
   userType,
+  industry,
 }: PricingSectionProps) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [showClientModal, setShowClientModal] = useState(false); // <-- ESTADO DO MODAL
+  const [showIndustryModal, setShowIndustryModal] = useState(false);
   const router = useRouter();
 
   const handleAction = async (planId: string) => {
@@ -81,6 +84,11 @@ export function PricingSection({
     // 2. Trava de Segurança: Se for CLIENTE, mostra o modal e para a execução
     if (userType === "CLIENT") {
       setShowClientModal(true);
+      return;
+    }
+
+    if (userType === "PROFESSIONAL" && industry !== "TECH") {
+      setShowIndustryModal(true);
       return;
     }
 
@@ -291,6 +299,47 @@ export function PricingSection({
                 className="px-6 py-3 rounded-xl text-sm font-bold bg-[#d73cbe] text-white hover:bg-[#b0269a] transition-colors shadow-lg cursor-pointer"
               >
                 Ir para o Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showIndustryModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 md:p-8 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-yellow-500/20 rounded-full shrink-0">
+                <AlertTriangle className="w-8 h-8 text-yellow-500" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white font-futura">
+                  Plano indisponivel
+                </h3>
+                <p className="text-slate-400 text-sm">
+                  Conta profissional do setor Online
+                </p>
+              </div>
+            </div>
+
+            <p className="text-slate-300 text-sm leading-relaxed mb-8">
+              Estes planos sao exclusivos para profissionais do Marketplace
+              Tech. Para gerenciar seus atendimentos online, acesse o painel do
+              setor Online.
+            </p>
+
+            <div className="flex flex-col sm:flex-row justify-end gap-3">
+              <button
+                onClick={() => setShowIndustryModal(false)}
+                className="px-6 py-3 rounded-xl text-sm font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                Entendi
+              </button>
+              <button
+                onClick={() => router.push("/agendar-consulta/dashboard-profissional")}
+                className="px-6 py-3 rounded-xl text-sm font-bold bg-[#d73cbe] text-white hover:bg-[#b0269a] transition-colors shadow-lg cursor-pointer"
+              >
+                Ir para o painel Online
               </button>
             </div>
           </div>

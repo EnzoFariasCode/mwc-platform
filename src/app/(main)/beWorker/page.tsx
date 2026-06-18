@@ -1,45 +1,43 @@
 import { getUserSession } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 
-// Componentes
 import StandardHeader from "@/components/ui/StandardHeader";
 import FooterContact from "@/components/ui/FooterContact";
 import BeWorkerClient from "@/modules/landing/worker/BeWorkerClient";
 
 export default async function HowToBeWorkerPage() {
-  // 1. Busca dados do usuário (Servidor)
   const session = await getUserSession();
   let userStatus: "active" | "inactive" | null = null;
-  
-  // Criamos a variável para guardar o tipo de usuário
   let userType: "CLIENT" | "PROFESSIONAL" | "ADMIN" | null = null;
+  let industry: "TECH" | "HEALTH" | null = null;
 
   if (session?.id) {
     const user = await db.user.findUnique({
       where: { id: session.id },
-      select: { 
+      select: {
         stripeSubscriptionStatus: true,
-        userType: true, // <-- ADICIONAMOS A BUSCA AQUI
+        userType: true,
+        industry: true,
       },
     });
-    
-    userStatus = user?.stripeSubscriptionStatus === "active" ? "active" : "inactive";
-    userType = user?.userType || null; // Guardamos a informação
+
+    userStatus =
+      user?.stripeSubscriptionStatus === "active" ? "active" : "inactive";
+    userType = user?.userType || null;
+    industry = user?.industry || null;
   }
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950">
-      {/* Header (Server Component) */}
       <StandardHeader />
 
-      {/* Conteúdo Visual (Client Component) */}
-      <BeWorkerClient 
-        isLoggedIn={!!session} 
-        userStatus={userStatus} 
-        userType={userType} // <-- REPASSAMOS PARA A TRAVA DO MODAL FUNCIONAR
+      <BeWorkerClient
+        isLoggedIn={!!session}
+        userStatus={userStatus}
+        userType={userType}
+        industry={industry}
       />
 
-      {/* Footer (Server Component) */}
       <FooterContact />
     </div>
   );

@@ -75,12 +75,14 @@ interface BeWorkerClientProps {
   isLoggedIn: boolean;
   userStatus: "active" | "inactive" | null;
   userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN" | null; 
+  industry?: "TECH" | "HEALTH" | null;
 }
 
 export default function BeWorkerClient({
   isLoggedIn,
   userStatus,
   userType, // --- ADICIONADO AQUI ---
+  industry,
 }: BeWorkerClientProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -354,6 +356,7 @@ export default function BeWorkerClient({
         isLoggedIn={isLoggedIn} 
         userStatus={userStatus} 
         userType={userType} 
+        industry={industry}
       />
     </div>
   );
