@@ -124,6 +124,7 @@ export default function BeWorkerClient({
     (context, contextSafe) => {
       // contextSafe é necessário para os eventos de mouse
       const tl = gsap.timeline();
+      const hoverCleanups: Array<() => void> = [];
 
       // 1. HERO ANIMATION
       tl.fromTo(
@@ -267,8 +268,16 @@ export default function BeWorkerClient({
 
           card.addEventListener("mouseenter", onEnter);
           card.addEventListener("mouseleave", onLeave);
+          hoverCleanups.push(() => {
+            card.removeEventListener("mouseenter", onEnter);
+            card.removeEventListener("mouseleave", onLeave);
+          });
         });
       }
+
+      return () => {
+        hoverCleanups.forEach((cleanup) => cleanup());
+      };
     },
     { scope: containerRef },
   );
