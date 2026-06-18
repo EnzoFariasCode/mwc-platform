@@ -4,9 +4,11 @@ import { db } from "@/lib/prisma";
 import StandardHeader from "@/components/ui/StandardHeader";
 import FooterContact from "@/components/ui/FooterContact";
 import BeWorkerClient from "@/modules/landing/worker/BeWorkerClient";
+import { getTechPlanDisplayPrices } from "@/modules/subscriptions/tech-plan-pricing";
 
 export default async function HowToBeWorkerPage() {
   const session = await getUserSession();
+  const planPrices = await getTechPlanDisplayPrices();
   let userStatus: "active" | "inactive" | null = null;
   let userType: "CLIENT" | "PROFESSIONAL" | "ADMIN" | null = null;
   let industry: "TECH" | "HEALTH" | null = null;
@@ -36,6 +38,7 @@ export default async function HowToBeWorkerPage() {
         userStatus={userStatus}
         userType={userType}
         industry={industry}
+        planPrices={planPrices}
       />
 
       <FooterContact />

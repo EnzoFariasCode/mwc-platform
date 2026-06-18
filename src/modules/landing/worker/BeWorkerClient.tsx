@@ -18,6 +18,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import heroBg from "@/assets/images/howToBeWorker/hero-bg.jpg";
 import dashboard from "@/assets/images/howToBeWorker/dashboard-mockup.png";
+import type { TechPlanDisplayPrices } from "@/modules/subscriptions/tech-plan-pricing";
 
 // Importa o PricingSection (que agora tem as classes certas)
 import { PricingSection } from "@/modules/landing/PricingSection/index";
@@ -76,6 +77,7 @@ interface BeWorkerClientProps {
   userStatus: "active" | "inactive" | null;
   userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN" | null; 
   industry?: "TECH" | "HEALTH" | null;
+  planPrices: TechPlanDisplayPrices;
 }
 
 export default function BeWorkerClient({
@@ -83,6 +85,7 @@ export default function BeWorkerClient({
   userStatus,
   userType, // --- ADICIONADO AQUI ---
   industry,
+  planPrices,
 }: BeWorkerClientProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -357,6 +360,7 @@ export default function BeWorkerClient({
         userStatus={userStatus} 
         userType={userType} 
         industry={industry}
+        planPrices={planPrices}
       />
     </div>
   );

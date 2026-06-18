@@ -14,13 +14,24 @@ import { createCheckoutSession } from "@/modules/stripe/actions/create-checkout-
 import { createPortalSession } from "@/modules/stripe/actions/create-portal-session";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import type {
+  TechPaidPlanId,
+  TechPlanDisplayPrices,
+} from "@/modules/subscriptions/tech-plan-pricing";
 
-const plansData = [
+const plansData: Array<{
+  id: TechPaidPlanId;
+  title: string;
+  description: string;
+  features: string[];
+  buttonText: string;
+  buttonStyle: string;
+  highlight: boolean;
+  popular: boolean;
+}> = [
   {
     id: "starter",
     title: "Starter",
-    price: "R$ 14,99",
-    period: "/mês",
     description: "Para profissionais que querem mais visibilidade.",
     features: [
       "Até 3 trabalhos simultâneos",
@@ -37,8 +48,6 @@ const plansData = [
   {
     id: "advanced",
     title: "Advanced",
-    price: "R$ 24,99",
-    period: "/mês",
     description: "Para quem quer dominar o mercado e escalar.",
     features: [
       "Até 5 trabalhos simultâneos",
@@ -61,6 +70,7 @@ interface PricingSectionProps {
   isLoggedIn: boolean;
   userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN" | null; // <-- NOVA PROP
   industry?: "TECH" | "HEALTH" | null;
+  planPrices: TechPlanDisplayPrices;
 }
 
 export function PricingSection({
@@ -68,6 +78,7 @@ export function PricingSection({
   isLoggedIn,
   userType,
   industry,
+  planPrices,
 }: PricingSectionProps) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [showClientModal, setShowClientModal] = useState(false); // <-- ESTADO DO MODAL
@@ -220,9 +231,9 @@ export function PricingSection({
                 </p>
 
                 <div className="text-4xl font-bold text-white mb-6">
-                  {plan.price}{" "}
+                  {planPrices[plan.id].price}{" "}
                   <span className="text-sm text-slate-500 ml-1">
-                    {plan.period}
+                    {planPrices[plan.id].period}
                   </span>
                 </div>
 
