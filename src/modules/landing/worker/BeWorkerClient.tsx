@@ -25,21 +25,20 @@ import { PricingSection } from "@/modules/landing/PricingSection/index";
 gsap.registerPlugin(ScrollTrigger);
 
 const SvgButton = ({ text, href }: { text: string; href: string }) => (
-  <div className="relative h-[60px] w-full max-w-[240px] group">
+  <div className="group relative inline-flex h-[60px] min-w-[240px]">
     <Link
       href={href}
-      className="block w-full h-full cursor-pointer bg-transparent outline-none relative z-10 flex items-center justify-center"
+      className="relative z-10 inline-flex h-full min-w-[240px] cursor-pointer items-center justify-center bg-transparent px-8 outline-none"
     >
       <svg
-        width="240px"
-        height="60px"
         viewBox="0 0 240 60"
-        className="absolute top-0 left-0 fill-none stroke-[#d73cbe] transition-all duration-1000 ease-in-out [stroke-dasharray:150_600] [stroke-dashoffset:150] group-hover:[stroke-dashoffset:-600] group-hover:fill-[#d73cbe]/10"
+        preserveAspectRatio="none"
+        className="absolute inset-0 h-full w-full fill-none stroke-[#d73cbe] transition-all duration-1000 ease-in-out [stroke-dasharray:150_600] [stroke-dashoffset:150] group-hover:fill-[#d73cbe]/10 group-hover:[stroke-dashoffset:-600]"
       >
         <polyline points="239,1 239,59 1,59 1,1 239,1" strokeWidth="2" />
       </svg>
       <div className="absolute inset-0 border border-white/20 pointer-events-none transition-opacity duration-500 group-hover:opacity-0" />
-      <span className="text-white text-base font-bold tracking-widest uppercase relative z-20">
+      <span className="relative z-20 whitespace-nowrap text-base font-bold uppercase tracking-widest text-white">
         {text}
       </span>
     </Link>

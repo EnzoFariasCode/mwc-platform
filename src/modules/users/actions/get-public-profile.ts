@@ -35,6 +35,7 @@ type PublicProfile = {
   createdAt: Date;
   reviewsReceived: PublicReview[];
   avatarUrl: string | null;
+  isActive: boolean;
 };
 
 export async function getPublicProfile(
@@ -52,6 +53,7 @@ export async function getPublicProfile(
         city: true,
         state: true,
         userType: true,
+        isActive: true,
         jobTitle: true,
         hourlyRate: true,
         rating: true,
@@ -94,41 +96,30 @@ export async function getPublicProfile(
       return { success: false, error: "Perfil não encontrado." };
     }
 
+    if (professional.userType !== "PROFESSIONAL" || !professional.isActive) {
+      return {
+        success: false,
+        error: "Este perfil está indisponível no momento.",
+      };
+    }
+
     // --- 🛡️ BARREIRA DE QUALIDADE (QA & Back-end) ---
-    if (professional.userType === "PROFESSIONAL") {
-      if (professional.industry === "HEALTH") {
-        const hasValidDoc =
-          professional.documentReg && professional.documentReg.trim() !== "";
-        const hasValidJobTitle =
-          professional.jobTitle && professional.jobTitle.trim() !== "";
-        const hasFee = professional.consultationFee !== null;
+    if (professional.industry === "HEALTH") {
+      const hasValidDoc =
+        professional.documentReg && professional.documentReg.trim() !== "";
+      const hasValidJobTitle =
+        professional.jobTitle && professional.jobTitle.trim() !== "";
+      const hasFee = professional.consultationFee !== null;
 
-        const hasValidAgenda =
-          Array.isArray(professional.availabilities) &&
-          professional.availabilities.length > 0;
+      const hasValidAgenda =
+        Array.isArray(professional.availabilities) &&
+        professional.availabilities.length > 0;
 
-        if (!hasValidDoc || !hasValidJobTitle || !hasValidAgenda || !hasFee) {
-          return {
-            success: false,
-            error: "Este perfil está indisponível no momento.",
-          };
-        }
-      }
-
-      if (professional.industry === "TECH") {
-        const hasValidJobTitle =
-          professional.jobTitle && professional.jobTitle.trim() !== "";
-        const hasRate = professional.hourlyRate !== null;
-        const hasProfileContent =
-          (professional.bio && professional.bio.trim().length >= 20) ||
-          professional.skills.length > 0;
-
-        if (!hasValidJobTitle || !hasRate || !hasProfileContent) {
-          return {
-            success: false,
-            error: "Este perfil está indisponível no momento.",
-          };
-        }
+      if (!hasValidDoc || !hasValidJobTitle || !hasValidAgenda || !hasFee) {
+        return {
+          success: false,
+          error: "Este perfil está indisponível no momento.",
+        };
       }
     }
     // ------------------------------------------------
