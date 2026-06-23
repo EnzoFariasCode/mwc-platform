@@ -14,6 +14,17 @@ interface CreateProposalData {
   coverLetter: string;
 }
 
+const PROPOSAL_PRICE_MIN = 10;
+const PROPOSAL_PRICE_MAX = 1_000_000;
+const PROPOSAL_DAYS_MIN = 1;
+const PROPOSAL_DAYS_MAX = 365;
+const COVER_LETTER_MIN = 20;
+const COVER_LETTER_MAX = 3000;
+
+function normalizeCoverLetter(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 export async function createProposal(
   data: CreateProposalData,
 ): Promise<ActionResponse<{ code?: string; upgradeUrl?: string }>> {
@@ -29,6 +40,36 @@ export async function createProposal(
       return {
         success: false,
         error: "Acao restrita a profissionais de Tecnologia.",
+      };
+    }
+
+    const price = Number(data.price);
+    const days = Number(data.days);
+    const coverLetter = normalizeCoverLetter(data.coverLetter);
+
+    if (
+      !Number.isFinite(price) ||
+      price < PROPOSAL_PRICE_MIN ||
+      price > PROPOSAL_PRICE_MAX
+    ) {
+      return { success: false, error: "Informe um valor de proposta valido." };
+    }
+
+    if (
+      !Number.isInteger(days) ||
+      days < PROPOSAL_DAYS_MIN ||
+      days > PROPOSAL_DAYS_MAX
+    ) {
+      return { success: false, error: "Informe um prazo valido." };
+    }
+
+    if (
+      coverLetter.length < COVER_LETTER_MIN ||
+      coverLetter.length > COVER_LETTER_MAX
+    ) {
+      return {
+        success: false,
+        error: "Informe uma mensagem de proposta valida.",
       };
     }
 
@@ -80,9 +121,9 @@ export async function createProposal(
       data: {
         projectId: data.projectId,
         professionalId: userId,
-        price: data.price,
-        estimatedDays: data.days,
-        coverLetter: data.coverLetter,
+        price,
+        estimatedDays: days,
+        coverLetter,
         status: "PENDING",
       },
     });
@@ -105,7 +146,7 @@ export async function createProposal(
       metadata: {
         proposalId: proposal.id,
         professionalId: userId,
-        price: data.price,
+        price,
       },
     });
 

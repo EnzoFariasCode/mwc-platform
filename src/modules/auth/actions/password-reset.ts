@@ -68,10 +68,9 @@ export async function requestResetCode(email: string): Promise<ActionResponse> {
 
     const devToolsEnabled = process.env.ENABLE_DEV_TOOLS === "true";
     const resendApiKey = process.env.RESEND_API_KEY;
-    const resendFrom =
-      process.env.RESEND_FROM_EMAIL || "dani.ecko07@gmail.com";
+    const resendFrom = process.env.RESEND_FROM_EMAIL;
 
-    if (!resendApiKey) {
+    if (!resendApiKey || !resendFrom) {
       if (process.env.NODE_ENV === "production") {
         return {
           success: false,

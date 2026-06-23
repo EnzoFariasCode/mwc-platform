@@ -56,7 +56,12 @@ export async function getProjectContext(
       return { success: false, error: "Nao autorizado." };
     }
 
-    if (session?.industry !== "TECH") {
+    const isTechProfessional =
+      session?.userType === "PROFESSIONAL" && session.industry === "TECH";
+    const isClient = session?.userType === "CLIENT";
+    const isAdminUser = session?.role === "ADMIN" || session?.userType === "ADMIN";
+
+    if (!isClient && !isTechProfessional && !isAdminUser) {
       return {
         success: false,
         error: "Ação restrita ao Marketplace Tech.",
@@ -84,7 +89,7 @@ export async function getProjectContext(
 
     const isOwner = project.ownerId === userId;
     const isAssignedPro = project.professionalId === userId;
-    const isAdmin = session?.role === "ADMIN";
+    const isAdmin = isAdminUser;
 
     if (!isOwner && !isAssignedPro && !isAdmin) {
       const hasProposal = await db.proposal.findFirst({
@@ -123,7 +128,12 @@ export async function getBasicUserInfo(
       return { success: false, error: "Nao autorizado." };
     }
 
-    if (session?.industry !== "TECH") {
+    const isTechProfessional =
+      session?.userType === "PROFESSIONAL" && session.industry === "TECH";
+    const isClient = session?.userType === "CLIENT";
+    const isAdminUser = session?.role === "ADMIN" || session?.userType === "ADMIN";
+
+    if (!isClient && !isTechProfessional && !isAdminUser) {
       return {
         success: false,
         error: "Ação restrita ao Marketplace Tech.",
@@ -136,7 +146,13 @@ export async function getBasicUserInfo(
 
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { name: true, jobTitle: true, id: true, userType: true },
+      select: {
+        name: true,
+        jobTitle: true,
+        id: true,
+        userType: true,
+        industry: true,
+      },
     });
 
     if (!user) {
@@ -144,10 +160,11 @@ export async function getBasicUserInfo(
     }
 
     if (user.id !== myId) {
-      const isProfessional = user.userType === "PROFESSIONAL";
-      const isAdmin = session?.role === "ADMIN";
+      const isPublicTechProfessional =
+        user.userType === "PROFESSIONAL" && user.industry === "TECH";
+      const isAdmin = isAdminUser;
 
-      if (!isProfessional && !isAdmin) {
+      if (!isPublicTechProfessional && !isAdmin) {
         const [convo, sharedProject, sharedProposal] = await Promise.all([
           hasConversation(myId, user.id),
           hasSharedProject(myId, user.id),

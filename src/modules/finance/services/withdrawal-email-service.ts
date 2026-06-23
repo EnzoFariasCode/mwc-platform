@@ -1,9 +1,8 @@
 import { Resend } from "resend";
 
 const resendApiKey = process.env.RESEND_API_KEY;
-const resendFrom =
-  process.env.RESEND_FROM_EMAIL || "MWC Online <onboarding@resend.dev>";
-const resend = resendApiKey ? new Resend(resendApiKey) : null;
+const resendFrom = process.env.RESEND_FROM_EMAIL;
+const resend = resendApiKey && resendFrom ? new Resend(resendApiKey) : null;
 
 function formatCurrency(value: unknown) {
   const numericValue = Number(value);
@@ -43,7 +42,7 @@ export async function sendWithdrawalRequestedEmail({
     "O valor ja foi reservado do seu saldo disponivel para evitar duplicidade de saque.",
   ].join("\n");
 
-  if (!resend) {
+  if (!resend || !resendFrom) {
     if (process.env.ENABLE_DEV_TOOLS === "true") {
       console.log(`[WITHDRAWAL_EMAIL] ${email}\n${text}`);
     }

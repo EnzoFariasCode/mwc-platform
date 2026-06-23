@@ -17,9 +17,9 @@ type HealthAppointmentEmailPayload = {
 };
 
 const resendApiKey = process.env.RESEND_API_KEY;
-const resendFrom = process.env.RESEND_FROM_EMAIL || "MWC Online <onboarding@resend.dev>";
+const resendFrom = process.env.RESEND_FROM_EMAIL;
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br";
-const resend = resendApiKey ? new Resend(resendApiKey) : null;
+const resend = resendApiKey && resendFrom ? new Resend(resendApiKey) : null;
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -52,7 +52,7 @@ async function sendHealthEmail({
 }) {
   if (!to) return;
 
-  if (!resend) {
+  if (!resend || !resendFrom) {
     if (process.env.ENABLE_DEV_TOOLS === "true") {
       console.log(`[HEALTH_EMAIL] ${subject} -> ${to}\n${text}`);
     }

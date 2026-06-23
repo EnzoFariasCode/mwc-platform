@@ -15,7 +15,7 @@ export async function registerUser(
   formData: FormData,
 ): Promise<ActionResponse> {
   const name = formData.get("name")?.toString().trim();
-  const email = formData.get("email")?.toString().trim();
+  const email = formData.get("email")?.toString().trim().toLowerCase();
   const password = formData.get("password")?.toString();
   const displayName = formData.get("displayName")?.toString().trim();
   const birthDateRaw = formData.get("birthDate")?.toString();

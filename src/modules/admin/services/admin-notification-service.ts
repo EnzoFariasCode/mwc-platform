@@ -3,10 +3,9 @@ import "server-only";
 import { Resend } from "resend";
 
 const resendApiKey = process.env.RESEND_API_KEY;
-const resendFrom =
-  process.env.RESEND_FROM_EMAIL || "MWC Admin <onboarding@resend.dev>";
+const resendFrom = process.env.RESEND_FROM_EMAIL;
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br";
-const resend = resendApiKey ? new Resend(resendApiKey) : null;
+const resend = resendApiKey && resendFrom ? new Resend(resendApiKey) : null;
 
 function getAdminRecipients() {
   const raw =
@@ -42,7 +41,7 @@ export async function sendAdminNotification({
     .filter(Boolean)
     .join("\n");
 
-  if (!resend) {
+  if (!resend || !resendFrom) {
     if (process.env.ENABLE_DEV_TOOLS === "true") {
       console.log(`[ADMIN_NOTIFICATION] ${subject} -> ${recipients.join(", ")}\n${text}`);
     }

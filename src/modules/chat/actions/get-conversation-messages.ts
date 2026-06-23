@@ -29,7 +29,11 @@ export async function getConversationMessages(
 
     if (!myId) return { success: false, error: "Nao autorizado." };
 
-    if (session?.industry !== "TECH") {
+    const isTechProfessional =
+      session?.userType === "PROFESSIONAL" && session.industry === "TECH";
+    const isClient = session?.userType === "CLIENT";
+
+    if (!isClient && !isTechProfessional) {
       return {
         success: false,
         error: "Ação restrita ao Marketplace Tech.",

@@ -6,6 +6,23 @@ import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
+const DELIVERY_DESCRIPTION_MIN = 20;
+const DELIVERY_DESCRIPTION_MAX = 3000;
+const DELIVERY_LINK_MAX = 500;
+
+function normalizeDeliveryText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 export async function submitDelivery(
   projectId: string,
   link: string,
@@ -50,12 +67,33 @@ export async function submitDelivery(
       };
     }
 
+    const deliveryLink = normalizeDeliveryText(link);
+    const deliveryDescription = normalizeDeliveryText(description);
+
+    if (
+      !deliveryLink ||
+      deliveryLink.length > DELIVERY_LINK_MAX ||
+      !isHttpUrl(deliveryLink)
+    ) {
+      return { success: false, error: "Informe um link de entrega valido." };
+    }
+
+    if (
+      deliveryDescription.length < DELIVERY_DESCRIPTION_MIN ||
+      deliveryDescription.length > DELIVERY_DESCRIPTION_MAX
+    ) {
+      return {
+        success: false,
+        error: "Informe uma descricao de entrega valida.",
+      };
+    }
+
     await db.$transaction([
       db.deliverable.create({
         data: {
           projectId,
-          link,
-          description,
+          link: deliveryLink,
+          description: deliveryDescription,
           senderId: userId,
         },
       }),

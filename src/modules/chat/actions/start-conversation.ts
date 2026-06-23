@@ -47,7 +47,11 @@ export async function startConversation(
 
     if (!starterId) return { success: false, error: "Nao autorizado." };
 
-    if (session?.industry !== "TECH") {
+    const isTechProfessional =
+      session?.userType === "PROFESSIONAL" && session.industry === "TECH";
+    const isClient = session?.userType === "CLIENT";
+
+    if (!isClient && !isTechProfessional) {
       return {
         success: false,
         error: "Acao restrita ao Marketplace Tech.",

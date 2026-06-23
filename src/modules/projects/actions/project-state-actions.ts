@@ -436,6 +436,17 @@ export async function openTechProjectDispute(
       });
     }
 
+    await sendAdminNotification({
+      subject: "MWC Admin - Disputa Tech aberta",
+      lines: [
+        "Uma disputa Tech foi aberta e precisa de acompanhamento.",
+        `Projeto: ${project.id}`,
+        `Aberta por: ${userId}`,
+        `Motivo: ${normalizedReason}`,
+      ],
+      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
+    });
+
     return { success: true };
   } catch (error) {
     console.error("[OPEN_TECH_PROJECT_DISPUTE_ERROR]", error);

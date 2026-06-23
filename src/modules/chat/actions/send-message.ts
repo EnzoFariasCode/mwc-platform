@@ -117,7 +117,11 @@ export async function sendMessage(
 
     if (!senderId) return { success: false, error: "Nao autorizado." };
 
-    if (session?.industry !== "TECH") {
+    const isTechProfessional =
+      session?.userType === "PROFESSIONAL" && session.industry === "TECH";
+    const isClient = session?.userType === "CLIENT";
+
+    if (!isClient && !isTechProfessional) {
       return {
         success: false,
         error: "Acao restrita ao Marketplace Tech.",
@@ -192,10 +196,22 @@ export async function sendMessage(
       },
     });
 
-    if (!receiver || !receiver.isActive || receiver.industry !== "TECH") {
+    if (!receiver || !receiver.isActive) {
       return {
         success: false,
-        error: "Usuario de Tecnologia nao encontrado.",
+        error: "Usuario nao encontrado.",
+      };
+    }
+
+    const receiverIsPublicTechProfessional =
+      receiver.userType === "PROFESSIONAL" && receiver.industry === "TECH";
+    const hasSharedContext = await hasSharedTechContext(senderId, receiverId);
+
+    if (!receiverIsPublicTechProfessional && !hasSharedContext) {
+      return {
+        success: false,
+        error:
+          "Conversa permitida apenas com profissional Tech ou usuarios com projeto/proposta em comum.",
       };
     }
 
@@ -220,17 +236,6 @@ export async function sendMessage(
         return { success: false, error: newConversationLimitError };
       }
 
-      const receiverIsPublicTechProfessional =
-        receiver.userType === "PROFESSIONAL" && receiver.industry === "TECH";
-      const hasSharedContext = await hasSharedTechContext(senderId, receiverId);
-
-      if (!receiverIsPublicTechProfessional && !hasSharedContext) {
-        return {
-          success: false,
-          error:
-            "Conversa permitida apenas com profissional Tech ou usuarios com projeto/proposta em comum.",
-        };
-      }
     }
 
     const hasExternalContact = containsExternalContact(normalizedContent);

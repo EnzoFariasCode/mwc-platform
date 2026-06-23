@@ -82,6 +82,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      allowDangerousEmailAccountLinking: true,
+      profile(profile) {
+        const email = profile.email?.toString().toLowerCase() ?? "";
+        return {
+          id: profile.sub,
+          name: profile.name || email.split("@")[0] || "Usuario MWC",
+          email,
+          image: profile.picture,
+          emailVerified: profile.email_verified ? new Date() : null,
+        };
+      },
     }),
     Credentials({
       name: "credentials",
@@ -137,7 +148,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, account, profile }) {
+      if (
+        account?.provider === "google" &&
+        (profile as { email_verified?: boolean } | undefined)
+          ?.email_verified === false
+      ) {
+        return "/login?error=oauth_unverified_email";
+      }
+
       const dbUser = await getAuthUserFields(user.id, user.email);
 
       if (dbUser?.isActive === false) {
