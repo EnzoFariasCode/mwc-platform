@@ -18,6 +18,7 @@ import {
 import { getMyConversations } from "@/modules/chat/actions/get-my-conversations";
 import { getConversationMessages } from "@/modules/chat/actions/get-conversation-messages";
 import { sendMessage } from "@/modules/chat/actions/send-message";
+import { startConversation } from "@/modules/chat/actions/start-conversation";
 import { toggleFavorite } from "@/modules/favorites/actions/toggle-favorite";
 import { markMessagesAsRead } from "@/modules/chat/actions/mark-messages-read";
 import { deleteConversation } from "@/modules/chat/actions/delete-conversation";
@@ -209,6 +210,14 @@ function ChatPageInner() {
 
     if (newChatTarget) {
       setActiveChatId(newChatTarget);
+      startConversation(newChatTarget).then((result) => {
+        if (!result.success) {
+          console.error(result.error);
+          return;
+        }
+
+        loadConversations();
+      });
 
       // Se tiver projeto na URL, busca o contexto
       if (projectIdTarget) {
@@ -226,7 +235,7 @@ function ChatPageInner() {
       // DICA: Comentei o replace para você poder testar o F5 se quiser,
       // mas idealmente você limpa a URL depois de pegar os dados.
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, loadConversations]);
 
   // 4. Carregamento Inicial ao abrir um chat (CORREÇÃO DO BUG CARREGANDO)
   useEffect(() => {
@@ -582,6 +591,12 @@ function ChatPageInner() {
                 </div>
               )}
             </header>
+
+            <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-100">
+              Assuntos tratados fora deste chat sao de total responsabilidade
+              do cliente. Mantenha combinados, arquivos e acordos importantes
+              registrados aqui.
+            </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-primary/20">
               {isLoading ? (

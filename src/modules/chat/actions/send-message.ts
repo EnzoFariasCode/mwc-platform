@@ -297,7 +297,7 @@ export async function sendMessage(
       eventType: "CHAT_UNREAD",
       title: "Nova mensagem",
       message: "Voce recebeu uma nova mensagem no chat.",
-      link: `/dashboard/chat?id=${conversation.id}`,
+      link: `/dashboard/chat?newChat=${senderId}`,
       entityType: "CONVERSATION",
       entityId: conversation.id,
       metadata: {

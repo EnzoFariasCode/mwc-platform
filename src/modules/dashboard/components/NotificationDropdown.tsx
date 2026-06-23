@@ -57,9 +57,19 @@ export function NotificationDropdown() {
 
     fetchNotifications();
 
-    // Opcional: Você pode colocar um setInterval aqui para buscar a cada X minutos
-    // const interval = setInterval(fetchNotifications, 60000); // 1 minuto
-    // return () => clearInterval(interval);
+    const interval = setInterval(fetchNotifications, 30000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void fetchNotifications();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   useEffect(() => {

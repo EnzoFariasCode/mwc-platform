@@ -42,6 +42,8 @@ export async function getNotifications(): Promise<
       title: true,
       message: true,
       link: true,
+      actorId: true,
+      entityType: true,
       readAt: true,
       createdAt: true,
     },
@@ -57,7 +59,10 @@ export async function getNotifications(): Promise<
       locale: ptBR,
     }),
     read: Boolean(item.readAt),
-    link: item.link || "/dashboard",
+    link:
+      item.entityType === "CONVERSATION" && item.actorId
+        ? `/dashboard/chat?newChat=${item.actorId}`
+        : item.link || "/dashboard",
   }));
 
   const hasUnreadChatNotification = notifications.some(
@@ -80,6 +85,10 @@ export async function getNotifications(): Promise<
     });
 
     conversations.forEach((conv) => {
+      const otherUserId =
+        conv.participantAId === session.id
+          ? conv.participantBId
+          : conv.participantAId;
       const senderName =
         conv.participantAId === session.id
           ? conv.participantB.name
@@ -95,7 +104,7 @@ export async function getNotifications(): Promise<
           locale: ptBR,
         }),
         read: false,
-        link: `/dashboard/chat?id=${conv.id}`,
+        link: `/dashboard/chat?newChat=${otherUserId}`,
       });
     });
   }
