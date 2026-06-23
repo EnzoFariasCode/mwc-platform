@@ -2,11 +2,13 @@ import "server-only";
 
 import { db } from "@/lib/prisma";
 import {
+  Prisma,
   ProjectCheckoutHoldStatus,
   ProjectStatus,
   ProposalStatus,
 } from "@prisma/client";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
+import { getTechPlanLimits } from "@/modules/subscriptions/tech-plan";
 
 type FinalizeProjectPaymentInput = {
   proposalId: string;
@@ -18,7 +20,13 @@ type FinalizeProjectPaymentInput = {
 
 type FinalizeProjectPaymentResult =
   | { success: true; alreadyProcessed?: boolean }
-  | { success: false; error: string };
+  | { success: false; error: string; manualReviewRequired?: boolean };
+
+const ACTIVE_PROJECT_STATUSES: ProjectStatus[] = [
+  ProjectStatus.IN_PROGRESS,
+  ProjectStatus.UNDER_REVIEW,
+  ProjectStatus.DISPUTE,
+];
 
 export async function finalizeProjectPayment({
   proposalId,
@@ -33,7 +41,16 @@ export async function finalizeProjectPayment({
 
   const proposal = await db.proposal.findUnique({
     where: { id: proposalId },
-    include: { project: true },
+    include: {
+      project: true,
+      professional: {
+        select: {
+          stripeSubscriptionStatus: true,
+          stripePriceId: true,
+          professionalPlanTier: true,
+        },
+      },
+    },
   });
 
   if (!proposal) {
@@ -117,6 +134,39 @@ export async function finalizeProjectPayment({
 
   try {
     const result = await db.$transaction(async (tx) => {
+      const planLimits = getTechPlanLimits(proposal.professional);
+      const activeProjectsCount = await tx.project.count({
+        where: {
+          professionalId: proposal.professionalId,
+          id: { not: proposal.projectId },
+          status: { in: ACTIVE_PROJECT_STATUSES },
+        },
+      });
+
+      if (activeProjectsCount >= planLimits.maxActiveProjects) {
+        const reason =
+          "Profissional atingiu o limite de trabalhos simultaneos do plano no momento da confirmacao.";
+
+        if (checkoutHold) {
+          await tx.projectCheckoutHold.update({
+            where: { id: checkoutHold.id },
+            data: {
+              status: ProjectCheckoutHoldStatus.FAILED,
+              failedAt: new Date(),
+              failureReason: reason,
+              stripePaymentIntentId,
+            },
+          });
+        }
+
+        return {
+          success: false,
+          error:
+            "O profissional atingiu o limite de trabalhos simultaneos do plano. O pagamento precisa de revisao pelo suporte.",
+          manualReviewRequired: Boolean(stripeSessionId),
+        } as FinalizeProjectPaymentResult;
+      }
+
       const updated = await tx.project.updateMany({
         where: {
           id: proposal.projectId,
@@ -210,6 +260,8 @@ export async function finalizeProjectPayment({
       });
 
       return { success: true };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
 
     const finalResult = result as FinalizeProjectPaymentResult;

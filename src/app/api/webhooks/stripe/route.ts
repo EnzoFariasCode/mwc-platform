@@ -1132,6 +1132,9 @@ export async function POST(req: Request) {
 
     if (!result.success) {
       console.error("Webhook: Payment processing failed.", result.error);
+      if (result.manualReviewRequired) {
+        return new NextResponse(null, { status: 200 });
+      }
       return new NextResponse(result.error, { status: 400 });
     }
 
