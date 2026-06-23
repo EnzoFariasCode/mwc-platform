@@ -132,17 +132,22 @@ export async function getProfessionals({
 
     switch (safeSortBy) {
       case "menor_preco":
-        orderBy = { hourlyRate: "asc" };
+        orderBy = [{ professionalPlanTier: "desc" }, { hourlyRate: "asc" }];
         break;
       case "avaliacao":
         orderBy = [
+          { professionalPlanTier: "desc" },
           { ratingCount: "desc" },
           { rating: "desc" },
-          { professionalPlanTier: "desc" },
         ];
         break;
       case "experiencia":
-        orderBy = [{ professionalPlanTier: "desc" }, { createdAt: "asc" }];
+        orderBy = [
+          { professionalPlanTier: "desc" },
+          { yearsOfExperience: "desc" },
+          { ratingCount: "desc" },
+          { rating: "desc" },
+        ];
         break;
       default:
         orderBy = [
