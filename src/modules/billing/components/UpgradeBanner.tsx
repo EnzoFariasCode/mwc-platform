@@ -15,20 +15,30 @@ import { createCheckoutSession } from "@/modules/stripe/actions/create-checkout-
 import { createPortalSession } from "@/modules/stripe/actions/create-portal-session";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import type {
+  TechPaidPlanId,
+  TechPlanDisplayPrices,
+} from "@/modules/subscriptions/tech-plan-pricing";
 
-// Dados dos Planos
-const plansData = [
+const plansData: Array<{
+  id: TechPaidPlanId;
+  title: string;
+  description: string;
+  features: string[];
+  buttonText: string;
+  buttonStyle: string;
+  highlight: boolean;
+  popular: boolean;
+}> = [
   {
     id: "starter",
     title: "Starter",
-    price: "R$ 14,99",
-    period: "/mês",
     description: "Para profissionais que querem mais visibilidade.",
     features: [
       "Até 3 trabalhos simultâneos",
-      "Selo de Verificado",
-      "Perfil Recomendado na busca",
-      "Suporte Prioritário",
+      "Selo Starter no perfil",
+      "Prioridade acima do plano gratuito",
+      "Gerenciamento pelo portal Stripe",
       "Taxa da plataforma: 10%",
     ],
     buttonText: "Assinar Starter",
@@ -39,15 +49,12 @@ const plansData = [
   {
     id: "advanced",
     title: "Advanced",
-    price: "R$ 24,99",
-    period: "/mês",
     description: "Para quem quer dominar o mercado e escalar.",
     features: [
       "Até 5 trabalhos simultâneos",
-      "Selo de Verificado Gold",
-      "Super Recomendado (Topo)",
-      "Destaque na Landing Page",
-      "Dashboard Analytics Avançado",
+      "Selo Advanced no perfil",
+      "Prioridade acima do Starter",
+      "Gerenciamento pelo portal Stripe",
       "Taxa da plataforma: 10%",
     ],
     buttonText: "Assinar Advanced",
@@ -61,9 +68,14 @@ const plansData = [
 type UpgradeBannerProps = {
   isPro: boolean;
   planLabel?: string;
+  planPrices: TechPlanDisplayPrices;
 };
 
-export function UpgradeBanner({ isPro, planLabel = "Pro" }: UpgradeBannerProps) {
+export function UpgradeBanner({
+  isPro,
+  planLabel = "Pro",
+  planPrices,
+}: UpgradeBannerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
@@ -244,9 +256,9 @@ export function UpgradeBanner({ isPro, planLabel = "Pro" }: UpgradeBannerProps) 
                     </div>
 
                     <div className="text-3xl font-bold text-white mb-6">
-                      {plan.price}
+                      {planPrices[plan.id].price}
                       <span className="text-sm text-slate-500 ml-1 font-normal">
-                        {plan.period}
+                        {planPrices[plan.id].period}
                       </span>
                     </div>
 

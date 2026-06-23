@@ -21,6 +21,7 @@ import {
   isActiveTechSubscription,
   TECH_PLAN_LIMITS,
 } from "@/modules/subscriptions/tech-plan";
+import { getTechPlanDisplayPrices } from "@/modules/subscriptions/tech-plan-pricing";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
@@ -82,7 +83,13 @@ export default async function ProfissionalDashboard({
   }
 
   // 2. Buscando dados reais em paralelo
-  const [conversationsCount, proposalsCount, completedProjects, currentUser] =
+  const [
+    conversationsCount,
+    proposalsCount,
+    completedProjects,
+    currentUser,
+    planPrices,
+  ] =
     await Promise.all([
       // Leads (Conversas)
       db.conversation.count({
@@ -118,6 +125,7 @@ export default async function ProfissionalDashboard({
           profileViews: true,
         },
       }),
+      getTechPlanDisplayPrices(),
     ]);
 
   // 3. Cálculos
@@ -207,7 +215,11 @@ export default async function ProfissionalDashboard({
         </div>
 
         {/* BANNER INTELIGENTE (PRO vs FREE) */}
-        <UpgradeBanner isPro={isPro} planLabel={planLabel} />
+        <UpgradeBanner
+          isPro={isPro}
+          planLabel={planLabel}
+          planPrices={planPrices}
+        />
       </div>
     </PageContainer>
   );
