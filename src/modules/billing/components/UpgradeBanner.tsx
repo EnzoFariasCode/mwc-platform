@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import {
   Check,
   X,
@@ -10,9 +10,11 @@ import {
   Rocket,
   Settings,
   Loader2,
+  LifeBuoy,
 } from "lucide-react";
 import { createCheckoutSession } from "@/modules/stripe/actions/create-checkout-session";
 import { createPortalSession } from "@/modules/stripe/actions/create-portal-session";
+import { requestTechSupport } from "@/modules/support/actions/request-tech-support";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type {
@@ -39,6 +41,7 @@ const plansData: Array<{
       "Selo Starter no perfil",
       "Selo de verificado no perfil",
       "Prioridade acima do plano gratuito",
+      "Suporte tecnico",
       "Gerenciamento pelo portal Stripe",
       "Taxa da plataforma: 10%",
     ],
@@ -56,6 +59,7 @@ const plansData: Array<{
       "Selo Advanced no perfil",
       "Selo de verificado no perfil",
       "Prioridade acima do Starter",
+      "Suporte tecnico",
       "Gerenciamento pelo portal Stripe",
       "Taxa da plataforma: 10%",
     ],
@@ -81,8 +85,12 @@ export function UpgradeBanner({
   initialOpen = false,
 }: UpgradeBannerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
+  const [isSupportLoading, setIsSupportLoading] = useState(false);
+  const [supportSubject, setSupportSubject] = useState("");
+  const [supportMessage, setSupportMessage] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -133,6 +141,32 @@ export function UpgradeBanner({
     }
   };
 
+  const handleSupportSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setIsSupportLoading(true);
+
+    try {
+      const result = await requestTechSupport({
+        subject: supportSubject,
+        message: supportMessage,
+      });
+
+      if (!result.success) {
+        toast.error(result.error || "Erro ao enviar suporte.");
+        return;
+      }
+
+      toast.success("Solicitacao enviada ao suporte.");
+      setSupportSubject("");
+      setSupportMessage("");
+      setIsSupportOpen(false);
+    } catch {
+      toast.error("Erro ao enviar suporte.");
+    } finally {
+      setIsSupportLoading(false);
+    }
+  };
+
   // --- CENÁRIO: USUÁRIO JÁ É PRO ---
   if (isPro) {
     return (
@@ -157,7 +191,13 @@ export function UpgradeBanner({
         </div>
 
         {/* Lado Direito: Botão de Gerenciar */}
-        <div className="relative z-10 w-full md:w-auto">
+        <div className="relative z-10 flex w-full flex-col gap-3 md:w-auto md:flex-row">
+          <button
+            onClick={() => setIsSupportOpen(true)}
+            className="w-full md:w-auto px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-emerald-100 font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <LifeBuoy className="w-4 h-4" /> Suporte
+          </button>
           <button
             onClick={handleManageSubscription}
             disabled={isPortalLoading}
@@ -177,6 +217,82 @@ export function UpgradeBanner({
 
         {/* Efeito de fundo */}
         <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-emerald-500/5 to-transparent pointer-events-none" />
+
+        {isSupportOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+            <form
+              onSubmit={handleSupportSubmit}
+              className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-950 p-6 shadow-2xl"
+            >
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    Suporte tecnico
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Descreva o problema para nossa equipe administrativa.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSupportOpen(false)}
+                  className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wide text-slate-300">
+                    Assunto
+                  </label>
+                  <input
+                    value={supportSubject}
+                    onChange={(event) => setSupportSubject(event.target.value)}
+                    maxLength={120}
+                    placeholder="Ex: Erro ao enviar proposta"
+                    className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wide text-slate-300">
+                    Mensagem
+                  </label>
+                  <textarea
+                    value={supportMessage}
+                    onChange={(event) => setSupportMessage(event.target.value)}
+                    maxLength={1200}
+                    rows={5}
+                    placeholder="Explique o que aconteceu e inclua o ID do projeto, se tiver."
+                    className="w-full resize-none rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex gap-3 border-t border-white/5 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsSupportOpen(false)}
+                  disabled={isSupportLoading}
+                  className="flex-1 rounded-xl bg-slate-800 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-slate-700 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSupportLoading}
+                  className="flex-[2] rounded-xl bg-emerald-500 py-3 text-sm font-bold text-emerald-950 transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                >
+                  {isSupportLoading ? "Enviando..." : "Enviar suporte"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     );
   }
@@ -195,8 +311,8 @@ export function UpgradeBanner({
             Desbloqueie o Potencial Máximo
           </h2>
           <p className="text-slate-300 mb-6 text-sm md:text-base max-w-lg leading-relaxed">
-            Profissionais assinantes ganham prioridade na busca, selo de plano
-            e maior limite de trabalhos simultâneos.
+            Profissionais assinantes ganham prioridade na busca, selo de plano,
+            maior limite de trabalhos simultaneos e suporte tecnico.
           </p>
 
           <button
