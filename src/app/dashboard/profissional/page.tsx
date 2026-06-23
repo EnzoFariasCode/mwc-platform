@@ -31,7 +31,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export default async function ProfissionalDashboard({
   searchParams,
 }: {
-  searchParams?: Promise<{ success?: string; session_id?: string }>;
+  searchParams?: Promise<{
+    success?: string;
+    session_id?: string;
+    openPlans?: string;
+  }>;
 }) {
   // 1. Autenticação
   const session = await verifySession();
@@ -150,6 +154,7 @@ export default async function ProfissionalDashboard({
   const isPro = isActiveTechSubscription(planInput.stripeSubscriptionStatus);
   const planId = getTechPlanId(planInput);
   const planLabel = TECH_PLAN_LIMITS[planId].label;
+  const shouldOpenPlans = !isPro && params?.openPlans === "true";
 
   return (
     <PageContainer>
@@ -219,6 +224,7 @@ export default async function ProfissionalDashboard({
           isPro={isPro}
           planLabel={planLabel}
           planPrices={planPrices}
+          initialOpen={shouldOpenPlans}
         />
       </div>
     </PageContainer>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Check,
   X,
@@ -69,17 +69,25 @@ type UpgradeBannerProps = {
   isPro: boolean;
   planLabel?: string;
   planPrices: TechPlanDisplayPrices;
+  initialOpen?: boolean;
 };
 
 export function UpgradeBanner({
   isPro,
   planLabel = "Pro",
   planPrices,
+  initialOpen = false,
 }: UpgradeBannerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (initialOpen && !isPro) {
+      setIsOpen(true);
+    }
+  }, [initialOpen, isPro]);
 
   // Função para comprar (Checkout)
   const handleSubscribe = async (planId: string) => {

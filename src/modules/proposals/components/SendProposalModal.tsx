@@ -11,6 +11,7 @@ import {
   Send,
   CheckCircle2,
   Edit2,
+  Crown,
 } from "lucide-react";
 import { createProposal } from "@/modules/proposals/actions/create-proposal";
 import { toast } from "sonner";
@@ -43,6 +44,7 @@ export function SendProposalModal({
   const [price, setPrice] = useState("");
   const [days, setDays] = useState("");
   const [coverLetter, setCoverLetter] = useState("");
+  const [upgradeError, setUpgradeError] = useState<string | null>(null);
 
   // Estado para controlar se aceita o valor do cliente ou personaliza
   // Se for Fixo e tiver valor, começa aceitando. Se for Hora, começa personalizado.
@@ -60,6 +62,7 @@ export function SendProposalModal({
       }
       setDays("");
       setCoverLetter("");
+      setUpgradeError(null);
     }
   }, [isOpen, budgetType, budgetValue]);
 
@@ -89,8 +92,18 @@ export function SendProposalModal({
       onClose();
       router.refresh();
     } else {
+      if (result.data?.code === "PLAN_LIMIT_REACHED") {
+        setUpgradeError(result.error || "Limite do plano atingido.");
+        return;
+      }
+
       toast.error(result.error || "Erro ao enviar proposta.");
     }
+  }
+
+  function handleUpgradePlan() {
+    onClose();
+    router.push("/dashboard/profissional?openPlans=true");
   }
 
   return (
@@ -115,8 +128,48 @@ export function SendProposalModal({
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {upgradeError ? (
+          <div className="p-6 space-y-5">
+            <div className="rounded-2xl border border-[#d73cbe]/30 bg-[#d73cbe]/10 p-5">
+              <div className="mb-3 flex items-center gap-3">
+                <div className="rounded-xl bg-[#d73cbe]/20 p-2 text-[#d73cbe]">
+                  <Crown className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    Limite do plano atingido
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Para enviar novas propostas, aumente seu limite de projetos.
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm leading-relaxed text-slate-300">
+                {upgradeError}
+              </p>
+            </div>
+
+            <div className="flex gap-3 border-t border-white/5 pt-4">
+              <button
+                type="button"
+                onClick={() => setUpgradeError(null)}
+                className="flex-1 rounded-xl bg-slate-800 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-slate-700"
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                onClick={handleUpgradePlan}
+                className="flex-[2] rounded-xl bg-[#d73cbe] py-3 text-sm font-bold text-white shadow-lg shadow-purple-900/20 transition-all hover:-translate-y-0.5 hover:bg-[#b0269a]"
+              >
+                Ver planos
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* SELEÇÃO DE MODO DE PREÇO (Apenas para Projetos Fixos com Valor Definido) */}
           {budgetType === "fixed" && budgetValue > 0 && (
             <div className="grid grid-cols-2 gap-3 p-1 bg-slate-900 rounded-xl border border-white/5">
@@ -246,7 +299,9 @@ export function SendProposalModal({
               )}
             </button>
           </div>
-        </form>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );

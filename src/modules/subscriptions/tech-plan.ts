@@ -13,8 +13,8 @@ export const TECH_PLAN_LIMITS: Record<
   { tier: number; maxActiveProjects: number; label: string }
 > = {
   free: { tier: 0, maxActiveProjects: 1, label: "Free" },
-  starter: { tier: 1, maxActiveProjects: 3, label: "Starter" },
-  advanced: { tier: 2, maxActiveProjects: 5, label: "Advanced" },
+  starter: { tier: 1, maxActiveProjects: 5, label: "Starter" },
+  advanced: { tier: 2, maxActiveProjects: 10, label: "Advanced" },
 };
 
 export function isActiveTechSubscription(status?: string | null) {

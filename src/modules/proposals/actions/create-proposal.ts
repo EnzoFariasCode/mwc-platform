@@ -17,7 +17,7 @@ interface CreateProposalData {
 
 export async function createProposal(
   data: CreateProposalData
-): Promise<ActionResponse> {
+): Promise<ActionResponse<{ code?: string; upgradeUrl?: string }>> {
   try {
     const session = await verifySession();
     const userId = session?.sub as string;
@@ -67,6 +67,10 @@ export async function createProposal(
       return {
         success: false,
         error: `Seu plano ${planLimits.label} permite ate ${planLimits.maxActiveProjects} trabalho(s) simultaneo(s). Finalize um projeto ativo ou atualize seu plano para enviar novas propostas.`,
+        data: {
+          code: "PLAN_LIMIT_REACHED",
+          upgradeUrl: "/dashboard/profissional?openPlans=true",
+        },
       };
     }
 
