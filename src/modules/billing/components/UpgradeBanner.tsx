@@ -29,7 +29,7 @@ const plansData = [
       "Selo de Verificado",
       "Perfil Recomendado na busca",
       "Suporte Prioritário",
-      "Taxa reduzida",
+      "Taxa da plataforma: 10%",
     ],
     buttonText: "Assinar Starter",
     buttonStyle: "bg-[#d73cbe] text-white shadow-lg shadow-purple-900/20",
@@ -48,7 +48,7 @@ const plansData = [
       "Super Recomendado (Topo)",
       "Destaque na Landing Page",
       "Dashboard Analytics Avançado",
-      "Menor taxa do mercado",
+      "Taxa da plataforma: 10%",
     ],
     buttonText: "Assinar Advanced",
     buttonStyle:
@@ -173,8 +173,8 @@ export function UpgradeBanner({ isPro, planLabel = "Pro" }: UpgradeBannerProps) 
             Desbloqueie o Potencial Máximo
           </h2>
           <p className="text-slate-300 mb-6 text-sm md:text-base max-w-lg leading-relaxed">
-            Profissionais PRO aparecem 5x mais nas buscas, têm selo de
-            verificado e pagam taxas menores. Não perca oportunidades.
+            Profissionais assinantes ganham prioridade na busca, selo de plano
+            e maior limite de trabalhos simultâneos.
           </p>
 
           <button

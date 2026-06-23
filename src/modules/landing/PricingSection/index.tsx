@@ -172,7 +172,8 @@ export function PricingSection({
                   vez
                 </li>
                 <li className="flex gap-2">
-                  <Check className="w-4 h-4 text-slate-500" /> Taxa padrão (20%)
+                  <Check className="w-4 h-4 text-slate-500" /> Taxa da
+                  plataforma (10%)
                 </li>
               </ul>
               <button

@@ -42,6 +42,8 @@ export default function CheckoutView({
   const [isCanceling, setIsCanceling] = useState(false);
 
   const canceled = searchParams.get("canceled") === "true";
+  const platformFee = price * 0.1;
+  const professionalReceives = price - platformFee;
 
   const SCOPE_ITEMS = [
     "Entrega de projeto completo",
@@ -242,8 +244,21 @@ export default function CheckoutView({
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Taxa MWC (0%)</span>
-                  <span className="text-green-400">Grátis (Beta)</span>
+                  <span className="text-slate-400">Taxa MWC (10%)</span>
+                  <span className="text-slate-300">
+                    Descontada do repasse
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">
+                    Repasse ao profissional
+                  </span>
+                  <span className="text-slate-300">
+                    {professionalReceives.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
+                  </span>
                 </div>
                 <div className="flex justify-between items-end pt-4 border-t border-white/5">
                   <span className="text-white font-bold text-sm">
