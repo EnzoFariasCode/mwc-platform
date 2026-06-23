@@ -1,13 +1,12 @@
 "use server";
 
+import { verifySession } from "@/lib/auth";
 import { db } from "@/lib/prisma";
-import { verifySession } from "@/lib/auth"; // Certifique-se que o verifySession está sendo exportado do seu lib/auth
-import { revalidatePath } from "next/cache";
-import { ActionResponse } from "@/modules/users/types/user-types";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
-import { getTechPlanLimits } from "@/modules/subscriptions/tech-plan";
+import { getTechProjectLimitStatus } from "@/modules/subscriptions/tech-plan-limits";
+import { ActionResponse } from "@/modules/users/types/user-types";
+import { revalidatePath } from "next/cache";
 
-// 👇 ESSA PARTE É OBRIGATÓRIA PARA O ERRO SUMIR
 interface CreateProposalData {
   projectId: string;
   price: number;
@@ -16,57 +15,31 @@ interface CreateProposalData {
 }
 
 export async function createProposal(
-  data: CreateProposalData
+  data: CreateProposalData,
 ): Promise<ActionResponse<{ code?: string; upgradeUrl?: string }>> {
   try {
     const session = await verifySession();
     const userId = session?.sub as string;
 
     if (!userId) {
-      return { success: false, error: "Você precisa estar logado." };
+      return { success: false, error: "Voce precisa estar logado." };
     }
 
-    if (
-      session?.userType !== "PROFESSIONAL" ||
-      session?.industry !== "TECH"
-    ) {
+    if (session?.userType !== "PROFESSIONAL" || session?.industry !== "TECH") {
       return {
         success: false,
-        error: "Ação restrita a profissionais de Tecnologia.",
+        error: "Acao restrita a profissionais de Tecnologia.",
       };
     }
 
-    // 1. Verifica se o usuário é Profissional
-    const user = await db.user.findUnique({
-      where: { id: userId },
-      select: {
-        userType: true,
-        stripeSubscriptionStatus: true,
-        stripePriceId: true,
-        professionalPlanTier: true,
-      },
-    });
+    const limitStatus = await getTechProjectLimitStatus(db, userId);
 
-    if (user?.userType !== "PROFESSIONAL") {
+    if (!limitStatus.allowed) {
       return {
         success: false,
-        error: "Apenas profissionais podem enviar propostas.",
-      };
-    }
-
-    // 2. Verifica se o projeto existe e está ABERTO
-    const planLimits = getTechPlanLimits(user);
-    const activeProjectsCount = await db.project.count({
-      where: {
-        professionalId: userId,
-        status: { in: ["IN_PROGRESS", "UNDER_REVIEW", "DISPUTE"] },
-      },
-    });
-
-    if (activeProjectsCount >= planLimits.maxActiveProjects) {
-      return {
-        success: false,
-        error: `Seu plano ${planLimits.label} permite ate ${planLimits.maxActiveProjects} trabalho(s) simultaneo(s). Finalize um projeto ativo ou atualize seu plano para enviar novas propostas.`,
+        error:
+          limitStatus.reason ||
+          "Seu plano atingiu o limite de trabalhos simultaneos.",
         data: {
           code: "PLAN_LIMIT_REACHED",
           upgradeUrl: "/dashboard/profissional?openPlans=true",
@@ -79,17 +52,16 @@ export async function createProposal(
     });
 
     if (!project) {
-      return { success: false, error: "Projeto não encontrado." };
+      return { success: false, error: "Projeto nao encontrado." };
     }
 
     if (project.status !== "OPEN") {
       return {
         success: false,
-        error: "Este projeto não está mais aceitando propostas.",
+        error: "Este projeto nao esta mais aceitando propostas.",
       };
     }
 
-    // 3. Verifica se já enviou proposta antes (Evitar duplicidade)
     const existingProposal = await db.proposal.findFirst({
       where: {
         projectId: data.projectId,
@@ -100,11 +72,10 @@ export async function createProposal(
     if (existingProposal) {
       return {
         success: false,
-        error: "Você já enviou uma proposta para este projeto.",
+        error: "Voce ja enviou uma proposta para este projeto.",
       };
     }
 
-    // 4. Cria a Proposta
     const proposal = await db.proposal.create({
       data: {
         projectId: data.projectId,
@@ -116,7 +87,6 @@ export async function createProposal(
       },
     });
 
-    // 5. Incrementa o contador
     await db.project.update({
       where: { id: data.projectId },
       data: { bidsCount: { increment: 1 } },
@@ -141,6 +111,7 @@ export async function createProposal(
 
     revalidatePath(`/dashboard/encontrar-projetos/${data.projectId}`);
     revalidatePath("/dashboard/meus-projetos");
+
     return { success: true };
   } catch (error) {
     console.error("Erro ao criar proposta:", error);

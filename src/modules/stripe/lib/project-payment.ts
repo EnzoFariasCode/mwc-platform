@@ -8,7 +8,7 @@ import {
   ProposalStatus,
 } from "@prisma/client";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
-import { getTechPlanLimits } from "@/modules/subscriptions/tech-plan";
+import { getTechProjectLimitStatus } from "@/modules/subscriptions/tech-plan-limits";
 
 type FinalizeProjectPaymentInput = {
   proposalId: string;
@@ -21,12 +21,6 @@ type FinalizeProjectPaymentInput = {
 type FinalizeProjectPaymentResult =
   | { success: true; alreadyProcessed?: boolean }
   | { success: false; error: string; manualReviewRequired?: boolean };
-
-const ACTIVE_PROJECT_STATUSES: ProjectStatus[] = [
-  ProjectStatus.IN_PROGRESS,
-  ProjectStatus.UNDER_REVIEW,
-  ProjectStatus.DISPUTE,
-];
 
 export async function finalizeProjectPayment({
   proposalId,
@@ -134,16 +128,15 @@ export async function finalizeProjectPayment({
 
   try {
     const result = await db.$transaction(async (tx) => {
-      const planLimits = getTechPlanLimits(proposal.professional);
-      const activeProjectsCount = await tx.project.count({
-        where: {
-          professionalId: proposal.professionalId,
-          id: { not: proposal.projectId },
-          status: { in: ACTIVE_PROJECT_STATUSES },
+      const limitStatus = await getTechProjectLimitStatus(
+        tx,
+        proposal.professionalId,
+        {
+          excludeProjectId: proposal.projectId,
         },
-      });
+      );
 
-      if (activeProjectsCount >= planLimits.maxActiveProjects) {
+      if (!limitStatus.allowed) {
         const reason =
           "Profissional atingiu o limite de trabalhos simultaneos do plano no momento da confirmacao.";
 

@@ -7,7 +7,7 @@ import { db } from "@/lib/prisma";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { ProjectCheckoutHoldStatus } from "@prisma/client";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
-import { getTechPlanLimits } from "@/modules/subscriptions/tech-plan";
+import { getTechProjectLimitStatus } from "@/modules/subscriptions/tech-plan-limits";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
@@ -83,15 +83,15 @@ export async function createProjectCheckout(
     return { success: false, error: "Projeto nao esta aberto para pagamento." };
   }
 
-  const planLimits = getTechPlanLimits(proposal.professional);
-  const activeProjectsCount = await db.project.count({
-    where: {
-      professionalId: proposal.professionalId,
-      status: { in: ["IN_PROGRESS", "UNDER_REVIEW", "DISPUTE"] },
+  const limitStatus = await getTechProjectLimitStatus(
+    db,
+    proposal.professionalId,
+    {
+      excludeProjectId: proposal.projectId,
     },
-  });
+  );
 
-  if (activeProjectsCount >= planLimits.maxActiveProjects) {
+  if (!limitStatus.allowed) {
     return {
       success: false,
       error:
