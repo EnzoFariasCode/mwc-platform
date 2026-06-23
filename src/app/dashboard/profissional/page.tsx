@@ -9,6 +9,7 @@ import {
   Eye,
   FileText,
   MessageCircle,
+  Rocket,
   Search,
   UserCheck,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import {
   TECH_PLAN_LIMITS,
 } from "@/modules/subscriptions/tech-plan";
 import { getTechPlanDisplayPrices } from "@/modules/subscriptions/tech-plan-pricing";
+import { getTechProjectLimitStatus } from "@/modules/subscriptions/tech-plan-limits";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
@@ -93,6 +95,7 @@ export default async function ProfissionalDashboard({
     completedProjects,
     currentUser,
     planPrices,
+    projectLimitStatus,
   ] =
     await Promise.all([
       // Leads (Conversas)
@@ -130,6 +133,7 @@ export default async function ProfissionalDashboard({
         },
       }),
       getTechPlanDisplayPrices(),
+      getTechProjectLimitStatus(db, userId),
     ]);
 
   // 3. Cálculos
@@ -189,6 +193,13 @@ export default async function ProfissionalDashboard({
           </div>
         </div>
 
+        <PlanLimitCard
+          planLabel={projectLimitStatus.planLabel}
+          occupiedSlots={projectLimitStatus.occupiedSlots}
+          remainingSlots={projectLimitStatus.remainingSlots}
+          maxActiveProjects={projectLimitStatus.maxActiveProjects}
+        />
+
         {/* Cards Pro */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
@@ -228,6 +239,67 @@ export default async function ProfissionalDashboard({
         />
       </div>
     </PageContainer>
+  );
+}
+
+function PlanLimitCard({
+  planLabel,
+  occupiedSlots,
+  remainingSlots,
+  maxActiveProjects,
+}: {
+  planLabel: string;
+  occupiedSlots: number;
+  remainingSlots: number;
+  maxActiveProjects: number;
+}) {
+  const usagePercent =
+    maxActiveProjects > 0
+      ? Math.min((occupiedSlots / maxActiveProjects) * 100, 100)
+      : 0;
+  const isFull = remainingSlots <= 0;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-6 shadow-lg shadow-black/10">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-4">
+          <div className="rounded-2xl bg-[#d73cbe]/10 p-3 text-[#d73cbe]">
+            <Rocket className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-medium text-slate-400">Plano atual</p>
+              <span className="rounded-full border border-[#d73cbe]/30 bg-[#d73cbe]/10 px-3 py-1 text-xs font-bold text-[#f0a7e4]">
+                {planLabel}
+              </span>
+            </div>
+            <h2 className="mt-2 text-xl font-bold text-white font-futura">
+              {occupiedSlots} de {maxActiveProjects} trabalhos simultaneos em uso
+            </h2>
+            <p className="mt-1 text-sm text-slate-400">
+              {isFull
+                ? "Seu limite esta cheio. Finalize um projeto ativo ou atualize seu plano para assumir novas oportunidades."
+                : `Voce ainda pode assumir ${remainingSlots} trabalho(s) dentro do seu plano.`}
+            </p>
+          </div>
+        </div>
+
+        <div className="w-full lg:max-w-xs">
+          <div className="mb-2 flex items-center justify-between text-xs font-medium text-slate-400">
+            <span>Uso do limite</span>
+            <span>{Math.round(usagePercent)}%</span>
+          </div>
+          <div className="h-3 overflow-hidden rounded-full bg-slate-800">
+            <div
+              className={`h-full rounded-full transition-all ${
+                isFull ? "bg-amber-400" : "bg-[#d73cbe]"
+              }`}
+              style={{ width: `${usagePercent}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
