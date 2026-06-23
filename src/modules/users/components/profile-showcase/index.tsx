@@ -21,7 +21,10 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { ExpandableText } from "@/components/ui/ExpandableText";
-import { isActiveTechSubscription } from "@/modules/subscriptions/tech-plan";
+import {
+  isActiveTechSubscription,
+  isPaidTechPlanTier,
+} from "@/modules/subscriptions/tech-plan";
 
 // Tipagem flexível para aceitar o retorno do banco
 interface ProfessionalData {
@@ -41,6 +44,7 @@ interface ProfessionalData {
   certificates: any; // Pode vir como string, null ou array
   socialGithub: string | null;
   socialLinkedin: string | null;
+  industry?: string | null;
   stripeSubscriptionStatus?: string | null;
   professionalPlanTier?: number | null;
   createdAt: Date;
@@ -140,6 +144,12 @@ export function ProfileShowcase({
   const isSubscriber = isActiveTechSubscription(
     professional.stripeSubscriptionStatus,
   );
+  const isTechProfessional =
+    professional.userType === "PROFESSIONAL" && professional.industry === "TECH";
+  const hasVerifiedTechPlan =
+    isTechProfessional &&
+    isSubscriber &&
+    isPaidTechPlanTier(professional.professionalPlanTier);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 relative">
@@ -177,10 +187,10 @@ export function ProfileShowcase({
                   <span className="text-slate-600">{initials}</span>
                 )}
               </div>
-              {professional.userType === "PROFESSIONAL" && isSubscriber && (
+              {hasVerifiedTechPlan && (
                 <div
                   className="absolute bottom-2 right-2 bg-green-500 text-white p-1.5 rounded-full border-4 border-card shadow-sm"
-                  title="Profissional assinante"
+                  title="Profissional Tech verificado"
                 >
                   <ShieldCheck className="w-5 h-5" />
                 </div>
@@ -193,9 +203,9 @@ export function ProfileShowcase({
                 <div>
                   <h1 className="text-3xl md:text-4xl font-bold text-white font-futura mb-1 flex flex-wrap items-center gap-2">
                     {mainName}
-                    {professional.userType === "PROFESSIONAL" && (
+                    {isTechProfessional && (
                       <PublicPlanBadge
-                        isActive={isSubscriber}
+                        isActive={hasVerifiedTechPlan}
                         tier={professional.professionalPlanTier}
                       />
                     )}

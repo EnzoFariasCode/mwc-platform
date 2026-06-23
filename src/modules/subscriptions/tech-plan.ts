@@ -21,6 +21,13 @@ export function isActiveTechSubscription(status?: string | null) {
   return ACTIVE_SUBSCRIPTION_STATUSES.has(status ?? "");
 }
 
+export function isPaidTechPlanTier(tier?: number | null) {
+  return (
+    tier === TECH_PLAN_LIMITS.starter.tier ||
+    tier === TECH_PLAN_LIMITS.advanced.tier
+  );
+}
+
 export function getTechPlanId(input: PlanInput): TechPlanId {
   if (!isActiveTechSubscription(input.stripeSubscriptionStatus)) {
     return "free";

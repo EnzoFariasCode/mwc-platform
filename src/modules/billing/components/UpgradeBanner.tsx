@@ -35,8 +35,9 @@ const plansData: Array<{
     title: "Starter",
     description: "Para profissionais que querem mais visibilidade.",
     features: [
-      "Até 3 trabalhos simultâneos",
+      "Até 5 trabalhos simultâneos",
       "Selo Starter no perfil",
+      "Selo de verificado no perfil",
       "Prioridade acima do plano gratuito",
       "Gerenciamento pelo portal Stripe",
       "Taxa da plataforma: 10%",
@@ -51,8 +52,9 @@ const plansData: Array<{
     title: "Advanced",
     description: "Para quem quer dominar o mercado e escalar.",
     features: [
-      "Até 5 trabalhos simultâneos",
+      "Até 10 trabalhos simultâneos",
       "Selo Advanced no perfil",
+      "Selo de verificado no perfil",
       "Prioridade acima do Starter",
       "Gerenciamento pelo portal Stripe",
       "Taxa da plataforma: 10%",

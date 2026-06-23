@@ -27,7 +27,10 @@ import {
   Lock, // Ícone para o bloqueio
 } from "lucide-react";
 import Image from "next/image";
-import { isActiveTechSubscription } from "@/modules/subscriptions/tech-plan";
+import {
+  isActiveTechSubscription,
+  isPaidTechPlanTier,
+} from "@/modules/subscriptions/tech-plan";
 
 // Tipagem dos itens de array
 interface PortfolioItem {
@@ -42,6 +45,7 @@ interface UserData {
   displayName: string | null;
   email: string | null;
   userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
+  industry?: "TECH" | "HEALTH" | null;
   birthDate?: string | Date | null;
   avatarUrl?: string | null;
   bio?: string | null;
@@ -138,10 +142,16 @@ export default function PerfilView({ user }: { user: UserData }) {
 
   // 1. É Profissional? (Define se pode editar e visualizar o conteúdo de skills/portfolio)
   const isProfessionalUser = currentUser.userType === "PROFESSIONAL";
+  const isTechProfessional =
+    isProfessionalUser && currentUser.industry === "TECH";
 
   const isSubscriber = isActiveTechSubscription(
     currentUser.stripeSubscriptionStatus,
   );
+  const hasVerifiedTechPlan =
+    isTechProfessional &&
+    isSubscriber &&
+    isPaidTechPlanTier(currentUser.professionalPlanTier);
 
   const mainName =
     currentUser.name && currentUser.name.trim() !== ""
@@ -348,10 +358,10 @@ export default function PerfilView({ user }: { user: UserData }) {
                 </div>
 
                 {/* LOGICA DA FOTO: SÓ MOSTRA SELO SE FOR ASSINANTE PAGO */}
-                {isSubscriber && (
+                {hasVerifiedTechPlan && (
                   <div
                     className="absolute bottom-1 right-1 bg-green-500 text-white p-1.5 rounded-full border-4 border-card shadow-lg animate-in zoom-in"
-                    title="Profissional Verificado (Assinante)"
+                    title="Profissional Tech verificado"
                   >
                     <ShieldCheck className="w-4 h-4" />
                   </div>
@@ -371,16 +381,16 @@ export default function PerfilView({ user }: { user: UserData }) {
                     )}
 
                     {/* LOGICA DOS BADGES AO LADO DO NOME */}
-                    {isProfessionalUser ? (
+                    {isTechProfessional ? (
                       <PlanBadge
-                        isActive={isSubscriber}
+                        isActive={hasVerifiedTechPlan}
                         tier={currentUser.professionalPlanTier}
                       />
-                    ) : (
+                    ) : !isProfessionalUser ? (
                       <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-bold uppercase rounded-md border border-blue-500/20 tracking-wide mb-1.5 flex items-center gap-1">
                         Cliente
                       </span>
-                    )}
+                    ) : null}
                   </div>
 
                   {/* Cargo do Usuário */}
