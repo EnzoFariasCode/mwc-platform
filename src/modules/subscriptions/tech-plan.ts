@@ -26,14 +26,6 @@ export function getTechPlanId(input: PlanInput): TechPlanId {
     return "free";
   }
 
-  if (input.professionalPlanTier === TECH_PLAN_LIMITS.advanced.tier) {
-    return "advanced";
-  }
-
-  if (input.professionalPlanTier === TECH_PLAN_LIMITS.starter.tier) {
-    return "starter";
-  }
-
   if (
     process.env.STRIPE_PRICE_ADVANCED_ID &&
     input.stripePriceId === process.env.STRIPE_PRICE_ADVANCED_ID
@@ -48,7 +40,13 @@ export function getTechPlanId(input: PlanInput): TechPlanId {
     return "starter";
   }
 
-  return "starter";
+  console.error("[TECH_PLAN_UNKNOWN_PRICE_ID]", {
+    stripeSubscriptionStatus: input.stripeSubscriptionStatus,
+    stripePriceId: input.stripePriceId,
+    professionalPlanTier: input.professionalPlanTier,
+  });
+
+  return "free";
 }
 
 export function getTechPlanTier(input: PlanInput) {
