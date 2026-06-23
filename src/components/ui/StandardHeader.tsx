@@ -4,6 +4,28 @@ import Logo from "@/assets/images/landingPage/logo.png";
 import { getUserSession } from "@/lib/get-session";
 import { LayoutDashboard } from "lucide-react";
 
+function HeaderSvgButton({ text, href }: { text: string; href: string }) {
+  return (
+    <span className="group relative inline-flex h-11 min-w-[112px]">
+      <Link
+        href={href}
+        className="relative z-10 inline-flex h-full min-w-[112px] cursor-pointer items-center justify-center bg-transparent px-5 text-sm font-bold text-white outline-none"
+      >
+        <svg
+          viewBox="0 0 160 44"
+          preserveAspectRatio="none"
+          className="absolute inset-0 h-full w-full fill-none stroke-[#d73cbe] transition-all duration-1000 ease-in-out [stroke-dasharray:110_420] [stroke-dashoffset:110] group-hover:fill-[#d73cbe]/10 group-hover:[stroke-dashoffset:-420]"
+        >
+          <polyline points="159,1 159,43 1,43 1,1 159,1" strokeWidth="2" />
+        </svg>
+        <span className="relative z-20 whitespace-nowrap uppercase tracking-widest">
+          {text}
+        </span>
+      </Link>
+    </span>
+  );
+}
+
 const StandardHeader = async () => {
   const session = await getUserSession();
 
@@ -59,12 +81,7 @@ const StandardHeader = async () => {
               Dashboard
             </Link>
           ) : (
-            <Link
-              href="/login"
-              className="rounded-full bg-[#d73cbe] px-4 py-2 text-sm font-bold text-white shadow-lg shadow-[#d73cbe]/20 transition-all hover:-translate-y-0.5 hover:bg-[#c02aa8] hover:shadow-[#d73cbe]/40 sm:px-6"
-            >
-              Login
-            </Link>
+            <HeaderSvgButton text="Login" href="/login" />
           )}
         </nav>
       </div>
