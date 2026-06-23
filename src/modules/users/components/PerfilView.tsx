@@ -27,6 +27,7 @@ import {
   Lock, // Ícone para o bloqueio
 } from "lucide-react";
 import Image from "next/image";
+import { isActiveTechSubscription } from "@/modules/subscriptions/tech-plan";
 
 // Tipagem dos itens de array
 interface PortfolioItem {
@@ -85,7 +86,6 @@ function getMemberSince(dateInput: Date | string | undefined) {
   return years === 1 ? "Membro há 1 ano" : `Membro há ${years} anos`;
 }
 
-// --- COMPONENTE DE BADGE DO PLANO ---
 function PlanBadge({
   tier,
   isActive,
@@ -93,7 +93,6 @@ function PlanBadge({
   tier?: number | null;
   isActive: boolean;
 }) {
-  // 1. Se não estiver ativo (pagamento falhou ou cancelado) ou sem plano -> FREE
   if (!isActive) {
     return (
       <span className="px-2 py-0.5 bg-slate-500/10 text-slate-400 text-xs font-bold uppercase rounded-md border border-slate-500/20 tracking-wide mb-1.5 flex items-center gap-1">
@@ -102,7 +101,6 @@ function PlanBadge({
     );
   }
 
-  // 2. Se for o Plano Starter
   if (tier === 1) {
     return (
       <span className="px-2 py-0.5 bg-[#d73cbe]/10 text-[#d73cbe] text-xs font-bold uppercase rounded-md border border-[#d73cbe]/20 tracking-wide mb-1.5 flex items-center gap-1">
@@ -111,7 +109,6 @@ function PlanBadge({
     );
   }
 
-  // 3. Se for o Plano Advanced
   if (tier === 2) {
     return (
       <span className="px-2 py-0.5 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 text-violet-400 text-xs font-bold uppercase rounded-md border border-violet-500/20 tracking-wide mb-1.5 flex items-center gap-1">
@@ -120,10 +117,9 @@ function PlanBadge({
     );
   }
 
-  // Fallback (Se for ativo mas o ID não bater, mostra PRO genérico)
   return (
     <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-xs font-bold uppercase rounded-md border border-emerald-500/20 tracking-wide mb-1.5 flex items-center gap-1">
-      Pro <ShieldCheck className="w-3 h-3" />
+      Plano ativo <ShieldCheck className="w-3 h-3" />
     </span>
   );
 }
@@ -143,8 +139,9 @@ export default function PerfilView({ user }: { user: UserData }) {
   // 1. É Profissional? (Define se pode editar e visualizar o conteúdo de skills/portfolio)
   const isProfessionalUser = currentUser.userType === "PROFESSIONAL";
 
-  // 2. É Assinante Ativo? (Define se ganha o selo verde na foto)
-  const isSubscriber = currentUser.stripeSubscriptionStatus === "active";
+  const isSubscriber = isActiveTechSubscription(
+    currentUser.stripeSubscriptionStatus,
+  );
 
   const mainName =
     currentUser.name && currentUser.name.trim() !== ""

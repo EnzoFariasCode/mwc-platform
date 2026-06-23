@@ -15,10 +15,13 @@ import {
   Share2,
   CheckCircle2,
   ChevronLeft,
+  Rocket,
+  Zap,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { ExpandableText } from "@/components/ui/ExpandableText";
+import { isActiveTechSubscription } from "@/modules/subscriptions/tech-plan";
 
 // Tipagem flexível para aceitar o retorno do banco
 interface ProfessionalData {
@@ -38,6 +41,8 @@ interface ProfessionalData {
   certificates: any; // Pode vir como string, null ou array
   socialGithub: string | null;
   socialLinkedin: string | null;
+  stripeSubscriptionStatus?: string | null;
+  professionalPlanTier?: number | null;
   createdAt: Date;
   userType: string;
   reviewsReceived?: {
@@ -77,6 +82,38 @@ function safeParseList(data: any): any[] {
   return []; // Fallback final
 }
 
+function PublicPlanBadge({
+  tier,
+  isActive,
+}: {
+  tier?: number | null;
+  isActive: boolean;
+}) {
+  if (!isActive) return null;
+
+  if (tier === 1) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-[#d73cbe]/20 bg-[#d73cbe]/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-[#d73cbe]">
+        Starter <Rocket className="h-3 w-3" />
+      </span>
+    );
+  }
+
+  if (tier === 2) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-violet-300">
+        Advanced <Zap className="h-3 w-3" />
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-emerald-300">
+      Plano ativo <ShieldCheck className="h-3 w-3" />
+    </span>
+  );
+}
+
 export function ProfileShowcase({
   professional,
   isAuthenticated,
@@ -100,6 +137,9 @@ export function ProfileShowcase({
   const portfolioItems = safeParseList(professional.portfolio);
   const certificateItems = safeParseList(professional.certificates);
   const recentReviews = professional.reviewsReceived || [];
+  const isSubscriber = isActiveTechSubscription(
+    professional.stripeSubscriptionStatus,
+  );
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 relative">
@@ -137,10 +177,10 @@ export function ProfileShowcase({
                   <span className="text-slate-600">{initials}</span>
                 )}
               </div>
-              {professional.userType === "PROFESSIONAL" && (
+              {professional.userType === "PROFESSIONAL" && isSubscriber && (
                 <div
                   className="absolute bottom-2 right-2 bg-green-500 text-white p-1.5 rounded-full border-4 border-card shadow-sm"
-                  title="Profissional Verificado"
+                  title="Profissional assinante"
                 >
                   <ShieldCheck className="w-5 h-5" />
                 </div>
@@ -151,8 +191,14 @@ export function ProfileShowcase({
             <div className="flex-1 w-full pt-14 md:pt-16">
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                 <div>
-                  <h1 className="text-3xl md:text-4xl font-bold text-white font-futura mb-1 flex items-center gap-2">
+                  <h1 className="text-3xl md:text-4xl font-bold text-white font-futura mb-1 flex flex-wrap items-center gap-2">
                     {mainName}
+                    {professional.userType === "PROFESSIONAL" && (
+                      <PublicPlanBadge
+                        isActive={isSubscriber}
+                        tier={professional.professionalPlanTier}
+                      />
+                    )}
                     {professional.ratingCount &&
                       professional.rating &&
                       professional.rating >= 4.8 && (

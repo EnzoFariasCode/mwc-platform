@@ -1,32 +1,50 @@
 "use server";
 
-import Stripe from "stripe";
 import { getUserSession } from "@/lib/get-session";
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from "@/lib/prisma";
+import { stripe } from "@/lib/stripe";
+import {
+  getTechPlanTier,
+  isActiveTechSubscription,
+} from "@/modules/subscriptions/tech-plan";
 import { ActionResponse } from "@/modules/users/types/user-types";
-import { isActiveTechSubscription } from "@/modules/subscriptions/tech-plan";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-01-28.clover" as any,
-});
+type PaidPlanId = "starter" | "advanced";
+
+async function createBillingPortalUrl(customerId: string) {
+  const portalSession = await stripe.billingPortal.sessions.create({
+    customer: customerId,
+    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/profissional`,
+  });
+
+  return portalSession.url;
+}
+
+async function findActiveCustomerSubscription(customerId: string) {
+  const subscriptions = await stripe.subscriptions.list({
+    customer: customerId,
+    status: "all",
+    limit: 10,
+  });
+
+  return subscriptions.data.find((subscription) =>
+    isActiveTechSubscription(subscription.status),
+  );
+}
 
 export async function createCheckoutSession(
-  planId: "starter" | "advanced",
+  planId: PaidPlanId,
 ): Promise<ActionResponse<{ url: string }>> {
   const session = await getUserSession();
 
   if (!session?.id) {
-    return { success: false, error: "Você precisa estar logado para assinar." };
+    return { success: false, error: "Voce precisa estar logado para assinar." };
   }
 
-  if (
-    session.userType !== "PROFESSIONAL" ||
-    session.industry !== "TECH"
-  ) {
+  if (session.userType !== "PROFESSIONAL" || session.industry !== "TECH") {
     return {
       success: false,
-      error: "Ação restrita a profissionais de Tecnologia.",
+      error: "Acao restrita a profissionais de Tecnologia.",
     };
   }
 
@@ -35,37 +53,73 @@ export async function createCheckoutSession(
   });
 
   if (!user) {
-    return { success: false, error: "Usuário não encontrado." };
+    return { success: false, error: "Usuario nao encontrado." };
   }
 
-  // --- TRAVA DE SEGURANÇA ---
-  // Se o usuário já tem assinatura ativa, impedimos novo checkout
   if (isActiveTechSubscription(user.stripeSubscriptionStatus)) {
-    // Opcional: Podemos retornar um código específico para o front redirecionar pro portal
+    if (!user.stripeCustomerId) {
+      return {
+        success: false,
+        error: "Assinatura ativa encontrada, mas sem cliente Stripe vinculado.",
+        data: { url: "/dashboard/profissional" },
+      };
+    }
+
     return {
-      success: false,
-      error: "Você já possui uma assinatura ativa.",
-      data: { url: "/dashboard/profissional" },
+      success: true,
+      data: { url: await createBillingPortalUrl(user.stripeCustomerId) },
     };
   }
-  // --------------------------
 
-  // Defina seus Price IDs aqui (igual ao UpgradeBanner)
-  const prices = {
-    starter: process.env.STRIPE_PRICE_STARTER_ID!, // ex: price_1Q...
-    advanced: process.env.STRIPE_PRICE_ADVANCED_ID!, // ex: price_1Q...
+  if (user.stripeCustomerId) {
+    const activeSubscription = await findActiveCustomerSubscription(
+      user.stripeCustomerId,
+    );
+
+    if (activeSubscription) {
+      const priceId = activeSubscription.items.data[0]?.price?.id ?? null;
+      const currentPeriodEnd = (
+        activeSubscription as { current_period_end?: number }
+      ).current_period_end;
+
+      await db.user.update({
+        where: { id: user.id },
+        data: {
+          stripeSubscriptionId: activeSubscription.id,
+          stripePriceId: priceId,
+          stripeCurrentPeriodEnd: currentPeriodEnd
+            ? new Date(currentPeriodEnd * 1000)
+            : null,
+          stripeSubscriptionStatus: activeSubscription.status,
+          professionalPlanTier: getTechPlanTier({
+            stripeSubscriptionStatus: activeSubscription.status,
+            stripePriceId: priceId,
+          }),
+        },
+      });
+
+      return {
+        success: true,
+        data: { url: await createBillingPortalUrl(user.stripeCustomerId) },
+      };
+    }
+  }
+
+  const prices: Record<PaidPlanId, string | undefined> = {
+    starter: process.env.STRIPE_PRICE_STARTER_ID,
+    advanced: process.env.STRIPE_PRICE_ADVANCED_ID,
   };
 
   const priceId = prices[planId];
 
   if (!priceId) {
-    return { success: false, error: "Plano inválido ou não configurado." };
+    return { success: false, error: "Plano invalido ou nao configurado." };
   }
 
   try {
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
-      customer: user.stripeCustomerId || undefined, // Reusa o customer se existir
+      customer: user.stripeCustomerId || undefined,
       customer_email: user.stripeCustomerId ? undefined : user.email!,
       line_items: [
         {

@@ -30,6 +30,8 @@ type PublicProfile = {
   certificates: Prisma.JsonValue | null;
   socialGithub: string | null;
   socialLinkedin: string | null;
+  stripeSubscriptionStatus: string | null;
+  professionalPlanTier: number | null;
   createdAt: Date;
   reviewsReceived: PublicReview[];
   avatarUrl: string | null;
@@ -59,6 +61,8 @@ export async function getPublicProfile(
         certificates: true,
         socialGithub: true,
         socialLinkedin: true,
+        stripeSubscriptionStatus: true,
+        professionalPlanTier: true,
         createdAt: true,
         // --- 🛡️ CAMPOS ADICIONADOS APENAS PARA A BARREIRA DE QUALIDADE ---
         industry: true,
