@@ -58,7 +58,12 @@ const plansData = [
   },
 ];
 
-export function UpgradeBanner({ isPro }: { isPro: boolean }) {
+type UpgradeBannerProps = {
+  isPro: boolean;
+  planLabel?: string;
+};
+
+export function UpgradeBanner({ isPro, planLabel = "Pro" }: UpgradeBannerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
@@ -119,12 +124,12 @@ export function UpgradeBanner({ isPro }: { isPro: boolean }) {
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
               Assinatura Ativa
               <span className="px-2 py-0.5 bg-emerald-500 text-emerald-950 text-[10px] font-bold uppercase rounded-full">
-                Pro
+                {planLabel}
               </span>
             </h2>
             <p className="text-emerald-200/70 text-sm mt-1 max-w-md">
-              Você tem acesso total à plataforma. Seu perfil está destacado e
-              suas taxas são reduzidas.
+              Sua assinatura esta ativa. Gerencie plano, forma de pagamento e
+              cancelamento pelo portal Stripe.
             </p>
           </div>
         </div>

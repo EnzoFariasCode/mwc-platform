@@ -5,6 +5,7 @@ import { getUserSession } from "@/lib/get-session";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from "@/lib/prisma";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { isActiveTechSubscription } from "@/modules/subscriptions/tech-plan";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
@@ -39,7 +40,7 @@ export async function createCheckoutSession(
 
   // --- TRAVA DE SEGURANÇA ---
   // Se o usuário já tem assinatura ativa, impedimos novo checkout
-  if (user.stripeSubscriptionStatus === "active") {
+  if (isActiveTechSubscription(user.stripeSubscriptionStatus)) {
     // Opcional: Podemos retornar um código específico para o front redirecionar pro portal
     return {
       success: false,

@@ -15,7 +15,12 @@ import {
 import { UpgradeBanner } from "@/modules/billing/components/UpgradeBanner";
 import { Prisma } from "@prisma/client";
 import Stripe from "stripe";
-import { getTechPlanTier } from "@/modules/subscriptions/tech-plan";
+import {
+  getTechPlanId,
+  getTechPlanTier,
+  isActiveTechSubscription,
+  TECH_PLAN_LIMITS,
+} from "@/modules/subscriptions/tech-plan";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
@@ -25,7 +30,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export default async function ProfissionalDashboard({
   searchParams,
 }: {
-  searchParams?: { success?: string; session_id?: string };
+  searchParams?: Promise<{ success?: string; session_id?: string }>;
 }) {
   // 1. Autenticação
   const session = await verifySession();
@@ -36,8 +41,9 @@ export default async function ProfissionalDashboard({
 
   const userId = session.sub as string;
 
-  const sessionId = searchParams?.session_id;
-  if (searchParams?.success === "true" && sessionId) {
+  const params = searchParams ? await searchParams : undefined;
+  const sessionId = params?.session_id;
+  if (params?.success === "true" && sessionId) {
     try {
       const checkoutSession = await stripe.checkout.sessions.retrieve(
         sessionId,
@@ -108,7 +114,8 @@ export default async function ProfissionalDashboard({
           stripeSubscriptionId: true,
           stripeCustomerId: true,
           stripePriceId: true,
-          profileViews: true, // <--- Lendo as visitas reais do banco
+          professionalPlanTier: true,
+          profileViews: true,
         },
       }),
     ]);
@@ -127,16 +134,14 @@ export default async function ProfissionalDashboard({
   const profileVisits = currentUser?.profileViews || 0;
 
   // Verifica se é pro
-  const subscriptionStatus = currentUser?.stripeSubscriptionStatus ?? null;
-  const hasSubscription = Boolean(
-    currentUser?.stripeSubscriptionId ||
-      currentUser?.stripeCustomerId ||
-      currentUser?.stripePriceId
-  );
-  const isPro = subscriptionStatus
-    ? subscriptionStatus !== "canceled" &&
-      subscriptionStatus !== "incomplete_expired"
-    : hasSubscription;
+  const planInput = {
+    stripeSubscriptionStatus: currentUser?.stripeSubscriptionStatus ?? null,
+    stripePriceId: currentUser?.stripePriceId ?? null,
+    professionalPlanTier: currentUser?.professionalPlanTier ?? null,
+  };
+  const isPro = isActiveTechSubscription(planInput.stripeSubscriptionStatus);
+  const planId = getTechPlanId(planInput);
+  const planLabel = TECH_PLAN_LIMITS[planId].label;
 
   return (
     <PageContainer>
@@ -202,7 +207,7 @@ export default async function ProfissionalDashboard({
         </div>
 
         {/* BANNER INTELIGENTE (PRO vs FREE) */}
-        <UpgradeBanner isPro={isPro} />
+        <UpgradeBanner isPro={isPro} planLabel={planLabel} />
       </div>
     </PageContainer>
   );

@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import StandardHeader from "@/components/ui/StandardHeader";
 import FooterContact from "@/components/ui/FooterContact";
 import BeWorkerClient from "@/modules/landing/worker/BeWorkerClient";
+import { isActiveTechSubscription } from "@/modules/subscriptions/tech-plan";
 import { getTechPlanDisplayPrices } from "@/modules/subscriptions/tech-plan-pricing";
 
 export default async function HowToBeWorkerPage() {
@@ -23,8 +24,9 @@ export default async function HowToBeWorkerPage() {
       },
     });
 
-    userStatus =
-      user?.stripeSubscriptionStatus === "active" ? "active" : "inactive";
+    userStatus = isActiveTechSubscription(user?.stripeSubscriptionStatus)
+      ? "active"
+      : "inactive";
     userType = user?.userType || null;
     industry = user?.industry || null;
   }
