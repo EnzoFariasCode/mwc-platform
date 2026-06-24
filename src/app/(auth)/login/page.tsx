@@ -10,6 +10,8 @@ import { WelcomeModal } from "./components/LoginModal";
 
 const SUSPENDED_ACCOUNT_MESSAGE =
   "Sua conta esta suspensa. Entre em contato com o suporte MWC para entender o motivo e solicitar revisao.";
+const GOOGLE_UNVERIFIED_EMAIL_MESSAGE =
+  "Sua conta Google precisa ter um e-mail verificado para entrar na MWC.";
 
 function LoginContent() {
   const router = useRouter();
@@ -24,7 +26,11 @@ function LoginContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSocialLoading, setIsSocialLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(() =>
-    error === "account_suspended" ? SUSPENDED_ACCOUNT_MESSAGE : "",
+    error === "account_suspended"
+      ? SUSPENDED_ACCOUNT_MESSAGE
+      : error === "oauth_unverified_email"
+        ? GOOGLE_UNVERIFIED_EMAIL_MESSAGE
+        : "",
   );
   const [showPassword, setShowPassword] = useState(false);
 
@@ -268,7 +274,7 @@ function LoginContent() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div>
         <button
           type="button"
           disabled={isSocialLoading || isLoading}
@@ -277,7 +283,7 @@ function LoginContent() {
             setErrorMessage("");
             signIn("google", { callbackUrl: callbackUrl || "/dashboard" });
           }}
-          className="flex cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all disabled:opacity-70 disabled:cursor-wait"
+          className="flex w-full cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all disabled:opacity-70 disabled:cursor-wait"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -298,16 +304,6 @@ function LoginContent() {
             />
           </svg>
           <span className="font-medium">Google</span>
-        </button>
-        <button
-          type="button"
-          disabled={isSocialLoading || isLoading}
-          className="flex cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all disabled:opacity-70 disabled:cursor-wait"
-        >
-          <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-            <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74s2.57-.99 3.87-.75c.68.03 2.19.47 3.12 1.87-3.02 1.63-2.5 5.8 1.12 7.15-.65 1.55-1.5 3.08-3.19 3.96zm-5.63-14c.48-2.62 2.4-4.5 4.58-4.28.34 2.89-3 6.06-4.58 4.28z" />
-          </svg>
-          <span className="font-medium">Apple</span>
         </button>
       </div>
     </div>

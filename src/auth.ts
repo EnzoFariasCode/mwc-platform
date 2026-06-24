@@ -152,7 +152,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (
         account?.provider === "google" &&
         (profile as { email_verified?: boolean } | undefined)
-          ?.email_verified === false
+          ?.email_verified !== true
       ) {
         return "/login?error=oauth_unverified_email";
       }
