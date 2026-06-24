@@ -33,8 +33,11 @@ export async function getProjectProposals(
 
     if (!userId) return { success: false, error: "Não autorizado" };
 
-    if (session?.userType !== "CLIENT") {
-      return { success: false, error: "Ação restrita a clientes." };
+    if (session?.userType === "ADMIN") {
+      return {
+        success: false,
+        error: "Contas administrativas nao possuem propostas de cliente.",
+      };
     }
 
     // 1. Verifica se o projeto é MEU (Segurança)

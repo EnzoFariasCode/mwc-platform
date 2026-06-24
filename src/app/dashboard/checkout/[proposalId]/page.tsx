@@ -34,7 +34,7 @@ export default async function CheckoutPage({
     notFound();
   }
 
-  if (session.userType !== "CLIENT" || proposal.project.ownerId !== userId) {
+  if (session.userType === "ADMIN" || proposal.project.ownerId !== userId) {
     notFound();
   }
 

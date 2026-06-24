@@ -73,6 +73,28 @@ export async function createProposal(
       };
     }
 
+    const project = await db.project.findUnique({
+      where: { id: data.projectId },
+    });
+
+    if (!project) {
+      return { success: false, error: "Projeto nao encontrado." };
+    }
+
+    if (project.ownerId === userId) {
+      return {
+        success: false,
+        error: "Voce nao pode enviar proposta para um projeto criado por voce.",
+      };
+    }
+
+    if (project.status !== "OPEN") {
+      return {
+        success: false,
+        error: "Este projeto nao esta mais aceitando propostas.",
+      };
+    }
+
     const limitStatus = await getTechProjectLimitStatus(db, userId);
 
     if (!limitStatus.allowed) {
@@ -85,21 +107,6 @@ export async function createProposal(
           code: "PLAN_LIMIT_REACHED",
           upgradeUrl: "/dashboard/profissional?openPlans=true",
         },
-      };
-    }
-
-    const project = await db.project.findUnique({
-      where: { id: data.projectId },
-    });
-
-    if (!project) {
-      return { success: false, error: "Projeto nao encontrado." };
-    }
-
-    if (project.status !== "OPEN") {
-      return {
-        success: false,
-        error: "Este projeto nao esta mais aceitando propostas.",
       };
     }
 

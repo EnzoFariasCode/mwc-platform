@@ -14,8 +14,11 @@ export async function toggleFavorite(
 
     if (!userId) return { success: false, error: "Não autorizado" };
 
-    if (session?.userType !== "CLIENT") {
-      return { success: false, error: "Ação restrita a clientes." };
+    if (session?.userType === "ADMIN") {
+      return {
+        success: false,
+        error: "Contas administrativas nao podem favoritar profissionais.",
+      };
     }
 
     const professional = await db.user.findFirst({

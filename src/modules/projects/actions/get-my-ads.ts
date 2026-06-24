@@ -23,8 +23,11 @@ export async function getMyOpenAds(): Promise<ActionResponse<MyAd[]>> {
 
     if (!userId) return { success: false, error: "Nao autorizado." };
 
-    if (session?.userType !== "CLIENT") {
-      return { success: false, error: "Ação restrita a clientes." };
+    if (session?.userType === "ADMIN") {
+      return {
+        success: false,
+        error: "Contas administrativas nao possuem anuncios de cliente.",
+      };
     }
 
     const ads = await db.project.findMany({

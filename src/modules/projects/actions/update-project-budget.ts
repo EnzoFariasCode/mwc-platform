@@ -16,8 +16,11 @@ export async function updateProjectBudget(
 
     if (!userId) return { success: false, error: "Nao autorizado." };
 
-    if (session?.userType !== "CLIENT") {
-      return { success: false, error: "Ação restrita a clientes." };
+    if (session?.userType === "ADMIN") {
+      return {
+        success: false,
+        error: "Contas administrativas nao podem editar projetos como cliente.",
+      };
     }
 
     if (!projectId || !Number.isFinite(budgetValue) || budgetValue <= 0) {

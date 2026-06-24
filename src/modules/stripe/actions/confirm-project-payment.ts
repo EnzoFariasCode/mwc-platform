@@ -61,8 +61,11 @@ export async function confirmProjectPayment(
     return { success: false, error: "Nao autorizado." };
   }
 
-  if (session?.userType !== "CLIENT") {
-    return { success: false, error: "Ação restrita a clientes." };
+  if (session?.userType === "ADMIN") {
+    return {
+      success: false,
+      error: "Contas administrativas nao podem confirmar pagamentos.",
+    };
   }
 
   if (!sessionId) {

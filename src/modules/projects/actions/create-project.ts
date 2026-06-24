@@ -72,10 +72,10 @@ export async function createProject(
       return { success: false, error: "Usuário não autenticado." };
     }
 
-    if (session?.userType !== "CLIENT") {
+    if (session?.userType === "ADMIN") {
       return {
         success: false,
-        error: "Ação restrita a clientes.",
+        error: "Contas administrativas nao podem publicar projetos.",
       };
     }
     // ---------------------------------

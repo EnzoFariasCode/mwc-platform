@@ -16,10 +16,10 @@ export async function deleteProject(
       return { success: false, error: "Nao autorizado." };
     }
 
-    if (session?.userType !== "CLIENT") {
+    if (session?.userType === "ADMIN") {
       return {
         success: false,
-        error: "Acao restrita a clientes.",
+        error: "Contas administrativas nao podem excluir projetos como cliente.",
       };
     }
 

@@ -157,8 +157,11 @@ export async function cancelTechProject(
 
     if (!userId) return { success: false, error: "Nao autorizado." };
 
-    if (session?.userType !== "CLIENT") {
-      return { success: false, error: "Acao restrita a clientes." };
+    if (session?.userType === "ADMIN") {
+      return {
+        success: false,
+        error: "Contas administrativas nao podem cancelar projetos como cliente.",
+      };
     }
 
     if (!projectId) {
@@ -264,8 +267,12 @@ export async function requestTechProjectRevision(
 
     if (!userId) return { success: false, error: "Nao autorizado." };
 
-    if (session?.userType !== "CLIENT") {
-      return { success: false, error: "Acao restrita a clientes." };
+    if (session?.userType === "ADMIN") {
+      return {
+        success: false,
+        error:
+          "Contas administrativas nao podem solicitar revisao como cliente.",
+      };
     }
 
     const normalizedReason = normalizeReason(reason);
@@ -375,7 +382,7 @@ export async function openTechProjectDispute(
     }
 
     const isClientOwner =
-      session.userType === "CLIENT" && project.ownerId === userId;
+      session.userType !== "ADMIN" && project.ownerId === userId;
     const isAssignedTechProfessional =
       session.userType === "PROFESSIONAL" &&
       session.industry === "TECH" &&

@@ -21,8 +21,11 @@ export async function getMyFavorites(): Promise<ActionResponse<FavoriteItem[]>> 
 
     if (!userId) return { success: false, error: "Nao autorizado." };
 
-    if (session?.userType !== "CLIENT") {
-      return { success: false, error: "Ação restrita a clientes." };
+    if (session?.userType === "ADMIN") {
+      return {
+        success: false,
+        error: "Contas administrativas nao possuem favoritos de cliente.",
+      };
     }
 
     const favorites = await db.favorite.findMany({

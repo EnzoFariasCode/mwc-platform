@@ -17,8 +17,11 @@ export async function approveProject(
 
     if (!userId) return { success: false, error: "Nao autorizado" };
 
-    if (session?.userType !== "CLIENT") {
-      return { success: false, error: "Ação restrita a clientes." };
+    if (session?.userType === "ADMIN") {
+      return {
+        success: false,
+        error: "Contas administrativas nao podem aprovar projetos como cliente.",
+      };
     }
 
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {

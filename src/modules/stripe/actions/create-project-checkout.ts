@@ -25,8 +25,11 @@ export async function createProjectCheckout(
     return { success: false, error: "Nao autorizado. Faca login novamente." };
   }
 
-  if (session.userType !== "CLIENT") {
-    return { success: false, error: "Ação restrita a clientes." };
+  if (session.userType === "ADMIN") {
+    return {
+      success: false,
+      error: "Contas administrativas nao podem contratar projetos.",
+    };
   }
 
   const userLimitError = await consumeRateLimit({

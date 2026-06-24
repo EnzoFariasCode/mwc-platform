@@ -56,12 +56,9 @@ export async function getProjectContext(
       return { success: false, error: "Nao autorizado." };
     }
 
-    const isTechProfessional =
-      session?.userType === "PROFESSIONAL" && session.industry === "TECH";
-    const isClient = session?.userType === "CLIENT";
     const isAdminUser = session?.role === "ADMIN" || session?.userType === "ADMIN";
 
-    if (!isClient && !isTechProfessional && !isAdminUser) {
+    if (isAdminUser) {
       return {
         success: false,
         error: "Ação restrita ao Marketplace Tech.",
@@ -128,12 +125,9 @@ export async function getBasicUserInfo(
       return { success: false, error: "Nao autorizado." };
     }
 
-    const isTechProfessional =
-      session?.userType === "PROFESSIONAL" && session.industry === "TECH";
-    const isClient = session?.userType === "CLIENT";
     const isAdminUser = session?.role === "ADMIN" || session?.userType === "ADMIN";
 
-    if (!isClient && !isTechProfessional && !isAdminUser) {
+    if (isAdminUser) {
       return {
         success: false,
         error: "Ação restrita ao Marketplace Tech.",

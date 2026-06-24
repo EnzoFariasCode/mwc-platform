@@ -117,11 +117,7 @@ export async function sendMessage(
 
     if (!senderId) return { success: false, error: "Nao autorizado." };
 
-    const isTechProfessional =
-      session?.userType === "PROFESSIONAL" && session.industry === "TECH";
-    const isClient = session?.userType === "CLIENT";
-
-    if (!isClient && !isTechProfessional) {
+    if (session?.userType === "ADMIN") {
       return {
         success: false,
         error: "Acao restrita ao Marketplace Tech.",
