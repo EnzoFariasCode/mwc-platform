@@ -2,7 +2,6 @@
 
 import { db } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { verifySession } from "@/lib/auth"; // <--- Importante: Importar a função de segurança
 
@@ -19,7 +18,7 @@ interface CreateProjectData {
 
 const PROJECT_TITLE_MIN = 8;
 const PROJECT_TITLE_MAX = 120;
-const PROJECT_DESCRIPTION_MIN = 30;
+const PROJECT_DESCRIPTION_MIN = 10;
 const PROJECT_DESCRIPTION_MAX = 5000;
 const PROJECT_FIELD_MAX = 80;
 const PROJECT_TAG_MAX = 30;
@@ -105,7 +104,10 @@ export async function createProject(
       description.length < PROJECT_DESCRIPTION_MIN ||
       description.length > PROJECT_DESCRIPTION_MAX
     ) {
-      return { success: false, error: "Informe uma descricao valida." };
+      return {
+        success: false,
+        error: `Informe uma descricao valida com pelo menos ${PROJECT_DESCRIPTION_MIN} caracteres.`,
+      };
     }
 
     if (!category || category.length > PROJECT_FIELD_MAX) {
@@ -149,11 +151,6 @@ export async function createProject(
         attachments,
       },
     });
-
-    revalidatePath("/dashboard/cliente");
-    revalidatePath("/dashboard/encontrar-projetos");
-    // Revalida também a página de "Meus Projetos" para aparecer na lista imediatamente
-    revalidatePath("/dashboard/meus-projetos");
 
     return { success: true };
   } catch (error) {

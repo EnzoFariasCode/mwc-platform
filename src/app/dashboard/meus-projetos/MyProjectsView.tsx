@@ -437,6 +437,7 @@ export default function MyProjectsView({
         <NewProjectModal
           isOpen={isNewProjectModalOpen}
           onClose={() => setIsNewProjectModalOpen(false)}
+          onCreated={() => router.refresh()}
         />
 
         {/* Modal de Detalhes */}

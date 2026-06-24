@@ -4,6 +4,7 @@
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Briefcase,
   Megaphone,
@@ -38,6 +39,7 @@ export default function ClientDashboardView({
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const router = useRouter();
 
   const [isPending, startTransition] = useTransition();
 
@@ -92,6 +94,7 @@ export default function ClientDashboardView({
       <NewProjectModal
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
+        onCreated={() => router.refresh()}
       />
 
       {/* 3. Complete Profile Modal */}

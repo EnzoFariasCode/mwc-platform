@@ -9,11 +9,19 @@ import {
   Trash2,
   Loader2,
   AlertCircle,
+  CheckCircle2,
+  ArrowRight,
 } from "lucide-react";
 import { useRef, useState, KeyboardEvent } from "react";
+import Link from "next/link";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { createProject } from "@/modules/projects/actions/create-project";
+
+const PROJECT_TITLE_MIN = 8;
+const PROJECT_DESCRIPTION_MIN = 10;
+const PROJECT_DESCRIPTION_MAX = 5000;
+const PROJECT_BUDGET_MIN = 10;
 
 interface NewProjectModalProps {
   isOpen: boolean;
@@ -35,6 +43,8 @@ export function NewProjectModal({
   const [description, setDescription] = useState("");
   const [budgetType, setBudgetType] = useState<"fixed" | "hourly">("fixed");
   const [budgetValue, setBudgetValue] = useState("");
+  const [formError, setFormError] = useState("");
+  const [isCreated, setIsCreated] = useState(false);
   const [deadline, setDeadline] = useState("Urgente (em até 24h)");
 
   const [tags, setTags] = useState<string[]>([]);
@@ -82,10 +92,36 @@ export function NewProjectModal({
   };
 
   // --- LÓGICA DE ANEXOS ---
+  const parseBudgetValue = (value: string) => {
+    const compactValue = value.trim().replace(/\s/g, "");
+    const normalizedValue = compactValue.includes(",")
+      ? compactValue.replace(/\./g, "").replace(",", ".")
+      : compactValue;
+
+    return Number(normalizedValue);
+  };
+
+  const isValidHttpUrl = (value: string) => {
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" || url.protocol === "http:";
+    } catch {
+      return false;
+    }
+  };
+
   const handleAddLink = () => {
-    if (currentLink.trim()) {
-      setAttachments([...attachments, currentLink.trim()]);
+    const link = currentLink.trim();
+
+    if (link) {
+      if (!isValidHttpUrl(link)) {
+        setFormError("Informe um link valido, com http:// ou https://.");
+        return;
+      }
+
+      setAttachments([...attachments, link]);
       setCurrentLink("");
+      setFormError("");
     }
   };
 
@@ -94,12 +130,57 @@ export function NewProjectModal({
   };
 
   const handleClose = () => {
+    const shouldRefresh = isCreated;
+    setIsCreated(false);
     onClose();
+    if (shouldRefresh) {
+      onCreated?.();
+    }
   };
 
   const handleSubmit = async () => {
-    if (!title || !category || !description || !budgetValue) {
-      alert("Por favor, preencha todos os campos obrigatórios.");
+    const normalizedTitle = title.trim();
+    const normalizedCategory = category.trim();
+    const normalizedDescription = description.trim();
+    const normalizedDeadline = deadline.trim();
+    const numericBudgetValue = parseBudgetValue(budgetValue);
+
+    setFormError("");
+
+    if (
+      !normalizedTitle ||
+      !normalizedCategory ||
+      !normalizedDescription ||
+      !budgetValue.trim()
+    ) {
+      setFormError("Preencha todos os campos obrigatorios.");
+      return;
+    }
+
+    if (normalizedTitle.length < PROJECT_TITLE_MIN) {
+      setFormError(
+        `Informe um nome de projeto com pelo menos ${PROJECT_TITLE_MIN} caracteres.`,
+      );
+      return;
+    }
+
+    if (
+      normalizedDescription.length < PROJECT_DESCRIPTION_MIN ||
+      normalizedDescription.length > PROJECT_DESCRIPTION_MAX
+    ) {
+      setFormError(
+        `Informe uma descricao com pelo menos ${PROJECT_DESCRIPTION_MIN} caracteres.`,
+      );
+      return;
+    }
+
+    if (
+      !Number.isFinite(numericBudgetValue) ||
+      numericBudgetValue < PROJECT_BUDGET_MIN
+    ) {
+      setFormError(
+        `Informe um orcamento valido a partir de R$ ${PROJECT_BUDGET_MIN},00.`,
+      );
       return;
     }
 
@@ -107,29 +188,34 @@ export function NewProjectModal({
 
     try {
       const response = await createProject({
-        title,
-        category,
-        description,
+        title: normalizedTitle,
+        category: normalizedCategory,
+        description: normalizedDescription,
         tags,
         budgetType,
-        budgetValue: parseFloat(budgetValue),
-        deadline,
+        budgetValue: numericBudgetValue,
+        deadline: normalizedDeadline,
         attachments, // Envia os links
       });
 
       if (response.success) {
         setTitle("");
+        setCategory("");
         setDescription("");
+        setBudgetType("fixed");
         setBudgetValue("");
+        setDeadline("Urgente (em até 24h)");
         setTags([]);
+        setCurrentTag("");
         setAttachments([]);
-        handleClose();
-        onCreated?.();
+        setCurrentLink("");
+        setFormError("");
+        setIsCreated(true);
       } else {
-        alert(response.error);
+        setFormError(response.error || "Nao foi possivel publicar o projeto.");
       }
     } catch {
-      alert("Erro ao enviar projeto.");
+      setFormError("Erro ao enviar projeto.");
     } finally {
       setIsLoading(false);
     }
@@ -146,6 +232,37 @@ export function NewProjectModal({
         onClick={(e) => e.stopPropagation()}
         className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
       >
+        {isCreated ? (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white p-8 text-center">
+            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <CheckCircle2 className="h-9 w-9" />
+            </div>
+            <h2 className="font-futura text-2xl font-bold text-slate-900">
+              Projeto publicado com sucesso
+            </h2>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-500">
+              Seu pedido ja esta disponivel para profissionais enviarem
+              propostas. Voce pode acompanhar tudo em Meus pedidos.
+            </p>
+            <div className="mt-7 flex w-full max-w-sm flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="flex-1 rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                Fechar
+              </button>
+              <Link
+                href="/dashboard/meus-projetos"
+                onClick={handleClose}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#d73cbe] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-purple-200 transition-colors hover:bg-[#b0269a]"
+              >
+                Ir para Meus pedidos
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-white shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 font-futura">
@@ -256,6 +373,12 @@ export function NewProjectModal({
               placeholder="Explique o que você precisa..."
               className="w-full bg-white border border-slate-200 rounded-xl p-4 text-slate-800 placeholder:text-slate-400 focus:border-[#d73cbe] focus:ring-1 focus:ring-[#d73cbe] outline-none transition-all shadow-sm resize-none"
             />
+            <div className="mt-1 flex justify-between gap-3 text-xs text-slate-400">
+              <span>Minimo de {PROJECT_DESCRIPTION_MIN} caracteres.</span>
+              <span>
+                {description.trim().length}/{PROJECT_DESCRIPTION_MAX}
+              </span>
+            </div>
           </div>
 
           {/* 4. Anexos / Links */}
@@ -353,7 +476,8 @@ export function NewProjectModal({
                   R$
                 </span>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={budgetValue}
                   onChange={(e) => setBudgetValue(e.target.value)}
                   placeholder={budgetType === "fixed" ? "1500,00" : "50,00"}
@@ -388,6 +512,11 @@ export function NewProjectModal({
         </div>
 
         <div className="p-6 border-t border-slate-100 bg-white flex justify-between items-center shrink-0">
+          {formError ? (
+            <p className="min-w-0 text-xs font-semibold text-red-500">
+              {formError}
+            </p>
+          ) : null}
           <span className="text-xs text-slate-400 hidden md:inline-block">
             * Campos obrigatórios
           </span>
