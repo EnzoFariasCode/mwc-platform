@@ -9,6 +9,7 @@ import {
   type PatientProfileData,
 } from "@/modules/users/actions/update-patient-profile";
 import { Camera, Edit3, MessageSquare } from "lucide-react";
+import { toast } from "sonner";
 
 export default function MeuPerfilPage() {
   const { data: session } = useSession();
@@ -62,7 +63,7 @@ export default function MeuPerfilPage() {
     if (!file || !userId) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert("Por favor, escolha uma imagem menor que 2MB.");
+      toast.error("Por favor, escolha uma imagem menor que 2MB.");
       return;
     }
 
@@ -80,10 +81,10 @@ export default function MeuPerfilPage() {
       });
 
       if (!response.ok) throw new Error("Falha no upload");
-      console.log("Imagem salva com sucesso!");
+      toast.success("Imagem salva com sucesso.");
     } catch (error) {
       console.error("Erro ao salvar:", error);
-      alert("Erro ao salvar a imagem.");
+      toast.error("Erro ao salvar a imagem.");
       setPreviewImage(null);
     } finally {
       setIsUploading(false);

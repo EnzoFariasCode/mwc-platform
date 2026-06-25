@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X, Save, Clock, CalendarDays } from "lucide-react";
+import { toast } from "sonner";
 import {
   updateHealthSchedule,
   type WeeklyAvailability,
@@ -106,8 +107,9 @@ export function EditScheduleModal({
     setIsSaving(false);
 
     if (result.error) {
-      alert(result.error);
+      toast.error(result.error);
     } else {
+      toast.success("Agenda atualizada com sucesso.");
       onClose();
     }
   };

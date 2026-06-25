@@ -3,6 +3,7 @@
 
 import { Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   Send,
   Search,
@@ -352,7 +353,7 @@ function ChatPageInner() {
       }
     } catch (error) {
       console.error("Falha no envio:", error);
-      alert("Não foi possível enviar a mensagem.");
+      toast.error("Nao foi possivel enviar a mensagem.");
       // Desfaz a mensagem otimista se der erro
       setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
       setInputText(text);
@@ -389,7 +390,7 @@ function ChatPageInner() {
       }
       loadConversations();
     } else {
-      alert("Erro ao apagar conversa.");
+      toast.error("Erro ao apagar conversa.");
     }
   };
 
@@ -509,8 +510,8 @@ function ChatPageInner() {
           <>
             <header className="flex flex-col border-b border-border bg-card/10 backdrop-blur-sm z-10">
               {/* Linha Principal do Header */}
-              <div className="h-16 flex items-center justify-between px-4 shrink-0">
-                <div className="flex items-center gap-3">
+              <div className="h-16 flex items-center justify-between gap-3 px-4 shrink-0">
+                <div className="flex min-w-0 items-center gap-3">
                   <button
                     onClick={() => setActiveChatId(null)}
                     className="md:hidden text-gray-400"
@@ -520,8 +521,8 @@ function ChatPageInner() {
                   <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-white font-bold">
                     {activeChatData?.name?.charAt(0) || "?"}
                   </div>
-                  <div>
-                    <h3 className="font-bold text-sm md:text-base text-white">
+                  <div className="min-w-0">
+                    <h3 className="truncate font-bold text-sm md:text-base text-white">
                       {/* Correção do BUG CARREGANDO: Se for null, mostra "Usuário" ou um skeleton, mas o useEffect já deve ter corrigido */}
                       {activeChatData?.name || "Carregando..."}
                     </h3>
@@ -529,7 +530,7 @@ function ChatPageInner() {
                       <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
                       <span className="text-[10px] text-gray-400">Online</span>
                       {activeChatData?.jobTitle && (
-                        <span className="text-[10px] text-slate-500 ml-1 border-l border-slate-700 pl-2">
+                        <span className="truncate text-[10px] text-slate-500 ml-1 border-l border-slate-700 pl-2">
                           {activeChatData.jobTitle}
                         </span>
                       )}
@@ -577,7 +578,7 @@ function ChatPageInner() {
                       </p>
                     </div>
                   </div>
-                  <div className="shrink-0 flex items-center gap-3">
+                  <div className="shrink-0 flex max-w-[45%] items-center gap-3">
                     <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">
                       {projectContext.budgetLabel}
                     </span>
@@ -644,7 +645,7 @@ function ChatPageInner() {
                       )}
 
                       <div
-                        className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-2 text-sm relative ${
+                        className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-2 text-sm relative break-words ${
                           isMe
                             ? "bg-primary text-white rounded-tr-none"
                             : "bg-card border border-white/10 text-slate-200 rounded-tl-none"
@@ -680,7 +681,7 @@ function ChatPageInner() {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   placeholder="Digite sua mensagem..."
-                  className="flex-1 bg-background border border-white/10 rounded-xl px-4 py-2.5 focus:border-primary focus:outline-none text-sm text-white"
+                  className="min-w-0 flex-1 bg-background border border-white/10 rounded-xl px-4 py-2.5 focus:border-primary focus:outline-none text-sm text-white"
                 />
                 <button
                   type="submit"

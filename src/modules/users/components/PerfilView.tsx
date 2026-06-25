@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { ExpandableText } from "@/components/ui/ExpandableText";
 import { EditProfileModal } from "@/modules/users/components/EditProfileModal";
@@ -232,10 +233,10 @@ export default function PerfilView({ user }: { user: UserData }) {
     try {
       const response = await updateProfile(formData);
       if (!response.success) {
-        alert(response.error);
+        toast.error(response.error || "Erro ao salvar a bio.");
       }
     } catch {
-      alert("Erro ao salvar a bio.");
+      toast.error("Erro ao salvar a bio.");
     } finally {
     }
   };

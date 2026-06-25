@@ -12,6 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatCurrencyBR, formatDateTimeBR } from "@/lib/formatters";
 import { approveWithdrawal } from "@/modules/admin/actions/approve-withdrawal";
 import { rejectWithdrawal } from "@/modules/admin/actions/reject-withdrawal";
 import { uploadWithdrawalReceipt } from "@/modules/admin/actions/upload-withdrawal-receipt";
@@ -68,17 +69,11 @@ const statusClasses: Record<string, string> = {
 };
 
 function formatMoney(amount: number) {
-  return amount.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
+  return formatCurrencyBR(amount);
 }
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  return formatDateTimeBR(value);
 }
 
 function isWithinDateRange(value: string, dateFrom: string, dateTo: string) {
@@ -250,7 +245,7 @@ export default function AdminFinanceiroView({
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Metric label="Pendentes" value={pendingWithdrawals.length.toString()} />
           <Metric label="A transferir" value={formatMoney(pendingAmount)} />
           <Metric label="Transferido" value={formatMoney(completedAmount)} />

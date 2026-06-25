@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, ReceiptText, ShieldCheck } from "lucide-react";
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { requireAdminRole } from "@/lib/get-session";
+import { formatCurrencyBR, formatDateTimeBR } from "@/lib/formatters";
 import { db } from "@/lib/prisma";
 import { getAdminAuditLogs } from "@/modules/admin/actions/audit-log";
 
@@ -11,21 +12,11 @@ type PageProps = {
 };
 
 function formatMoney(amount: number | null) {
-  if (amount === null) return "Nao informado";
-
-  return amount.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
+  return formatCurrencyBR(amount);
 }
 
 function formatDate(value: Date | string | null | undefined) {
-  if (!value) return "Nao informado";
-
-  return new Date(value).toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  return formatDateTimeBR(value);
 }
 
 function textOrFallback(value: string | null | undefined) {

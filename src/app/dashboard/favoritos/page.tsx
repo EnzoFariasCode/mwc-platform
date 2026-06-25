@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 // Importando as Actions Reais
 import { getMyFavorites } from "@/modules/favorites/actions/get-my-favorites";
@@ -61,7 +62,7 @@ export default function FavoritosPage() {
     // Chama o servidor para remover do banco
     const result = await toggleFavorite(id);
     if (!result.success) {
-      alert("Erro ao remover favorito. Tente novamente.");
+      toast.error("Erro ao remover favorito. Tente novamente.");
       // Se der erro, idealmente recarregaríamos a lista, mas para UX simples está ok.
     }
   };

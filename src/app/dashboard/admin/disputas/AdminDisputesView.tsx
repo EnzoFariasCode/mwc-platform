@@ -11,6 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatCurrencyBR, formatDateTimeBR } from "@/lib/formatters";
 import { TechProjectReasonModal } from "@/modules/projects/components/TechProjectReasonModal";
 import { resolveHealthAppointmentDispute } from "@/modules/health/actions/appointment-actions";
 import { resolveTechProjectDispute } from "@/modules/projects/actions/project-state-actions";
@@ -41,21 +42,11 @@ type PendingDecision = {
 };
 
 function formatMoney(amount: number | null) {
-  if (amount === null) return "Valor nao informado";
-
-  return amount.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
+  return formatCurrencyBR(amount, "Valor nao informado");
 }
 
 function formatDate(value: string | null) {
-  if (!value) return "Data nao informada";
-
-  return new Date(value).toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  return formatDateTimeBR(value, "Data nao informada");
 }
 
 function isWithinDateRange(value: string, dateFrom: string, dateTo: string) {
@@ -182,7 +173,7 @@ export default function AdminDisputesView({
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Metric label="Abertas" value={openDisputes.length} />
           <Metric label="Tech" value={techCount} />
           <Metric label="Saude" value={healthCount} />

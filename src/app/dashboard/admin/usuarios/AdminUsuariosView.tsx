@@ -5,6 +5,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, Search, UserCog, UserX } from "lucide-react";
 import { toast } from "sonner";
+import { formatDateBR, formatDateTimeBR } from "@/lib/formatters";
 import {
   toggleUserStatus,
   updateAdminRole,
@@ -30,14 +31,11 @@ export type AdminUserItem = {
 };
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("pt-BR");
+  return formatDateBR(value);
 }
 
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  return formatDateTimeBR(value);
 }
 
 function isWithinDateRange(value: string, dateFrom: string, dateTo: string) {
