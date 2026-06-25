@@ -52,12 +52,6 @@ const LandingHeader = () => {
               Servicos
             </button>
             <Link
-              href="/search"
-              className="cursor-pointer transition-colors hover:text-[#d73cbe]"
-            >
-              Contratar
-            </Link>
-            <Link
               href="/beWorker#planos"
               className="cursor-pointer transition-colors hover:text-[#d73cbe]"
             >
