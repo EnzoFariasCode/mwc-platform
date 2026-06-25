@@ -190,7 +190,7 @@ export default function ProjectDetailsView({
             </div>
 
             {/* BOTÃO DE AÇÃO - LÓGICA DE VISIBILIDADE */}
-            <div className="bg-slate-900 border border-white/5 rounded-2xl p-6 sticky top-24 shadow-xl shadow-black/20">
+            <div className="bg-slate-900 border border-white/5 rounded-2xl p-6 shadow-xl shadow-black/20">
               {isOwner ? (
                 // CENÁRIO 1: DONO
                 <div className="text-center py-2">

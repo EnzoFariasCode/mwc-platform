@@ -49,7 +49,7 @@ export default function ProjectListView({
   initialProjects: any[];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [selectedCategory, setSelectedCategory] = useState("Todas");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [filterType, setFilterType] = useState<"all" | "fixed" | "hourly">(
     "all"
   );
@@ -57,7 +57,7 @@ export default function ProjectListView({
 
   const filteredProjects = initialProjects.filter((p) => {
     const catMatch =
-      selectedCategory === "Todas" || p.category === selectedCategory;
+      selectedCategories.length === 0 || selectedCategories.includes(p.category);
     const typeMatch = filterType === "all" || p.budgetType === filterType;
     const searchMatch =
       searchTerm === "" ||
@@ -68,6 +68,19 @@ export default function ProjectListView({
 
     return catMatch && typeMatch && searchMatch;
   });
+
+  function toggleCategory(category: string) {
+    if (category === "Todas") {
+      setSelectedCategories([]);
+      return;
+    }
+
+    setSelectedCategories((current) =>
+      current.includes(category)
+        ? current.filter((item) => item !== category)
+        : [...current, category]
+    );
+  }
 
   useGSAP(
     () => {
@@ -132,18 +145,21 @@ export default function ProjectListView({
                   >
                     <div
                       className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                        selectedCategory === cat
+                        (cat === "Todas" && selectedCategories.length === 0) ||
+                        selectedCategories.includes(cat)
                           ? "bg-[#d73cbe] border-[#d73cbe]"
                           : "border-slate-600 group-hover:border-[#d73cbe]"
                       }`}
                     >
-                      {selectedCategory === cat && (
+                      {((cat === "Todas" && selectedCategories.length === 0) ||
+                        selectedCategories.includes(cat)) && (
                         <Check className="w-3 h-3 text-white" />
                       )}
                     </div>
                     <span
                       className={`text-sm ${
-                        selectedCategory === cat
+                        (cat === "Todas" && selectedCategories.length === 0) ||
+                        selectedCategories.includes(cat)
                           ? "text-white font-medium"
                           : "text-slate-400 group-hover:text-slate-200"
                       }`}
@@ -151,11 +167,14 @@ export default function ProjectListView({
                       {cat}
                     </span>
                     <input
-                      type="radio"
+                      type="checkbox"
                       name="category"
                       className="hidden"
-                      checked={selectedCategory === cat}
-                      onChange={() => setSelectedCategory(cat)}
+                      checked={
+                        (cat === "Todas" && selectedCategories.length === 0) ||
+                        selectedCategories.includes(cat)
+                      }
+                      onChange={() => toggleCategory(cat)}
                     />
                   </label>
                 ))}
@@ -317,7 +336,7 @@ export default function ProjectListView({
                 <p className="text-slate-500">Nenhum projeto encontrado.</p>
                 <button
                   onClick={() => {
-                    setSelectedCategory("Todas");
+                    setSelectedCategories([]);
                     setFilterType("all");
                     setSearchTerm("");
                   }}
