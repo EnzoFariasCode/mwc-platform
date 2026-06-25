@@ -18,11 +18,11 @@ const LandingHeader = () => {
   };
 
   return (
-    <header className="fixed top-0 w-full z-50 border-b border-white/10 backdrop-blur-md bg-black/20 transition-all duration-300">
-      <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+    <header className="fixed top-0 z-50 w-full border-b border-white/10 bg-black/20 backdrop-blur-md transition-all duration-300">
+      <div className="container mx-auto flex h-20 items-center justify-between px-4">
         <Link
           href="/"
-          className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity h-full py-4"
+          className="flex h-full cursor-pointer items-center gap-3 py-4 transition-opacity hover:opacity-80"
         >
           <Image
             src={Logo}
@@ -30,44 +30,67 @@ const LandingHeader = () => {
             className="h-12 w-auto object-contain"
             priority
           />
-          <span className="text-white font-bold text-xl tracking-wider font-futura pt-1">
+          <span className="pt-1 font-futura text-xl font-bold tracking-wider text-white">
             MWC
           </span>
         </Link>
 
-        <div className="flex items-center gap-8">
-          <nav className="hidden md:flex gap-8 text-sm font-medium text-slate-300">
+        <div className="flex items-center gap-3 md:gap-8">
+          <nav className="hidden gap-8 text-sm font-medium text-slate-300 lg:flex">
             <button
               type="button"
               onClick={() => scrollToSection("como-funciona")}
-              className="hover:text-[#d73cbe] transition-colors cursor-pointer"
+              className="cursor-pointer transition-colors hover:text-[#d73cbe]"
             >
               Como funciona
             </button>
             <button
               type="button"
               onClick={() => scrollToSection("servicesSection")}
-              className="hover:text-[#d73cbe] transition-colors cursor-pointer"
+              className="cursor-pointer transition-colors hover:text-[#d73cbe]"
             >
-              Serviços
+              Servicos
             </button>
             <Link
+              href="/search"
+              className="cursor-pointer transition-colors hover:text-[#d73cbe]"
+            >
+              Contratar
+            </Link>
+            <Link
               href="/beWorker#planos"
-              className="hover:text-[#d73cbe] transition-colors cursor-pointer"
+              className="cursor-pointer transition-colors hover:text-[#d73cbe]"
             >
               Planos
             </Link>
           </nav>
 
-          <Link
-            href="/beWorker"
-            className="group relative px-6 py-2.5 rounded-full text-white font-bold text-sm transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer bg-[#d73cbe] hover:bg-[#c02aa8] shadow-lg shadow-[#d73cbe]/20 hover:shadow-[#d73cbe]/50 border border-transparent hover:border-white/20 inline-flex items-center"
-          >
-            <span className="relative z-10 tracking-wide">
-              Quero ser um profissional
-            </span>
-            <div className="absolute inset-0 rounded-full bg-white/0 group-hover:bg-white/10 transition-colors duration-300" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="hidden items-center rounded-full border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-200 transition-all duration-300 hover:border-white/20 hover:bg-white/10 hover:text-white sm:inline-flex"
+            >
+              Entrar
+            </Link>
+
+            <Link
+              href="/search"
+              className="group relative inline-flex items-center rounded-full border border-transparent bg-[#d73cbe] px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#d73cbe]/20 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:bg-[#c02aa8] hover:shadow-[#d73cbe]/50 sm:px-5"
+            >
+              <span className="relative z-10 tracking-wide">
+                <span className="hidden sm:inline">Contratar profissional</span>
+                <span className="sm:hidden">Contratar</span>
+              </span>
+              <div className="absolute inset-0 rounded-full bg-white/0 transition-colors duration-300 group-hover:bg-white/10" />
+            </Link>
+
+            <Link
+              href="/beWorker"
+              className="hidden items-center rounded-full border border-[#d73cbe]/40 px-5 py-2.5 text-sm font-bold text-[#f4a7e8] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#d73cbe] hover:bg-[#d73cbe]/10 hover:text-white md:inline-flex"
+            >
+              Sou profissional
+            </Link>
+          </div>
         </div>
       </div>
     </header>
