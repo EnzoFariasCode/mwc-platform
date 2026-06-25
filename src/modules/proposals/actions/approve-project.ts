@@ -59,7 +59,8 @@ export async function approveProject(
     // Calcula os 10% da plataforma
     const valorDoPagamento = project.agreedPrice;
     const taxaPlataforma = valorDoPagamento
-      .mul(0.1)
+      .mul(10)
+      .div(100)
       .toDecimalPlaces(2);
     const valorProfissional = valorDoPagamento
       .minus(taxaPlataforma)

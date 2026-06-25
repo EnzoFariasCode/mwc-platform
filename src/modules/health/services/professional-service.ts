@@ -8,6 +8,7 @@ export async function getHealthProfessionalById(id: string) {
       where: {
         id,
         industry: "HEALTH",
+        isActive: true,
       },
       select: {
         id: true,

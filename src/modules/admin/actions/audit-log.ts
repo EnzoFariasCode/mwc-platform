@@ -3,6 +3,7 @@
 import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/prisma";
+import { requireAdminRole } from "@/lib/get-session";
 
 type AuditClient = Pick<typeof db, "$executeRaw">;
 
@@ -81,6 +82,8 @@ export async function getAdminAuditLogs({
   entityType: AdminAuditEntityType;
   entityId: string;
 }) {
+  await requireAdminRole(["OWNER", "FINANCE", "SUPPORT"]);
+
   return db.$queryRaw<
     Array<{
       id: string;

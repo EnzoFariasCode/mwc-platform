@@ -15,6 +15,7 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
       where: {
         userType: "PROFESSIONAL",
         industry: "HEALTH",
+        isActive: true,
         jobTitle: { not: null },
         OR: [
           ...specialty.terms.map((term) => ({

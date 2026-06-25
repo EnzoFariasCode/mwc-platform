@@ -10,6 +10,7 @@ export async function getHealthSpecialtyCards() {
         where: {
           userType: "PROFESSIONAL",
           industry: "HEALTH",
+          isActive: true,
           jobTitle: { not: null },
 
           OR: [

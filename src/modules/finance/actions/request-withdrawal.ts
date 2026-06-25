@@ -120,14 +120,21 @@ export async function requestWithdrawal(
         },
       });
 
-      await tx.user.update({
-        where: { id: session.id },
+      const debit = await tx.user.updateMany({
+        where: {
+          id: session.id,
+          walletBalance: { gte: amount },
+        },
         data: {
           walletBalance: { decrement: amount },
           pixKey,
           pixKeyType,
         },
       });
+
+      if (debit.count !== 1) {
+        throw new Error("Saldo disponivel insuficiente para este saque.");
+      }
 
       return {
         id: withdrawalRequest.id,
@@ -137,6 +144,8 @@ export async function requestWithdrawal(
         pixKey,
         pixKeyType,
       };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
 
     revalidatePath("/dashboard/financeiro");
