@@ -1,8 +1,5 @@
-import { Resend } from "resend";
-
-const resendApiKey = process.env.RESEND_API_KEY;
-const resendFrom = process.env.RESEND_FROM_EMAIL;
-const resend = resendApiKey && resendFrom ? new Resend(resendApiKey) : null;
+import { sendEmail } from "@/modules/email/email-client";
+import { withdrawalRequestedEmail } from "@/modules/email/templates/finance-emails";
 
 function formatCurrency(value: unknown) {
   const numericValue = Number(value);
@@ -28,35 +25,16 @@ export async function sendWithdrawalRequestedEmail({
   pixKey: string;
   pixKeyType: string;
 }) {
-  if (!email) return;
+  const template = withdrawalRequestedEmail({
+    name,
+    amount: formatCurrency(amount),
+    pixKey,
+    pixKeyType,
+  });
 
-  const text = [
-    `Ola, ${name || "profissional"}.`,
-    "",
-    "Recebemos sua solicitacao de saque Pix.",
-    "",
-    `Valor: ${formatCurrency(amount)}`,
-    `Chave Pix: ${pixKeyType} - ${pixKey}`,
-    "Status: Pendente de processamento",
-    "",
-    "O valor ja foi reservado do seu saldo disponivel para evitar duplicidade de saque.",
-  ].join("\n");
-
-  if (!resend || !resendFrom) {
-    if (process.env.ENABLE_DEV_TOOLS === "true") {
-      console.log(`[WITHDRAWAL_EMAIL] ${email}\n${text}`);
-    }
-    return;
-  }
-
-  try {
-    await resend.emails.send({
-      from: resendFrom,
-      to: email,
-      subject: "MWC Online - Solicitacao de saque Pix recebida",
-      text,
-    });
-  } catch (error) {
-    console.error("[WITHDRAWAL_EMAIL_ERROR]", error);
-  }
+  await sendEmail({
+    to: email,
+    ...template,
+    logPrefix: "WITHDRAWAL_EMAIL",
+  });
 }

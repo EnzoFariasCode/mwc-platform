@@ -6,6 +6,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getRateLimitKeys, rateLimit } from "@/lib/rate-limit";
+import { sendWelcomeEmail } from "@/modules/auth/services/welcome-email-service";
 
 const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
 const LOGIN_LIMIT_EMAIL = 5;
@@ -212,6 +213,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   events: {
+    async createUser({ user }) {
+      try {
+        const dbUser = await getAuthUserFields(user.id, user.email);
+        await sendWelcomeEmail({
+          email: user.email ?? null,
+          name: user.name ?? null,
+          userType: dbUser?.userType ?? "CLIENT",
+          industry: dbUser?.industry ?? "TECH",
+        });
+      } catch (error) {
+        console.error("Failed to send welcome email:", error);
+      }
+    },
     async signIn({ user, account, profile }) {
       try {
         if (account?.provider !== "google" || !user?.id) return;

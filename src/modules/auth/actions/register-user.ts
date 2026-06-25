@@ -10,6 +10,7 @@ import {
 } from "@/modules/users/services/user-service";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { validatePassword } from "@/modules/auth/lib/password";
+import { sendWelcomeEmail } from "@/modules/auth/services/welcome-email-service";
 
 export async function registerUser(
   formData: FormData,
@@ -105,6 +106,13 @@ export async function registerUser(
         },
       });
     }
+
+    await sendWelcomeEmail({
+      email: user.email,
+      name: user.name,
+      userType: user.userType,
+      industry: user.industry,
+    });
 
     return { success: true };
   } catch (error) {
