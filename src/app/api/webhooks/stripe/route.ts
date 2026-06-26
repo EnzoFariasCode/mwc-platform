@@ -1132,10 +1132,23 @@ export async function POST(req: Request) {
 
     if (!result.success) {
       console.error("Webhook: Payment processing failed.", result.error);
-      if (result.manualReviewRequired) {
-        return new NextResponse(null, { status: 200 });
-      }
-      return new NextResponse(result.error, { status: 400 });
+      await sendAdminNotification({
+        subject: "MWC Admin - Pagamento de projeto exige revisao",
+        lines: [
+          "A Stripe confirmou um pagamento de projeto, mas a plataforma nao conseguiu finalizar automaticamente.",
+          `Proposta: ${proposalId}`,
+          `Cliente: ${buyerId}`,
+          `Checkout Session: ${session.id}`,
+          `PaymentIntent: ${
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : session.payment_intent?.id || "Nao informado"
+          }`,
+          `Motivo: ${result.error}`,
+        ],
+        actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas`,
+      });
+      return new NextResponse(null, { status: 200 });
     }
 
     console.log(`Project payment processed for proposal ${proposalId}.`);
