@@ -1,20 +1,5 @@
 import "server-only";
 
-import { sendEmail } from "@/modules/email/email-client";
-import { adminNotificationEmail } from "@/modules/email/templates/admin-emails";
-
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br";
-
-function getAdminRecipients() {
-  const raw =
-    process.env.ADMIN_NOTIFICATION_EMAILS || process.env.ADMIN_EMAILS || "";
-
-  return raw
-    .split(",")
-    .map((email) => email.trim())
-    .filter(Boolean);
-}
-
 export async function sendAdminNotification({
   subject,
   lines,
@@ -24,20 +9,15 @@ export async function sendAdminNotification({
   lines: Array<string | null | undefined>;
   actionUrl?: string | null;
 }) {
-  const recipients = getAdminRecipients();
-  if (recipients.length === 0) return;
-
-  const template = adminNotificationEmail({
-    subject,
-    lines,
-    actionUrl,
-    adminUrl: `${appUrl}/dashboard/admin`,
-  });
-
-  await sendEmail({
-    to: recipients,
-    subject,
-    ...template,
-    logPrefix: "ADMIN_NOTIFICATION",
-  });
+  if (process.env.ENABLE_DEV_TOOLS === "true") {
+    console.log(
+      [
+        `[ADMIN_NOTIFICATION_DISABLED] ${subject}`,
+        ...lines.filter(Boolean),
+        actionUrl ? `Abrir no painel: ${actionUrl}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  }
 }
