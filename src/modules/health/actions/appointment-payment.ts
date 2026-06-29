@@ -1,10 +1,12 @@
 "use server";
 
 import Stripe from "stripe";
+import { createHash } from "crypto";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/prisma";
 import { sendPaymentConfirmedEmail } from "@/modules/health/services/transactional-email-service";
+import { createGoogleMeetEvent } from "@/modules/health/services/google-meet-service";
 
 const PLATFORM_FEE_PERCENT = 10;
 
@@ -51,6 +53,10 @@ function parseHealthAppointmentDateTime(date?: string, time?: string) {
   }
 
   return { dateOnly, dateTime };
+}
+
+function createMeetRequestId(sessionId: string) {
+  return `mwc-${createHash("sha256").update(sessionId).digest("hex").slice(0, 24)}`;
 }
 
 export async function finalizeHealthAppointmentPayment({
@@ -111,7 +117,13 @@ export async function finalizeHealthAppointmentPayment({
       userType: "PROFESSIONAL",
       industry: "HEALTH",
     },
-    select: { id: true, consultationFee: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      consultationFee: true,
+      sessionDuration: true,
+    },
   });
 
   if (!professional || !professional.consultationFee) {
@@ -119,6 +131,18 @@ export async function finalizeHealthAppointmentPayment({
       proId,
     });
     return { success: false, error: "Profissional invalido." };
+  }
+
+  const patient = await db.user.findUnique({
+    where: { id: patientId },
+    select: { name: true, email: true },
+  });
+
+  if (!patient?.email || !professional.email) {
+    return {
+      success: false,
+      error: "Paciente ou profissional sem email para gerar a reuniao.",
+    };
   }
 
   const expectedAmount = Math.round(Number(professional.consultationFee) * 100);
@@ -163,6 +187,25 @@ export async function finalizeHealthAppointmentPayment({
   }
 
   try {
+    const durationMinutes = professional.sessionDuration || 50;
+    const meetLink = await createGoogleMeetEvent({
+      summary: `MWC Online - Consulta com ${professional.name ?? "profissional"}`,
+      description: `Consulta MWC Online confirmada pelo pagamento Stripe ${session.id}.`,
+      startTime: appointmentDate.dateTime,
+      endTime: new Date(
+        appointmentDate.dateTime.getTime() + durationMinutes * 60 * 1000,
+      ),
+      attendees: [patient.email, professional.email],
+      requestId: createMeetRequestId(session.id),
+    });
+
+    if (!meetLink) {
+      return {
+        success: false,
+        error: "Nao foi possivel criar a reuniao no Google Meet.",
+      };
+    }
+
     const appointment = await db.$transaction(async (tx) => {
       const grossAmount = new Prisma.Decimal(session.amount_total ?? 0).div(
         100,
@@ -180,9 +223,7 @@ export async function finalizeHealthAppointmentPayment({
           time,
           status: "CONFIRMED", // <-- AQUI MATAMOS O ITEM 6! (Era "PAID")
           stripeSessionId: session.id,
-          meetLink: `https://meet.google.com/mwc-${Math.random()
-            .toString(36)
-            .substring(2, 11)}`,
+          meetLink,
           price: grossAmount,
           acceptedPaymentTerms: true,
           paymentTermsAcceptedAt: new Date(),
