@@ -60,6 +60,7 @@ export async function createGoogleMeetEvent({
     const event = await calendar.events.insert({
       calendarId: process.env.GOOGLE_CALENDAR_ID || DEFAULT_CALENDAR_ID,
       conferenceDataVersion: 1,
+      sendUpdates: "all",
       requestBody: {
         summary,
         description,
