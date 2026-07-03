@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { ActionResponse } from "@/modules/users/types/user-types";
@@ -151,6 +152,9 @@ export async function createProject(
         attachments,
       },
     });
+
+    revalidatePath("/dashboard/encontrar-projetos");
+    revalidatePath("/dashboard/meus-projetos");
 
     return { success: true };
   } catch (error) {

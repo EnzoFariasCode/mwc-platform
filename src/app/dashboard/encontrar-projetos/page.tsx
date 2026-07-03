@@ -1,6 +1,8 @@
 import { db } from "@/lib/prisma";
 import ProjectListView from "./ProjectListView"; // Vamos criar essa view
 
+export const dynamic = "force-dynamic";
+
 // Server Component: Busca os dados
 export default async function EncontrarProjetosPage() {
   const projects = await db.project.findMany({
