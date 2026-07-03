@@ -21,7 +21,7 @@ import { createProject } from "@/modules/projects/actions/create-project";
 const PROJECT_TITLE_MIN = 8;
 const PROJECT_DESCRIPTION_MIN = 10;
 const PROJECT_DESCRIPTION_MAX = 5000;
-const PROJECT_BUDGET_MIN = 10;
+const PROJECT_BUDGET_MIN = 1;
 
 interface NewProjectModalProps {
   isOpen: boolean;

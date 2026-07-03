@@ -25,7 +25,7 @@ const PROJECT_TAG_MAX = 30;
 const PROJECT_TAG_LIMIT = 8;
 const PROJECT_ATTACHMENT_LIMIT = 5;
 const PROJECT_ATTACHMENT_MAX = 500;
-const PROJECT_BUDGET_MIN = 10;
+const PROJECT_BUDGET_MIN = 1;
 const PROJECT_BUDGET_MAX = 1_000_000;
 
 function normalizeText(value: unknown) {
