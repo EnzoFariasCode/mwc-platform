@@ -14,7 +14,7 @@ interface CreateProposalData {
   coverLetter: string;
 }
 
-const PROPOSAL_PRICE_MIN = 10;
+const PROPOSAL_PRICE_MIN = 1;
 const PROPOSAL_PRICE_MAX = 1_000_000;
 const PROPOSAL_DAYS_MIN = 1;
 const PROPOSAL_DAYS_MAX = 365;
