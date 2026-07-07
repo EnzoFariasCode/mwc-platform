@@ -7,6 +7,9 @@ export default async function PortalPage() {
   const session = await auth();
 
   if (!session) redirect("/login");
+  if (session.user?.userType === "ADMIN" || session.user?.role === "ADMIN") {
+    redirect("/dashboard/admin");
+  }
 
   const firstName = session.user?.name?.split(" ")[0];
 

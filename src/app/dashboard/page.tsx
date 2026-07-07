@@ -30,6 +30,10 @@ export default async function DashboardPage({
   }
 
   // 4. Redirecionamento baseado no Role (UserType)
+  if (user.userType === UserType.ADMIN) {
+    redirect("/dashboard/admin");
+  }
+
   if (user.userType === UserType.PROFESSIONAL) {
     if (user.industry === "HEALTH") {
       redirect("/agendar-consulta/dashboard-profissional");

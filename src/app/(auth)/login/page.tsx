@@ -66,7 +66,7 @@ function LoginContent() {
   const callbackUrl =
     action === "chat" && proId
       ? `/dashboard/chat?newChat=${proId}`
-      : "/dashboard/cliente";
+      : "/dashboard";
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -132,6 +132,11 @@ function LoginContent() {
 
     if (searchParams.get("action") === "chat") {
       window.location.href = callbackUrl;
+      return;
+    }
+
+    if (user?.userType === "ADMIN") {
+      window.location.href = "/dashboard/admin";
       return;
     }
 

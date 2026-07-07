@@ -165,6 +165,8 @@ export default function DashboardSidebar() {
 
   // --- LÓGICA DE PERSISTÊNCIA ---
   useEffect(() => {
+    if (pathname.startsWith("/dashboard/admin")) return;
+
     const exclusiveProfessionalRoutes = [
       "/dashboard/profissional",
       "/dashboard/minhas-propostas",
@@ -255,6 +257,12 @@ export default function DashboardSidebar() {
     href: string;
     roles: AdminRole[];
   }> = [
+    {
+      icon: LayoutDashboard,
+      label: "Visão Geral",
+      href: "/dashboard/admin",
+      roles: ["OWNER", "FINANCE", "SUPPORT"],
+    },
     {
       icon: User,
       label: "Usuários",

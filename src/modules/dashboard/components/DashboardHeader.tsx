@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Lock } from "lucide-react";
+import { Menu, Lock, ShieldCheck } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { usePathname, useRouter } from "next/navigation";
@@ -50,6 +50,10 @@ export default function DashboardHeader() {
       pathname,
     );
 
+    if (userRole === "ADMIN" || pathname.startsWith("/dashboard/admin")) {
+      return;
+    }
+
     const isExclusivePro = exclusiveProfessionalRoutes.some((r) =>
       pathname.startsWith(r),
     );
@@ -92,6 +96,7 @@ export default function DashboardHeader() {
   };
 
   const isClientArea = viewMode === "CLIENT";
+  const isAdmin = userRole === "ADMIN";
 
   return (
     <header className="h-20 bg-slate-900 border-b border-white/5 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
@@ -106,6 +111,12 @@ export default function DashboardHeader() {
       </div>
 
       <div className="flex items-center gap-4 lg:gap-6 ml-auto">
+        {isAdmin ? (
+          <div className="hidden sm:flex items-center gap-2 rounded-full border border-[#d73cbe]/30 bg-[#d73cbe]/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white">
+            <ShieldCheck className="h-4 w-4 text-[#d73cbe]" />
+            ADMIN
+          </div>
+        ) : userRole ? (
         <div className="hidden sm:flex bg-slate-950 rounded-full border border-white/10 relative overflow-hidden">
           <div
             className={`absolute top-0 bottom-0 w-1/2 bg-[#d73cbe] transition-transform duration-300
@@ -140,6 +151,7 @@ export default function DashboardHeader() {
             Sou Cliente
           </button>
         </div>
+        ) : null}
 
         <NotificationDropdown />
       </div>
