@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { formatProfessionalCredential } from "@/modules/health/lib/professional-credentials";
 import { Star, MapPin, Video, ShieldCheck } from "lucide-react";
 import { auth } from "@/auth";
 import { getHealthProfessionalById } from "@/modules/health/services/professional-service";
@@ -21,6 +22,7 @@ export default async function ProfessionalHealthProfile({
 
   const proName = pro.displayName || pro.name;
   const isOwnProfile = session?.user?.id === id;
+  const documentReg = formatProfessionalCredential(pro.documentReg);
 
   return (
     <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8">
@@ -52,9 +54,9 @@ export default async function ProfessionalHealthProfile({
                   <span className="bg-[#d73cbe]/20 text-[#d73cbe] px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border border-[#d73cbe]/20">
                     {pro.jobTitle || "Especialista MWC"}
                   </span>
-                  {pro.documentReg && (
+                  {documentReg && (
                     <span className="bg-white/5 text-slate-400 px-3 py-1 rounded-full text-[10px] font-medium border border-white/5">
-                      {pro.documentReg}
+                      {documentReg}
                     </span>
                   )}
                 </div>

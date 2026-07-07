@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { buildProfessionalCredential } from "../lib/professional-credentials";
 
 // ─── Schema Zod ───────────────────────────────────────────────────────────────
 
@@ -30,9 +31,8 @@ const updateHealthProSchema = z.object({
 
   documentReg: z
     .string()
-    .max(50, "Registro profissional deve ter no máximo 50 caracteres")
-    .optional()
-    .nullable(),
+    .min(1, "Informe o tipo e o numero do registro profissional")
+    .max(50, "Registro profissional deve ter no máximo 50 caracteres"),
 
   approach: z
     .string()
@@ -61,6 +61,8 @@ const updateHealthProSchema = z.object({
 function parseRawFormData(formData: FormData) {
   const rawDuration = formData.get("sessionDuration");
   const rawFee = formData.get("consultationFee");
+  const rawDocumentRegType = formData.get("documentRegType");
+  const rawDocumentRegNumber = formData.get("documentRegNumber");
 
   const parsedDuration = rawDuration !== null ? Number(rawDuration) : 50;
   const parsedFee = rawFee !== null && rawFee !== "" ? Number(rawFee) : null;
@@ -71,12 +73,17 @@ function parseRawFormData(formData: FormData) {
     if (typeof v !== "string" || v.trim() === "") return null;
     return v.trim();
   };
+  const documentReg =
+    typeof rawDocumentRegType === "string" &&
+    typeof rawDocumentRegNumber === "string"
+      ? buildProfessionalCredential(rawDocumentRegType, rawDocumentRegNumber)
+      : toNullable("documentReg");
 
   return {
     displayName: toNullable("displayName"),
     bio: toNullable("bio"),
     jobTitle: toNullable("jobTitle"),
-    documentReg: toNullable("documentReg"),
+    documentReg,
     approach: toNullable("approach"),
     sessionDuration: parsedDuration,
     consultationFee: parsedFee,

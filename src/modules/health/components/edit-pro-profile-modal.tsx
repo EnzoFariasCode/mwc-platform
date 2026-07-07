@@ -12,6 +12,10 @@ import {
 // Importando a Server Action que criamos na etapa anterior
 import { updateHealthProProfile } from "../actions/update-health-pro";
 import type { HealthProfessionalProfile } from "../types";
+import {
+  parseProfessionalCredential,
+  PROFESSIONAL_CREDENTIAL_TYPES,
+} from "../lib/professional-credentials";
 
 type EditProProfileModalProps = {
   isOpen: boolean;
@@ -34,6 +38,7 @@ export function EditProProfileModal({
     typeof initialData?.consultationFee === "string"
       ? initialData.consultationFee
       : 150;
+  const initialCredential = parseProfessionalCredential(initialData?.documentReg);
 
   // Lógica real conectada ao Back-end
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -125,18 +130,33 @@ export function EditProProfileModal({
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 md:col-span-2">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  Registro (CRM / CRP / RMS) *
+                  Registro profissional *
                 </label>
-                <input
-                  name="documentReg" // Adicionado
-                  type="text"
-                  required // Trava do QA
-                  defaultValue={initialData?.documentReg || ""}
-                  placeholder="Ex: CRP 06/12345"
-                  className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-3">
+                  <select
+                    name="documentRegType"
+                    required
+                    defaultValue={initialCredential.type}
+                    className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all appearance-none cursor-pointer"
+                  >
+                    {PROFESSIONAL_CREDENTIAL_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    name="documentRegNumber"
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    defaultValue={initialCredential.number}
+                    placeholder="Numero do registro"
+                    className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
+                  />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">

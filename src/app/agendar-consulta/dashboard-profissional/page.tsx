@@ -14,6 +14,7 @@ import {
 import { getHealthProfessionalDashboardById } from "@/modules/health/services/private-profile-service";
 import { DashboardModalsController } from "@/modules/health/components/dashboard-modals-controller";
 import { ProfessionalAppointmentsTabs } from "@/modules/health/components/professional-appointments-tabs";
+import { formatProfessionalCredential } from "@/modules/health/lib/professional-credentials";
 
 // Funções Utilitárias de Formatação
 function formatCurrency(value: number | null) {
@@ -45,6 +46,7 @@ export default async function ProHealthDashboard() {
   }
 
   const displayName = professional.displayName || professional.name;
+  const documentReg = formatProfessionalCredential(professional.documentReg);
 
   // TRAVA DE SEGURANÇA (Regra de Negócio)
   const missingCredential = !professional.documentReg;
@@ -259,7 +261,7 @@ export default async function ProHealthDashboard() {
                   <p
                     className={`mt-1 text-base md:text-lg font-semibold font-mono ${missingCredential ? "text-red-400" : "text-white"}`}
                   >
-                    {professional.documentReg || "Pendente"}
+                    {documentReg || "Pendente"}
                   </p>
                 </div>
                 <div className="rounded-lg border border-white/5 bg-white/[0.03] p-4 transition-colors hover:bg-white/[0.05]">
