@@ -10,6 +10,8 @@ interface WithdrawButtonProps {
   userCpf?: string | null;
 }
 
+const MIN_WITHDRAWAL_AMOUNT = 0.01;
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -30,8 +32,8 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
   }, [amount]);
 
   const handleOpen = () => {
-    if (balance < 50) {
-      toast.warning("O valor minimo para saque e de R$ 50,00.");
+    if (balance < MIN_WITHDRAWAL_AMOUNT) {
+      toast.warning("O valor minimo para saque e de R$ 0,01.");
       return;
     }
 
@@ -42,8 +44,8 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (parsedAmount < 50) {
-      toast.error("O saque minimo e de R$ 50,00.");
+    if (parsedAmount < MIN_WITHDRAWAL_AMOUNT) {
+      toast.error("O saque minimo e de R$ 0,01.");
       return;
     }
 
@@ -73,7 +75,7 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
       <button
         type="button"
         onClick={handleOpen}
-        disabled={balance < 50}
+        disabled={balance < MIN_WITHDRAWAL_AMOUNT}
         className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto justify-center"
       >
         <ArrowUpRight className="w-5 h-5" />
@@ -107,7 +109,7 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
                   {formattedBalance}
                 </div>
                 <p className="text-xs text-green-400 font-medium">
-                  Saque minimo: R$ 50,00
+                  Saque minimo: R$ 0,01
                 </p>
               </div>
 

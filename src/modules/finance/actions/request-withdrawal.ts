@@ -11,7 +11,7 @@ import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
-const MIN_WITHDRAWAL_AMOUNT = new Prisma.Decimal(50);
+const MIN_WITHDRAWAL_AMOUNT = new Prisma.Decimal(0.01);
 const PIX_KEY_TYPES = ["CPF", "CNPJ", "EMAIL", "PHONE", "EVP"] as const;
 const WITHDRAWAL_LIMIT = 3;
 const WITHDRAWAL_WINDOW_MS = 60 * 60 * 1000;
@@ -72,7 +72,7 @@ export async function requestWithdrawal(
   }
 
   if (amount.lessThan(MIN_WITHDRAWAL_AMOUNT)) {
-    return { success: false, error: "Saldo insuficiente (Minimo R$ 50,00)." };
+    return { success: false, error: "Saldo insuficiente (Minimo R$ 0,01)." };
   }
 
   if (!pixKeyType) {
