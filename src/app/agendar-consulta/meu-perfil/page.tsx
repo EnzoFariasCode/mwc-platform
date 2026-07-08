@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { EditProfileModal } from "@/modules/health/components/edit-profile-modal";
 import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
@@ -37,26 +37,31 @@ export default function MeuPerfilPage() {
     loadProfile();
   }, []);
 
-  // Lógica de exibição de dados (Mapeando o que vem do Banco)
+  // Logica de exibicao de dados (Mapeando o que vem do Banco)
   const profileName =
-    profile?.displayName || profile?.name || session?.user?.name || "Usuário";
+    profile?.displayName ||
+    profile?.name ||
+    session?.user?.name ||
+    "Usu\u00e1rio";
   const profileEmail =
-    profile?.email || session?.user?.email || "Não informado";
+    profile?.email || session?.user?.email || "N\u00e3o informado";
 
   const birthDateFormatted = profile?.birthDate
     ? new Date(`${profile.birthDate}T00:00:00`).toLocaleDateString("pt-BR")
-    : "Não informado";
+    : "N\u00e3o informado";
 
   const cityState =
     profile?.city || profile?.state
-      ? `${profile?.city || "Cidade não informada"} / ${profile?.state || "UF"}`
-      : "Não informado";
+      ? `${profile?.city || "Cidade n\u00e3o informada"} / ${
+          profile?.state || "UF"
+        }`
+      : "N\u00e3o informado";
 
-  // Mapeamento de Gênero para ficar amigável
+  // Mapeamento de genero para ficar amigavel
   const genderMap: Record<string, string> = { M: "Masculino", F: "Feminino" };
   const genderDisplay = profile?.gender
-    ? genderMap[profile.gender] || "Não informado"
-    : "Não informado";
+    ? genderMap[profile.gender] || "N\u00e3o informado"
+    : "N\u00e3o informado";
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -101,7 +106,7 @@ export default function MeuPerfilPage() {
                 Meu <span className="text-[#d73cbe]">Perfil</span>
               </h1>
               <p className="text-slate-400 font-light">
-                Gerencie suas informações e autorizações de contato.
+                Gerencie suas informa&ccedil;&otilde;es e autoriza&ccedil;&otilde;es de contato.
               </p>
             </div>
             <button
@@ -158,8 +163,8 @@ export default function MeuPerfilPage() {
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">
                   {profile?.phone
-                    ? `Notificações autorizadas para o número: ${profile.phone}`
-                    : "Você ainda não cadastrou um número para notificações."}
+                    ? `Notifica\u00e7\u00f5es autorizadas para o n\u00famero: ${profile.phone}`
+                    : "Voc\u00ea ainda n\u00e3o cadastrou um n\u00famero para notifica\u00e7\u00f5es."}
                 </p>
               </div>
             </div>
@@ -168,7 +173,7 @@ export default function MeuPerfilPage() {
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-[#0f172a]/60 backdrop-blur-md border border-white/10 rounded-2xl p-8">
                 <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6">
-                  Informações Gerais
+                  Informa&ccedil;&otilde;es Gerais
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-1">
@@ -188,12 +193,12 @@ export default function MeuPerfilPage() {
                       WhatsApp Principal
                     </span>
                     <p className="text-sm font-medium">
-                      {profile?.phone || "Não cadastrado"}
+                      {profile?.phone || "N\u00e3o cadastrado"}
                     </p>
                   </div>
                   <div className="space-y-1">
                     <span className="text-[10px] text-slate-500 uppercase font-bold">
-                      Sexo Biológico
+                      Sexo Biol&oacute;gico
                     </span>
                     <p className="text-sm font-medium">{genderDisplay}</p>
                   </div>
@@ -202,7 +207,7 @@ export default function MeuPerfilPage() {
 
               <div className="bg-[#0f172a]/60 backdrop-blur-md border border-white/10 rounded-2xl p-8">
                 <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6">
-                  Endereço Residencial
+                  Endere&ccedil;o Residencial
                 </h3>
                 <div className="space-y-6">
                   <div className="grid grid-cols-3 gap-4">
@@ -211,7 +216,7 @@ export default function MeuPerfilPage() {
                         CEP
                       </span>
                       <p className="text-sm font-medium">
-                        {profile?.cep || "Não informado"}
+                        {profile?.cep || "N\u00e3o informado"}
                       </p>
                     </div>
                     <div className="col-span-2 space-y-1">
@@ -228,7 +233,7 @@ export default function MeuPerfilPage() {
                     <p className="text-sm font-medium">
                       {profile?.address
                         ? `${profile.address}, ${profile.addressNumber || "S/N"}`
-                        : "Não informado"}
+                        : "N\u00e3o informado"}
                       {profile?.complement && ` - ${profile.complement}`}
                     </p>
                   </div>
@@ -237,7 +242,7 @@ export default function MeuPerfilPage() {
                       Bairro
                     </span>
                     <p className="text-sm font-medium">
-                      {profile?.neighborhood || "Não informado"}
+                      {profile?.neighborhood || "N\u00e3o informado"}
                     </p>
                   </div>
                 </div>

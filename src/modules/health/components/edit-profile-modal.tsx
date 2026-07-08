@@ -62,7 +62,7 @@ export function EditProfileModal({
               Editar Perfil
             </h2>
             <p className="text-sm text-slate-400">
-              Mantenha seus dados atualizados para atendimentos e emergÃªncias.
+              Mantenha seus dados atualizados para atendimentos e emergências.
             </p>
           </div>
           <button
@@ -81,7 +81,7 @@ export function EditProfileModal({
         )}
 
         <div className="space-y-10">
-          {/* SEÃ‡ÃƒO 1: DADOS PESSOAIS */}
+          {/* SECAO 1: DADOS PESSOAIS */}
           <section>
             <h3 className="text-[#d73cbe] text-sm font-bold uppercase tracking-widest mb-5 flex items-center gap-2">
               <User className="w-4 h-4" /> Dados Pessoais
@@ -113,7 +113,7 @@ export function EditProfileModal({
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
                   Data de Nascimento
                 </label>
-                {/* Nota do DEV: Certifique-se de que initialData.birthDate estÃ¡ formatado como YYYY-MM-DD para o input type="date" funcionar direito */}
+                {/* Nota do DEV: Certifique-se de que initialData.birthDate está formatado como YYYY-MM-DD para o input type="date" funcionar direito */}
                 <input
                   name="birthDate"
                   type="date"
@@ -123,14 +123,14 @@ export function EditProfileModal({
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  Sexo BiolÃ³gico
+                  Sexo Biológico
                 </label>
                 <select
                   name="gender"
                   defaultValue={initialData?.gender || ""}
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all appearance-none cursor-pointer"
                 >
-                  <option value="">NÃ£o informado</option>
+                  <option value="">Não informado</option>
                   <option value="M">Masculino</option>
                   <option value="F">Feminino</option>
                 </select>
@@ -138,10 +138,10 @@ export function EditProfileModal({
             </div>
           </section>
 
-          {/* SEÃ‡ÃƒO 2: ENDEREÃ‡O */}
+          {/* SECAO 2: ENDERECO */}
           <section>
             <h3 className="text-[#d73cbe] text-sm font-bold uppercase tracking-widest mb-5 flex items-center gap-2">
-              <MapPin className="w-4 h-4" /> EndereÃ§o Residencial
+              <MapPin className="w-4 h-4" /> Endereço Residencial
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-6 gap-5">
               <div className="md:col-span-2 space-y-1.5">
@@ -158,7 +158,7 @@ export function EditProfileModal({
               </div>
               <div className="md:col-span-4 space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  EndereÃ§o
+                  Endereço
                 </label>
                 <input
                   name="address"
@@ -170,7 +170,7 @@ export function EditProfileModal({
               </div>
               <div className="md:col-span-2 space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  NÃºmero
+                  Número
                 </label>
                 <input
                   name="addressNumber"
@@ -212,7 +212,7 @@ export function EditProfileModal({
                   name="city"
                   type="text"
                   defaultValue={initialData?.city || ""}
-                  placeholder="SÃ£o Paulo"
+                  placeholder="São Paulo"
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
               </div>
@@ -232,20 +232,20 @@ export function EditProfileModal({
             </div>
           </section>
 
-          {/* SEÃ‡ÃƒO 3: WHATSAPP */}
+          {/* SECAO 3: WHATSAPP */}
           <section className="bg-white/5 p-6 rounded-2xl border border-white/5">
             <h3 className="text-white text-lg font-bold mb-2">
-              AutorizaÃ§Ã£o no WhatsApp MWC
+              Autorização no WhatsApp MWC
             </h3>
             <p className="text-sm text-slate-400 mb-6">
-              Esta etapa Ã© essencial para que vocÃª tenha acesso a todas as
-              notificaÃ§Ãµes e lembretes de consultas via WhatsApp.
+              Esta etapa é essencial para que você tenha acesso a todas as
+              notificações e lembretes de consultas via WhatsApp.
             </p>
 
             <div className="space-y-4">
               <div className="max-w-xs space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  NÃºmero de telefone
+                  Número de telefone
                 </label>
                 <input
                   name="phone"
@@ -272,7 +272,7 @@ export function EditProfileModal({
                   <span className="text-[#d73cbe] underline">
                     Termos de uso
                   </span>{" "}
-                  e com as politicas da MWC Online para notificacoes,
+                  e com as políticas da MWC Online para notificações,
                   agendamentos, cancelamentos e reembolsos.
                 </span>
               </label>
@@ -298,7 +298,7 @@ export function EditProfileModal({
               "Salvando..."
             ) : (
               <>
-                <Save className="w-4 h-4" /> Salvar AlteraÃ§Ãµes
+                <Save className="w-4 h-4" /> Salvar Alterações
               </>
             )}
           </button>

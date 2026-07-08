@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-// Tipagem atualizada para o Esquadrão
+// Tipagem atualizada para o Esquadrao
 export type PatientProfileData = {
   id: string;
   name: string;
@@ -26,7 +26,7 @@ export async function getCurrentPatientProfile() {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return { error: "Usuário não autenticado." };
+    return { error: "Usu\u00e1rio n\u00e3o autenticado." };
   }
 
   const user = await db.user.findUnique({
@@ -50,7 +50,7 @@ export async function getCurrentPatientProfile() {
   });
 
   if (!user) {
-    return { error: "Usuário não encontrado." };
+    return { error: "Usu\u00e1rio n\u00e3o encontrado." };
   }
 
   return {
@@ -67,10 +67,10 @@ export async function updatePatientProfile(formData: FormData) {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return { error: "Usuário não autenticado." };
+    return { error: "Usu\u00e1rio n\u00e3o autenticado." };
   }
 
-  // 1. [BACK-END] Extraindo TODA a carga do formulário
+  // 1. [BACK-END] Extraindo TODA a carga do formulario
   const name = formData.get("name")?.toString().trim();
   const birthDate = formData.get("birthDate")?.toString();
   const gender = formData.get("gender")?.toString();
@@ -84,7 +84,7 @@ export async function updatePatientProfile(formData: FormData) {
   const state = formData.get("state")?.toString().trim().toUpperCase();
 
   if (!name) {
-    return { error: "Nome completo é obrigatório." };
+    return { error: "Nome completo \u00e9 obrigat\u00f3rio." };
   }
 
   try {
@@ -106,7 +106,7 @@ export async function updatePatientProfile(formData: FormData) {
       },
     });
 
-    // 3. [DEVOPS] Limpando o cache para refletir as mudanças
+    // 3. [DEVOPS] Limpando o cache para refletir as mudancas
     revalidatePath("/agendar-consulta/meu-perfil");
     revalidatePath("/agendar-consulta/historico");
     revalidatePath("/", "layout");
