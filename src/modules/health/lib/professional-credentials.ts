@@ -18,9 +18,13 @@ export type ProfessionalCredentialType =
   (typeof PROFESSIONAL_CREDENTIAL_TYPES)[number];
 
 const CREDENTIAL_PATTERN = new RegExp(
-  `^(${PROFESSIONAL_CREDENTIAL_TYPES.join("|")})\\s*(?:-|/|:)??\\s*(.+)$`,
+  `^(${PROFESSIONAL_CREDENTIAL_TYPES.join("|")})\\s*(?:-|/|:)?\\s*(.+)$`,
   "i",
 );
+
+function normalizeCredentialNumber(value: string) {
+  return value.trim().replace(/^[-/:]\s*/, "").trim();
+}
 
 export function parseProfessionalCredential(value?: string | null) {
   const raw = value?.trim();
@@ -37,16 +41,18 @@ export function parseProfessionalCredential(value?: string | null) {
   const match = raw.match(CREDENTIAL_PATTERN);
 
   if (!match) {
+    const number = normalizeCredentialNumber(raw);
+
     return {
       type: "CRM" as ProfessionalCredentialType,
-      number: raw,
-      formatted: `REG - ${raw}`,
+      number,
+      formatted: `REG - ${number}`,
       hasKnownType: false,
     };
   }
 
   const type = match[1].toUpperCase() as ProfessionalCredentialType;
-  const number = match[2].trim();
+  const number = normalizeCredentialNumber(match[2]);
 
   return {
     type,
@@ -62,7 +68,7 @@ export function formatProfessionalCredential(value?: string | null) {
 
 export function buildProfessionalCredential(type: string, number: string) {
   const normalizedType = type.trim().toUpperCase();
-  const normalizedNumber = number.trim();
+  const normalizedNumber = normalizeCredentialNumber(number);
 
   if (!normalizedType || !normalizedNumber) return null;
   if (
