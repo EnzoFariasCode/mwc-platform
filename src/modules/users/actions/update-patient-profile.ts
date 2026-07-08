@@ -22,6 +22,15 @@ export type PatientProfileData = {
   state: string | null;
 };
 
+function formatPhoneNumber(value?: string | null) {
+  const digits = value?.replace(/\D/g, "").slice(0, 11) ?? "";
+
+  if (!digits) return null;
+  if (digits.length !== 11) return "";
+
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 export async function getCurrentPatientProfile() {
   const session = await auth();
 
@@ -74,7 +83,7 @@ export async function updatePatientProfile(formData: FormData) {
   const name = formData.get("name")?.toString().trim();
   const birthDate = formData.get("birthDate")?.toString();
   const gender = formData.get("gender")?.toString();
-  const phone = formData.get("phone")?.toString().trim();
+  const phone = formatPhoneNumber(formData.get("phone")?.toString());
   const cep = formData.get("cep")?.toString().trim();
   const address = formData.get("address")?.toString().trim();
   const addressNumber = formData.get("addressNumber")?.toString().trim();
@@ -85,6 +94,13 @@ export async function updatePatientProfile(formData: FormData) {
 
   if (!name) {
     return { error: "Nome completo \u00e9 obrigat\u00f3rio." };
+  }
+
+  if (phone === "") {
+    return {
+      error:
+        "Informe o telefone no padr\u00e3o (DDD) 99999-9999, com 11 d\u00edgitos.",
+    };
   }
 
   try {

@@ -11,6 +11,14 @@ import {
 import { Camera, Edit3, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
+function formatPhoneNumber(value?: string | null) {
+  const digits = value?.replace(/\D/g, "").slice(0, 11) ?? "";
+
+  if (digits.length !== 11) return value || "";
+
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 export default function MeuPerfilPage() {
   const { data: session } = useSession();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -62,6 +70,7 @@ export default function MeuPerfilPage() {
   const genderDisplay = profile?.gender
     ? genderMap[profile.gender] || "N\u00e3o informado"
     : "N\u00e3o informado";
+  const phoneDisplay = formatPhoneNumber(profile?.phone);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -162,8 +171,8 @@ export default function MeuPerfilPage() {
                   <h4 className="font-bold text-sm">WhatsApp Ativo</h4>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  {profile?.phone
-                    ? `Notifica\u00e7\u00f5es autorizadas para o n\u00famero: ${profile.phone}`
+                  {phoneDisplay
+                    ? `Notifica\u00e7\u00f5es autorizadas para o n\u00famero: ${phoneDisplay}`
                     : "Voc\u00ea ainda n\u00e3o cadastrou um n\u00famero para notifica\u00e7\u00f5es."}
                 </p>
               </div>
@@ -193,7 +202,7 @@ export default function MeuPerfilPage() {
                       WhatsApp Principal
                     </span>
                     <p className="text-sm font-medium">
-                      {profile?.phone || "N\u00e3o cadastrado"}
+                      {phoneDisplay || "N\u00e3o cadastrado"}
                     </p>
                   </div>
                   <div className="space-y-1">

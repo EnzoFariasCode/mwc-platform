@@ -1,7 +1,7 @@
 ﻿"use client";
 
-import { FormEvent, useState } from "react";
-import { User, MapPin, X, Save, Check } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import { User, MapPin, X, Save, Check, Phone } from "lucide-react";
 import {
   updatePatientProfile,
   type PatientProfileData,
@@ -14,6 +14,15 @@ type EditProfileModalProps = {
   onSaved?: () => void;
 };
 
+function formatPhoneNumber(value?: string | null) {
+  const digits = value?.replace(/\D/g, "").slice(0, 11) ?? "";
+
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 export function EditProfileModal({
   isOpen,
   onClose,
@@ -22,6 +31,13 @@ export function EditProfileModal({
 }: EditProfileModalProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phone, setPhone] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setPhone(formatPhoneNumber(initialData?.phone));
+    }
+  }, [initialData?.phone, isOpen]);
 
   if (!isOpen) return null;
 
@@ -233,27 +249,44 @@ export function EditProfileModal({
           </section>
 
           {/* SECAO 3: WHATSAPP */}
-          <section className="bg-white/5 p-6 rounded-2xl border border-white/5">
-            <h3 className="text-white text-lg font-bold mb-2">
-              Autorização no WhatsApp MWC
-            </h3>
-            <p className="text-sm text-slate-400 mb-6">
-              Esta etapa é essencial para que você tenha acesso a todas as
-              notificações e lembretes de consultas via WhatsApp.
-            </p>
+          <section className="rounded-2xl border border-emerald-500/15 bg-emerald-500/5 p-6">
+            <div className="mb-6 flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300">
+                <Phone className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-white text-lg font-bold">
+                  Autorização no WhatsApp MWC
+                </h3>
+                <p className="mt-1 text-sm text-slate-400">
+                  Use DDD + número com 9 dígitos. Exemplo: (11) 99999-9999.
+                </p>
+              </div>
+            </div>
 
-            <div className="space-y-4">
-              <div className="max-w-xs space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  Número de telefone
-                </label>
-                <input
-                  name="phone"
-                  type="tel"
-                  defaultValue={initialData?.phone || ""}
-                  placeholder="(11) 99999-9999"
-                  className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
-                />
+            <div className="space-y-5">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
+                    Número de telefone
+                  </label>
+                  <input
+                    name="phone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    value={phone}
+                    onChange={(event) =>
+                      setPhone(formatPhoneNumber(event.target.value))
+                    }
+                    maxLength={15}
+                    placeholder="(11) 99999-9999"
+                    className="w-full bg-[#020617] border border-emerald-500/20 rounded-xl py-3 px-4 text-sm text-white placeholder:text-slate-600 focus:border-emerald-400 outline-none transition-all"
+                  />
+                </div>
+                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-emerald-300">
+                  Padrão BR
+                </span>
               </div>
 
               <label className="flex items-start gap-3 cursor-pointer group">
