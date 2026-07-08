@@ -188,7 +188,7 @@ export async function finalizeHealthAppointmentPayment({
 
   try {
     const durationMinutes = professional.sessionDuration || 50;
-    const meetLink = await createGoogleMeetEvent({
+    const meetEvent = await createGoogleMeetEvent({
       summary: `MWC Online - Consulta com ${professional.name ?? "profissional"}`,
       description: `Consulta MWC Online confirmada pelo pagamento Stripe ${session.id}.`,
       startTime: appointmentDate.dateTime,
@@ -199,7 +199,7 @@ export async function finalizeHealthAppointmentPayment({
       requestId: createMeetRequestId(session.id),
     });
 
-    if (!meetLink) {
+    if (!meetEvent) {
       return {
         success: false,
         error: "Nao foi possivel criar a reuniao no Google Meet.",
@@ -223,7 +223,8 @@ export async function finalizeHealthAppointmentPayment({
           time,
           status: "CONFIRMED", // <-- AQUI MATAMOS O ITEM 6! (Era "PAID")
           stripeSessionId: session.id,
-          meetLink,
+          meetLink: meetEvent.meetLink,
+          googleEventId: meetEvent.googleEventId,
           price: grossAmount,
           acceptedPaymentTerms: true,
           paymentTermsAcceptedAt: new Date(),

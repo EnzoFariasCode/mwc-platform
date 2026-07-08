@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { User, MapPin, X, Save, Check, Phone } from "lucide-react";
 import {
   updatePatientProfile,
@@ -31,13 +31,6 @@ export function EditProfileModal({
 }: EditProfileModalProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [phone, setPhone] = useState("");
-
-  useEffect(() => {
-    if (isOpen) {
-      setPhone(formatPhoneNumber(initialData?.phone));
-    }
-  }, [initialData?.phone, isOpen]);
 
   if (!isOpen) return null;
 
@@ -275,10 +268,12 @@ export function EditProfileModal({
                     type="tel"
                     inputMode="numeric"
                     autoComplete="tel-national"
-                    value={phone}
-                    onChange={(event) =>
-                      setPhone(formatPhoneNumber(event.target.value))
-                    }
+                    defaultValue={formatPhoneNumber(initialData?.phone)}
+                    onChange={(event) => {
+                      event.currentTarget.value = formatPhoneNumber(
+                        event.currentTarget.value,
+                      );
+                    }}
                     maxLength={15}
                     placeholder="(11) 99999-9999"
                     className="w-full bg-[#020617] border border-emerald-500/20 rounded-xl py-3 px-4 text-sm text-white placeholder:text-slate-600 focus:border-emerald-400 outline-none transition-all"

@@ -16,6 +16,20 @@ interface MeetEventParams {
   requestId: string;
 }
 
+type GoogleMeetEventResult = {
+  meetLink: string;
+  googleEventId: string;
+};
+
+interface UpdateMeetEventParams {
+  eventId: string;
+  summary?: string;
+  description?: string;
+  startTime: Date;
+  endTime: Date;
+  attendees?: string[];
+}
+
 function requiredEnv(name: string) {
   const value = process.env[name];
 
@@ -39,6 +53,14 @@ function getCalendarClient() {
   return google.calendar({ version: "v3", auth: oauth2Client });
 }
 
+function getCalendarId() {
+  return process.env.GOOGLE_CALENDAR_ID || DEFAULT_CALENDAR_ID;
+}
+
+function getCalendarTimeZone() {
+  return process.env.GOOGLE_CALENDAR_TIME_ZONE || DEFAULT_TIME_ZONE;
+}
+
 function normalizeAttendees(attendees: string[]): GoogleMeetEventAttendee[] {
   return attendees
     .map((email) => email.trim().toLowerCase())
@@ -54,11 +76,11 @@ export async function createGoogleMeetEvent({
   endTime,
   attendees,
   requestId,
-}: MeetEventParams): Promise<string | null> {
+}: MeetEventParams): Promise<GoogleMeetEventResult | null> {
   try {
     const calendar = getCalendarClient();
     const event = await calendar.events.insert({
-      calendarId: process.env.GOOGLE_CALENDAR_ID || DEFAULT_CALENDAR_ID,
+      calendarId: getCalendarId(),
       conferenceDataVersion: 1,
       sendUpdates: "all",
       requestBody: {
@@ -66,11 +88,11 @@ export async function createGoogleMeetEvent({
         description,
         start: {
           dateTime: startTime.toISOString(),
-          timeZone: process.env.GOOGLE_CALENDAR_TIME_ZONE || DEFAULT_TIME_ZONE,
+          timeZone: getCalendarTimeZone(),
         },
         end: {
           dateTime: endTime.toISOString(),
-          timeZone: process.env.GOOGLE_CALENDAR_TIME_ZONE || DEFAULT_TIME_ZONE,
+          timeZone: getCalendarTimeZone(),
         },
         attendees: normalizeAttendees(attendees),
         conferenceData: {
@@ -82,9 +104,70 @@ export async function createGoogleMeetEvent({
       },
     });
 
-    return event.data.hangoutLink || null;
+    if (!event.data.hangoutLink || !event.data.id) {
+      return null;
+    }
+
+    return {
+      meetLink: event.data.hangoutLink,
+      googleEventId: event.data.id,
+    };
   } catch (error) {
     console.error("[Google Meet API] Erro ao criar evento:", error);
     return null;
+  }
+}
+
+export async function updateGoogleMeetEvent({
+  eventId,
+  summary,
+  description,
+  startTime,
+  endTime,
+  attendees,
+}: UpdateMeetEventParams): Promise<boolean> {
+  try {
+    const calendar = getCalendarClient();
+    await calendar.events.patch({
+      calendarId: getCalendarId(),
+      eventId,
+      sendUpdates: "all",
+      requestBody: {
+        ...(summary ? { summary } : {}),
+        ...(description ? { description } : {}),
+        start: {
+          dateTime: startTime.toISOString(),
+          timeZone: getCalendarTimeZone(),
+        },
+        end: {
+          dateTime: endTime.toISOString(),
+          timeZone: getCalendarTimeZone(),
+        },
+        ...(attendees ? { attendees: normalizeAttendees(attendees) } : {}),
+      },
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[Google Meet API] Erro ao atualizar evento:", error);
+    return false;
+  }
+}
+
+export async function cancelGoogleMeetEvent(
+  eventId: string,
+): Promise<boolean> {
+  try {
+    const calendar = getCalendarClient();
+    await calendar.events.delete({
+      calendarId: getCalendarId(),
+      eventId,
+      sendUpdates: "all",
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[Google Meet API] Erro ao cancelar evento:", error);
+    return false;
   }
 }

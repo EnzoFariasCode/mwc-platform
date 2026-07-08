@@ -18,6 +18,10 @@ import {
 import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
+import {
+  cancelGoogleMeetEvent,
+  updateGoogleMeetEvent,
+} from "@/modules/health/services/google-meet-service";
 
 const ADMIN_HEALTH_DISPUTE_DECISION_LIMIT = 20;
 const ADMIN_HEALTH_DISPUTE_DECISION_WINDOW_MS = 10 * 60 * 1000;
@@ -250,6 +254,22 @@ function revalidateHealthAppointmentPaths(professionalId?: string) {
   }
 }
 
+async function cancelGoogleMeetEventIfPresent(
+  googleEventId?: string | null,
+  appointmentId?: string,
+) {
+  if (!googleEventId) return;
+
+  const canceled = await cancelGoogleMeetEvent(googleEventId);
+
+  if (!canceled) {
+    console.error("[CANCEL_GOOGLE_MEET_EVENT_FAILED]", {
+      appointmentId,
+      googleEventId,
+    });
+  }
+}
+
 const terminalStatuses = [
   "CANCELED",
   "COMPLETED",
@@ -290,6 +310,7 @@ export async function cancelPatientAppointment(
         patientId: true,
         professionalId: true,
         stripeSessionId: true,
+        googleEventId: true,
         notes: true,
         patient: { select: { name: true, email: true } },
         professional: { select: { name: true, email: true } },
@@ -365,6 +386,11 @@ export async function cancelPatientAppointment(
         });
       });
 
+      await cancelGoogleMeetEventIfPresent(
+        appointment.googleEventId,
+        appointment.id,
+      );
+
       revalidateHealthAppointmentPaths(appointment.professionalId);
 
       await sendCancellationEmail({
@@ -424,6 +450,11 @@ export async function cancelPatientAppointment(
         data: { status: "CANCELED", notes },
       });
     });
+
+    await cancelGoogleMeetEventIfPresent(
+      appointment.googleEventId,
+      appointment.id,
+    );
 
     revalidateHealthAppointmentPaths(appointment.professionalId);
 
@@ -485,6 +516,7 @@ export async function cancelProfessionalAppointment(
         status: true,
         professionalId: true,
         stripeSessionId: true,
+        googleEventId: true,
         notes: true,
         patient: { select: { name: true, email: true } },
         professional: { select: { name: true, email: true } },
@@ -543,6 +575,11 @@ export async function cancelProfessionalAppointment(
         data: { status: "CANCELED", notes },
       });
     });
+
+    await cancelGoogleMeetEventIfPresent(
+      appointment.googleEventId,
+      appointment.id,
+    );
 
     revalidateHealthAppointmentPaths(appointment.professionalId);
 
@@ -1191,6 +1228,7 @@ export async function rescheduleHealthAppointment(
         price: true,
         notes: true,
         meetLink: true,
+        googleEventId: true,
         patient: { select: { name: true, email: true } },
         professional: {
           select: { name: true, email: true, sessionDuration: true },
@@ -1325,6 +1363,27 @@ export async function rescheduleHealthAppointment(
     const notes = appointment.notes
       ? `${appointment.notes}\n\n${rescheduleNote}`
       : rescheduleNote;
+
+    if (appointment.googleEventId) {
+      const googleUpdated = await updateGoogleMeetEvent({
+        eventId: appointment.googleEventId,
+        summary: `MWC Online - Consulta com ${appointment.professional.name ?? "profissional"}`,
+        description: `Consulta MWC Online reagendada de ${appointment.date.toLocaleDateString("pt-BR")} as ${appointment.time} para ${newDate} as ${newTime}.`,
+        startTime: parsedNewDate.dateTime,
+        endTime: new Date(parsedNewDate.dateTime.getTime() + duration * 60 * 1000),
+        attendees: [
+          appointment.patient.email,
+          appointment.professional.email,
+        ].filter((email): email is string => Boolean(email)),
+      });
+
+      if (!googleUpdated) {
+        return {
+          error:
+            "Nao foi possivel atualizar o evento no Google Calendar. O reagendamento nao foi aplicado.",
+        };
+      }
+    }
 
     const updated = await db.appointment.updateMany({
       where: {

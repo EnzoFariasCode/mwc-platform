@@ -1,6 +1,7 @@
 ﻿"use server";
 
 import { auth } from "@/auth";
+import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { db } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
@@ -178,6 +179,7 @@ export async function createCheckoutSession(
           return {
             id: activeHold.id,
             stripeSessionId: activeHold.stripeSessionId,
+            isExisting: true,
           };
         } else {
           throw new Error(
@@ -201,20 +203,33 @@ export async function createCheckoutSession(
       return {
         id: newHold.id,
         stripeSessionId: newHold.stripeSessionId,
+        isExisting: false,
       };
     });
 
     if (hold.stripeSessionId) {
-      const existingStripeSession = await stripe.checkout.sessions.retrieve(
-        hold.stripeSessionId,
-      );
+      try {
+        const existingStripeSession = await stripe.checkout.sessions.retrieve(
+          hold.stripeSessionId,
+        );
 
-      if (
-        existingStripeSession.status === "open" &&
-        existingStripeSession.url
-      ) {
-        return { url: existingStripeSession.url };
+        if (
+          existingStripeSession.status === "open" &&
+          existingStripeSession.url
+        ) {
+          return { url: existingStripeSession.url };
+        }
+      } catch (stripeRetrieveError) {
+        console.warn(
+          "[HEALTH_CHECKOUT_EXISTING_STRIPE_SESSION_ERROR]",
+          stripeRetrieveError,
+        );
       }
+
+      await db.appointmentHold.update({
+        where: { id: hold.id },
+        data: { stripeSessionId: null },
+      });
     }
 
     // [TASK 1] Save payment terms acceptance before Stripe session
@@ -238,51 +253,107 @@ export async function createCheckoutSession(
     }
 
 
-    const stripeSession = await stripe.checkout.sessions.create({
-      mode: "payment",
-      customer_email: session.user.email,
-      line_items: [
-        {
-          price_data: {
-            currency: "brl",
-            product_data: {
-              name: `Consulta com ${professional.name}`,
-              description: `Agendamento para o dia ${date} Ã s ${time}`,
+    const refreshedHoldExpiresAt = addMinutes(
+      new Date(),
+      HOLD_EXPIRATION_MINUTES,
+    );
+
+    let stripeSession: Stripe.Checkout.Session;
+
+    try {
+      stripeSession = await stripe.checkout.sessions.create({
+        mode: "payment",
+        customer_email: session.user.email,
+        line_items: [
+          {
+            price_data: {
+              currency: "brl",
+              product_data: {
+                name: `Consulta com ${professional.name}`,
+                description: `Agendamento para o dia ${date} Ã s ${time}`,
+              },
+              unit_amount: unitAmount,
             },
-            unit_amount: unitAmount,
+            quantity: 1,
           },
-          quantity: 1,
+        ],
+        metadata: {
+          proId,
+          patientId: session.user.id,
+          date,
+          time,
+          holdId: hold.id, // Passamos o Hold pro Stripe devolver no Webhook
+          type: "HEALTH_APPOINTMENT",
+          acceptedPaymentTerms: paymentTermsInfo?.acceptedPaymentTerms ? "true" : "false",
+          paymentTermsAcceptedAt: paymentTermsInfo?.paymentTermsAcceptedAt || new Date().toISOString(),
+          paymentTermsIpAddress: ipAddress,
         },
-      ],
-      metadata: {
-        proId,
-        patientId: session.user.id,
-        date,
-        time,
-        holdId: hold.id, // Passamos o Hold pro Stripe devolver no Webhook
-        type: "HEALTH_APPOINTMENT",
-        acceptedPaymentTerms: paymentTermsInfo?.acceptedPaymentTerms ? "true" : "false",
-        paymentTermsAcceptedAt: paymentTermsInfo?.paymentTermsAcceptedAt || new Date().toISOString(),
-        paymentTermsIpAddress: ipAddress,
-      },
-      success_url: `${origin}/checkout-saude/sucesso?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/agendar-consulta/perfil/${proId}`,
-    });
-
-    // 6. Atualiza o Hold e o aceite de termos com a sessão do Stripe
-    if (stripeSession.url) {
-      await db.appointmentHold.update({
-        where: { id: hold.id },
-        data: { stripeSessionId: stripeSession.id },
+        success_url: `${origin}/checkout-saude/sucesso?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/agendar-consulta/perfil/${proId}`,
       });
-
-      // [TASK 1] Link acceptance record to Stripe session
+    } catch (stripeCreateError) {
       if (termsAcceptanceId) {
-        await db.paymentTermsAcceptance.update({
-          where: { id: termsAcceptanceId },
-          data: { stripeSessionId: stripeSession.id },
+        await db.paymentTermsAcceptance.deleteMany({
+          where: {
+            id: termsAcceptanceId,
+            userId: session.user.id,
+            stripeSessionId: null,
+          },
         });
       }
+
+      if (!hold.isExisting) {
+        await db.appointmentHold.deleteMany({
+          where: {
+            id: hold.id,
+            patientId: session.user.id,
+            professionalId: professional.id,
+          },
+        });
+      }
+
+      throw stripeCreateError;
+    }
+
+    if (!stripeSession.url) {
+      if (termsAcceptanceId) {
+        await db.paymentTermsAcceptance.deleteMany({
+          where: {
+            id: termsAcceptanceId,
+            userId: session.user.id,
+            stripeSessionId: null,
+          },
+        });
+      }
+
+      if (!hold.isExisting) {
+        await db.appointmentHold.deleteMany({
+          where: {
+            id: hold.id,
+            patientId: session.user.id,
+            professionalId: professional.id,
+          },
+        });
+      }
+
+      throw new Error("Stripe nÃ£o retornou uma URL de pagamento.");
+    }
+
+    // 6. Atualiza o Hold e o aceite de termos com a sessão do Stripe
+    await db.appointmentHold.update({
+      where: { id: hold.id },
+      data: {
+        stripeSessionId: stripeSession.id,
+        expiresAt: refreshedHoldExpiresAt,
+      },
+    });
+
+    // [TASK 1] Link acceptance record to Stripe session
+    if (termsAcceptanceId) {
+      await db.paymentTermsAcceptance.update({
+        where: { id: termsAcceptanceId },
+        data: { stripeSessionId: stripeSession.id },
+      });
     }
 
     return { url: stripeSession.url };

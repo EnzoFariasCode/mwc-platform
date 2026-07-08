@@ -410,6 +410,7 @@ model Appointment {
   status         BookingStatus @default(PENDING_PAYMENT)
 
   meetLink        String?
+  googleEventId   String?
   price           Decimal
   notes           String?   @db.Text
   stripeSessionId String?   @unique
