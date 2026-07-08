@@ -30,6 +30,12 @@ interface UpdateMeetEventParams {
   attendees?: string[];
 }
 
+interface FindMeetEventParams {
+  meetLink: string;
+  startTime: Date;
+  endTime: Date;
+}
+
 function requiredEnv(name: string) {
   const value = process.env[name];
 
@@ -67,6 +73,30 @@ function normalizeAttendees(attendees: string[]): GoogleMeetEventAttendee[] {
     .filter(Boolean)
     .filter((email, index, list) => list.indexOf(email) === index)
     .map((email) => ({ email }));
+}
+
+function normalizeMeetLink(meetLink: string) {
+  return meetLink.trim().replace(/\/+$/, "").toLowerCase();
+}
+
+function eventHasMeetLink(
+  event: {
+    hangoutLink?: string | null;
+    conferenceData?: {
+      entryPoints?: Array<{ uri?: string | null }>;
+    } | null;
+  },
+  meetLink: string,
+) {
+  const normalizedMeetLink = normalizeMeetLink(meetLink);
+  const eventLinks = [
+    event.hangoutLink,
+    ...(event.conferenceData?.entryPoints?.map((entry) => entry.uri) ?? []),
+  ];
+
+  return eventLinks.some(
+    (link) => link && normalizeMeetLink(link) === normalizedMeetLink,
+  );
 }
 
 export async function createGoogleMeetEvent({
@@ -151,6 +181,34 @@ export async function updateGoogleMeetEvent({
   } catch (error) {
     console.error("[Google Meet API] Erro ao atualizar evento:", error);
     return false;
+  }
+}
+
+export async function findGoogleMeetEventId({
+  meetLink,
+  startTime,
+  endTime,
+}: FindMeetEventParams): Promise<string | null> {
+  try {
+    const calendar = getCalendarClient();
+    const searchStart = new Date(startTime.getTime() - 24 * 60 * 60 * 1000);
+    const searchEnd = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+    const events = await calendar.events.list({
+      calendarId: getCalendarId(),
+      singleEvents: true,
+      timeMin: searchStart.toISOString(),
+      timeMax: searchEnd.toISOString(),
+      maxResults: 50,
+    });
+
+    const matchingEvent = events.data.items?.find((event) =>
+      eventHasMeetLink(event, meetLink),
+    );
+
+    return matchingEvent?.id ?? null;
+  } catch (error) {
+    console.error("[Google Meet API] Erro ao localizar evento:", error);
+    return null;
   }
 }
 

@@ -20,6 +20,7 @@ import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 import {
   cancelGoogleMeetEvent,
+  findGoogleMeetEventId,
   updateGoogleMeetEvent,
 } from "@/modules/health/services/google-meet-service";
 
@@ -254,20 +255,83 @@ function revalidateHealthAppointmentPaths(professionalId?: string) {
   }
 }
 
-async function cancelGoogleMeetEventIfPresent(
-  googleEventId?: string | null,
-  appointmentId?: string,
-) {
-  if (!googleEventId) return;
+async function resolveGoogleEventIdForAppointment({
+  appointmentId,
+  date,
+  time,
+  meetLink,
+  googleEventId,
+  durationMinutes,
+}: {
+  appointmentId: string;
+  date: Date;
+  time: string;
+  meetLink?: string | null;
+  googleEventId?: string | null;
+  durationMinutes: number;
+}): Promise<{ eventId: string | null; error?: string }> {
+  if (googleEventId) return { eventId: googleEventId };
+  if (!meetLink) return { eventId: null };
 
-  const canceled = await cancelGoogleMeetEvent(googleEventId);
+  const scheduledAt = appointmentDateTime(date, time);
+
+  if (!scheduledAt) {
+    return {
+      eventId: null,
+      error: "Data da consulta invalida para sincronizar o Google Calendar.",
+    };
+  }
+
+  const foundEventId = await findGoogleMeetEventId({
+    meetLink,
+    startTime: scheduledAt,
+    endTime: new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000),
+  });
+
+  if (!foundEventId) {
+    return {
+      eventId: null,
+      error:
+        "Nao foi possivel localizar o evento antigo no Google Calendar. A acao nao foi aplicada.",
+    };
+  }
+
+  await db.appointment.update({
+    where: { id: appointmentId },
+    data: { googleEventId: foundEventId },
+  });
+
+  return { eventId: foundEventId };
+}
+
+async function cancelGoogleMeetForAppointment(params: {
+  appointmentId: string;
+  date: Date;
+  time: string;
+  meetLink?: string | null;
+  googleEventId?: string | null;
+  durationMinutes: number;
+}) {
+  const resolved = await resolveGoogleEventIdForAppointment(params);
+
+  if (resolved.error) return { error: resolved.error };
+  if (!resolved.eventId) return {};
+
+  const canceled = await cancelGoogleMeetEvent(resolved.eventId);
 
   if (!canceled) {
     console.error("[CANCEL_GOOGLE_MEET_EVENT_FAILED]", {
-      appointmentId,
-      googleEventId,
+      appointmentId: params.appointmentId,
+      googleEventId: resolved.eventId,
     });
+
+    return {
+      error:
+        "Nao foi possivel cancelar o evento no Google Calendar. A consulta nao foi cancelada.",
+    };
   }
+
+  return {};
 }
 
 const terminalStatuses = [
@@ -310,10 +374,11 @@ export async function cancelPatientAppointment(
         patientId: true,
         professionalId: true,
         stripeSessionId: true,
+        meetLink: true,
         googleEventId: true,
         notes: true,
         patient: { select: { name: true, email: true } },
-        professional: { select: { name: true, email: true } },
+        professional: { select: { name: true, email: true, sessionDuration: true } },
       },
     });
 
@@ -338,6 +403,17 @@ export async function cancelPatientAppointment(
     );
 
     if (scheduledAt < twentyFourHoursFromNow) {
+      const googleCancel = await cancelGoogleMeetForAppointment({
+        appointmentId: appointment.id,
+        date: appointment.date,
+        time: appointment.time,
+        meetLink: appointment.meetLink,
+        googleEventId: appointment.googleEventId,
+        durationMinutes: appointment.professional.sessionDuration || 50,
+      });
+
+      if (googleCancel.error) throw new Error(googleCancel.error);
+
       await db.$transaction(async (tx) => {
         const freshAppointment = await tx.appointment.findUnique({
           where: { id: appointment.id },
@@ -386,11 +462,6 @@ export async function cancelPatientAppointment(
         });
       });
 
-      await cancelGoogleMeetEventIfPresent(
-        appointment.googleEventId,
-        appointment.id,
-      );
-
       revalidateHealthAppointmentPaths(appointment.professionalId);
 
       await sendCancellationEmail({
@@ -411,6 +482,17 @@ export async function cancelPatientAppointment(
     if (!appointment.stripeSessionId) {
       throw new Error("Consulta sem referencia de pagamento Stripe.");
     }
+
+    const googleCancel = await cancelGoogleMeetForAppointment({
+      appointmentId: appointment.id,
+      date: appointment.date,
+      time: appointment.time,
+      meetLink: appointment.meetLink,
+      googleEventId: appointment.googleEventId,
+      durationMinutes: appointment.professional.sessionDuration || 50,
+    });
+
+    if (googleCancel.error) throw new Error(googleCancel.error);
 
     const refund = await refundStripeCheckoutSession(
       appointment.stripeSessionId,
@@ -450,11 +532,6 @@ export async function cancelPatientAppointment(
         data: { status: "CANCELED", notes },
       });
     });
-
-    await cancelGoogleMeetEventIfPresent(
-      appointment.googleEventId,
-      appointment.id,
-    );
 
     revalidateHealthAppointmentPaths(appointment.professionalId);
 
@@ -516,10 +593,11 @@ export async function cancelProfessionalAppointment(
         status: true,
         professionalId: true,
         stripeSessionId: true,
+        meetLink: true,
         googleEventId: true,
         notes: true,
         patient: { select: { name: true, email: true } },
-        professional: { select: { name: true, email: true } },
+        professional: { select: { name: true, email: true, sessionDuration: true } },
       },
     });
 
@@ -536,6 +614,17 @@ export async function cancelProfessionalAppointment(
     if (!appointment.stripeSessionId) {
       throw new Error("Consulta sem referencia de pagamento Stripe.");
     }
+
+    const googleCancel = await cancelGoogleMeetForAppointment({
+      appointmentId: appointment.id,
+      date: appointment.date,
+      time: appointment.time,
+      meetLink: appointment.meetLink,
+      googleEventId: appointment.googleEventId,
+      durationMinutes: appointment.professional.sessionDuration || 50,
+    });
+
+    if (googleCancel.error) throw new Error(googleCancel.error);
 
     const refund = await refundStripeCheckoutSession(
       appointment.stripeSessionId,
@@ -575,11 +664,6 @@ export async function cancelProfessionalAppointment(
         data: { status: "CANCELED", notes },
       });
     });
-
-    await cancelGoogleMeetEventIfPresent(
-      appointment.googleEventId,
-      appointment.id,
-    );
 
     revalidateHealthAppointmentPaths(appointment.professionalId);
 
@@ -1364,9 +1448,22 @@ export async function rescheduleHealthAppointment(
       ? `${appointment.notes}\n\n${rescheduleNote}`
       : rescheduleNote;
 
-    if (appointment.googleEventId) {
+    const resolvedGoogleEvent = await resolveGoogleEventIdForAppointment({
+      appointmentId: appointment.id,
+      date: appointment.date,
+      time: appointment.time,
+      meetLink: appointment.meetLink,
+      googleEventId: appointment.googleEventId,
+      durationMinutes: duration,
+    });
+
+    if (resolvedGoogleEvent.error) {
+      return { error: resolvedGoogleEvent.error };
+    }
+
+    if (resolvedGoogleEvent.eventId) {
       const googleUpdated = await updateGoogleMeetEvent({
-        eventId: appointment.googleEventId,
+        eventId: resolvedGoogleEvent.eventId,
         summary: `MWC Online - Consulta com ${appointment.professional.name ?? "profissional"}`,
         description: `Consulta MWC Online reagendada de ${appointment.date.toLocaleDateString("pt-BR")} as ${appointment.time} para ${newDate} as ${newTime}.`,
         startTime: parsedNewDate.dateTime,
