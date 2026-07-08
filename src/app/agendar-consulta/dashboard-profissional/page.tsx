@@ -15,6 +15,7 @@ import { getHealthProfessionalDashboardById } from "@/modules/health/services/pr
 import { DashboardModalsController } from "@/modules/health/components/dashboard-modals-controller";
 import { ProfessionalAppointmentsTabs } from "@/modules/health/components/professional-appointments-tabs";
 import { formatProfessionalCredential } from "@/modules/health/lib/professional-credentials";
+import { ScheduleConfigLink } from "@/modules/health/components/schedule-config-link";
 
 // Funções Utilitárias de Formatação
 function formatCurrency(value: number | null) {
@@ -207,51 +208,54 @@ export default async function ProHealthDashboard() {
           {/* Coluna Direita: Perfil Clínico e Gestão de Agenda */}
           <div className="space-y-6">
             {/* GESTÃO DE AGENDA INFO */}
-            <div className="rounded-xl border border-[#d73cbe]/20 bg-[#d73cbe]/5 p-6 md:p-8 backdrop-blur-sm relative overflow-hidden">
+            <div className="rounded-xl border border-[#d73cbe]/20 bg-[#d73cbe]/5 p-5 backdrop-blur-sm relative overflow-hidden">
               <div className="absolute -right-4 -top-4 bg-[#d73cbe]/20 blur-3xl w-24 h-24 rounded-full pointer-events-none"></div>
 
-              <div className="flex items-center gap-3 mb-6 relative z-10">
+              <div className="flex items-center gap-3 mb-4 relative z-10">
                 <div className="p-2 bg-[#d73cbe]/20 text-[#d73cbe] rounded-lg">
-                  <CalendarRange className="w-5 h-5" />
+                  <CalendarRange className="w-4 h-4" />
                 </div>
-                <h2 className="text-xl font-bold uppercase tracking-tight text-white">
+                <h2 className="text-base font-bold uppercase tracking-tight text-white">
                   Sua Agenda
                 </h2>
               </div>
 
-              <div className="space-y-4 mb-6 relative z-10">
-                <div className="flex justify-between items-center text-sm border-b border-white/10 pb-3">
+              <div className="space-y-3 relative z-10">
+                <div className="flex justify-between items-center text-sm border-b border-white/10 pb-2.5">
                   <span className="text-slate-400">Duração da sessão</span>
                   <span className="font-bold text-white">
                     {professional.sessionDuration || 50} minutos
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-sm border-b border-white/10 pb-3">
+                <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-400">Disponibilidade</span>
-                  <span className="font-bold text-white">Ver config.</span>
+                  <ScheduleConfigLink
+                    professional={professional}
+                    disabled={missingCredential}
+                  />
                 </div>
               </div>
               {/* O Botão de Agenda está no DashboardModalsController logo acima do Perfil! */}
             </div>
 
             {/* PERFIL CLÍNICO */}
-            <div className="rounded-xl border border-white/10 bg-[#0f172a]/80 p-6 md:p-8 backdrop-blur-sm">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold uppercase tracking-tight">
+            <div className="rounded-xl border border-white/10 bg-[#0f172a]/80 p-5 backdrop-blur-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-base font-bold uppercase tracking-tight">
                   Perfil Clínico
                 </h2>
               </div>
 
-              <div className="space-y-4 text-sm">
-                <div className="rounded-lg border border-white/5 bg-white/[0.03] p-4 transition-colors hover:bg-white/[0.05]">
+              <div className="space-y-2.5 text-sm">
+                <div className="rounded-lg border border-white/5 bg-white/[0.03] px-3.5 py-3 transition-colors hover:bg-white/[0.05]">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     Especialidade
                   </p>
-                  <p className="mt-1 text-base md:text-lg font-semibold text-white">
+                  <p className="mt-0.5 text-sm font-semibold text-white">
                     {professional.jobTitle || "Não informado"}
                   </p>
                 </div>
-                <div className="rounded-lg border border-white/5 bg-white/[0.03] p-4 transition-colors hover:bg-white/[0.05]">
+                <div className="rounded-lg border border-white/5 bg-white/[0.03] px-3.5 py-3 transition-colors hover:bg-white/[0.05]">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
                     Registro Profissional
                     {missingCredential && (
@@ -259,12 +263,12 @@ export default async function ProHealthDashboard() {
                     )}
                   </p>
                   <p
-                    className={`mt-1 text-base md:text-lg font-semibold font-mono ${missingCredential ? "text-red-400" : "text-white"}`}
+                    className={`mt-0.5 text-sm font-semibold font-mono ${missingCredential ? "text-red-400" : "text-white"}`}
                   >
                     {documentReg || "Pendente"}
                   </p>
                 </div>
-                <div className="rounded-lg border border-white/5 bg-white/[0.03] p-4 transition-colors hover:bg-white/[0.05]">
+                <div className="rounded-lg border border-white/5 bg-white/[0.03] px-3.5 py-3 transition-colors hover:bg-white/[0.05]">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
                     Abordagem Clínica
                     {missingApproach && (
@@ -272,7 +276,7 @@ export default async function ProHealthDashboard() {
                     )}
                   </p>
                   <p
-                    className={`mt-1 text-base md:text-lg font-semibold ${missingApproach ? "text-yellow-400/80" : "text-white"}`}
+                    className={`mt-0.5 text-sm font-semibold ${missingApproach ? "text-yellow-400/80" : "text-white"}`}
                   >
                     {professional.approach || "Pendente"}
                   </p>
