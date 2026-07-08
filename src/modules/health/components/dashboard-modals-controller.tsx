@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Settings2, AlertTriangle } from "lucide-react";
 import { EditProProfileModal } from "./edit-pro-profile-modal";
 import { EditScheduleModal } from "./edit-schedule-modal";
 import type { HealthProfessionalProfile } from "../types";
+import { OPEN_HEALTH_SCHEDULE_MODAL } from "./schedule-config-link";
 
 interface Props {
   professional: HealthProfessionalProfile;
@@ -17,6 +18,20 @@ export function DashboardModalsController({
 }: Props) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+
+  useEffect(() => {
+    const openScheduleModal = () => {
+      if (!missingCredential) {
+        setIsScheduleOpen(true);
+      }
+    };
+
+    window.addEventListener(OPEN_HEALTH_SCHEDULE_MODAL, openScheduleModal);
+
+    return () => {
+      window.removeEventListener(OPEN_HEALTH_SCHEDULE_MODAL, openScheduleModal);
+    };
+  }, [missingCredential]);
 
   return (
     <>

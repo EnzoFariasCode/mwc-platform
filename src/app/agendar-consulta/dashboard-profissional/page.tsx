@@ -229,10 +229,7 @@ export default async function ProHealthDashboard() {
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-400">Disponibilidade</span>
-                  <ScheduleConfigLink
-                    professional={professional}
-                    disabled={missingCredential}
-                  />
+                  <ScheduleConfigLink disabled={missingCredential} />
                 </div>
               </div>
               {/* O Botão de Agenda está no DashboardModalsController logo acima do Perfil! */}
