@@ -17,9 +17,13 @@ import {
   ChevronLeft,
   Rocket,
   Zap,
+  Copy,
+  Check,
+  X,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import { ExpandableText } from "@/components/ui/ExpandableText";
 import {
   isActiveTechSubscription,
@@ -124,6 +128,11 @@ export function ProfileShowcase({
   isOwner = false,
   backHref,
 }: ProfileShowcaseProps) {
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isPreparingShareLink, setIsPreparingShareLink] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
+
   const mainName =
     professional.displayName || professional.name || "Profissional";
   const initials = mainName.charAt(0).toUpperCase();
@@ -151,8 +160,92 @@ export function ProfileShowcase({
     isSubscriber &&
     isPaidTechPlanTier(professional.professionalPlanTier);
 
+  const handleOpenShareDialog = () => {
+    setIsShareOpen(true);
+    setCopiedShareLink(false);
+    setShareUrl("");
+    setIsPreparingShareLink(true);
+
+    window.setTimeout(() => {
+      setShareUrl(`${window.location.origin}/dashboard/profissional/${professional.id}`);
+      setIsPreparingShareLink(false);
+    }, 450);
+  };
+
+  const handleCopyShareLink = async () => {
+    if (!shareUrl) return;
+
+    await navigator.clipboard.writeText(shareUrl);
+    setCopiedShareLink(true);
+
+    window.setTimeout(() => {
+      setCopiedShareLink(false);
+    }, 2200);
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 relative">
+      {isShareOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-white">
+                  Compartilhar perfil
+                </h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Envie este link para qualquer pessoa acessar o perfil de{" "}
+                  {mainName}.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsShareOpen(false)}
+                className="rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-800 hover:text-white"
+                aria-label="Fechar compartilhamento"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {isPreparingShareLink ? (
+              <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-900/60 p-4 text-sm text-slate-300">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#d73cbe] border-t-transparent" />
+                Estamos preparando o link...
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <input
+                    value={shareUrl}
+                    readOnly
+                    className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none"
+                    onFocus={(event) => event.currentTarget.select()}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCopyShareLink}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#d73cbe] px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-[#b0269a]"
+                  >
+                    {copiedShareLink ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    {copiedShareLink ? "Copiado" : "Copiar"}
+                  </button>
+                </div>
+
+                {copiedShareLink && (
+                  <p className="text-sm font-medium text-emerald-400">
+                    Link copiado.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {/* Botão Voltar */}
       {backHref && (
         <div className="mb-2">
@@ -257,7 +350,11 @@ export function ProfileShowcase({
                   )}
 
                   <div className="flex gap-3">
-                    <button className="flex-1 py-2 bg-slate-900 border border-border rounded-lg text-slate-400 hover:text-white hover:border-slate-600 transition-all flex items-center justify-center gap-2 text-sm cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={handleOpenShareDialog}
+                      className="flex-1 py-2 bg-slate-900 border border-border rounded-lg text-slate-400 hover:text-white hover:border-slate-600 transition-all flex items-center justify-center gap-2 text-sm cursor-pointer"
+                    >
                       <Share2 className="w-4 h-4" /> Compartilhar
                     </button>
                   </div>
