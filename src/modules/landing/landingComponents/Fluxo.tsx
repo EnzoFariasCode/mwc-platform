@@ -90,7 +90,7 @@ export function Fluxo() {
         {/* COLUNA DA ESQUERDA: Título e Imagem */}
         <div className="flex-1 flex flex-col gap-6 w-full">
           {/* Adicionei 'gsap-title' e 'opacity-0' */}
-          <h2 className="gsap-title opacity-0 text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight font-futura uppercase">
+          <h2 className="gsap-title opacity-0 text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-white leading-tight font-futura uppercase">
             Entenda o Fluxo <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
               do Negócio
@@ -100,14 +100,14 @@ export function Fluxo() {
           {/* Adicionei 'gsap-image-container' e 'opacity-0' */}
           <div className="gsap-image-container opacity-0 relative group w-full max-w-md lg:max-w-full mx-auto lg:mx-0">
             {/* Efeito de borda brilhante na imagem */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-[32px] rounded-tl-[12px] opacity-75 blur-md group-hover:opacity-100 transition duration-500"></div>
+            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg opacity-75 blur-md group-hover:opacity-100 transition duration-500"></div>
 
             <Image
               src="https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2070&auto=format&fit=crop"
               alt="Business meeting"
               width={2070}
               height={1380}
-              className="relative w-full h-auto object-cover rounded-[30px] rounded-tl-[10px] border border-white/10 shadow-2xl"
+              className="relative w-full h-auto object-cover rounded-lg border border-white/10 shadow-2xl"
             />
           </div>
         </div>
@@ -116,7 +116,7 @@ export function Fluxo() {
         {/* Adicionei 'gsap-boxes-container' para ser o gatilho */}
         <div className="gsap-boxes-container flex-1 flex flex-col gap-4 w-full">
           {/* Box 1 - Adicionei 'gsap-box' e 'opacity-0' */}
-          <div className="gsap-box opacity-0 p-6 border border-white/20 hover:border-purple-500/50 rounded-none bg-white/[0.02] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.05] group">
+          <div className="gsap-box opacity-0 p-6 border border-white/20 hover:border-purple-500/50 rounded-md bg-white/[0.02] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.05] group">
             <h3 className="text-lg md:text-xl font-bold text-white mb-2 font-sans uppercase tracking-wide group-hover:text-[#d73cbe] transition-colors">
               Peça o que precisa
             </h3>
@@ -128,7 +128,7 @@ export function Fluxo() {
           </div>
 
           {/* Box 2 - Adicionei 'gsap-box' e 'opacity-0' */}
-          <div className="gsap-box opacity-0 p-6 border border-white/20 hover:border-purple-500/50 rounded-none bg-white/[0.02] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.05] group">
+          <div className="gsap-box opacity-0 p-6 border border-white/20 hover:border-purple-500/50 rounded-md bg-white/[0.02] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.05] group">
             <h3 className="text-lg md:text-xl font-bold text-white mb-2 font-sans uppercase tracking-wide group-hover:text-[#d73cbe] transition-colors">
               Converse com profissionais
             </h3>
@@ -140,7 +140,7 @@ export function Fluxo() {
           </div>
 
           {/* Box 3 - Adicionei 'gsap-box' e 'opacity-0' */}
-          <div className="gsap-box opacity-0 p-6 border border-white/20 hover:border-purple-500/50 rounded-none bg-white/[0.02] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.05] group">
+          <div className="gsap-box opacity-0 p-6 border border-white/20 hover:border-purple-500/50 rounded-md bg-white/[0.02] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.05] group">
             <h3 className="text-lg md:text-xl font-bold text-white mb-2 font-sans uppercase tracking-wide group-hover:text-[#d73cbe] transition-colors">
               Combine e feche negócio
             </h3>

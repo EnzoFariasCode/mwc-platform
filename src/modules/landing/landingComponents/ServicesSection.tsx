@@ -112,7 +112,7 @@ function ServicesSection() {
               key={index}
               // 3. Adicionei o onClick aqui para tornar o card inteiro clicável
               onClick={() => handleServiceClick(service.title)}
-              className="gsap-card opacity-0 group relative h-[280px] rounded-2xl overflow-hidden cursor-pointer shadow-lg hover:-translate-y-2 transition-transform duration-300 ease-out"
+              className="gsap-card opacity-0 group relative h-[280px] rounded-lg overflow-hidden cursor-pointer shadow-lg hover:-translate-y-2 transition-transform duration-300 ease-out"
             >
               <Image
                 src={service.imgSrc}
@@ -131,7 +131,7 @@ function ServicesSection() {
                 </h3>
 
                 {/* O botão agora é visual, o clique no pai (div) que comanda a ação */}
-                <button className="bg-[#d73cbe] hover:bg-[#c02aa8] text-white px-6 py-2 rounded-full font-medium text-sm transition-all shadow-[0_4px_14px_0_rgba(215,60,190,0.39)] hover:shadow-[0_6px_20px_rgba(215,60,190,0.23)] hover:scale-105 flex items-center gap-2 pointer-events-none">
+                <button className="bg-[#d73cbe] hover:bg-[#c02aa8] text-white px-6 py-2.5 rounded-md font-medium text-sm transition-all shadow-[0_4px_14px_0_rgba(215,60,190,0.39)] hover:shadow-[0_6px_20px_rgba(215,60,190,0.23)] hover:scale-105 flex items-center gap-2 pointer-events-none">
                   Fazer Orçamento
                 </button>
               </div>

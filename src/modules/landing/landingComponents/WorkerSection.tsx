@@ -73,19 +73,19 @@ export function WorkerSection() {
         {/* Lado Esquerdo: Texto */}
         {/* Adicionei 'gsap-worker-text' e 'opacity-0' */}
         <div className="gsap-worker-text opacity-0 flex-1 flex flex-col gap-8 max-w-2xl text-center lg:text-left">
-          <div className="border border-white/20 p-8 md:p-12 rounded-none bg-white/[0.02] backdrop-blur-sm relative group">
+          <div className="border border-white/20 p-8 md:p-10 rounded-lg bg-white/[0.02] backdrop-blur-sm relative group">
             {/* Decoração de canto neon */}
             <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-[#d73cbe]" />
             <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-[#d73cbe]" />
 
-            <h2 className="text-3xl md:text-5xl font-bold font-futura uppercase tracking-tight text-white mb-6 leading-none">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-futura uppercase tracking-tight text-white mb-6 leading-tight">
               É um <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-[#d73cbe]">
                 Profissional?
               </span>
             </h2>
 
-            <p className="text-slate-300 text-lg leading-relaxed mb-8 font-sans">
+            <p className="text-slate-300 text-base leading-relaxed mb-8 font-sans">
               Se você é um prestador de serviços e se vê capaz de atuar com
               diversas demandas, esse site é pra você.
               <br />
@@ -95,7 +95,7 @@ export function WorkerSection() {
             </p>
 
             <Link href="/beWorker">
-              <button className="bg-[#d73cbe] hover:bg-[#b0269a] cursor-pointer text-white px-8 py-4 rounded-xl font-bold uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(215,60,190,0.4)] hover:shadow-[0_0_30px_rgba(215,60,190,0.6)] hover:-translate-y-1">
+              <button className="bg-[#d73cbe] hover:bg-[#b0269a] cursor-pointer text-white px-8 py-4 rounded-lg font-bold uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(215,60,190,0.4)] hover:shadow-[0_0_30px_rgba(215,60,190,0.6)] hover:-translate-y-1">
                 Quero ser um profissional
               </button>
             </Link>

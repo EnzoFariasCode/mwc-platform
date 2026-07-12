@@ -72,7 +72,7 @@ export function HealthHeader() {
         {/* NAV */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
           <Link
-            href="/agendar-consulta"
+            href="/"
             className={
               isHome ? "text-white" : "hover:text-[#d73cbe] transition-colors"
             }

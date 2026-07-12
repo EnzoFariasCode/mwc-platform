@@ -114,7 +114,7 @@ function HowToUse() {
       <div className="max-w-6xl mx-auto">
         {/* Adicionei a classe 'gsap-how-header' */}
         <div className="gsap-how-header text-center mb-16 opacity-0">
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-[#d73cbe] drop-shadow-lg mb-4 font-futura uppercase">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-[#d73cbe] drop-shadow-lg mb-4 font-futura uppercase">
             Simples de Usar
           </h2>
           <p className="text-slate-400 max-w-2xl mx-auto">
@@ -133,8 +133,8 @@ function HowToUse() {
               // Adicionei 'gsap-how-card' e 'opacity-0'
               className="gsap-how-card opacity-0 relative z-10 flex flex-col items-center text-center group"
             >
-              <div className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 transition-all duration-300 hover:scale-105 hover:bg-white/10 hover:border-purple-500/30 hover:shadow-2xl hover:shadow-purple-900/20">
-                <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-6 bg-slate-800">
+              <div className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 transition-all duration-300 hover:scale-105 hover:bg-white/10 hover:border-purple-500/30 hover:shadow-2xl hover:shadow-purple-900/20">
+                <div className="relative w-full aspect-[4/3] rounded-md overflow-hidden mb-6 bg-slate-800">
                   <Image
                     src={step.imgSrc}
                     alt={step.title}
