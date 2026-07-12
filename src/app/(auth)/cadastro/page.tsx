@@ -43,13 +43,21 @@ function RegisterContent() {
   const action = searchParams.get("action");
   const proId = searchParams.get("proId");
   const proName = searchParams.get("proName");
+  const professionalSector = searchParams.get("setor");
+  const initialProfessionalSector: "" | "TECH" | "HEALTH" =
+    professionalSector === "TECH" || professionalSector === "HEALTH"
+      ? professionalSector
+      : "";
+  const startsAsProfessional =
+    searchParams.get("tipo") === "profissional" &&
+    initialProfessionalSector !== "";
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSocialLoading, setIsSocialLoading] = useState(false);
-  const [isPro, setIsPro] = useState(false);
+  const [isPro, setIsPro] = useState(startsAsProfessional);
   const [selectedIndustry, setSelectedIndustry] = useState<
     "" | "TECH" | "HEALTH"
-  >("");
+  >(startsAsProfessional ? initialProfessionalSector : "");
 
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
@@ -391,11 +399,9 @@ function RegisterContent() {
                     <Check className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-primary-foreground opacity-0 peer-checked:opacity-100" />
                   </div>
                   <span className="text-xs leading-relaxed text-muted-foreground">
-                    Li e aceito os termos profissionais da MWC Online,
-                    incluindo taxa da plataforma de 10%, regras de repasse em
-                    escrow, liberacao de saldo apos conclusao, politica de
-                    cancelamento pelo profissional, no-show do paciente e
-                    regras de saque.
+                    {selectedIndustry === "HEALTH"
+                      ? "Li e aceito os termos profissionais da MWC Online, incluindo taxa da plataforma de 10%, regras de repasse, liberacao de saldo na carteira apos conclusao, prazo de pagamento em conta de ate 12 dias apos a solicitacao de saque, politica de cancelamento e no-show do paciente."
+                      : "Li e aceito os termos profissionais do Marketplace Tech, incluindo taxa da plataforma de 10%, regras dos planos, contratacao de projetos, liberacao de saldo na carteira apos aprovacao da entrega e prazo de pagamento em conta de ate 12 dias apos a solicitacao de saque."}
                   </span>
                 </label>
               </div>

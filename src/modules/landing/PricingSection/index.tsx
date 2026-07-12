@@ -152,11 +152,11 @@ export function PricingSection({
         <div className="container mx-auto px-4">
           <div className="mb-10 text-center sm:mb-16">
             <h2 className="mb-4 font-futura text-2xl font-bold text-white sm:text-3xl md:text-4xl">
-              Escolha seu nível de atuação
+              Planos do Marketplace Tech
             </h2>
             <p className="text-slate-400 max-w-2xl mx-auto">
-              Comece gratuitamente ou acelere seus resultados com nossos planos
-              Pro.
+              Comece gratuitamente ou amplie sua atuação em projetos com os
+              planos Starter e Advanced.
             </p>
           </div>
 
