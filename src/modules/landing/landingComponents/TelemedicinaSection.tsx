@@ -1,27 +1,61 @@
 "use client";
 
 import { useRef } from "react";
-import Image from "next/image"; // Import do Next Image
+import Image from "next/image";
 import Link from "next/link";
-import { Check, ArrowRight, Brain, Apple, ShieldCheck } from "lucide-react";
+import {
+  Apple,
+  ArrowRight,
+  Brain,
+  CalendarCheck,
+  CreditCard,
+  Dumbbell,
+  Languages,
+  Scale,
+  ShieldCheck,
+} from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-// --- IMPORT LOCAL DA IMAGEM ---
 import medicoImg from "@/assets/images/landingPage/medico.jpg";
 
 gsap.registerPlugin(ScrollTrigger);
+
+const onlineAreas = [
+  { label: "Psicologia", icon: Brain, color: "text-[#d73cbe]" },
+  { label: "Nutricao", icon: Apple, color: "text-emerald-400" },
+  { label: "Personal", icon: Dumbbell, color: "text-orange-400" },
+  { label: "Ingles", icon: Languages, color: "text-blue-400" },
+  { label: "Advocacia", icon: Scale, color: "text-amber-400" },
+];
+
+const onlineFlow = [
+  {
+    title: "Perfil e agenda",
+    description: "Compare especialistas com valor, registro e horarios.",
+    icon: CalendarCheck,
+  },
+  {
+    title: "Pagamento seguro",
+    description: "Confirme seu atendimento no checkout protegido.",
+    icon: CreditCard,
+  },
+  {
+    title: "Atendimento online",
+    description: "Acesse sua consulta, aula ou orientacao no horario marcado.",
+    icon: ShieldCheck,
+  },
+];
 
 export default function TelemedicinaSection() {
   const containerRef = useRef<HTMLElement>(null);
 
   useGSAP(
     () => {
-      // 1. Lado Esquerdo (Texto)
       gsap.fromTo(
         ".gsap-left-col",
-        { x: -50, opacity: 0 },
+        { x: -40, opacity: 0 },
         {
           x: 0,
           opacity: 1,
@@ -31,166 +65,148 @@ export default function TelemedicinaSection() {
             trigger: containerRef.current,
             start: "top 75%",
           },
-        }
+        },
       );
 
-      // 2. Lista de Benefícios
       gsap.fromTo(
         ".gsap-list-item",
-        { x: -20, opacity: 0 },
+        { y: 18, opacity: 0 },
         {
-          x: 0,
+          y: 0,
           opacity: 1,
-          duration: 0.8,
-          stagger: 0.1,
-          delay: 0.3,
+          duration: 0.65,
+          stagger: 0.08,
+          delay: 0.2,
           ease: "power2.out",
           scrollTrigger: {
             trigger: containerRef.current,
             start: "top 75%",
           },
-        }
+        },
       );
 
-      // 3. Lado Direito (Cards + Imagem)
       gsap.fromTo(
         ".gsap-card-visual",
-        { x: 50, opacity: 0 },
+        { y: 28, opacity: 0 },
         {
-          x: 0,
+          y: 0,
           opacity: 1,
-          duration: 1,
-          stagger: 0.2,
+          duration: 0.85,
+          stagger: 0.12,
           ease: "power3.out",
           scrollTrigger: {
             trigger: containerRef.current,
             start: "top 75%",
           },
-        }
+        },
       );
     },
-    { scope: containerRef }
+    { scope: containerRef },
   );
 
   return (
     <section
       ref={containerRef}
-      className="relative bg-slate-950 py-24 px-6 border-b border-white/5 overflow-hidden"
+      className="relative overflow-hidden border-b border-white/5 bg-slate-950 px-5 py-20 sm:px-8 lg:py-24"
     >
-      {/* Background Glow */}
-      <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[500px] h-[500px] bg-purple-900/10 rounded-full blur-[120px] -z-10" />
+      <div className="absolute left-0 top-1/2 -z-10 h-[420px] w-[420px] -translate-y-1/2 rounded-full bg-purple-900/10 blur-[120px]" />
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-16 lg:grid-cols-2 lg:items-center">
-        {/* LEFT – Editorial content */}
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-12 lg:grid-cols-2 lg:items-center lg:gap-16">
         <div className="gsap-left-col opacity-0">
-          <h2 className="max-w-xl text-4xl md:text-5xl font-bold leading-tight text-white font-futura uppercase">
-            Consultorias e atendimentos online,
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#d73cbe] to-purple-500">
-              sem sair de casa.
+          <span className="inline-flex rounded-md border border-[#d73cbe]/20 bg-[#d73cbe]/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.22em] text-[#d73cbe]">
+            MWC Online
+          </span>
+
+          <h2 className="mt-5 max-w-xl font-futura text-2xl font-bold uppercase leading-tight text-white sm:text-3xl md:text-4xl">
+            Especialistas online para
+            <span className="block bg-gradient-to-r from-[#d73cbe] to-purple-500 bg-clip-text text-transparent">
+              diferentes momentos
             </span>
           </h2>
 
-          <p className="mt-6 max-w-lg text-lg text-slate-400 leading-relaxed">
-            Conectamos você a especialistas qualificados para consultas, aulas
-            e orientações online. Resolva com profissionais no seu tempo.
+          <p className="mt-6 max-w-lg text-sm leading-relaxed text-slate-400 sm:text-base">
+            Encontre profissionais para consultas, aulas e orientacoes online,
+            com perfil publico, agenda disponivel e pagamento seguro.
           </p>
 
-          <ul className="mt-8 space-y-4">
-            {[
-              "Especialistas com perfil e agenda",
-              "Agendamento rápido e online",
-              "Pagamento seguro pela Stripe",
-              "Histórico de atendimentos",
-            ].map((item, index) => (
+          <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+            {onlineAreas.map((area) => (
               <li
-                key={index}
-                className="gsap-list-item opacity-0 flex items-start gap-3 text-slate-300"
+                key={area.label}
+                className="gsap-list-item flex items-center gap-3 rounded-md border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-slate-300 opacity-0"
               >
-                <span className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#d73cbe]/20 text-[#d73cbe]">
-                  <Check className="h-4 w-4" />
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-slate-900">
+                  <area.icon className={`h-4 w-4 ${area.color}`} />
                 </span>
-                {item}
+                {area.label}
               </li>
             ))}
           </ul>
 
-          <div className="mt-10 flex flex-wrap items-center gap-6">
+          <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
             <Link href="/agendar-consulta">
-              <button className="group cursor-pointer bg-[#d73cbe] hover:bg-[#b0269a] text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 hover:-translate-y-1 flex items-center gap-2">
+              <button className="group flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#d73cbe] px-8 py-4 text-base font-bold text-white shadow-lg shadow-purple-900/20 transition-all hover:-translate-y-1 hover:bg-[#b0269a] hover:shadow-purple-900/40 sm:w-auto">
                 Encontrar especialista
-                <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
               </button>
             </Link>
-            <span className="text-sm text-slate-500 font-medium flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500" /> Atendimento
-              100% online
-            </span>
           </div>
         </div>
 
-        {/* RIGHT – Visual cards */}
-        <div className="relative grid gap-6 sm:grid-cols-2">
-          {/* Card Psicologia */}
-          <div className="gsap-card-visual opacity-0 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-sm hover:border-[#d73cbe]/30 transition-colors group">
-            <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4 text-purple-400 group-hover:scale-110 transition-transform">
-              <Brain className="w-6 h-6" />
-            </div>
-            <span className="text-sm font-bold text-[#d73cbe] uppercase tracking-wide">
-              Psicologia
-            </span>
-            <h3 className="mt-2 text-xl font-bold text-white font-futura">
-              Saúde emocional
-            </h3>
-            <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-              Cuidado psicológico com escuta ativa, empatia e profissionalismo.
-              Terapia TCC, Psicanálise e mais.
-            </p>
-          </div>
-
-          {/* Card Nutrição */}
-          <div className="gsap-card-visual opacity-0 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur-sm hover:border-emerald-500/30 transition-colors group sm:translate-y-8 mb-5">
-            <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-4 text-emerald-400 group-hover:scale-110 transition-transform">
-              <Apple className="w-6 h-6" />
-            </div>
-            <span className="text-sm font-bold text-emerald-500 uppercase tracking-wide">
-              Nutrição
-            </span>
-            <h3 className="mt-2 text-xl font-bold text-white font-futura">
-              Alimentação consciente
-            </h3>
-            <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-              Orientação nutricional personalizada para sua rotina,
-              emagrecimento e hipertrofia.
-            </p>
-          </div>
-
-          {/* IMAGEM DO MÉDICO (No lugar do div vazio) */}
-          <div className="gsap-card-visual opacity-0 col-span-full mt-8 sm:mt-0 relative h-48 sm:h-56 rounded-2xl overflow-hidden border border-white/10 shadow-2xl group">
+        <div className="relative space-y-4">
+          <div className="gsap-card-visual relative h-[360px] overflow-hidden rounded-lg border border-white/10 opacity-0 shadow-2xl sm:h-[440px]">
             <Image
               src={medicoImg}
-              alt="Médico atendendo online"
+              alt="Especialista atendendo online"
               fill
-              className="object-cover object-top transition-transform duration-700 group-hover:scale-105"
+              className="object-cover object-top"
               placeholder="blur"
             />
 
-            {/* Overlay para texto ficar legível */}
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent" />
 
-            {/* Conteúdo sobre a imagem */}
-            <div className="absolute bottom-0 left-0 p-6 flex items-center gap-4">
-              <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-white font-bold text-lg font-futura leading-none mb-1">
-                  Profissionais Verificados
-                </p>
-                <p className="text-slate-300 text-xs">
-                  Equipe multidisciplinar de alta qualidade
-                </p>
+            <div className="absolute left-4 right-4 top-4 rounded-md border border-white/10 bg-slate-950/60 p-5 backdrop-blur-md sm:left-6 sm:right-auto sm:w-72">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#d73cbe]/20 text-[#d73cbe]">
+                  <CalendarCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Proximo horario
+                  </p>
+                  <p className="text-sm font-bold text-white">
+                    Escolha na agenda do especialista
+                  </p>
+                </div>
               </div>
             </div>
+
+            <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8">
+              <p className="max-w-md font-futura text-2xl font-bold leading-tight text-white">
+                Da escolha do profissional ao atendimento, tudo no mesmo fluxo.
+              </p>
+              <p className="mt-2 max-w-md text-sm text-slate-300">
+                O paciente agenda com clareza. O profissional recebe tudo no
+                painel.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            {onlineFlow.map((item) => (
+              <div
+                key={item.title}
+                className="gsap-card-visual rounded-md border border-white/10 bg-white/[0.04] p-5 opacity-0"
+              >
+                <item.icon className="h-5 w-5 text-[#d73cbe]" />
+                <h3 className="mt-3 text-sm font-bold text-white">
+                  {item.title}
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                  {item.description}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
