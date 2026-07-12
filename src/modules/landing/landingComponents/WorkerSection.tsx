@@ -66,7 +66,7 @@ export function WorkerSection() {
   return (
     <section
       ref={containerRef}
-      className="relative py-24 px-4 bg-slate-950 border-b border-white/5 overflow-hidden"
+      className="relative border-b border-white/5 bg-slate-950 px-4 py-16 overflow-hidden lg:py-20"
     >
       {/* Container Principal */}
       <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-20">

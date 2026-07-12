@@ -107,7 +107,7 @@ export default function TelemedicinaSection() {
   return (
     <section
       ref={containerRef}
-      className="relative overflow-hidden border-b border-white/5 bg-slate-950 px-5 py-20 sm:px-8 lg:py-24"
+      className="relative overflow-hidden border-b border-white/5 bg-slate-950 px-5 py-16 sm:px-8 lg:py-20"
     >
       <div className="absolute left-0 top-1/2 -z-10 h-[420px] w-[420px] -translate-y-1/2 rounded-full bg-purple-900/10 blur-[120px]" />
 

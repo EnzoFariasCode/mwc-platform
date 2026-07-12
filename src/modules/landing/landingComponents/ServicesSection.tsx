@@ -70,21 +70,6 @@ function ServicesSection() {
         );
       });
 
-      // 3. Linha
-      gsap.fromTo(
-        ".gsap-line",
-        { scaleX: 0, opacity: 0 },
-        {
-          scaleX: 1,
-          opacity: 1,
-          duration: 1.5,
-          ease: "expo.out",
-          scrollTrigger: {
-            trigger: ".gsap-line",
-            start: "top 90%",
-          },
-        },
-      );
     },
     { scope: containerRef },
   );
@@ -99,10 +84,10 @@ function ServicesSection() {
     <section
       id="servicesSection"
       ref={containerRef}
-      className="relative py-24 px-4 bg-slate-950 overflow-hidden"
+      className="relative border-b border-white/5 bg-slate-950 px-4 py-16 overflow-hidden lg:py-20"
     >
       <div className="max-w-5xl mx-auto">
-        <h2 className="gsap-title text-3xl md:text-4xl font-bold text-center mb-12 uppercase font-futura opacity-0">
+        <h2 className="gsap-title mb-10 text-center font-futura text-3xl font-bold uppercase opacity-0 md:text-4xl lg:mb-12">
           Basta escolher um <span className="text-[#d73cbe]">serviço</span>
         </h2>
 
@@ -138,8 +123,6 @@ function ServicesSection() {
             </div>
           ))}
         </div>
-
-        <div className="gsap-line mt-24 h-px w-full max-w-2xl mx-auto bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
       </div>
     </section>
   );

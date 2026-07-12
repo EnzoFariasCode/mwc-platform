@@ -81,7 +81,7 @@ export function Fluxo() {
   return (
     <section
       ref={containerRef}
-      className="relative py-20 px-4 bg-slate-950 border-b border-white/5 overflow-hidden"
+      className="relative border-b border-white/5 bg-slate-950 px-4 py-16 overflow-hidden lg:py-20"
     >
       {/* Background Decorativo (Adicionei a classe 'gsap-blob') */}
       <div className="gsap-blob absolute right-0 top-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-900/10 rounded-full blur-[120px] -z-10" />

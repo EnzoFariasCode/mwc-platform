@@ -50,7 +50,7 @@ function PayInfo() {
     <section
       id="formas-pagamento"
       ref={containerRef}
-      className="relative py-24 px-4 bg-slate-950 border-b border-white/5 overflow-hidden"
+      className="relative border-b border-white/5 bg-slate-950 px-4 py-16 overflow-hidden lg:py-20"
     >
       {/* Background Decorativo */}
       <div className="absolute left-0 bottom-0 w-[500px] h-[500px] bg-blue-900/10 rounded-full blur-[120px] -z-10" />

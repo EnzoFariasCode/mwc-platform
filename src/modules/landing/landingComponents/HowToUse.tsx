@@ -106,14 +106,14 @@ function HowToUse() {
   return (
     <section
       ref={containerRef}
-      className="relative py-24 px-4 bg-slate-950 overflow-hidden"
+      className="relative border-b border-white/5 bg-slate-950 px-4 py-16 overflow-hidden lg:py-20"
       id="como-funciona"
     >
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-purple-900/10 rounded-full blur-[120px] -z-10" />
 
       <div className="max-w-6xl mx-auto">
         {/* Adicionei a classe 'gsap-how-header' */}
-        <div className="gsap-how-header text-center mb-16 opacity-0">
+        <div className="gsap-how-header mb-10 text-center opacity-0 lg:mb-12">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-[#d73cbe] drop-shadow-lg mb-4 font-futura uppercase">
             Simples de Usar
           </h2>
@@ -165,8 +165,6 @@ function HowToUse() {
             </div>
           ))}
         </div>
-
-        <div className="mt-24 h-px w-full max-w-4xl mx-auto bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
       </div>
     </section>
   );
