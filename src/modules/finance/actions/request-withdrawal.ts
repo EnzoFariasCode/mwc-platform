@@ -17,6 +17,13 @@ const PIX_KEY_TYPES = ["CPF", "CNPJ", "EMAIL", "PHONE", "EVP"] as const;
 const WITHDRAWAL_LIMIT = 3;
 const WITHDRAWAL_WINDOW_MS = 60 * 60 * 1000;
 
+export interface WithdrawalRequestResult {
+  amount: number;
+  pixKey: string;
+  pixKeyType: string;
+  dueAt: string;
+}
+
 function parseMoneyInput(value: FormDataEntryValue | null) {
   const raw = value?.toString().trim();
   if (!raw) return null;
@@ -42,7 +49,7 @@ function normalizePixKeyType(value: FormDataEntryValue | null) {
 
 export async function requestWithdrawal(
   formData: FormData,
-): Promise<ActionResponse<string>> {
+): Promise<ActionResponse<WithdrawalRequestResult>> {
   const session = await getUserSession();
   if (!session) return { success: false, error: "Nao autorizado." };
 
@@ -67,6 +74,7 @@ export async function requestWithdrawal(
   const amount = parseMoneyInput(formData.get("amount"));
   const pixKey = normalizePixKey(formData.get("pixKey"));
   const pixKeyType = normalizePixKeyType(formData.get("pixKeyType"));
+  const deadlineAccepted = formData.get("deadlineAccepted") === "true";
 
   if (!amount || amount.lessThanOrEqualTo(0)) {
     return { success: false, error: "Informe um valor de saque valido." };
@@ -82,6 +90,13 @@ export async function requestWithdrawal(
 
   if (pixKey.length < 5) {
     return { success: false, error: "Informe uma chave Pix valida." };
+  }
+
+  if (!deadlineAccepted) {
+    return {
+      success: false,
+      error: "Confirme que esta ciente do prazo de pagamento de ate 12 dias.",
+    };
   }
 
   try {
@@ -164,7 +179,7 @@ export async function requestWithdrawal(
       type: "INFO",
       eventType: "WITHDRAWAL_REQUESTED",
       title: "Saque solicitado",
-      message: `Sua solicitacao foi registrada. O pagamento manual deve ser concluido ate ${dueAt.toLocaleDateString("pt-BR")}.`,
+      message: `Saque de ${withdrawal.amount.toNumber().toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} para ${withdrawal.pixKeyType} - ${withdrawal.pixKey} registrado. Pagamento manual estimado ate ${dueAt.toLocaleDateString("pt-BR")}.`,
       link: "/dashboard/financeiro",
       entityType: "WITHDRAWAL_REQUEST",
       entityId: withdrawal.id,
@@ -193,7 +208,12 @@ export async function requestWithdrawal(
 
     return {
       success: true,
-      data: "Solicitacao de saque Pix registrada. Pagamento pendente de processamento.",
+      data: {
+        amount: withdrawal.amount.toNumber(),
+        pixKey: withdrawal.pixKey,
+        pixKeyType: withdrawal.pixKeyType,
+        dueAt: withdrawal.dueAt.toISOString(),
+      },
     };
   } catch (error: any) {
     return {

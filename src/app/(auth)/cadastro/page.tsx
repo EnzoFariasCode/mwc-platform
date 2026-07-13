@@ -20,6 +20,10 @@ import { useState, Suspense } from "react";
 import { registerUser } from "@/modules/auth/actions/register-user";
 import { toast } from "sonner";
 import { signIn } from "next-auth/react";
+import {
+  GENERAL_TERMS_VERSION,
+  PROFESSIONAL_TERMS,
+} from "@/modules/legal/terms-versions";
 
 function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
   return (
@@ -58,6 +62,9 @@ function RegisterContent() {
   const [selectedIndustry, setSelectedIndustry] = useState<
     "" | "TECH" | "HEALTH"
   >(startsAsProfessional ? initialProfessionalSector : "");
+  const [generalTermsAccepted, setGeneralTermsAccepted] = useState(false);
+  const [professionalTermsAccepted, setProfessionalTermsAccepted] =
+    useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
@@ -273,6 +280,7 @@ function RegisterContent() {
                 setIsPro(nextIsPro);
                 if (!nextIsPro) {
                   setSelectedIndustry("");
+                  setProfessionalTermsAccepted(false);
                 }
               }}
               className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer accent-primary"
@@ -299,11 +307,12 @@ function RegisterContent() {
                     name="industry"
                     required={isPro}
                     value={selectedIndustry}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setSelectedIndustry(
                         e.target.value as "" | "TECH" | "HEALTH",
-                      )
-                    }
+                      );
+                      setProfessionalTermsAccepted(false);
+                    }}
                     className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all text-sm appearance-none cursor-pointer"
                   >
                     <option value="" disabled className="text-muted-foreground">
@@ -387,24 +396,38 @@ function RegisterContent() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-                <label className="flex cursor-pointer items-start gap-3">
-                  <div className="relative mt-0.5 flex items-center">
-                    <input
-                      type="checkbox"
-                      name="professionalTermsAccepted"
-                      required={isPro}
-                      className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-border bg-input transition-all checked:border-primary checked:bg-primary"
-                    />
-                    <Check className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-primary-foreground opacity-0 peer-checked:opacity-100" />
-                  </div>
-                  <span className="text-xs leading-relaxed text-muted-foreground">
-                    {selectedIndustry === "HEALTH"
-                      ? "Li e aceito os termos profissionais da MWC Online, incluindo taxa da plataforma de 10%, regras de repasse, liberacao de saldo na carteira apos conclusao, prazo de pagamento em conta de ate 12 dias apos a solicitacao de saque, politica de cancelamento e no-show do paciente."
-                      : "Li e aceito os termos profissionais do Marketplace Tech, incluindo taxa da plataforma de 10%, regras dos planos, contratacao de projetos, liberacao de saldo na carteira apos aprovacao da entrega e prazo de pagamento em conta de ate 12 dias apos a solicitacao de saque."}
-                  </span>
-                </label>
-              </div>
+              {selectedIndustry && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <div className="relative mt-0.5 flex items-center">
+                      <input
+                        type="checkbox"
+                        name="professionalTermsAccepted"
+                        checked={professionalTermsAccepted}
+                        onChange={(event) =>
+                          setProfessionalTermsAccepted(event.target.checked)
+                        }
+                        required
+                        className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-border bg-input transition-all checked:border-primary checked:bg-primary"
+                      />
+                      <Check className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-primary-foreground opacity-0 peer-checked:opacity-100" />
+                    </div>
+                    <span className="text-xs leading-relaxed text-muted-foreground">
+                      Li e aceito os{" "}
+                      <Link
+                        href={PROFESSIONAL_TERMS[selectedIndustry].href}
+                        className="font-medium text-foreground hover:underline"
+                      >
+                        {PROFESSIONAL_TERMS[selectedIndustry].label}
+                      </Link>{" "}
+                      ({PROFESSIONAL_TERMS[selectedIndustry].version}).
+                      {selectedIndustry === "TECH"
+                        ? " Eles tratam de projetos, propostas, planos, taxa, entrega, disputas e liberacao financeira do Marketplace Tech."
+                        : " Eles tratam de agenda, atendimentos, taxa, cancelamento, no-show, disputas e liberacao financeira do MWC Online."}
+                    </span>
+                  </label>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -414,6 +437,11 @@ function RegisterContent() {
             <input
               type="checkbox"
               id="terms"
+              name="generalTermsAccepted"
+              checked={generalTermsAccepted}
+              onChange={(event) =>
+                setGeneralTermsAccepted(event.target.checked)
+              }
               required
               className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-border bg-input checked:border-primary checked:bg-primary transition-all"
             />
@@ -425,10 +453,10 @@ function RegisterContent() {
           >
             Eu concordo com os{" "}
             <Link href="/termos" className="text-foreground hover:underline">
-              Termos de Uso
+              Termos Gerais de Uso
             </Link>{" "}
-            gerais da plataforma, incluindo as regras da MWC Online para
-            agendamentos, pagamentos, cancelamentos e reembolsos, e com a{" "}
+            da plataforma ({GENERAL_TERMS_VERSION}), aplicaveis a conta,
+            seguranca, comunicacao e uso dos recursos, e com a{" "}
             <Link
               href="/privacidade"
               className="text-foreground hover:underline"

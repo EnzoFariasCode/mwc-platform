@@ -8,6 +8,7 @@ import {
   isActiveTechSubscription,
 } from "@/modules/subscriptions/tech-plan";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { SUBSCRIPTION_PAYMENT_METHODS } from "@/modules/stripe/lib/payment-methods";
 
 type PaidPlanId = "starter" | "advanced";
 
@@ -119,7 +120,7 @@ export async function createCheckoutSession(
   try {
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
-      payment_method_types: ["card"],
+      payment_method_types: [...SUBSCRIPTION_PAYMENT_METHODS],
       customer: user.stripeCustomerId || undefined,
       customer_email: user.stripeCustomerId ? undefined : user.email!,
       line_items: [

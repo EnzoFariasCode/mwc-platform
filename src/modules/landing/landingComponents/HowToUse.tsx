@@ -31,7 +31,7 @@ const steps = [
     title: "3. Pagamento Seguro",
     imgSrc: pedido3,
     description:
-      "O valor fica protegido (Escrow) e só é liberado ao profissional quando você confirmar que o serviço foi concluído.",
+      "O pagamento é protegido e mediado pela MWC. O saldo é liberado após a aprovação da entrega, salvo disputa ou revisão financeira.",
   },
 ];
 
@@ -118,8 +118,8 @@ function HowToUse() {
             Simples de Usar
           </h2>
           <p className="text-slate-400 max-w-2xl mx-auto">
-            Resolva seu problema em 3 passos simples, com total segurança e
-            garantia.
+            Resolva seu problema em 3 passos, com pagamento protegido e
+            mediação pela MWC.
           </p>
         </div>
 

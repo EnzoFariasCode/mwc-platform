@@ -19,10 +19,10 @@ export function withdrawalRequestedEmail({
     "",
     "Recebemos sua solicitacao de saque Pix.",
     "",
-    `Valor: ${amount}`,
+    `Valor liquido: ${amount}`,
     `Chave Pix: ${pixKeyType} - ${pixKey}`,
     "Status: Pendente de processamento",
-    `Prazo para pagamento: ate ${dueAt}`,
+    `Data estimada de pagamento: ate ${dueAt}`,
     "",
     "O valor ja foi reservado do seu saldo disponivel para evitar duplicidade de saque.",
   ].join("\n");
@@ -34,10 +34,10 @@ export function withdrawalRequestedEmail({
       paragraph(`Ola, ${name || "profissional"}.`),
       paragraph("Recebemos sua solicitacao de saque Pix."),
       detailList([
-        ["Valor", amount],
+        ["Valor liquido", amount],
         ["Chave Pix", `${pixKeyType} - ${pixKey}`],
         ["Status", "Pendente de processamento"],
-        ["Prazo para pagamento", `Ate ${dueAt}`],
+        ["Data estimada de pagamento", `Ate ${dueAt}`],
       ]),
       paragraph(
         "O valor ja foi reservado do seu saldo disponivel para evitar duplicidade de saque.",

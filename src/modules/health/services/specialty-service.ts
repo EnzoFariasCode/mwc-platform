@@ -26,7 +26,7 @@ export async function getHealthSpecialtyCards() {
             ...getHealthSpecialtySearchIds(specialty).map((id) => ({
               approach: {
                 contains: id,
-                mode: "insensitive",
+                mode: "insensitive" as const,
               },
             })),
           ],

@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/withdrawal-deadline-alerts",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/stripe-payment-methods",
+      "schedule": "0 9 * * *"
     }
   ]
 }

@@ -4,13 +4,15 @@ import { headers } from "next/headers";
 import { db } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { UserType, Industry } from "@prisma/client"; // Adicionado Industry aqui
-import {
-  findUserByEmail,
-  createUser,
-} from "@/modules/users/services/user-service";
+import { findUserByEmail } from "@/modules/users/services/user-service";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { validatePassword } from "@/modules/auth/lib/password";
 import { sendWelcomeEmail } from "@/modules/auth/services/welcome-email-service";
+import {
+  GENERAL_TERMS_VERSION,
+  getProfessionalTerms,
+  type ProfessionalTermsIndustry,
+} from "@/modules/legal/terms-versions";
 
 export async function registerUser(
   formData: FormData,
@@ -21,6 +23,7 @@ export async function registerUser(
   const displayName = formData.get("displayName")?.toString().trim();
   const birthDateRaw = formData.get("birthDate")?.toString();
   const isPro = formData.get("isPro") === "on";
+  const acceptedGeneralTerms = formData.get("generalTermsAccepted") === "on";
   const acceptedProfessionalTerms =
     formData.get("professionalTermsAccepted") === "on";
 
@@ -34,6 +37,13 @@ export async function registerUser(
     return { success: false, error: "Preencha todos os campos obrigatorios." };
   }
 
+  if (!acceptedGeneralTerms) {
+    return {
+      success: false,
+      error: "Aceite os Termos Gerais e a Politica de Privacidade.",
+    };
+  }
+
   // 2. Validacao profissional
   if (isPro) {
     if (!jobTitle) {
@@ -42,10 +52,10 @@ export async function registerUser(
         error: "Profissionais precisam informar sua especialidade.",
       };
     }
-    if (!industryRaw) {
+    if (industryRaw !== Industry.TECH && industryRaw !== Industry.HEALTH) {
       return {
         success: false,
-        error: "Profissionais precisam selecionar a area de atuacao.",
+        error: "Profissionais precisam selecionar um setor valido.",
       };
     }
     if (!acceptedProfessionalTerms) {
@@ -72,40 +82,48 @@ export async function registerUser(
     const birthDate = birthDateRaw ? new Date(birthDateRaw) : null;
     const yearsOfExperience = experienceRaw ? parseInt(experienceRaw) : null;
 
-    // Define o setor: Se for PRO e marcou HEALTH, salva HEALTH. O resto vira TECH.
-    const industry =
-      isPro && industryRaw === "HEALTH" ? Industry.HEALTH : Industry.TECH;
+    const acceptedIndustry = isPro
+      ? (industryRaw as ProfessionalTermsIndustry)
+      : null;
+    const industry = acceptedIndustry ?? Industry.TECH;
+    const sectorTerms = acceptedIndustry
+      ? getProfessionalTerms(acceptedIndustry)
+      : null;
+    const headersList = await headers();
+    const ipAddress =
+      headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      headersList.get("x-real-ip") ||
+      "unknown";
+    const userAgent = headersList.get("user-agent") || undefined;
 
-    const user = await createUser({
-      name,
-      email,
-      password: hashedPassword,
-      displayName: displayName || name,
-      birthDate,
-      userType: isPro ? UserType.PROFESSIONAL : UserType.CLIENT,
-      industry, // Enviando o campo para o banco
-      jobTitle: isPro ? jobTitle : null,
-      yearsOfExperience: isPro ? yearsOfExperience : null,
-    });
-
-
-    if (isPro) {
-      const headersList = await headers();
-      const ipAddress =
-        headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        headersList.get("x-real-ip") ||
-        "unknown";
-      const userAgent = headersList.get("user-agent") || undefined;
-
-      await db.professionalTermsAcceptance.create({
+    const user = await db.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
         data: {
-          userId: user.id,
-          ipAddress,
-          userAgent,
-          termsVersion: "professional-v1.0",
+          name,
+          email,
+          password: hashedPassword,
+          displayName: displayName || name,
+          birthDate,
+          userType: isPro ? UserType.PROFESSIONAL : UserType.CLIENT,
+          industry,
+          jobTitle: isPro ? jobTitle : null,
+          yearsOfExperience: isPro ? yearsOfExperience : null,
         },
       });
-    }
+
+      await tx.termsAcceptance.create({
+        data: {
+          userId: createdUser.id,
+          ipAddress,
+          userAgent,
+          generalTermsVersion: GENERAL_TERMS_VERSION,
+          industry: acceptedIndustry,
+          sectorTermsVersion: sectorTerms?.version,
+        },
+      });
+
+      return createdUser;
+    });
 
     await sendWelcomeEmail({
       email: user.email,

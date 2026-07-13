@@ -9,11 +9,17 @@ import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import cardFlagsImg from "@/assets/images/landingPage/payments.png";
+import type { CustomerPaymentMethodInfo } from "@/modules/stripe/lib/payment-methods";
 
 gsap.registerPlugin(ScrollTrigger);
 
-function PayInfo() {
+function PayInfo({
+  paymentMethods,
+}: {
+  paymentMethods: readonly CustomerPaymentMethodInfo[];
+}) {
   const containerRef = useRef<HTMLElement>(null);
+  const primaryPaymentMethod = paymentMethods[0];
 
   useGSAP(
     () => {
@@ -64,33 +70,44 @@ function PayInfo() {
 
           <h2 className="text-2xl md:text-3xl font-bold font-futura uppercase tracking-tight text-white leading-tight">
             Pagamento com <br />
-            <span className="text-[#d73cbe]">cartão de crédito</span>
+            <span className="text-[#d73cbe]">
+              {primaryPaymentMethod
+                ? primaryPaymentMethod.label.toLowerCase()
+                : "metodos exibidos pela Stripe"}
+            </span>
           </h2>
 
           <p className="text-slate-300 text-base leading-relaxed">
-            Facilidade para quem contrata e segurança para quem recebe.
-            Aceitamos cartões de crédito de todas as bandeiras, com
-            processamento seguro pela Stripe.
+            {primaryPaymentMethod
+              ? "Facilidade para quem contrata e segurança para quem recebe. Os cartões compatíveis são apresentados no checkout da Stripe."
+              : "Os métodos disponíveis são confirmados e apresentados diretamente no checkout da Stripe."}
           </p>
 
           <div className="flex flex-col gap-4 my-4 w-full">
-            <div className="flex gap-4">
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-white/5 rounded-md border border-white/10">
-                <CreditCard className="w-5 h-5 text-slate-300" />
-                <span className="text-sm text-slate-300">
-                  Cartão de Crédito
-                </span>
-              </div>
+            <div className="flex flex-wrap gap-4">
+              {paymentMethods.map((method) => (
+                <div
+                  key={method.id}
+                  className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-4 py-2.5"
+                >
+                  <CreditCard className="h-5 w-5 text-slate-300" />
+                  <span className="text-sm text-slate-300">
+                    {method.label}
+                  </span>
+                </div>
+              ))}
             </div>
 
-            <div className="mt-2 w-full flex items-center justify-start opacity-60">
-              <Image
-                src={cardFlagsImg}
-                alt="Bandeiras Aceitas"
-                className="h-16 w-auto object-contain"
-                placeholder="blur"
-              />
-            </div>
+            {primaryPaymentMethod?.id === "card" && (
+              <div className="mt-2 w-full flex items-center justify-start opacity-60">
+                <Image
+                  src={cardFlagsImg}
+                  alt="Cartoes processados pela Stripe"
+                  className="h-16 w-auto object-contain"
+                  placeholder="blur"
+                />
+              </div>
+            )}
           </div>
 
           {/* LINK ATUALIZADO AQUI */}
@@ -113,15 +130,16 @@ function PayInfo() {
           </h2>
 
           <p className="text-slate-300 text-base leading-relaxed">
-            O valor pago fica protegido (Escrow) até a conclusão do serviço.
-            Garantimos que o profissional só receba após a entrega conforme
-            combinado.
+            O pagamento é protegido e mediado pela MWC. O saldo é liberado ao
+            profissional após a aprovação da entrega, conforme as regras do
+            serviço.
             <br />
             <br />
             <span className="text-white font-medium">
               Algo saiu errado?
             </span>{" "}
-            Reembolso simples e sem burocracia.
+            A plataforma analisa cancelamentos e disputas conforme os termos.
+            Disputas e chargebacks podem suspender ou reverter valores.
           </p>
         </div>
       </div>

@@ -8,6 +8,7 @@ import { ActionResponse } from "@/modules/users/types/user-types";
 import { ProjectCheckoutHoldStatus } from "@prisma/client";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { getTechProjectLimitStatus } from "@/modules/subscriptions/tech-plan-limits";
+import { ONE_TIME_PAYMENT_METHODS } from "@/modules/stripe/lib/payment-methods";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
@@ -163,7 +164,7 @@ export async function createProjectCheckout(
 
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
-      payment_method_types: ["card"],
+      payment_method_types: [...ONE_TIME_PAYMENT_METHODS],
 
       customer_email: user?.email || undefined,
       line_items: [

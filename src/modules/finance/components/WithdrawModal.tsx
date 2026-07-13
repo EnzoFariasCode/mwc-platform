@@ -1,9 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowUpRight, X, AlertTriangle, Landmark } from "lucide-react";
+import {
+  ArrowUpRight,
+  X,
+  AlertTriangle,
+  Landmark,
+  CalendarDays,
+} from "lucide-react";
 import { toast } from "sonner";
 import { requestWithdrawal } from "@/modules/finance/actions/request-withdrawal";
+import { calculateWithdrawalDueAt } from "@/modules/finance/lib/withdrawal-deadline";
 
 interface WithdrawButtonProps {
   balance: number;
@@ -23,6 +30,12 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [amount, setAmount] = useState(balance.toFixed(2).replace(".", ","));
+  const [pixKeyType, setPixKeyType] = useState(userCpf ? "CPF" : "EMAIL");
+  const [pixKey, setPixKey] = useState(userCpf || "");
+  const [deadlineAccepted, setDeadlineAccepted] = useState(false);
+  const [estimatedDueAt, setEstimatedDueAt] = useState(() =>
+    calculateWithdrawalDueAt(new Date()),
+  );
 
   const formattedBalance = formatCurrency(balance);
   const parsedAmount = useMemo(() => {
@@ -38,6 +51,10 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
     }
 
     setAmount(balance.toFixed(2).replace(".", ","));
+    setPixKeyType(userCpf ? "CPF" : "EMAIL");
+    setPixKey(userCpf || "");
+    setDeadlineAccepted(false);
+    setEstimatedDueAt(calculateWithdrawalDueAt(new Date()));
     setIsOpen(true);
   };
 
@@ -54,6 +71,11 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
       return;
     }
 
+    if (!deadlineAccepted) {
+      toast.error("Confirme o prazo estimado antes de solicitar o saque.");
+      return;
+    }
+
     setIsLoading(true);
 
     const formData = new FormData(event.currentTarget);
@@ -66,7 +88,11 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
       return;
     }
 
-    toast.success(result.data || "Solicitacao enviada!");
+    toast.success("Solicitacao de saque registrada", {
+      description: result.data
+        ? `${formatCurrency(result.data.amount)} para ${result.data.pixKeyType} - ${result.data.pixKey}. Pagamento estimado ate ${new Date(result.data.dueAt).toLocaleDateString("pt-BR")}.`
+        : "Acompanhe o prazo no seu painel financeiro.",
+    });
     setIsOpen(false);
   }
 
@@ -123,7 +149,10 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
                     name="amount"
                     type="text"
                     value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
+                    onChange={(event) => {
+                      setAmount(event.target.value);
+                      setDeadlineAccepted(false);
+                    }}
                     required
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white text-lg font-bold focus:border-primary focus:outline-none placeholder:text-slate-700 text-center"
                   />
@@ -136,7 +165,11 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
                     </label>
                     <select
                       name="pixKeyType"
-                      defaultValue={userCpf ? "CPF" : "EMAIL"}
+                      value={pixKeyType}
+                      onChange={(event) => {
+                        setPixKeyType(event.target.value);
+                        setDeadlineAccepted(false);
+                      }}
                       className="w-full cursor-pointer rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm font-bold text-white outline-none focus:border-primary"
                     >
                       <option value="CPF">CPF</option>
@@ -154,7 +187,11 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
                     <input
                       name="pixKey"
                       type="text"
-                      defaultValue={userCpf || ""}
+                      value={pixKey}
+                      onChange={(event) => {
+                        setPixKey(event.target.value);
+                        setDeadlineAccepted(false);
+                      }}
                       placeholder="Sua chave Pix"
                       required
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white text-sm font-bold focus:border-primary focus:outline-none placeholder:text-slate-700"
@@ -177,10 +214,56 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
                 </div>
               </div>
 
+              <div className="space-y-3 rounded-lg border border-primary/25 bg-primary/5 p-4">
+                <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                  <CalendarDays className="h-4 w-4 text-primary" />
+                  Resumo da solicitacao
+                </div>
+                <dl className="space-y-2 text-xs">
+                  <div className="flex items-start justify-between gap-4">
+                    <dt className="text-muted-foreground">Valor liquido</dt>
+                    <dd className="text-right font-bold text-foreground">
+                      {formatCurrency(parsedAmount)}
+                    </dd>
+                  </div>
+                  <div className="flex items-start justify-between gap-4">
+                    <dt className="text-muted-foreground">Chave Pix</dt>
+                    <dd className="max-w-[65%] break-all text-right font-bold text-foreground">
+                      {pixKeyType} - {pixKey || "Nao informada"}
+                    </dd>
+                  </div>
+                  <div className="flex items-start justify-between gap-4">
+                    <dt className="text-muted-foreground">Data estimada</dt>
+                    <dd className="text-right font-bold text-yellow-400">
+                      Ate {estimatedDueAt.toLocaleDateString("pt-BR")}
+                    </dd>
+                  </div>
+                </dl>
+
+                <label className="flex cursor-pointer items-start gap-3 border-t border-white/10 pt-3 text-xs leading-relaxed text-slate-300">
+                  <input
+                    type="checkbox"
+                    name="deadlineAccepted"
+                    value="true"
+                    checked={deadlineAccepted}
+                    onChange={(event) =>
+                      setDeadlineAccepted(event.target.checked)
+                    }
+                    required
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                  />
+                  <span>
+                    Confirmo o valor, a chave Pix e estou ciente de que o
+                    pagamento sera processado manualmente em ate 12 dias, com
+                    data estimada ate {estimatedDueAt.toLocaleDateString("pt-BR")}.
+                  </span>
+                </label>
+              </div>
+
               <div className="pt-2 flex flex-col gap-3">
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || !deadlineAccepted}
                   className="w-full py-3.5 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait transition-all active:scale-[0.98]"
                 >
                   {isLoading

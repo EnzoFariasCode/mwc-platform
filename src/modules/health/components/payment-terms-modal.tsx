@@ -14,12 +14,12 @@ const paymentTerms = [
   {
     title: "Retencao do Valor (Escrow)",
     content:
-      "O valor pago ficara retido com seguranca pela plataforma apos a aprovacao do pagamento. Ele nao sera transferido ao profissional ate que a consulta seja concluida, garantindo protecao para ambas as partes.",
+      "O valor pago ficara registrado e retido pela plataforma apos a aprovacao do pagamento. Ele nao sera liberado ao profissional ate que a consulta seja concluida, respeitadas as regras de cancelamento, disputa e chargeback.",
   },
   {
     title: "Liberacao do Valor",
     content:
-      "O valor sera liberado ao profissional somente apos a confirmacao de conclusao da consulta, seja pelo profissional ou automaticamente pelo sistema apos 24 horas do horario agendado.",
+      "O valor sera liberado ao profissional apos a confirmacao de conclusao da consulta, seja pelo profissional ou automaticamente pelo sistema apos 24 horas do horario agendado, desde que nao exista disputa ou revisao financeira pendente.",
   },
   {
     title: "Seguranca de Pagamento",
@@ -42,9 +42,9 @@ const paymentTerms = [
       "Caso o profissional cancele ou nao compareca, voce tera direito a reembolso integral, independentemente do prazo. O reembolso sera processado em ate 5 a 10 dias uteis.",
   },
   {
-    title: "Disputas e Protecao Legal",
+    title: "Disputas e Chargebacks",
     content:
-      "Este aceite, junto com o registro de data, hora e IP, serve como comprovante legal de concordancia com estes termos. Ambas as partes estao protegidas pelas politicas da plataforma.",
+      "Disputas abertas na plataforma e chargebacks iniciados junto a operadora do cartao podem suspender a liberacao ou reverter valores enquanto o caso e analisado. A MWC registra o aceite e realiza a mediacao conforme estes termos.",
   },
 ];
 

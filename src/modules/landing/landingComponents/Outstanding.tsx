@@ -93,8 +93,8 @@ function Outstanding() {
         </h2>
 
         <p className="gsap-header opacity-0 text-slate-400 text-center max-w-3xl mb-16 text-lg leading-relaxed">
-          Todos os nossos profissionais possuem verificação de dados e
-          comprovação de capacitação. Segurança total para você fechar negócio.
+          Consulte perfis, informações profissionais e avaliações antes de
+          contratar. O pagamento segue o fluxo protegido e mediado pela MWC.
         </p>
 
         {/* Grid de Cards */}

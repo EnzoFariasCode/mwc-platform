@@ -2,6 +2,7 @@ import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import CheckoutView from "./CheckoutView"; // Importa o arquivo visual novo
+import { getPublicPaymentMethods } from "@/modules/stripe/services/payment-method-health";
 
 export default async function CheckoutPage({
   params,
@@ -38,6 +39,8 @@ export default async function CheckoutPage({
     notFound();
   }
 
+  const paymentMethods = await getPublicPaymentMethods();
+
   // Passa os dados reais para o componente visual
   return (
     <CheckoutView
@@ -45,6 +48,7 @@ export default async function CheckoutPage({
       projectTitle={proposal.project.title}
       professionalName={proposal.professional.name || "Profissional MWC"}
       price={Number(proposal.price)} // Converte Decimal para Number
+      paymentMethods={paymentMethods}
     />
   );
 }

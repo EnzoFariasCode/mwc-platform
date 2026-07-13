@@ -205,6 +205,7 @@ model User {
   transactions                 Transaction[]
   paymentTermsAcceptances      PaymentTermsAcceptance[]
   professionalTermsAcceptances ProfessionalTermsAcceptance[]
+  termsAcceptances             TermsAcceptance[]
   withdrawalRequests           WithdrawalRequest[]
   clientRecordsAsPro           ClientRecord[]                @relation("ProfessionalRecords")
   clientRecordsAsPat           ClientRecord[]                @relation("PatientRecords")
@@ -882,6 +883,22 @@ model ProfessionalTermsAcceptance {
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
+}
+
+model TermsAcceptance {
+  id                  String    @id @default(cuid())
+  userId              String
+  acceptedAt          DateTime  @default(now())
+  ipAddress           String
+  userAgent           String?
+  generalTermsVersion String
+  industry            Industry?
+  sectorTermsVersion  String?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([industry, sectorTermsVersion])
 }
 
 enum StripeEventStatus {

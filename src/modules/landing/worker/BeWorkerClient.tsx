@@ -145,7 +145,7 @@ const faqItems = [
   {
     question: "Quando o valor fica disponivel para mim?",
     answer:
-      "No Tech, o saldo e liberado na carteira depois que o cliente aprova a entrega. No Online, a liberacao segue a conclusao e as regras do atendimento. Depois de solicitar o saque, o pagamento cai na conta em ate 12 dias.",
+      "No Tech, o saldo e liberado na carteira depois que o cliente aprova a entrega. No Online, a liberacao segue a conclusao e as regras do atendimento. Disputas e chargebacks podem suspender ou reverter valores. Depois de solicitar o saque, o pagamento cai na conta em ate 12 dias.",
   },
   {
     question: "Quem pode atender pelo MWC Online?",
@@ -246,8 +246,8 @@ export default function BeWorkerClient({
             </span>
           </h1>
           <p className="gsap-hero-text mx-auto mb-10 max-w-2xl text-base font-medium leading-relaxed text-slate-200 opacity-0 drop-shadow-lg sm:mb-12 sm:text-lg md:text-xl">
-            O metodo mais seguro e descomplicado do mercado. Voce foca no
-            trabalho, nos garantimos o pagamento e a seguranca.
+            Voce foca no trabalho. O pagamento e protegido e mediado pela MWC,
+            com liberacao conforme a conclusao de cada servico.
           </p>
           <div className="flex w-full max-w-sm flex-col items-center justify-center gap-6 sm:max-w-none sm:flex-row">
             <div className="gsap-hero-btn opacity-0">

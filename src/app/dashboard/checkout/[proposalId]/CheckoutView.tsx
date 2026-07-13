@@ -10,7 +10,6 @@ import {
   User,
   AlertTriangle,
   CreditCard,
-  QrCode,
   ExternalLink,
   Loader2,
 } from "lucide-react";
@@ -20,12 +19,14 @@ import { toast } from "sonner";
 import { createProjectCheckout } from "@/modules/stripe/actions/create-project-checkout";
 import { cancelProjectPayment } from "@/modules/stripe/actions/cancel-project-payment";
 import { useSearchParams, useRouter } from "next/navigation";
+import type { CustomerPaymentMethodInfo } from "@/modules/stripe/lib/payment-methods";
 
 interface CheckoutViewProps {
   proposalId: string;
   projectTitle: string;
   professionalName: string;
   price: number;
+  paymentMethods: readonly CustomerPaymentMethodInfo[];
 }
 
 export default function CheckoutView({
@@ -33,6 +34,7 @@ export default function CheckoutView({
   projectTitle,
   professionalName,
   price,
+  paymentMethods,
 }: CheckoutViewProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -48,7 +50,7 @@ export default function CheckoutView({
   const SCOPE_ITEMS = [
     "Entrega de projeto completo",
     "Suporte/dúvidas com o profissional (Chat)",
-    "Garantia de Entrega MWC",
+    "Mediação de Entrega MWC",
   ];
 
   const handlePayment = async () => {
@@ -148,15 +150,16 @@ export default function CheckoutView({
               </div>
               <div>
                 <h4 className="text-yellow-500 font-bold text-lg mb-1">
-                  Pagamento Seguro (Escrow)
+                  Pagamento protegido e mediado pela MWC
                 </h4>
                 <p className="text-sm text-yellow-200/80 leading-relaxed">
                   O valor{" "}
                   <strong>não vai direto para o profissional agora</strong>. Ele
                   fica retido na conta cofre da MWC e só é liberado para o
                   profissional após você confirmar que recebeu os arquivos
-                  finais conforme o combinado. Se houver problemas, seu dinheiro
-                  está protegido.
+                  finais conforme o combinado. Em caso de disputa ou
+                  chargeback, o valor pode permanecer suspenso ou ser revertido
+                  durante a análise.
                 </p>
               </div>
             </div>
@@ -167,28 +170,23 @@ export default function CheckoutView({
                 <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center border border-white/5 shadow-lg">
                   <CreditCard className="w-8 h-8 text-indigo-400" />
                 </div>
-                <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center border border-white/5 shadow-lg">
-                  <QrCode className="w-8 h-8 text-emerald-400" />
-                </div>
               </div>
               <h3 className="text-xl font-bold text-white mb-2">
                 Pagamento processado pela Stripe
               </h3>
               <p className="text-slate-400 text-sm max-w-md mx-auto mb-6">
-                Para sua total segurança, você não precisa inserir os dados do
+                Você não precisa inserir os dados do
                 seu cartão no nosso site. Você será redirecionado para a página
-                oficial da Stripe, o maior e mais seguro processador de
-                pagamentos do mundo.
+                de checkout hospedada pela Stripe, responsável pelo
+                processamento do pagamento.
               </p>
-              <div className="flex items-center gap-6 text-sm font-bold text-slate-500">
-                <span className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Cartão
-                  em até 12x
-                </span>
-                <span className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Pix
-                  Instantâneo
-                </span>
+              <div className="flex flex-wrap items-center justify-center gap-4 text-sm font-bold text-slate-500">
+                {paymentMethods.map((method) => (
+                  <span key={method.id} className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    {method.label}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -290,12 +288,20 @@ export default function CheckoutView({
                 <div className="space-y-3">
                   <button
                     onClick={handlePayment}
-                    disabled={isLoading || isCanceling}
+                  disabled={
+                    isLoading || isCanceling || paymentMethods.length === 0
+                  }
                     className="w-full py-4 bg-green-500 hover:bg-green-400 text-black font-bold rounded-xl shadow-lg shadow-green-900/20 transition-all hover:-translate-y-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
                   >
                     <Lock className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                    {canceled ? "Tentar Pagamento Novamente" : "Ir para Pagamento Seguro"}{" "}
-                    <ExternalLink className="w-4 h-4 ml-1 opacity-50" />
+                    {paymentMethods.length === 0
+                      ? "Pagamento temporariamente indisponivel"
+                      : canceled
+                        ? "Tentar Pagamento Novamente"
+                        : "Ir para Pagamento Seguro"}{" "}
+                    {paymentMethods.length > 0 && (
+                      <ExternalLink className="w-4 h-4 ml-1 opacity-50" />
+                    )}
                   </button>
                   {canceled && (
                     <button
@@ -325,7 +331,7 @@ export default function CheckoutView({
                   .
                 </p>
                 <div className="mt-3 flex items-center justify-center gap-2 text-[10px] text-slate-500 uppercase tracking-widest">
-                  <ShieldCheck className="w-3 h-3" /> Compra 100% Protegida
+                  <ShieldCheck className="w-3 h-3" /> Pagamento mediado pela MWC
                 </div>
               </div>
             </div>

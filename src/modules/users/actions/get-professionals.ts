@@ -30,7 +30,7 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
           ...getHealthSpecialtySearchIds(specialty).map((id) => ({
             approach: {
               contains: id,
-              mode: "insensitive",
+              mode: "insensitive" as const,
             },
           })),
         ],

@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import { headers } from "next/headers";
 import { addMinutes, addMonths, endOfMonth, isBefore } from "date-fns";
 import { parseAppointmentDateTime, generateDaySlots } from "./slot-helpers";
+import { ONE_TIME_PAYMENT_METHODS } from "@/modules/stripe/lib/payment-methods";
 
 // [NOVO] ConfiguraÃ§Ãµes de negÃ³cio
 const HOLD_EXPIRATION_MINUTES = 15;
@@ -263,7 +264,7 @@ export async function createCheckoutSession(
     try {
       stripeSession = await stripe.checkout.sessions.create({
         mode: "payment",
-        payment_method_types: ["card"],
+        payment_method_types: [...ONE_TIME_PAYMENT_METHODS],
         customer_email: session.user.email,
         line_items: [
           {
