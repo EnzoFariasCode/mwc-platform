@@ -5,6 +5,15 @@ import { useRouter } from "next/navigation";
 import { Search, MapPin } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
+import { resolveLandingSearchUrl } from "./landing-search";
+
+const popularSearches = [
+  { label: "Eletricista", query: "Eletricista", modality: "Tech" },
+  { label: "Diarista", query: "Diarista", modality: "Tech" },
+  { label: "Mecanico", query: "Mecanico", modality: "Tech" },
+  { label: "Advogado", query: "Advogado", modality: "Online" },
+  { label: "Web Designer", query: "Web Designer", modality: "Tech" },
+] as const;
 
 export function HeroSection() {
   const containerRef = useRef<HTMLElement>(null);
@@ -28,10 +37,7 @@ export function HeroSection() {
   );
 
   const handleSearch = () => {
-    const params = new URLSearchParams();
-    if (query) params.set("q", query);
-    if (location) params.set("local", location);
-    router.push(`/search?${params.toString()}`);
+    router.push(resolveLandingSearchUrl(query, location));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -78,7 +84,7 @@ export function HeroSection() {
               <Search className="w-5 h-5 text-slate-500 mr-3 shrink-0" />
               <input
                 type="text"
-                placeholder="Busque por: Eletricista, Design..."
+                placeholder="Busque por: Eletricista, Web Designer..."
                 className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500 text-sm"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -109,21 +115,18 @@ export function HeroSection() {
           {/* Tags Populares */}
           <div className="animate-hero mt-8 flex flex-wrap justify-center gap-3 text-xs md:text-sm text-slate-500">
             <span className="w-full md:w-auto">Mais buscados:</span>
-            {[
-              "Eletricista",
-              "Diarista",
-              "Mecânico",
-              "Advogado",
-              "Web Designer",
-            ].map((tag) => (
+            {popularSearches.map((item) => (
               <button
-                key={tag}
+                key={item.label}
                 onClick={() =>
-                  router.push(`/search?q=${encodeURIComponent(tag)}`)
+                  router.push(resolveLandingSearchUrl(item.query))
                 }
-                className="text-slate-300 hover:text-purple-400 transition-colors underline decoration-slate-700 underline-offset-4 hover:decoration-purple-400 cursor-pointer bg-transparent border-none"
+                className="inline-flex cursor-pointer items-center gap-1.5 border-none bg-transparent text-slate-300 underline decoration-slate-700 underline-offset-4 transition-colors hover:text-purple-400 hover:decoration-purple-400"
               >
-                {tag}
+                {item.label}
+                <span className="rounded-sm border border-white/10 px-1 py-0.5 text-[9px] font-semibold uppercase no-underline text-slate-500">
+                  {item.modality}
+                </span>
               </button>
             ))}
           </div>

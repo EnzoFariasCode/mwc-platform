@@ -1,7 +1,10 @@
 "use server";
 
 import { db } from "@/lib/prisma";
-import { getHealthSpecialtyById } from "@/modules/health/lib/specialties";
+import {
+  getHealthSpecialtyById,
+  getHealthSpecialtySearchIds,
+} from "@/modules/health/lib/specialties";
 
 export async function getProfessionalsBySpecialty(specialtyId: string) {
   try {
@@ -24,12 +27,12 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
               mode: "insensitive" as const,
             },
           })),
-          {
+          ...getHealthSpecialtySearchIds(specialty).map((id) => ({
             approach: {
-              contains: specialty.id,
+              contains: id,
               mode: "insensitive",
             },
-          },
+          })),
         ],
       },
       select: {

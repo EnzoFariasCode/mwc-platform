@@ -24,9 +24,15 @@ async function getDashboardStats(userId: string) {
   return { unreadMessages, openProjects, ongoingProjects };
 }
 
-export default async function ClienteDashboardPage() {
+export default async function ClienteDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ converter?: string }>;
+}) {
   const session = await verifySession();
   if (!session?.sub) redirect("/login");
+
+  const { converter } = await searchParams;
 
   const userId = session.sub;
 
@@ -71,6 +77,7 @@ export default async function ClienteDashboardPage() {
       stats={stats}
       isProfileIncomplete={isProfileIncomplete}
       user={userSafe}
+      openProfessionalConversion={converter === "profissional"}
     />
   );
 }

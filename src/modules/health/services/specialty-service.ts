@@ -1,5 +1,8 @@
 import { db } from "@/lib/prisma";
-import { healthSpecialties } from "@/modules/health/lib/specialties";
+import {
+  getHealthSpecialtySearchIds,
+  healthSpecialties,
+} from "@/modules/health/lib/specialties";
 
 export async function getHealthSpecialtyCards() {
   const cards = await Promise.all(
@@ -20,12 +23,12 @@ export async function getHealthSpecialtyCards() {
                 mode: "insensitive" as const,
               },
             })),
-            {
+            ...getHealthSpecialtySearchIds(specialty).map((id) => ({
               approach: {
-                contains: specialty.id, // Assume que specialty.id é o termo da abordagem
+                contains: id,
                 mode: "insensitive",
               },
-            },
+            })),
           ],
         },
       });

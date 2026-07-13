@@ -29,6 +29,7 @@ import heroBg from "@/assets/images/howToBeWorker/hero-bg.jpg";
 import dashboard from "@/assets/images/howToBeWorker/dashboard-mockup.png";
 import { PricingSection } from "@/modules/landing/PricingSection";
 import type { TechPlanDisplayPrices } from "@/modules/subscriptions/tech-plan-pricing";
+import { resolveBeWorkerCta } from "./be-worker-cta";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -170,24 +171,10 @@ export default function BeWorkerClient({
 }: BeWorkerClientProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const primaryCta = (() => {
-    if (!isLoggedIn) {
-      return { text: "Escolher modalidade", href: "#modalidades" };
-    }
-    if (userType === "ADMIN") {
-      return { text: "Ir ao painel Admin", href: "/dashboard/admin" };
-    }
-    if (userType === "CLIENT") {
-      return { text: "Ir ao meu painel", href: "/dashboard/cliente" };
-    }
-    if (industry === "HEALTH") {
-      return {
-        text: "Acessar painel Online",
-        href: "/agendar-consulta/dashboard-profissional",
-      };
-    }
-    return { text: "Acessar painel Tech", href: "/dashboard/profissional" };
-  })();
+  const ctaContext = { isLoggedIn, userType, industry };
+  const primaryCta = resolveBeWorkerCta(ctaContext, "primary");
+  const techCta = resolveBeWorkerCta(ctaContext, "tech");
+  const onlineCta = resolveBeWorkerCta(ctaContext, "online");
 
   useGSAP(
     () => {
@@ -330,10 +317,10 @@ export default function BeWorkerClient({
                 <li className="flex items-center gap-3"><CheckCircle2 className="h-4 w-4 text-violet-400" /> Planos para ampliar sua atuacao</li>
               </ul>
               <Link
-                href="/cadastro?tipo=profissional&setor=TECH"
+                href={techCta.href}
                 className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-violet-300 transition-colors hover:text-white"
               >
-                Quero atuar no Tech <ArrowRight className="h-4 w-4" />
+                {techCta.text} <ArrowRight className="h-4 w-4" />
               </Link>
             </article>
 
@@ -358,10 +345,10 @@ export default function BeWorkerClient({
                 <li className="flex items-center gap-3"><CheckCircle2 className="h-4 w-4 text-emerald-400" /> Sem assinatura mensal</li>
               </ul>
               <Link
-                href="/cadastro?tipo=profissional&setor=HEALTH"
+                href={onlineCta.href}
                 className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-emerald-300 transition-colors hover:text-white"
               >
-                Quero atender Online <ArrowRight className="h-4 w-4" />
+                {onlineCta.text} <ArrowRight className="h-4 w-4" />
               </Link>
             </article>
           </div>
@@ -535,11 +522,11 @@ export default function BeWorkerClient({
             <h2 className="font-futura text-2xl font-bold uppercase text-white sm:text-3xl md:text-4xl">Escolha como deseja crescer com a MWC</h2>
             <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">Crie seu perfil profissional no setor que representa sua atividade principal</p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-              <Link href="/cadastro?tipo=profissional&setor=TECH" className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-7 py-3.5 text-sm font-bold text-white transition-all hover:-translate-y-1 hover:bg-violet-500">
-                Atuar no Marketplace Tech <ArrowRight className="h-4 w-4" />
+              <Link href={techCta.href} className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-7 py-3.5 text-sm font-bold text-white transition-all hover:-translate-y-1 hover:bg-violet-500">
+                {techCta.text} <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="/cadastro?tipo=profissional&setor=HEALTH" className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-7 py-3.5 text-sm font-bold text-white transition-all hover:-translate-y-1 hover:bg-emerald-500">
-                Atender pelo MWC Online <ArrowRight className="h-4 w-4" />
+              <Link href={onlineCta.href} className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-7 py-3.5 text-sm font-bold text-white transition-all hover:-translate-y-1 hover:bg-emerald-500">
+                {onlineCta.text} <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </div>

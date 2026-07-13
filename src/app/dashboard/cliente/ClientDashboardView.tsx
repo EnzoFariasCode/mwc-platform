@@ -28,16 +28,20 @@ interface ClientDashboardViewProps {
   };
   isProfileIncomplete: boolean;
   user: any; // User object containing { id, userType, ... }
+  openProfessionalConversion?: boolean;
 }
 
 export default function ClientDashboardView({
   stats,
   isProfileIncomplete,
   user,
+  openProfessionalConversion = false,
 }: ClientDashboardViewProps) {
   // Modal States
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(
+    openProfessionalConversion,
+  );
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const router = useRouter();
 

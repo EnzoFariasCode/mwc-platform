@@ -18,6 +18,7 @@ import type {
   TechPaidPlanId,
   TechPlanDisplayPrices,
 } from "@/modules/subscriptions/tech-plan-pricing";
+import { resolveBeWorkerCta } from "@/modules/landing/worker/be-worker-cta";
 
 const plansData: Array<{
   id: TechPaidPlanId;
@@ -85,10 +86,23 @@ export function PricingSection({
   const [showClientModal, setShowClientModal] = useState(false);
   const [showIndustryModal, setShowIndustryModal] = useState(false);
   const router = useRouter();
+  const techCta = resolveBeWorkerCta(
+    { isLoggedIn, userType, industry },
+    "tech",
+  );
+  const onlineCta = resolveBeWorkerCta(
+    { isLoggedIn, userType, industry },
+    "online",
+  );
 
   const handleAction = async (planId: string) => {
     if (!isLoggedIn) {
-      router.push("/login");
+      router.push(techCta.href);
+      return;
+    }
+
+    if (userType === "ADMIN") {
+      router.push(techCta.href);
       return;
     }
 
@@ -178,15 +192,7 @@ export function PricingSection({
                 </li>
               </ul>
               <button
-                onClick={() =>
-                  isLoggedIn
-                    ? router.push(
-                        userType === "CLIENT"
-                          ? "/dashboard/cliente"
-                          : "/dashboard/profissional",
-                      )
-                    : router.push("/cadastro")
-                }
+                onClick={() => router.push(techCta.href)}
                 className="gsap-cta-button w-full py-4 rounded-xl font-bold text-sm bg-slate-800 text-white hover:bg-slate-700 transition-colors cursor-pointer relative overflow-hidden"
               >
                 <span className="relative z-10">
@@ -300,7 +306,7 @@ export function PricingSection({
                 Entendi
               </button>
               <button
-                onClick={() => router.push("/dashboard/cliente")}
+                onClick={() => router.push(techCta.href)}
                 className="px-6 py-3 rounded-xl text-sm font-bold bg-[#d73cbe] text-white hover:bg-[#b0269a] transition-colors shadow-lg cursor-pointer"
               >
                 Ir para o Dashboard
@@ -341,7 +347,7 @@ export function PricingSection({
                 Entendi
               </button>
               <button
-                onClick={() => router.push("/agendar-consulta/dashboard-profissional")}
+                onClick={() => router.push(onlineCta.href)}
                 className="px-6 py-3 rounded-xl text-sm font-bold bg-[#d73cbe] text-white hover:bg-[#b0269a] transition-colors shadow-lg cursor-pointer"
               >
                 Ir para o painel Online

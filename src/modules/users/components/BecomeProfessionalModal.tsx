@@ -117,7 +117,7 @@ export function BecomeProfessionalModal({
                       value={jobTitle}
                       onChange={(e) => setJobTitle(e.target.value)}
                       type="text"
-                      placeholder="Ex: Eletricista, Advogado, Dev..."
+                      placeholder="Ex: Eletricista, Designer, Dev..."
                       className="w-full bg-slate-900/50 border border-slate-700 text-white rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-[#d73cbe] focus:ring-1 focus:ring-[#d73cbe]/50 transition-all placeholder:text-slate-600 text-sm"
                     />
                   </div>

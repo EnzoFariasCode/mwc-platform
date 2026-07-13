@@ -3,7 +3,7 @@ export type HealthSpecialtyId =
   | "nutricao"
   | "personal"
   | "ingles"
-  | "advogado";
+  | "advocacia";
 
 export type HealthSpecialty = {
   id: HealthSpecialtyId;
@@ -14,6 +14,7 @@ export type HealthSpecialty = {
   accentText: string;
   accentBg: string;
   terms: string[];
+  legacyIds?: string[];
 };
 
 export const healthSpecialties: HealthSpecialty[] = [
@@ -81,8 +82,8 @@ export const healthSpecialties: HealthSpecialty[] = [
     ],
   },
   {
-    id: "advogado",
-    name: "Advogado",
+    id: "advocacia",
+    name: "Advocacia",
     description: "Consultoria juridica online, contratos, duvidas e mediacao.",
     image:
       "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=600&q=80",
@@ -90,10 +91,20 @@ export const healthSpecialties: HealthSpecialty[] = [
       "group-hover:border-amber-500/50 group-hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]",
     accentText: "text-amber-400",
     accentBg: "bg-amber-500",
-    terms: ["Advogado", "Advogada", "Juridico"],
+    terms: ["Advocacia", "Advogado", "Advogada", "Juridico"],
+    legacyIds: ["advogado"],
   },
 ];
 
 export function getHealthSpecialtyById(id: string) {
-  return healthSpecialties.find((specialty) => specialty.id === id);
+  const normalizedId = id.toLowerCase();
+
+  return healthSpecialties.find(
+    (specialty) =>
+      specialty.id === normalizedId || specialty.legacyIds?.includes(normalizedId),
+  );
+}
+
+export function getHealthSpecialtySearchIds(specialty: HealthSpecialty) {
+  return [specialty.id, ...(specialty.legacyIds ?? [])];
 }
