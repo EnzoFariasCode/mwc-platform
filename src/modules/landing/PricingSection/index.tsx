@@ -36,8 +36,7 @@ const plansData: Array<{
     features: [
       "Até 5 trabalhos simultâneos",
       "Selo Starter no perfil",
-      "Selo de verificado no perfil",
-      "Prioridade acima do plano gratuito",
+      "Prioridade sobre o plano Gratuito na busca e nas propostas",
       "Suporte tecnico",
       "Controle de assinatura pelo portal Stripe",
       "Taxa da plataforma: 10%",
@@ -54,8 +53,7 @@ const plansData: Array<{
     features: [
       "Até 10 trabalhos simultâneos",
       "Selo Advanced no perfil",
-      "Selo de verificado no perfil",
-      "Prioridade acima do Starter",
+      "Prioridade maxima na busca e nas propostas",
       "Suporte tecnico",
       "Controle de assinatura pelo portal Stripe",
       "Taxa da plataforma: 10%",

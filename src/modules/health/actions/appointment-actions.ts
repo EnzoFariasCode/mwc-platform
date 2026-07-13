@@ -340,6 +340,7 @@ const terminalStatuses = [
   "REFUNDED",
   "NO_SHOW",
   "DISPUTED",
+  "MEETING_FAILED",
 ] as const;
 
 function normalizeActionReason(reason?: string) {
@@ -1416,7 +1417,9 @@ export async function rescheduleHealthAppointment(
         professionalId: appointment.professionalId,
         date: parsedNewDate.dateOnly,
         time: newTime,
-        status: { in: ["PENDING_PAYMENT", "PAID", "CONFIRMED"] },
+        status: {
+          in: ["PENDING_PAYMENT", "PAID", "MEETING_PENDING", "CONFIRMED"],
+        },
         id: { not: appointmentId },
       },
       select: { id: true },

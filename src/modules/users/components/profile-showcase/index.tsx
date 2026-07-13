@@ -155,7 +155,7 @@ export function ProfileShowcase({
   );
   const isTechProfessional =
     professional.userType === "PROFESSIONAL" && professional.industry === "TECH";
-  const hasVerifiedTechPlan =
+  const hasPaidTechPlan =
     isTechProfessional &&
     isSubscriber &&
     isPaidTechPlanTier(professional.professionalPlanTier);
@@ -280,14 +280,6 @@ export function ProfileShowcase({
                   <span className="text-slate-600">{initials}</span>
                 )}
               </div>
-              {hasVerifiedTechPlan && (
-                <div
-                  className="absolute bottom-2 right-2 bg-green-500 text-white p-1.5 rounded-full border-4 border-card shadow-sm"
-                  title="Profissional Tech verificado"
-                >
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-              )}
             </div>
 
             {/* INFO PRINCIPAL */}
@@ -298,7 +290,7 @@ export function ProfileShowcase({
                     {mainName}
                     {isTechProfessional && (
                       <PublicPlanBadge
-                        isActive={hasVerifiedTechPlan}
+                        isActive={hasPaidTechPlan}
                         tier={professional.professionalPlanTier}
                       />
                     )}

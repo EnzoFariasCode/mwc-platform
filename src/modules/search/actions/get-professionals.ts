@@ -3,6 +3,10 @@
 import { db } from "@/lib/prisma";
 import { Prisma, UserType } from "@prisma/client";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import {
+  buildTechProfessionalOrderBy,
+  type TechProfessionalSort,
+} from "@/modules/subscriptions/tech-plan-ranking";
 
 interface SearchFilters {
   query?: string;
@@ -126,61 +130,91 @@ export async function getProfessionals({
       }),
     };
 
-    let orderBy:
-      | Prisma.UserOrderByWithRelationInput
-      | Prisma.UserOrderByWithRelationInput[] = {};
-
-    switch (safeSortBy) {
-      case "menor_preco":
-        orderBy = [{ professionalPlanTier: "desc" }, { hourlyRate: "asc" }];
-        break;
-      case "avaliacao":
-        orderBy = [
-          { professionalPlanTier: "desc" },
-          { ratingCount: "desc" },
-          { rating: "desc" },
-        ];
-        break;
-      case "experiencia":
-        orderBy = [
-          { professionalPlanTier: "desc" },
-          { yearsOfExperience: "desc" },
-          { ratingCount: "desc" },
-          { rating: "desc" },
-        ];
-        break;
-      default:
-        orderBy = [
-          { professionalPlanTier: "desc" },
-          { ratingCount: "desc" },
-          { rating: "desc" },
-        ];
-    }
+    const orderBy = buildTechProfessionalOrderBy(
+      safeSortBy as TechProfessionalSort,
+    );
 
     const skip = (safePage - 1) * safeLimit;
-
-    const [professionals, total] = await Promise.all([
-      db.user.findMany({
+    const activeSubscriptionStatuses = ["active", "trialing"];
+    const advancedWhere: Prisma.UserWhereInput = {
+      AND: [
         where,
-        orderBy,
-        take: safeLimit,
-        skip,
-        select: {
-          id: true,
-          name: true,
-          bio: true,
-          rating: true,
-          ratingCount: true,
-          hourlyRate: true,
-          city: true,
-          state: true,
-          skills: true,
-          jobTitle: true,
-          userType: true,
+        { professionalPlanTier: 2 },
+        { stripeSubscriptionStatus: { in: activeSubscriptionStatuses } },
+      ],
+    };
+    const starterWhere: Prisma.UserWhereInput = {
+      AND: [
+        where,
+        { professionalPlanTier: 1 },
+        { stripeSubscriptionStatus: { in: activeSubscriptionStatuses } },
+      ],
+    };
+    const freeWhere: Prisma.UserWhereInput = {
+      AND: [
+        where,
+        {
+          NOT: {
+            AND: [
+              { professionalPlanTier: { in: [1, 2] } },
+              {
+                stripeSubscriptionStatus: {
+                  in: activeSubscriptionStatuses,
+                },
+              },
+            ],
+          },
         },
-      }),
-      db.user.count({ where }),
-    ]);
+      ],
+    };
+    const tierGroups = [advancedWhere, starterWhere, freeWhere];
+    const tierOrderBy = orderBy.slice(1);
+    const tierCounts = await Promise.all(
+      tierGroups.map((tierWhere) => db.user.count({ where: tierWhere })),
+    );
+    const total = tierCounts.reduce((sum, count) => sum + count, 0);
+
+    const professionalSelect = {
+      id: true,
+      name: true,
+      bio: true,
+      rating: true,
+      ratingCount: true,
+      hourlyRate: true,
+      city: true,
+      state: true,
+      skills: true,
+      jobTitle: true,
+      userType: true,
+    } satisfies Prisma.UserSelect;
+    type SelectedProfessional = Prisma.UserGetPayload<{
+      select: typeof professionalSelect;
+    }>;
+
+    const professionals: SelectedProfessional[] = [];
+    let remainingSkip = skip;
+    let remainingTake = safeLimit;
+
+    for (let index = 0; index < tierGroups.length; index += 1) {
+      if (remainingTake === 0) break;
+      const tierCount = tierCounts[index];
+
+      if (remainingSkip >= tierCount) {
+        remainingSkip -= tierCount;
+        continue;
+      }
+
+      const tierProfessionals = await db.user.findMany({
+        where: tierGroups[index],
+        orderBy: tierOrderBy,
+        skip: remainingSkip,
+        take: remainingTake,
+        select: professionalSelect,
+      });
+      professionals.push(...tierProfessionals);
+      remainingTake -= tierProfessionals.length;
+      remainingSkip = 0;
+    }
 
     const safeProfessionals = professionals.map((pro) => ({
       ...pro,

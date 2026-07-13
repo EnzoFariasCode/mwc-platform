@@ -13,6 +13,12 @@ export default async function AdminFinanceiroPage() {
       pixKeyType: withdrawal.pixKeyType,
       status: withdrawal.status,
       createdAt: withdrawal.createdAt.toISOString(),
+      requestedAt: withdrawal.requestedAt.toISOString(),
+      dueAt: withdrawal.dueAt.toISOString(),
+      processedAt: withdrawal.processedAt?.toISOString() ?? null,
+      failedAt: withdrawal.failedAt?.toISOString() ?? null,
+      failureReason: withdrawal.failureReason,
+      providerRef: withdrawal.providerRef,
       transactionId: withdrawal.transactionId,
       auditLog: withdrawal.auditLog
         ? {

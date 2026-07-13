@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { ShieldCheck, CreditCard, Banknote } from "lucide-react";
+import { ShieldCheck, CreditCard } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import gsap from "gsap";
@@ -63,13 +63,14 @@ function PayInfo() {
           </div>
 
           <h2 className="text-2xl md:text-3xl font-bold font-futura uppercase tracking-tight text-white leading-tight">
-            Aceitamos todas as <br />
-            <span className="text-[#d73cbe]">formas de pagamento</span>
+            Pagamento com <br />
+            <span className="text-[#d73cbe]">cartão de crédito</span>
           </h2>
 
           <p className="text-slate-300 text-base leading-relaxed">
             Facilidade para quem contrata e segurança para quem recebe.
-            Aceitamos Cartão de Crédito e PIX.
+            Aceitamos cartões de crédito de todas as bandeiras, com
+            processamento seguro pela Stripe.
           </p>
 
           <div className="flex flex-col gap-4 my-4 w-full">
@@ -79,10 +80,6 @@ function PayInfo() {
                 <span className="text-sm text-slate-300">
                   Cartão de Crédito
                 </span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-white/5 rounded-md border border-white/10">
-                <Banknote className="w-5 h-5 text-slate-300" />
-                <span className="text-sm text-slate-300">PIX</span>
               </div>
             </div>
 

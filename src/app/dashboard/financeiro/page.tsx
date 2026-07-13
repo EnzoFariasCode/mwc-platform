@@ -35,6 +35,14 @@ function StatusText({ status }: { status: string }) {
   return <span className="text-muted-foreground">{status}</span>;
 }
 
+function WithdrawalStatusText({ status }: { status: string }) {
+  if (status === "PENDING") return <span className="text-yellow-500">Pendente</span>;
+  if (status === "PROCESSING") return <span className="text-blue-400">Processando</span>;
+  if (status === "COMPLETED") return <span className="text-green-500">Pago</span>;
+  if (status === "FAILED") return <span className="text-red-500">Falhou</span>;
+  return <span className="text-muted-foreground">Cancelado</span>;
+}
+
 export default async function FinanceiroPage() {
   // 1. Verificar Sessão
   const session = await getUserSession();
@@ -47,6 +55,10 @@ export default async function FinanceiroPage() {
       transactions: {
         orderBy: { createdAt: "desc" }, // Mais recentes primeiro
         take: 20, // Limitar a 20 últimos para não pesar a página inicial
+      },
+      withdrawalRequests: {
+        orderBy: { requestedAt: "desc" },
+        take: 20,
       },
     },
   });
@@ -276,6 +288,54 @@ export default async function FinanceiroPage() {
                         <ChevronRight className="w-4 h-4" />
                       </button>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="flex items-center gap-2 font-futura text-lg font-bold text-foreground">
+            <Landmark className="h-5 w-5 text-primary" />
+            Solicitações de saque
+          </h3>
+          <div className="overflow-hidden rounded-2xl border border-border bg-card">
+            {user.withdrawalRequests.length === 0 ? (
+              <p className="px-5 py-8 text-sm text-muted-foreground">
+                Nenhuma solicitação registrada ainda.
+              </p>
+            ) : (
+              <div className="divide-y divide-border">
+                {user.withdrawalRequests.map((withdrawal) => (
+                  <div
+                    key={withdrawal.id}
+                    className="flex flex-col justify-between gap-3 p-4 md:flex-row md:items-center"
+                  >
+                    <div>
+                      <p className="text-sm font-bold text-foreground">
+                        {withdrawal.pixKeyType}: {withdrawal.pixKey}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Solicitado em{" "}
+                        {withdrawal.requestedAt.toLocaleDateString("pt-BR")} •{" "}
+                        <WithdrawalStatusText status={withdrawal.status} />
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Prazo: {withdrawal.dueAt.toLocaleDateString("pt-BR")}
+                        {withdrawal.processedAt
+                          ? ` • Pago em ${withdrawal.processedAt.toLocaleDateString("pt-BR")}`
+                          : ""}
+                      </p>
+                      {withdrawal.failureReason && (
+                        <p className="mt-1 text-xs text-red-400">
+                          Motivo: {withdrawal.failureReason}
+                        </p>
+                      )}
+                    </div>
+                    <p className="font-futura font-bold text-foreground">
+                      {formatCurrency(withdrawal.amount.toNumber())}
+                    </p>
                   </div>
                 ))}
               </div>

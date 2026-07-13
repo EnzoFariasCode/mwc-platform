@@ -18,18 +18,21 @@ export async function sendWithdrawalRequestedEmail({
   amount,
   pixKey,
   pixKeyType,
+  dueAt,
 }: {
   email: string | null;
   name: string | null;
   amount: unknown;
   pixKey: string;
   pixKeyType: string;
+  dueAt: Date;
 }) {
   const template = withdrawalRequestedEmail({
     name,
     amount: formatCurrency(amount),
     pixKey,
     pixKeyType,
+    dueAt: dueAt.toLocaleDateString("pt-BR"),
   });
 
   await sendEmail({

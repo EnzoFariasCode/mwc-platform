@@ -59,6 +59,22 @@ function canCompleteAppointment(date: string, time: string) {
 }
 
 function statusBadge(status: string) {
+  if (status === "MEETING_PENDING") {
+    return {
+      label: "Preparando sala",
+      icon: Timer,
+      className: "bg-blue-500/10 text-blue-300 border-blue-500/20",
+    };
+  }
+
+  if (status === "MEETING_FAILED") {
+    return {
+      label: "Reembolsada por falha",
+      icon: XCircle,
+      className: "bg-red-500/10 text-red-300 border-red-500/20",
+    };
+  }
+
   if (status === "COMPLETED") {
     return {
       label: "Realizado",
@@ -103,6 +119,7 @@ const finishedStatuses: readonly string[] = [
   "CANCELED",
   "REFUNDED",
   "NO_SHOW",
+  "MEETING_FAILED",
 ];
 
 function EmptyState({ activeTab }: { activeTab: "scheduled" | "history" }) {

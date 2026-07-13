@@ -9,7 +9,6 @@ import {
   Clock,
   Briefcase,
   Star,
-  ShieldCheck,
   Share2,
   Flag,
   Send,
@@ -278,12 +277,6 @@ export default function ProjectDetailsView({
                       ? `${project.owner.city}, ${project.owner.state}`
                       : "Brasil"}
                   </span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-white/5">
-                  <span className="text-slate-500 flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4" /> Verificado
-                  </span>
-                  <span className="text-green-400 font-bold">Sim</span>
                 </div>
                 <div className="flex items-center justify-between py-2">
                   <span className="text-slate-500 flex items-center gap-2">

@@ -10,6 +10,7 @@ import { sendWithdrawalRequestedEmail } from "@/modules/finance/services/withdra
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
+import { calculateWithdrawalDueAt } from "@/modules/finance/lib/withdrawal-deadline";
 
 const MIN_WITHDRAWAL_AMOUNT = new Prisma.Decimal(0.01);
 const PIX_KEY_TYPES = ["CPF", "CNPJ", "EMAIL", "PHONE", "EVP"] as const;
@@ -84,6 +85,8 @@ export async function requestWithdrawal(
   }
 
   try {
+    const requestedAt = new Date();
+    const dueAt = calculateWithdrawalDueAt(requestedAt);
     const withdrawal = await db.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { id: session.id },
@@ -117,6 +120,8 @@ export async function requestWithdrawal(
           pixKeyType,
           status: "PENDING",
           provider: "MANUAL_PIX",
+          requestedAt,
+          dueAt,
         },
       });
 
@@ -143,6 +148,8 @@ export async function requestWithdrawal(
         amount,
         pixKey,
         pixKeyType,
+        requestedAt,
+        dueAt,
       };
     }, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
@@ -157,7 +164,7 @@ export async function requestWithdrawal(
       type: "INFO",
       eventType: "WITHDRAWAL_REQUESTED",
       title: "Saque solicitado",
-      message: "Sua solicitacao de saque PIX foi registrada e esta pendente de processamento.",
+      message: `Sua solicitacao foi registrada. O pagamento manual deve ser concluido ate ${dueAt.toLocaleDateString("pt-BR")}.`,
       link: "/dashboard/financeiro",
       entityType: "WITHDRAWAL_REQUEST",
       entityId: withdrawal.id,
@@ -165,6 +172,7 @@ export async function requestWithdrawal(
         amount: withdrawal.amount.toNumber(),
         pixKey: withdrawal.pixKey,
         pixKeyType: withdrawal.pixKeyType,
+        dueAt: withdrawal.dueAt.toISOString(),
       },
     });
     await sendAdminNotification({
@@ -178,6 +186,7 @@ export async function requestWithdrawal(
           currency: "BRL",
         })}`,
         `Chave PIX: ${withdrawal.pixKeyType} - ${withdrawal.pixKey}`,
+        `Prazo: ${withdrawal.dueAt.toLocaleDateString("pt-BR")}`,
       ],
       actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/financeiro`,
     });

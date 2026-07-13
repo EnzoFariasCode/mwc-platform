@@ -13,6 +13,7 @@ export type AdminAuditAction =
   | "HEALTH_DISPUTE_REFUND_PATIENT"
   | "HEALTH_DISPUTE_RELEASE_PROFESSIONAL"
   | "PIX_WITHDRAWAL_MARK_COMPLETED"
+  | "WITHDRAWAL_PROCESSING_STARTED"
   | "PIX_WITHDRAWAL_REJECTED"
   | "PIX_WITHDRAWAL_CANCELED"
   | "PIX_WITHDRAWAL_RECEIPT_ATTACHED"
@@ -40,6 +41,7 @@ export async function createAdminAuditLog(
     entityId,
     reason,
     receiptUrl,
+    receiptFile,
     metadata,
   }: {
     actorId: string;
@@ -48,9 +50,19 @@ export async function createAdminAuditLog(
     entityId: string;
     reason?: string | null;
     receiptUrl?: string | null;
+    receiptFile?: {
+      bytes: Buffer;
+      type: string;
+      name: string;
+    } | null;
     metadata?: AdminAuditMetadata;
   },
 ) {
+  const auditId = randomUUID();
+  const resolvedReceiptUrl = receiptFile
+    ? `/api/admin/audit-receipts/${auditId}`
+    : receiptUrl || null;
+
   await client.$executeRaw`
     INSERT INTO "AdminAuditLog" (
       "id",
@@ -60,19 +72,27 @@ export async function createAdminAuditLog(
       "entityId",
       "reason",
       "receiptUrl",
+      "receiptFileBytes",
+      "receiptFileType",
+      "receiptFileName",
       "metadata"
     )
     VALUES (
-      ${randomUUID()},
+      ${auditId},
       ${actorId},
       ${action},
       ${entityType},
       ${entityId},
       ${reason || null},
-      ${receiptUrl || null},
+      ${resolvedReceiptUrl},
+      ${receiptFile?.bytes || null},
+      ${receiptFile?.type || null},
+      ${receiptFile?.name || null},
       CAST(${JSON.stringify(metadata ?? {})} AS jsonb)
     )
   `;
+
+  return { id: auditId, receiptUrl: resolvedReceiptUrl };
 }
 
 export async function getAdminAuditLogs({

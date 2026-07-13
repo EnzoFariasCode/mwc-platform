@@ -163,6 +163,7 @@ export async function createProjectCheckout(
 
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
+      payment_method_types: ["card"],
 
       customer_email: user?.email || undefined,
       line_items: [

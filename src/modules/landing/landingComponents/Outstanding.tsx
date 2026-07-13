@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import Image from "next/image";
-import { BadgeCheck, Star, MessageCircle } from "lucide-react";
+import { Star, MessageCircle } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -18,7 +18,6 @@ const data = [
     name: "Enzo Indio",
     jobs: 289,
     rating: 4.9,
-    verified: true,
   },
   {
     id: 2,
@@ -27,7 +26,6 @@ const data = [
     name: "Lara Silva",
     jobs: 150,
     rating: 5.0,
-    verified: true,
   },
   {
     id: 3,
@@ -36,7 +34,6 @@ const data = [
     name: "Tony Ramos",
     jobs: 320,
     rating: 4.8,
-    verified: true,
   },
 ];
 
@@ -123,15 +120,6 @@ function Outstanding() {
                     className="w-full h-full object-cover rounded-full border-4 border-[#1a1b26]"
                   />
                 </div>
-                {/* Selo de Verificado Flutuante */}
-                {item.verified && (
-                  <div
-                    className="absolute bottom-1 right-1 bg-white text-blue-500 rounded-full p-0.5 shadow-lg"
-                    title="Verificado"
-                  >
-                    <BadgeCheck className="w-6 h-6 fill-blue-100" />
-                  </div>
-                )}
               </div>
 
               {/* Nome e Info */}

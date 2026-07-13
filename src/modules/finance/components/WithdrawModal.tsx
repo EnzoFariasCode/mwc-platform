@@ -170,8 +170,9 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
                     Processamento manual
                   </h4>
                   <p className="text-[11px] text-yellow-500/80 leading-relaxed">
-                    O valor sera reservado imediatamente do seu saldo disponivel
-                    e ficara como saque pendente ate o processamento do Pix.
+                    O valor sera reservado imediatamente. O pagamento do cliente
+                    foi processado por cartao na Stripe; este saque sera pago
+                    manualmente na chave informada em ate 12 dias.
                   </p>
                 </div>
               </div>

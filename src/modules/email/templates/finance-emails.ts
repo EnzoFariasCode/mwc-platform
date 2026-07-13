@@ -5,11 +5,13 @@ export function withdrawalRequestedEmail({
   amount,
   pixKey,
   pixKeyType,
+  dueAt,
 }: {
   name: string | null;
   amount: string;
   pixKey: string;
   pixKeyType: string;
+  dueAt: string;
 }) {
   const subject = "MWC Online - Solicitacao de saque Pix recebida";
   const text = [
@@ -20,6 +22,7 @@ export function withdrawalRequestedEmail({
     `Valor: ${amount}`,
     `Chave Pix: ${pixKeyType} - ${pixKey}`,
     "Status: Pendente de processamento",
+    `Prazo para pagamento: ate ${dueAt}`,
     "",
     "O valor ja foi reservado do seu saldo disponivel para evitar duplicidade de saque.",
   ].join("\n");
@@ -34,6 +37,7 @@ export function withdrawalRequestedEmail({
         ["Valor", amount],
         ["Chave Pix", `${pixKeyType} - ${pixKey}`],
         ["Status", "Pendente de processamento"],
+        ["Prazo para pagamento", `Ate ${dueAt}`],
       ]),
       paragraph(
         "O valor ja foi reservado do seu saldo disponivel para evitar duplicidade de saque.",

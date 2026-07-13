@@ -1,18 +1,18 @@
 "use server";
 
 import Stripe from "stripe";
-import { createHash } from "crypto";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/prisma";
-import { sendPaymentConfirmedEmail } from "@/modules/health/services/transactional-email-service";
-import { createGoogleMeetEvent } from "@/modules/health/services/google-meet-service";
+import { processAppointmentMeeting } from "@/modules/health/services/appointment-meeting-recovery";
 
 const PLATFORM_FEE_PERCENT = 10;
 
 export type FinalizeHealthAppointmentPaymentResult = {
   success: boolean;
   alreadyProcessed?: boolean;
+  meetingPending?: boolean;
+  refunded?: boolean;
   appointmentId?: string;
   professionalId?: string;
   error?: string;
@@ -55,8 +55,56 @@ function parseHealthAppointmentDateTime(date?: string, time?: string) {
   return { dateOnly, dateTime };
 }
 
-function createMeetRequestId(sessionId: string) {
-  return `mwc-${createHash("sha256").update(sessionId).digest("hex").slice(0, 24)}`;
+function revalidateAppointmentPaths(professionalId: string) {
+  revalidatePath("/agendar-consulta/historico");
+  revalidatePath("/agendar-consulta/dashboard-profissional");
+  revalidatePath("/agendar-consulta/financeiro");
+  revalidatePath("/dashboard/financeiro");
+  revalidatePath(`/agendar-consulta/perfil/${professionalId}`);
+}
+
+async function processPersistedAppointment({
+  appointmentId,
+  professionalId,
+  alreadyProcessed,
+}: {
+  appointmentId: string;
+  professionalId: string;
+  alreadyProcessed: boolean;
+}): Promise<FinalizeHealthAppointmentPaymentResult> {
+  const meeting = await processAppointmentMeeting(appointmentId);
+  revalidateAppointmentPaths(professionalId);
+
+  if (meeting.status === "CONFIRMED") {
+    return {
+      success: true,
+      alreadyProcessed,
+      appointmentId,
+      professionalId,
+    };
+  }
+
+  if (meeting.status === "FAILED") {
+    return {
+      success: false,
+      alreadyProcessed,
+      refunded: true,
+      appointmentId,
+      professionalId,
+      error:
+        "Nao foi possivel criar a sala online. O reembolso foi solicitado automaticamente.",
+    };
+  }
+
+  return {
+    success: true,
+    alreadyProcessed,
+    meetingPending: true,
+    appointmentId,
+    professionalId,
+    error:
+      "Pagamento confirmado. A sala online esta sendo preparada automaticamente.",
+  };
 }
 
 export async function finalizeHealthAppointmentPayment({
@@ -103,12 +151,11 @@ export async function finalizeHealthAppointmentPayment({
       });
     }
 
-    return {
-      success: true,
-      alreadyProcessed: true,
+    return processPersistedAppointment({
       appointmentId: alreadyProcessed.id,
       professionalId: alreadyProcessed.professionalId,
-    };
+      alreadyProcessed: true,
+    });
   }
 
   const professional = await db.user.findFirst({
@@ -119,14 +166,11 @@ export async function finalizeHealthAppointmentPayment({
     },
     select: {
       id: true,
-      name: true,
-      email: true,
       consultationFee: true,
-      sessionDuration: true,
     },
   });
 
-  if (!professional || !professional.consultationFee) {
+  if (!professional?.consultationFee) {
     console.error("[FINALIZE_HEALTH_APPOINTMENT] Professional not found:", {
       proId,
     });
@@ -135,23 +179,19 @@ export async function finalizeHealthAppointmentPayment({
 
   const patient = await db.user.findUnique({
     where: { id: patientId },
-    select: { name: true, email: true },
+    select: { id: true },
   });
 
-  if (!patient?.email || !professional.email) {
-    return {
-      success: false,
-      error: "Paciente ou profissional sem email para gerar a reuniao.",
-    };
+  if (!patient) {
+    return { success: false, error: "Paciente invalido." };
   }
 
   const expectedAmount = Math.round(Number(professional.consultationFee) * 100);
 
-  if (session.currency?.toLowerCase() !== "brl") {
-    return { success: false, error: "Valor do pagamento invalido." };
-  }
-
-  if (session.amount_total !== expectedAmount) {
+  if (
+    session.currency?.toLowerCase() !== "brl" ||
+    session.amount_total !== expectedAmount
+  ) {
     return { success: false, error: "Valor do pagamento invalido." };
   }
 
@@ -175,73 +215,40 @@ export async function finalizeHealthAppointmentPayment({
       existingSlot.stripeSessionId === session.id ||
       (!existingSlot.stripeSessionId && existingSlot.patientId === patientId)
     ) {
-      return {
-        success: true,
-        alreadyProcessed: true,
+      return processPersistedAppointment({
         appointmentId: existingSlot.id,
         professionalId: existingSlot.professionalId,
-      };
+        alreadyProcessed: true,
+      });
     }
 
     return { success: false, error: "Este horario ja foi reservado." };
   }
 
   try {
-    const durationMinutes = professional.sessionDuration || 50;
-    const meetEvent = await createGoogleMeetEvent({
-      summary: `MWC Online - Consulta com ${professional.name ?? "profissional"}`,
-      description: `Consulta MWC Online confirmada pelo pagamento Stripe ${session.id}.`,
-      startTime: appointmentDate.dateTime,
-      endTime: new Date(
-        appointmentDate.dateTime.getTime() + durationMinutes * 60 * 1000,
-      ),
-      attendees: [patient.email, professional.email],
-      requestId: createMeetRequestId(session.id),
-    });
-
-    if (!meetEvent) {
-      return {
-        success: false,
-        error: "Nao foi possivel criar a reuniao no Google Meet.",
-      };
-    }
+    const grossAmount = new Prisma.Decimal(session.amount_total ?? 0).div(100);
+    const professionalAmount = grossAmount
+      .mul(100 - PLATFORM_FEE_PERCENT)
+      .div(100)
+      .toDecimalPlaces(2);
 
     const appointment = await db.$transaction(async (tx) => {
-      const grossAmount = new Prisma.Decimal(session.amount_total ?? 0).div(
-        100,
-      );
-      const professionalAmount = grossAmount
-        .mul(100 - PLATFORM_FEE_PERCENT)
-        .div(100)
-        .toDecimalPlaces(2);
-
       const createdAppointment = await tx.appointment.create({
         data: {
           patientId,
           professionalId: proId,
           date: appointmentDate.dateOnly,
           time,
-          status: "CONFIRMED", // <-- AQUI MATAMOS O ITEM 6! (Era "PAID")
+          status: "MEETING_PENDING",
           stripeSessionId: session.id,
-          meetLink: meetEvent.meetLink,
-          googleEventId: meetEvent.googleEventId,
+          paymentConfirmedAt: new Date(),
           price: grossAmount,
           acceptedPaymentTerms: true,
           paymentTermsAcceptedAt: new Date(),
           paymentTermsIpAddress:
             session.metadata?.paymentTermsIpAddress || "unknown",
         },
-        select: {
-          id: true,
-          professionalId: true,
-          patientId: true,
-          date: true,
-          time: true,
-          price: true,
-          meetLink: true,
-          patient: { select: { name: true, email: true } },
-          professional: { select: { name: true, email: true } },
-        },
+        select: { id: true, professionalId: true },
       });
 
       if (holdId) {
@@ -258,11 +265,7 @@ export async function finalizeHealthAppointmentPayment({
 
       await tx.user.update({
         where: { id: proId },
-        data: {
-          pendingBalance: {
-            increment: professionalAmount,
-          },
-        },
+        data: { pendingBalance: { increment: professionalAmount } },
       });
 
       await tx.transaction.create({
@@ -279,33 +282,33 @@ export async function finalizeHealthAppointmentPayment({
       return createdAppointment;
     });
 
-    revalidatePath("/agendar-consulta/historico");
-    revalidatePath("/agendar-consulta/dashboard-profissional");
-    revalidatePath("/agendar-consulta/financeiro");
-    revalidatePath("/dashboard/financeiro");
-    revalidatePath(`/agendar-consulta/perfil/${appointment.professionalId}`);
-
-    await sendPaymentConfirmedEmail({
-      patient: appointment.patient,
-      professional: appointment.professional,
-      date: appointment.date,
-      time: appointment.time,
-      price: appointment.price,
-      meetLink: appointment.meetLink,
-    });
-
-    return {
-      success: true,
+    return processPersistedAppointment({
       appointmentId: appointment.id,
       professionalId: appointment.professionalId,
-    };
+      alreadyProcessed: false,
+    });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2002") {
-        return { success: false, error: "Este horario ja foi reservado." };
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const persisted = await db.appointment.findUnique({
+        where: { stripeSessionId: session.id },
+        select: { id: true, professionalId: true },
+      });
+
+      if (persisted) {
+        return processPersistedAppointment({
+          appointmentId: persisted.id,
+          professionalId: persisted.professionalId,
+          alreadyProcessed: true,
+        });
       }
+
+      return { success: false, error: "Este horario ja foi reservado." };
     }
+
     console.error("[FINALIZE_HEALTH_APPOINTMENT_PAYMENT_ERROR]", error);
-    return { success: false, error: "Erro ao confirmar consulta." };
+    return { success: false, error: "Erro ao registrar consulta paga." };
   }
 }

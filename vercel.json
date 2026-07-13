@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/health-auto-complete",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/health-meeting-recovery",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/withdrawal-deadline-alerts",
+      "schedule": "0 */6 * * *"
     }
   ]
 }

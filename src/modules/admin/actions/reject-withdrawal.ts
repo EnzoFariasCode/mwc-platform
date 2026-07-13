@@ -84,7 +84,12 @@ export async function rejectWithdrawal(
 
       await tx.withdrawalRequest.update({
         where: { id: withdrawal.id },
-        data: { status: decision },
+        data: {
+          status: decision,
+          failedAt: decision === "FAILED" ? new Date() : null,
+          failureReason: normalizedReason,
+          processedAt: null,
+        },
       });
 
       await tx.transaction.update({
@@ -138,8 +143,8 @@ export async function rejectWithdrawal(
       title: decision === "FAILED" ? "Saque reprovado" : "Saque cancelado",
       message:
         decision === "FAILED"
-          ? "Seu saque PIX foi reprovado e o valor voltou para sua carteira."
-          : "Seu saque PIX foi cancelado e o valor voltou para sua carteira.",
+          ? `Seu saque falhou e o valor voltou para sua carteira. Motivo: ${normalizedReason}`
+          : `Seu saque foi cancelado e o valor voltou para sua carteira. Motivo: ${normalizedReason}`,
       link: "/dashboard/financeiro",
       entityType: "WITHDRAWAL_REQUEST",
       entityId: processed.id,

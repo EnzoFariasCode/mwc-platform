@@ -50,6 +50,8 @@ enum ProposalStatus {
 enum BookingStatus {
   PENDING_PAYMENT // Aguardando pagamento no Stripe
   PAID // Pago, aguardando confirmação final do profissional (se houver)
+  MEETING_PENDING // Pago, aguardando criacao da sala online
+  MEETING_FAILED // Falha definitiva na sala; reembolso solicitado
   CONFIRMED // Confirmado e na agenda
   COMPLETED // Realizada
   CANCELED // Cancelada
@@ -409,13 +411,20 @@ model Appointment {
   timezoneClient String        @default("America/Sao_Paulo")
   status         BookingStatus @default(PENDING_PAYMENT)
 
-  meetLink        String?
-  googleEventId   String?
-  price           Decimal
-  notes           String?   @db.Text
-  stripeSessionId String?   @unique
-  disputeReason   String?   @db.Text
-  disputeOpenedAt DateTime?
+  meetLink                String?
+  googleEventId           String?
+  paymentConfirmedAt      DateTime?
+  meetRetryCount          Int       @default(0)
+  meetProcessingStartedAt DateTime?
+  meetLastAttemptAt       DateTime?
+  meetLastError           String?   @db.Text
+  meetingFailedAt         DateTime?
+  meetingRefundId         String?
+  price                   Decimal
+  notes                   String?   @db.Text
+  stripeSessionId         String?   @unique
+  disputeReason           String?   @db.Text
+  disputeOpenedAt         DateTime?
 
   // Rastreamento de aceite dos termos de pagamento
   acceptedPaymentTerms   Boolean   @default(false)
@@ -440,6 +449,7 @@ model Appointment {
   // Ajuda a prevenir consultas duplicadas no mesmo horário
   @@index([patientId])
   @@index([professionalId])
+  @@index([status, meetLastAttemptAt])
 }
 
 model ClientRecord {
@@ -637,22 +647,30 @@ model Transaction {
 }
 
 model WithdrawalRequest {
-  id            String           @id @default(cuid())
-  userId        String
-  transactionId String           @unique
-  amount        Decimal
-  pixKey        String
-  pixKeyType    String
-  status        WithdrawalStatus @default(PENDING)
-  provider      String           @default("MANUAL_PIX")
-  providerRef   String?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  id                String           @id @default(cuid())
+  userId            String
+  transactionId     String           @unique
+  amount            Decimal
+  pixKey            String
+  pixKeyType        String
+  status            WithdrawalStatus @default(PENDING)
+  provider          String           @default("MANUAL_PIX")
+  providerRef       String?
+  requestedAt       DateTime         @default(now())
+  dueAt             DateTime
+  processedAt       DateTime?
+  failedAt          DateTime?
+  failureReason     String?          @db.Text
+  dueSoonNotifiedAt DateTime?
+  overdueNotifiedAt DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([status])
+  @@index([status, dueAt])
 }
 
 model TechChargebackLiability {

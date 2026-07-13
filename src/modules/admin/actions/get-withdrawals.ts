@@ -17,6 +17,12 @@ export async function getAdminWithdrawals() {
       pixKeyType: true,
       status: true,
       createdAt: true,
+      requestedAt: true,
+      dueAt: true,
+      processedAt: true,
+      failedAt: true,
+      failureReason: true,
+      providerRef: true,
       transactionId: true,
       user: {
         select: {

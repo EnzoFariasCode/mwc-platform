@@ -16,6 +16,7 @@ import { formatCurrencyBR, formatDateTimeBR } from "@/lib/formatters";
 import { approveWithdrawal } from "@/modules/admin/actions/approve-withdrawal";
 import { rejectWithdrawal } from "@/modules/admin/actions/reject-withdrawal";
 import { uploadWithdrawalReceipt } from "@/modules/admin/actions/upload-withdrawal-receipt";
+import { startWithdrawalProcessing } from "@/modules/admin/actions/start-withdrawal-processing";
 
 type WithdrawalStatusFilter =
   | "ALL"
@@ -32,6 +33,12 @@ export type AdminWithdrawalItem = {
   pixKeyType: string;
   status: string;
   createdAt: string;
+  requestedAt: string;
+  dueAt: string;
+  processedAt: string | null;
+  failedAt: string | null;
+  failureReason: string | null;
+  providerRef: string | null;
   transactionId: string;
   auditLog: {
     id: string;
@@ -76,6 +83,16 @@ function formatDate(value: string) {
   return formatDateTimeBR(value);
 }
 
+function deadlineLabel(dueAt: string, status: string) {
+  if (["COMPLETED", "FAILED", "CANCELED"].includes(status)) return null;
+  const remainingMs = new Date(dueAt).getTime() - Date.now();
+  const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+
+  if (remainingDays < 0) return `Atrasado ${Math.abs(remainingDays)} dia(s)`;
+  if (remainingDays === 0) return "Vence hoje";
+  return `Vence em ${remainingDays} dia(s)`;
+}
+
 function isWithinDateRange(value: string, dateFrom: string, dateTo: string) {
   const date = new Date(value);
 
@@ -99,6 +116,7 @@ export default function AdminFinanceiroView({
 }) {
   const router = useRouter();
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [uploadingAuditId, setUploadingAuditId] = useState<string | null>(null);
   const [withdrawalReasons, setWithdrawalReasons] = useState<
@@ -110,12 +128,31 @@ export default function AdminFinanceiroView({
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  async function handleApprove(withdrawalId: string) {
-    setApprovingId(withdrawalId);
-    const result = await approveWithdrawal(withdrawalId);
+  async function handleStartProcessing(withdrawalId: string) {
+    setProcessingId(withdrawalId);
+    const result = await startWithdrawalProcessing(withdrawalId);
 
     if (result.success) {
-      toast.success("Saque marcado como transferido.");
+      toast.success("Processamento iniciado.");
+      router.refresh();
+    } else {
+      toast.error(result.error || "Nao foi possivel iniciar o processamento.");
+    }
+
+    setProcessingId(null);
+  }
+
+  async function handleApprove(
+    event: FormEvent<HTMLFormElement>,
+    withdrawalId: string,
+  ) {
+    event.preventDefault();
+    setApprovingId(withdrawalId);
+    const formData = new FormData(event.currentTarget);
+    const result = await approveWithdrawal(formData);
+
+    if (result.success) {
+      toast.success("Saque concluido com comprovante.");
       router.refresh();
     } else {
       toast.error(result.error || "Nao foi possivel aprovar o saque.");
@@ -181,7 +218,7 @@ export default function AdminFinanceiroView({
   }
 
   const pendingWithdrawals = withdrawals.filter(
-    (item) => item.status === "PENDING",
+    (item) => item.status === "PENDING" || item.status === "PROCESSING",
   );
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const searchedWithdrawals = withdrawals.filter((item) => {
@@ -349,7 +386,17 @@ export default function AdminFinanceiroView({
                     className="transition-colors hover:bg-white/[0.02]"
                   >
                     <td className="px-5 py-4 text-slate-300">
-                      {formatDate(withdrawal.createdAt)}
+                      <p>{formatDate(withdrawal.requestedAt)}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Prazo: {formatDate(withdrawal.dueAt)}
+                      </p>
+                      {deadlineLabel(withdrawal.dueAt, withdrawal.status) && (
+                        <p
+                          className={`mt-1 text-xs font-bold ${new Date(withdrawal.dueAt) < new Date() ? "text-red-300" : "text-amber-300"}`}
+                        >
+                          {deadlineLabel(withdrawal.dueAt, withdrawal.status)}
+                        </p>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <p className="font-bold text-white">
@@ -384,6 +431,21 @@ export default function AdminFinanceiroView({
                       >
                         {statusLabels[withdrawal.status] ?? withdrawal.status}
                       </span>
+                      {withdrawal.processedAt && (
+                        <p className="mt-2 text-xs text-slate-500">
+                          Pago em {formatDate(withdrawal.processedAt)}
+                        </p>
+                      )}
+                      {withdrawal.providerRef && (
+                        <p className="mt-1 max-w-[180px] truncate font-mono text-xs text-slate-400">
+                          Operação: {withdrawal.providerRef}
+                        </p>
+                      )}
+                      {withdrawal.failureReason && (
+                        <p className="mt-1 max-w-[180px] text-xs text-red-300">
+                          {withdrawal.failureReason}
+                        </p>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       {withdrawal.auditLog ? (
@@ -408,7 +470,7 @@ export default function AdminFinanceiroView({
                             >
                               Ver comprovante
                             </a>
-                          ) : (
+                          ) : withdrawal.status === "COMPLETED" ? (
                             <form
                               onSubmit={handleReceiptUpload}
                               className="mt-2 flex max-w-[240px] flex-col gap-2"
@@ -437,7 +499,7 @@ export default function AdminFinanceiroView({
                                   : "Anexar comprovante"}
                               </button>
                             </form>
-                          )}
+                          ) : null}
                         </div>
                       ) : (
                         <span className="text-xs text-slate-600">
@@ -446,21 +508,68 @@ export default function AdminFinanceiroView({
                       )}
                     </td>
                     <td className="px-5 py-4 text-right">
-                      {withdrawal.status === "PENDING" ? (
+                      {["PENDING", "PROCESSING"].includes(
+                        withdrawal.status,
+                      ) ? (
                         <div className="ml-auto flex max-w-[260px] flex-col gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleApprove(withdrawal.id)}
-                            disabled={approvingId === withdrawal.id}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-black transition-colors hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60"
-                          >
-                            {approvingId === withdrawal.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="h-4 w-4" />
-                            )}
-                            Marcar como transferido
-                          </button>
+                          {withdrawal.status === "PENDING" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleStartProcessing(withdrawal.id)
+                              }
+                              disabled={processingId === withdrawal.id}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-500 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-blue-400 disabled:cursor-wait disabled:opacity-60"
+                            >
+                              {processingId === withdrawal.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Landmark className="h-4 w-4" />
+                              )}
+                              Iniciar processamento
+                            </button>
+                          ) : (
+                            <form
+                              onSubmit={(event) =>
+                                handleApprove(event, withdrawal.id)
+                              }
+                              className="space-y-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-left"
+                            >
+                              <input
+                                type="hidden"
+                                name="withdrawalId"
+                                value={withdrawal.id}
+                              />
+                              <input
+                                name="providerRef"
+                                type="text"
+                                required
+                                minLength={5}
+                                maxLength={120}
+                                placeholder="ID da operacao"
+                                className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-xs text-white outline-none focus:border-emerald-400"
+                              />
+                              <input
+                                name="receipt"
+                                type="file"
+                                required
+                                accept="application/pdf,image/png,image/jpeg,image/webp"
+                                className="block w-full text-xs text-slate-400 file:mr-2 file:rounded-lg file:border-0 file:bg-slate-800 file:px-2 file:py-1 file:text-xs file:font-bold file:text-slate-200"
+                              />
+                              <button
+                                type="submit"
+                                disabled={approvingId === withdrawal.id}
+                                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-black hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60"
+                              >
+                                {approvingId === withdrawal.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-4 w-4" />
+                                )}
+                                Confirmar pagamento
+                              </button>
+                            </form>
+                          )}
                           <textarea
                             value={withdrawalReasons[withdrawal.id] ?? ""}
                             onChange={(event) =>

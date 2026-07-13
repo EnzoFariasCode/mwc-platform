@@ -149,7 +149,7 @@ export default function PerfilView({ user }: { user: UserData }) {
   const isSubscriber = isActiveTechSubscription(
     currentUser.stripeSubscriptionStatus,
   );
-  const hasVerifiedTechPlan =
+  const hasPaidTechPlan =
     isTechProfessional &&
     isSubscriber &&
     isPaidTechPlanTier(currentUser.professionalPlanTier);
@@ -358,15 +358,6 @@ export default function PerfilView({ user }: { user: UserData }) {
                   )}
                 </div>
 
-                {/* LOGICA DA FOTO: SÓ MOSTRA SELO SE FOR ASSINANTE PAGO */}
-                {hasVerifiedTechPlan && (
-                  <div
-                    className="absolute bottom-1 right-1 bg-green-500 text-white p-1.5 rounded-full border-4 border-card shadow-lg animate-in zoom-in"
-                    title="Profissional Tech verificado"
-                  >
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                )}
               </div>
 
               <div className="flex-1 w-full pt-2">
@@ -384,7 +375,7 @@ export default function PerfilView({ user }: { user: UserData }) {
                     {/* LOGICA DOS BADGES AO LADO DO NOME */}
                     {isTechProfessional ? (
                       <PlanBadge
-                        isActive={hasVerifiedTechPlan}
+                        isActive={hasPaidTechPlan}
                         tier={currentUser.professionalPlanTier}
                       />
                     ) : !isProfessionalUser ? (

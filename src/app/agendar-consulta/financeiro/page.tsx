@@ -29,10 +29,13 @@ function formatCurrency(value: number) {
 function statusText(status: string) {
   const normalized = status.toUpperCase();
   if (normalized === "COMPLETED") {
-    return <span className="text-emerald-400">Concluido</span>;
+    return <span className="text-emerald-400">Pago</span>;
   }
-  if (normalized === "PENDING" || normalized === "PROCESSING") {
-    return <span className="text-yellow-400">Em processamento</span>;
+  if (normalized === "PENDING") {
+    return <span className="text-yellow-400">Pendente</span>;
+  }
+  if (normalized === "PROCESSING") {
+    return <span className="text-blue-400">Processando</span>;
   }
   if (normalized === "FAILED") {
     return <span className="text-red-400">Falhou</span>;
@@ -102,7 +105,11 @@ export default async function HealthFinanceiroPage() {
     .reduce((total, item) => total + item.amount.toNumber(), 0);
 
   const pendingWithdrawals = user.transactions
-    .filter((item) => item.type === "DEBIT" && item.status === "PENDING")
+    .filter(
+      (item) =>
+        item.type === "DEBIT" &&
+        (item.status === "PENDING" || item.status === "PROCESSING"),
+    )
     .reduce((total, item) => total + item.amount.toNumber(), 0);
 
   const hasTransactions = user.transactions.length > 0;
@@ -356,11 +363,22 @@ export default async function HealthFinanceiroPage() {
                         Pix {withdrawal.pixKeyType}: {withdrawal.pixKey}
                       </p>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {new Date(withdrawal.createdAt).toLocaleDateString(
+                        Solicitado em {new Date(withdrawal.requestedAt).toLocaleDateString(
                           "pt-BR",
                         )}{" "}
                         • {statusText(withdrawal.status)}
                       </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Prazo: {new Date(withdrawal.dueAt).toLocaleDateString("pt-BR")}
+                        {withdrawal.processedAt
+                          ? ` • Pago em ${new Date(withdrawal.processedAt).toLocaleDateString("pt-BR")}`
+                          : ""}
+                      </p>
+                      {withdrawal.failureReason && (
+                        <p className="mt-1 text-xs text-red-300">
+                          Motivo: {withdrawal.failureReason}
+                        </p>
+                      )}
                     </div>
                     <p className="font-bold text-white">
                       {formatCurrency(withdrawal.amount.toNumber())}

@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { ProposalStatus, UserType } from "@prisma/client";
+import { compareTechProposalPriority } from "@/modules/subscriptions/tech-plan-ranking";
 
 type ProposalListItem = {
   id: string;
@@ -63,15 +64,37 @@ export async function getProjectProposals(
             rating: true,
             ratingCount: true,
             userType: true,
+            professionalPlanTier: true,
+            stripeSubscriptionStatus: true,
             // avatarUrl: true, // Se tiver campo de foto, adicione aqui (ou delete se não tiver)
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
     });
 
-    const safeProposals = proposals.map((proposal) => ({
+    proposals.sort((first, second) =>
+      compareTechProposalPriority(
+        {
+          ...first.professional,
+          createdAt: first.createdAt,
+        },
+        {
+          ...second.professional,
+          createdAt: second.createdAt,
+        },
+      ),
+    );
+
+    const safeProposals = proposals.map(({ professional, ...proposal }) => ({
       ...proposal,
+      professional: {
+        id: professional.id,
+        name: professional.name,
+        rating: professional.rating,
+        ratingCount: professional.ratingCount,
+        userType: professional.userType,
+      },
       price: proposal.price.toNumber(),
     }));
 

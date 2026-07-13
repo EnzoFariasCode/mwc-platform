@@ -39,8 +39,7 @@ const plansData: Array<{
     features: [
       "Até 5 trabalhos simultâneos",
       "Selo Starter no perfil",
-      "Selo de verificado no perfil",
-      "Prioridade acima do plano gratuito",
+      "Prioridade sobre o plano Gratuito na busca e nas propostas",
       "Suporte tecnico",
       "Gerenciamento pelo portal Stripe",
       "Taxa da plataforma: 10%",
@@ -57,8 +56,7 @@ const plansData: Array<{
     features: [
       "Até 10 trabalhos simultâneos",
       "Selo Advanced no perfil",
-      "Selo de verificado no perfil",
-      "Prioridade acima do Starter",
+      "Prioridade maxima na busca e nas propostas",
       "Suporte tecnico",
       "Gerenciamento pelo portal Stripe",
       "Taxa da plataforma: 10%",
@@ -311,8 +309,9 @@ export function UpgradeBanner({
             Desbloqueie o Potencial Máximo
           </h2>
           <p className="text-slate-300 mb-6 text-sm md:text-base max-w-lg leading-relaxed">
-            Profissionais assinantes ganham prioridade na busca, selo de plano,
-            maior limite de trabalhos simultaneos e suporte tecnico.
+            Profissionais assinantes recebem prioridade na busca e nas
+            propostas, selo de plano, maior limite de trabalhos simultaneos e
+            suporte tecnico prioritario.
           </p>
 
           <button
