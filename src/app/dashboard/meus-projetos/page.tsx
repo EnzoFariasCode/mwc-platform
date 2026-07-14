@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 import MyProjectsView from "./MyProjectsView";
 import { verifySession } from "@/lib/auth";
 import { confirmProjectPayment } from "@/modules/stripe/actions/confirm-project-payment";
+import {
+  canCancelPaidTechProject,
+  getTechProjectCancellationDeadline,
+} from "@/modules/projects/lib/tech-project-cancellation";
 
 export default async function MeusProjetosPage({
   searchParams,
@@ -60,11 +64,49 @@ export default async function MeusProjetosPage({
     },
   });
 
-  const safeProjects = myProjects.map((project) => ({
-    ...project,
-    budgetValue: project.budgetValue.toNumber(),
-    agreedPrice: project.agreedPrice ? project.agreedPrice.toNumber() : null,
-  }));
+  const completedHolds = await db.projectCheckoutHold.findMany({
+    where: {
+      projectId: { in: myProjects.map((project) => project.id) },
+      status: "COMPLETED",
+      completedAt: { not: null },
+    },
+    orderBy: { completedAt: "desc" },
+    select: {
+      projectId: true,
+      completedAt: true,
+    },
+  });
+
+  const paymentConfirmedAtByProject = new Map<string, Date>();
+  completedHolds.forEach((hold) => {
+    if (
+      hold.completedAt &&
+      !paymentConfirmedAtByProject.has(hold.projectId)
+    ) {
+      paymentConfirmedAtByProject.set(hold.projectId, hold.completedAt);
+    }
+  });
+
+  const safeProjects = myProjects.map((project) => {
+    const paymentConfirmedAt = paymentConfirmedAtByProject.get(project.id);
+    const cancellationDeadline = paymentConfirmedAt
+      ? getTechProjectCancellationDeadline(paymentConfirmedAt)
+      : null;
+
+    return {
+      ...project,
+      budgetValue: project.budgetValue.toNumber(),
+      agreedPrice: project.agreedPrice ? project.agreedPrice.toNumber() : null,
+      paymentConfirmedAt: paymentConfirmedAt?.toISOString() ?? null,
+      cancellationDeadlineAt: cancellationDeadline?.toISOString() ?? null,
+      canCancelPaid:
+        project.status === "IN_PROGRESS" &&
+        Boolean(
+          paymentConfirmedAt &&
+            canCancelPaidTechProject(paymentConfirmedAt),
+        ),
+    };
+  });
 
   return (
     <MyProjectsView

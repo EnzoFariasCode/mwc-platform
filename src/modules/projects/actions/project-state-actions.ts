@@ -15,6 +15,7 @@ import { revalidatePath } from "next/cache";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
+import { canCancelPaidTechProject } from "@/modules/projects/lib/tech-project-cancellation";
 
 const PLATFORM_FEE_PERCENT = 10;
 const ADMIN_DISPUTE_DECISION_LIMIT = 20;
@@ -233,6 +234,13 @@ export async function cancelTechProject(
 
     const normalizedReason = normalizeReason(reason);
 
+    if (normalizedReason.length < 10) {
+      return {
+        success: false,
+        error: "Descreva o motivo do cancelamento com pelo menos 10 caracteres.",
+      };
+    }
+
     const project = await db.project.findUnique({
       where: { id: projectId },
       select: {
@@ -241,6 +249,8 @@ export async function cancelTechProject(
         ownerId: true,
         status: true,
         professionalId: true,
+        agreedPrice: true,
+        stripePaymentIntentId: true,
       },
     });
 
@@ -248,41 +258,154 @@ export async function cancelTechProject(
       return { success: false, error: "Projeto nao encontrado." };
     }
 
-    if (
-      project.status !== ProjectStatus.OPEN &&
-      project.status !== ProjectStatus.WAITING_PAYMENT
-    ) {
+    const isUnpaidCancellation =
+      project.status === ProjectStatus.OPEN ||
+      project.status === ProjectStatus.WAITING_PAYMENT;
+    const isPaidCancellation = project.status === ProjectStatus.IN_PROGRESS;
+
+    if (!isUnpaidCancellation && !isPaidCancellation) {
       return {
         success: false,
-        error: "Projetos pagos devem seguir o fluxo de disputa.",
+        error:
+          "Este pedido nao pode mais ser cancelado. Use a disputa apenas em caso de problema com o servico.",
       };
     }
 
+    const completedHold = isPaidCancellation
+      ? await db.projectCheckoutHold.findFirst({
+          where: {
+            projectId: project.id,
+            status: ProjectCheckoutHoldStatus.COMPLETED,
+            completedAt: { not: null },
+          },
+          orderBy: { completedAt: "desc" },
+          select: { completedAt: true },
+        })
+      : null;
+
+    if (isPaidCancellation) {
+      if (!completedHold?.completedAt) {
+        return {
+          success: false,
+          error:
+            "Nao foi possivel confirmar o prazo do pagamento. Contate o suporte.",
+        };
+      }
+
+      if (!canCancelPaidTechProject(completedHold.completedAt)) {
+        return {
+          success: false,
+          error:
+            "O prazo de 12 horas para cancelamento e estorno foi encerrado.",
+        };
+      }
+
+      if (!project.stripePaymentIntentId || !project.agreedPrice) {
+        return {
+          success: false,
+          error: "Pagamento Stripe nao encontrado para estorno.",
+        };
+      }
+    }
+
+    let refundId: string | null = null;
+
+    if (isPaidCancellation && project.stripePaymentIntentId) {
+      const refund = await stripe.refunds.create(
+        { payment_intent: project.stripePaymentIntentId },
+        { idempotencyKey: `tech-project-12h-cancellation-${project.id}` },
+      );
+      refundId = refund.id;
+    }
+
     await db.$transaction(async (tx) => {
+      const freshProject = await tx.project.findUnique({
+        where: { id: project.id },
+        select: {
+          status: true,
+          agreedPrice: true,
+        },
+      });
+
+      if (!freshProject) throw new Error("PROJECT_NOT_FOUND");
+
+      const freshStatusAllowed = isPaidCancellation
+        ? freshProject.status === ProjectStatus.IN_PROGRESS
+        : freshProject.status === ProjectStatus.OPEN ||
+          freshProject.status === ProjectStatus.WAITING_PAYMENT;
+
+      if (!freshStatusAllowed) throw new Error("PROJECT_STATUS_CHANGED");
+
+      if (isPaidCancellation) {
+        const freshCompletedHold = await tx.projectCheckoutHold.findFirst({
+          where: {
+            projectId: project.id,
+            status: ProjectCheckoutHoldStatus.COMPLETED,
+            completedAt: { not: null },
+          },
+          orderBy: { completedAt: "desc" },
+          select: { completedAt: true },
+        });
+
+        if (
+          !freshCompletedHold?.completedAt ||
+          !canCancelPaidTechProject(freshCompletedHold.completedAt)
+        ) {
+          throw new Error("CANCELLATION_WINDOW_EXPIRED");
+        }
+      }
+
       await tx.project.update({
         where: { id: project.id },
         data: {
           status: ProjectStatus.CANCELED,
+          canceledAt: new Date(),
+          cancellationReason: normalizedReason,
         },
       });
 
-      if (normalizedReason) {
-        await tx.deliverable.create({
-          data: {
+      await tx.deliverable.create({
+        data: {
+          projectId: project.id,
+          senderId: userId,
+          description: `${isPaidCancellation ? "PROJECT_CANCELED_WITH_REFUND" : "PROJECT_CANCELED"} - ${normalizedReason}${refundId ? ` - Stripe: ${refundId}` : ""}`,
+        },
+      });
+
+      if (isPaidCancellation && freshProject.agreedPrice) {
+        const existingRefundTransaction = await tx.transaction.findFirst({
+          where: {
             projectId: project.id,
-            senderId: userId,
-            description: `PROJECT_CANCELED - ${normalizedReason}`,
+            userId: project.ownerId,
+            type: "CREDIT",
+            description: { contains: "Cancelamento em ate 12 horas" },
           },
+          select: { id: true },
         });
+
+        if (!existingRefundTransaction) {
+          await tx.transaction.create({
+            data: {
+              userId: project.ownerId,
+              amount: freshProject.agreedPrice,
+              type: "CREDIT",
+              status: "COMPLETED",
+              description: `Cancelamento em ate 12 horas - Estorno ao cartao - Projeto: ${project.title}${refundId ? ` - Stripe: ${refundId}` : ""}`,
+              projectId: project.id,
+            },
+          });
+        }
       }
 
-      await tx.proposal.updateMany({
-        where: {
-          projectId: project.id,
-          status: ProposalStatus.PENDING,
-        },
-        data: { status: ProposalStatus.REJECTED },
-      });
+      if (isUnpaidCancellation) {
+        await tx.proposal.updateMany({
+          where: {
+            projectId: project.id,
+            status: ProposalStatus.PENDING,
+          },
+          data: { status: ProposalStatus.REJECTED },
+        });
+      }
     });
 
     techProjectPaths(project.id, project.professionalId);
@@ -290,12 +413,15 @@ export async function cancelTechProject(
     await sendAdminNotification({
       subject: "MWC Admin - Projeto Tech cancelado",
       lines: [
-        "Um projeto Tech foi cancelado antes do fluxo de disputa.",
+        isPaidCancellation
+          ? "Um projeto Tech foi cancelado dentro do prazo de 12 horas e estornado ao cartao."
+          : "Um projeto Tech foi cancelado antes do pagamento.",
         `Projeto: ${project.id}`,
         `Cancelado por: ${userId}`,
-        `Motivo: ${normalizedReason || "Nao informado"}`,
+        `Motivo: ${normalizedReason}`,
+        `Estorno Stripe: ${refundId || "Nao aplicavel"}`,
       ],
-      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
+      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/financeiro`,
     });
 
     if (project.professionalId) {
@@ -309,9 +435,28 @@ export async function cancelTechProject(
         link: "/dashboard/projetos-ativos",
         entityType: "TECH_PROJECT",
         entityId: project.id,
-        metadata: { reason: normalizedReason || null },
+        metadata: {
+          reason: normalizedReason,
+          refundId,
+          cancellationType: isPaidCancellation ? "PAID_WITHIN_12H" : "UNPAID",
+        },
       });
     }
+
+    await upsertNotification({
+      userId: project.ownerId,
+      actorId: userId,
+      type: isPaidCancellation ? "SUCCESS" : "INFO",
+      eventType: "TECH_PROJECT_CANCELED_CLIENT",
+      title: "Pedido cancelado",
+      message: isPaidCancellation
+        ? `O pedido "${project.title}" foi cancelado e o estorno foi enviado ao cartao.`
+        : `O pedido "${project.title}" foi cancelado.`,
+      link: "/dashboard/meus-projetos",
+      entityType: "TECH_PROJECT",
+      entityId: project.id,
+      metadata: { reason: normalizedReason, refundId },
+    });
 
     return { success: true };
   } catch (error) {
@@ -482,6 +627,10 @@ export async function openTechProjectDispute(
         where: { id: project.id },
         data: {
           status: ProjectStatus.DISPUTE,
+          disputeReason: normalizedReason,
+          disputeOpenedAt: new Date(),
+          disputeResolvedAt: null,
+          disputeResolution: null,
         },
       });
     });
@@ -672,6 +821,11 @@ export async function resolveTechProjectDispute({
           where: { id: freshProject.id },
           data: {
             status: ProjectStatus.CANCELED,
+            canceledAt: new Date(),
+            cancellationReason:
+              normalizedReason || "Reembolso aprovado em disputa.",
+            disputeResolvedAt: new Date(),
+            disputeResolution: "REFUND_CLIENT",
           },
         });
 
@@ -751,6 +905,8 @@ export async function resolveTechProjectDispute({
         where: { id: freshProject.id },
         data: {
           status: ProjectStatus.COMPLETED,
+          disputeResolvedAt: new Date(),
+          disputeResolution: "RELEASE_TO_PROFESSIONAL",
         },
       });
 

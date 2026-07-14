@@ -12,6 +12,7 @@ import {
   CreditCard,
   ExternalLink,
   Loader2,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -274,6 +275,16 @@ export default function CheckoutView({
               </div>
 
               {/* Botões de Pagamento / Cancelamento */}
+              <div className="mb-5 flex items-start gap-2 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-3 text-xs leading-relaxed text-yellow-100/80">
+                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
+                <p>
+                  Apos a confirmacao, o cancelamento com estorno ao cartao fica
+                  disponivel por 12 horas. Depois desse prazo, a disputa deve ser
+                  usada somente em caso de descumprimento ou problema com o
+                  servico.
+                </p>
+              </div>
+
               {isRedirecting ? (
                 <div className="w-full py-4 bg-slate-800 border border-slate-700 rounded-xl flex flex-col items-center justify-center gap-2 text-white animate-in zoom-in-95">
                   <Loader2 className="w-6 h-6 animate-spin text-[#d73cbe]" />
@@ -325,9 +336,13 @@ export default function CheckoutView({
               <div className="mt-4 text-center">
                 <p className="text-[10px] text-slate-500">
                   Ao confirmar, você concorda com os{" "}
-                  <span className="text-slate-300 underline cursor-pointer">
+                  <Link
+                    href="/termos"
+                    target="_blank"
+                    className="cursor-pointer text-slate-300 underline"
+                  >
                     Termos de Serviço
-                  </span>
+                  </Link>
                   .
                 </p>
                 <div className="mt-3 flex items-center justify-center gap-2 text-[10px] text-slate-500 uppercase tracking-widest">

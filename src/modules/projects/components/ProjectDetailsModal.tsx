@@ -29,6 +29,7 @@ import { SendProposalModal } from "@/modules/proposals/components/SendProposalMo
 import { getProjectProposals } from "@/modules/proposals/actions/get-project-proposals";
 import { approveProject } from "@/modules/proposals/actions/approve-project";
 import {
+  cancelTechProject,
   openTechProjectDispute,
   requestTechProjectRevision,
 } from "@/modules/projects/actions/project-state-actions";
@@ -58,9 +59,9 @@ export function ProjectDetailsModal({
   const [isLoadingProposals, setIsLoadingProposals] = useState(false);
   const [showProposals, setShowProposals] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [reasonAction, setReasonAction] = useState<"revision" | "dispute" | null>(
-    null,
-  );
+  const [reasonAction, setReasonAction] = useState<
+    "cancel" | "revision" | "dispute" | null
+  >(null);
   const [isReasonLoading, setIsReasonLoading] = useState(false);
 
   useEffect(() => {
@@ -105,15 +106,19 @@ export function ProjectDetailsModal({
 
     setIsReasonLoading(true);
     const result =
-      reasonAction === "revision"
-        ? await requestTechProjectRevision(project.id, reason)
-        : await openTechProjectDispute(project.id, reason);
+      reasonAction === "cancel"
+        ? await cancelTechProject(project.id, reason)
+        : reasonAction === "revision"
+          ? await requestTechProjectRevision(project.id, reason)
+          : await openTechProjectDispute(project.id, reason);
 
     if (result.success) {
       toast.success(
-        reasonAction === "revision"
-          ? "Pedido de revisao enviado."
-          : "Disputa aberta para mediacao.",
+        reasonAction === "cancel"
+          ? "Pedido cancelado. O estorno foi enviado ao cartao."
+          : reasonAction === "revision"
+            ? "Pedido de revisao enviado."
+            : "Disputa aberta para mediacao.",
       );
       setReasonAction(null);
       onClose();
@@ -374,13 +379,43 @@ export function ProjectDetailsModal({
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => setReasonAction("dispute")}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 py-3 text-xs font-bold text-red-400 transition-colors hover:bg-red-500 hover:text-white"
-                >
-                  <AlertTriangle className="w-4 h-4" />
-                  Abrir Disputa
-                </button>
+                {project.cancellationDeadlineAt && (
+                  <div
+                    className={`mt-4 flex items-start gap-2 rounded-xl border p-3 text-xs ${
+                      project.canCancelPaid
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                        : "border-slate-700 bg-slate-950/40 text-slate-400"
+                    }`}
+                  >
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      {project.canCancelPaid
+                        ? `Cancelamento com estorno disponivel ate ${formatCancellationDeadline(project.cancellationDeadlineAt)}.`
+                        : "O prazo de 12 horas para cancelamento com estorno foi encerrado."}
+                    </span>
+                  </div>
+                )}
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {project.canCancelPaid && (
+                    <button
+                      onClick={() => setReasonAction("cancel")}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 py-3 text-xs font-bold text-red-400 transition-colors hover:bg-red-500 hover:text-white"
+                    >
+                      <X className="h-4 w-4" />
+                      Cancelar e Estornar
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setReasonAction("dispute")}
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 py-3 text-xs font-bold text-yellow-300 transition-colors hover:bg-yellow-500 hover:text-black ${
+                      project.canCancelPaid ? "" : "sm:col-span-2"
+                    }`}
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                    Disputar por Problema
+                  </button>
+                </div>
               </div>
             )}
 
@@ -632,20 +667,40 @@ export function ProjectDetailsModal({
         }}
         onConfirm={handleConfirmReasonAction}
         isLoading={isReasonLoading}
-        title={reasonAction === "revision" ? "Solicitar revisao" : "Abrir disputa"}
+        title={
+          reasonAction === "cancel"
+            ? "Cancelar pedido"
+            : reasonAction === "revision"
+              ? "Solicitar revisao"
+              : "Abrir disputa"
+        }
         description={
-          reasonAction === "revision"
-            ? "Explique ao profissional quais ajustes devem ser feitos."
-            : "Descreva o problema para que a equipe MWC possa mediar o conflito."
+          reasonAction === "cancel"
+            ? "Confirme o motivo do cancelamento. O valor sera estornado ao cartao usado no pagamento."
+            : reasonAction === "revision"
+              ? "Explique ao profissional quais ajustes devem ser feitos."
+              : "Use a disputa somente para descumprimento, entrega invalida ou outro problema com o servico."
         }
         confirmLabel={
-          reasonAction === "revision" ? "Solicitar revisao" : "Abrir disputa"
+          reasonAction === "cancel"
+            ? "Cancelar e estornar"
+            : reasonAction === "revision"
+              ? "Solicitar revisao"
+              : "Abrir disputa"
         }
         minLength={10}
         tone={reasonAction === "revision" ? "warning" : "danger"}
       />
     </>
   );
+}
+
+function formatCancellationDeadline(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(value));
 }
 
 // Badge Helper

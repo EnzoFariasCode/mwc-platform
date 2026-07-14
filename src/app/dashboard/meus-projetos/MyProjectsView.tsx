@@ -8,6 +8,7 @@ import {
   MessageSquare,
   Trash2,
   CalendarClock,
+  Clock,
   AlertCircle,
   AlertTriangle,
   DollarSign,
@@ -176,9 +177,10 @@ export default function MyProjectsView({
   const reasonModalCopy = {
     cancel: {
       title: "Cancelar projeto",
-      description: "Informe o motivo do cancelamento antes de encerrar o pedido.",
-      confirmLabel: "Cancelar projeto",
-      minLength: 0,
+      description:
+        "Informe o motivo. Em pedidos pagos, o estorno ao cartao so e permitido ate 12 horas apos a confirmacao do pagamento.",
+      confirmLabel: "Confirmar cancelamento",
+      minLength: 10,
       tone: "danger" as const,
     },
     revision: {
@@ -191,7 +193,7 @@ export default function MyProjectsView({
     dispute: {
       title: "Abrir disputa",
       description:
-        "Descreva o problema para que a equipe MWC possa mediar o conflito.",
+        "Use a disputa somente para descumprimento, entrega invalida ou outro problema com o servico. Descreva o ocorrido para mediacao.",
       confirmLabel: "Abrir disputa",
       minLength: 10,
       tone: "danger" as const,
@@ -330,6 +332,24 @@ export default function MyProjectsView({
                         pagamento ou escolher outra proposta.
                       </div>
                     )}
+
+                    {project.status === "IN_PROGRESS" &&
+                      project.cancellationDeadlineAt && (
+                        <div
+                          className={`mt-3 flex items-start gap-2 rounded-xl border p-3 text-xs ${
+                            project.canCancelPaid
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                              : "border-slate-700 bg-slate-950/40 text-slate-400"
+                          }`}
+                        >
+                          <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+                          <span>
+                            {project.canCancelPaid
+                              ? `Cancelamento com estorno disponivel ate ${formatCancellationDeadline(project.cancellationDeadlineAt)}.`
+                              : "O prazo de 12 horas para cancelamento com estorno foi encerrado."}
+                          </span>
+                        </div>
+                      )}
                   </div>
 
                   <div className="mb-6 grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
@@ -392,6 +412,17 @@ export default function MyProjectsView({
                     </button>
                   )}
 
+                  {project.status === "IN_PROGRESS" &&
+                    project.canCancelPaid && (
+                      <button
+                        onClick={() => handleOpenReasonAction(project, "cancel")}
+                        className="col-span-2 flex items-center justify-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 py-2.5 text-xs font-bold text-red-400 transition-all hover:bg-red-500 hover:text-white"
+                      >
+                        <XCircle className="h-3 w-3" />
+                        Cancelar Pedido e Estornar
+                      </button>
+                    )}
+
                   {project.status === "UNDER_REVIEW" && (
                     <button
                       onClick={() =>
@@ -413,7 +444,7 @@ export default function MyProjectsView({
                       className="col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white text-xs font-bold transition-all border border-red-500/20 cursor-pointer"
                     >
                       <AlertTriangle className="w-3 h-3" />
-                      Abrir Disputa
+                      Abrir Disputa por Problema
                     </button>
                   )}
                 </div>
@@ -478,6 +509,14 @@ export default function MyProjectsView({
       </div>
     </PageContainer>
   );
+}
+
+function formatCancellationDeadline(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(value));
 }
 
 function StatusBadge({ status }: { status: string }) {
