@@ -53,6 +53,7 @@ export async function upsertNotification(
       link: input.link ?? null,
       metadata: input.metadata ?? {},
       readAt: null,
+      createdAt: new Date(),
     },
   });
 }

@@ -115,30 +115,75 @@ export async function createProposal(
         projectId: data.projectId,
         professionalId: userId,
       },
+      orderBy: { updatedAt: "desc" },
     });
 
-    if (existingProposal) {
+    if (existingProposal && existingProposal.status !== "WITHDRAWN") {
       return {
         success: false,
         error: "Voce ja enviou uma proposta para este projeto.",
       };
     }
 
-    const proposal = await db.proposal.create({
-      data: {
-        projectId: data.projectId,
-        professionalId: userId,
-        price,
-        estimatedDays: days,
-        coverLetter,
-        status: "PENDING",
-      },
-    });
+    const proposal = existingProposal
+      ? await db.$transaction(async (tx) => {
+          const reactivated = await tx.proposal.updateMany({
+            where: {
+              id: existingProposal.id,
+              professionalId: userId,
+              status: "WITHDRAWN",
+              project: { status: "OPEN" },
+            },
+            data: {
+              price,
+              estimatedDays: days,
+              coverLetter,
+              status: "PENDING",
+            },
+          });
 
-    await db.project.update({
-      where: { id: data.projectId },
-      data: { bidsCount: { increment: 1 } },
-    });
+          if (reactivated.count !== 1) return null;
+
+          const openProject = await tx.project.updateMany({
+            where: { id: data.projectId, status: "OPEN" },
+            data: { bidsCount: { increment: 1 } },
+          });
+
+          if (openProject.count !== 1) {
+            throw new Error("PROJECT_NOT_OPEN");
+          }
+
+          return { id: existingProposal.id };
+        })
+      : await db.$transaction(async (tx) => {
+          const openProject = await tx.project.updateMany({
+            where: { id: data.projectId, status: "OPEN" },
+            data: { bidsCount: { increment: 1 } },
+          });
+
+          if (openProject.count !== 1) {
+            throw new Error("PROJECT_NOT_OPEN");
+          }
+
+          return tx.proposal.create({
+            data: {
+              projectId: data.projectId,
+              professionalId: userId,
+              price,
+              estimatedDays: days,
+              coverLetter,
+              status: "PENDING",
+            },
+            select: { id: true },
+          });
+        });
+
+    if (!proposal) {
+      return {
+        success: false,
+        error: "A proposta mudou de status e nao pode ser reenviada.",
+      };
+    }
 
     await upsertNotification({
       userId: project.ownerId,
@@ -159,6 +204,7 @@ export async function createProposal(
 
     revalidatePath(`/dashboard/encontrar-projetos/${data.projectId}`);
     revalidatePath("/dashboard/meus-projetos");
+    revalidatePath("/dashboard/minhas-propostas");
 
     return { success: true };
   } catch (error) {

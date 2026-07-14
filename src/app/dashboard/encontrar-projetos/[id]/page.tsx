@@ -42,6 +42,7 @@ export default async function ProjectPage({
     where: {
       projectId: id,
       professionalId: userId,
+      status: { not: "WITHDRAWN" },
     },
     select: { id: true }, // Só precisamos saber se existe (ID basta)
   });
