@@ -5,7 +5,12 @@ import { db } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
 import { ActionResponse } from "@/modules/users/types/user-types";
-import { Prisma, ProjectStatus, ProposalStatus } from "@prisma/client";
+import {
+  Prisma,
+  ProjectCheckoutHoldStatus,
+  ProjectStatus,
+  ProposalStatus,
+} from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
@@ -111,18 +116,76 @@ export async function withdrawProposal(
       };
     }
 
-    await db.$transaction(async (tx) => {
-      await tx.proposal.update({
-        where: { id: proposal.id },
+    const stripeSessionIds = await db.$transaction(async (tx) => {
+      const withdrawn = await tx.proposal.updateMany({
+        where: {
+          id: proposal.id,
+          professionalId: userId,
+          status: ProposalStatus.PENDING,
+          project: { status: ProjectStatus.OPEN },
+        },
         data: { status: ProposalStatus.WITHDRAWN },
       });
 
-      await tx.project.update({
-        where: { id: proposal.projectId },
+      if (withdrawn.count !== 1) return null;
+
+      await tx.project.updateMany({
+        where: {
+          id: proposal.projectId,
+          status: ProjectStatus.OPEN,
+          bidsCount: { gt: 0 },
+        },
         data: {
           bidsCount: { decrement: 1 },
         },
       });
+
+      const activeHolds = await tx.projectCheckoutHold.findMany({
+        where: {
+          proposalId: proposal.id,
+          status: ProjectCheckoutHoldStatus.PENDING,
+        },
+        select: { stripeSessionId: true },
+      });
+
+      await tx.projectCheckoutHold.updateMany({
+        where: {
+          proposalId: proposal.id,
+          status: ProjectCheckoutHoldStatus.PENDING,
+        },
+        data: {
+          status: ProjectCheckoutHoldStatus.CANCELED,
+          canceledAt: new Date(),
+          failureReason: "Proposta retirada pelo profissional.",
+        },
+      });
+
+      return activeHolds.flatMap((hold) =>
+        hold.stripeSessionId ? [hold.stripeSessionId] : [],
+      );
+    });
+
+    if (!stripeSessionIds) {
+      return {
+        success: false,
+        error: "A proposta mudou de status e nao pode mais ser retirada.",
+      };
+    }
+
+    const expirationResults = await Promise.allSettled(
+      stripeSessionIds.map((sessionId) =>
+        stripe.checkout.sessions.expire(sessionId),
+      ),
+    );
+
+    expirationResults.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.error("[EXPIRE_WITHDRAWN_PROPOSAL_CHECKOUT_ERROR]", {
+          proposalId: proposal.id,
+          stripeSessionId: stripeSessionIds[index],
+          error: result.reason,
+        });
+      }
     });
 
     techProjectPaths(proposal.projectId, userId);

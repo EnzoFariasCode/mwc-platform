@@ -6,6 +6,7 @@ import { verifySession } from "@/lib/auth";
 import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
+import { refundUnavailableProjectPayment } from "@/modules/stripe/lib/refund-unavailable-project-payment";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
@@ -110,18 +111,44 @@ export async function confirmProjectPayment(
     return { success: false, error: "Pagamento invalido." };
   }
 
+  const stripePaymentIntentId =
+    typeof checkoutSession.payment_intent === "string"
+      ? checkoutSession.payment_intent
+      : checkoutSession.payment_intent?.id;
+
   const result = await finalizeProjectPayment({
     proposalId,
     buyerId,
     source: "confirm",
     stripeSessionId: checkoutSession.id,
-    stripePaymentIntentId:
-      typeof checkoutSession.payment_intent === "string"
-        ? checkoutSession.payment_intent
-        : checkoutSession.payment_intent?.id,
+    stripePaymentIntentId,
   });
 
   if (!result.success) {
+    if (result.refundRequired && stripePaymentIntentId) {
+      try {
+        await refundUnavailableProjectPayment({
+          proposalId,
+          buyerId,
+          stripeSessionId: checkoutSession.id,
+          stripePaymentIntentId,
+          reason: result.error,
+        });
+        return {
+          success: false,
+          error:
+            "A proposta foi cancelada. O pagamento foi estornado pela Stripe.",
+        };
+      } catch (error) {
+        console.error("[REFUND_UNAVAILABLE_PROJECT_CONFIRM_ERROR]", error);
+        return {
+          success: false,
+          error:
+            "A proposta foi cancelada e o estorno precisa de revisao do suporte.",
+        };
+      }
+    }
+
     return { success: false, error: result.error };
   }
 

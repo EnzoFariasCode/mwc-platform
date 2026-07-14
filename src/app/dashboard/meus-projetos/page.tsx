@@ -20,6 +20,8 @@ export default async function MeusProjetosPage({
   // Lê a URL para ver se o pagamento acabou de ser feito
   const resolvedParams = await searchParams;
   const isSuccessPayment = resolvedParams.success === "true";
+  const isProposalUnavailable =
+    resolvedParams.proposalUnavailable === "true";
   const sessionId =
     typeof resolvedParams.session_id === "string"
       ? resolvedParams.session_id
@@ -44,7 +46,11 @@ export default async function MeusProjetosPage({
       },
       // Conta as propostas recebidas
       _count: {
-        select: { proposals: true },
+        select: {
+          proposals: {
+            where: { status: "PENDING" },
+          },
+        },
       },
       //TRÁS O LINK E A MENSAGEM DA ENTREGA
       deliverables: {
@@ -64,6 +70,7 @@ export default async function MeusProjetosPage({
     <MyProjectsView
       initialProjects={safeProjects}
       isSuccessPayment={isPaymentConfirmed}
+      isProposalUnavailable={isProposalUnavailable}
     />
   );
 }

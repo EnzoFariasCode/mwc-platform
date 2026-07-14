@@ -55,7 +55,10 @@ export async function getProjectProposals(
 
     // 2. Busca as propostas
     const proposals = await db.proposal.findMany({
-      where: { projectId },
+      where: {
+        projectId,
+        status: ProposalStatus.PENDING,
+      },
       include: {
         professional: {
           select: {

@@ -10,6 +10,7 @@ import { Prisma, ProjectCheckoutHoldStatus } from "@prisma/client";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { getTechPlanTier } from "@/modules/subscriptions/tech-plan";
+import { refundUnavailableProjectPayment } from "@/modules/stripe/lib/refund-unavailable-project-payment";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
@@ -1119,18 +1120,37 @@ export async function POST(req: Request) {
     buyerId: string,
     session: Stripe.Checkout.Session,
   ) => {
+    const stripePaymentIntentId =
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : session.payment_intent?.id;
+
     const result = await finalizeProjectPayment({
       proposalId,
       buyerId,
       source: "webhook",
       stripeSessionId: session.id,
-      stripePaymentIntentId:
-        typeof session.payment_intent === "string"
-          ? session.payment_intent
-          : session.payment_intent?.id,
+      stripePaymentIntentId,
     });
 
     if (!result.success) {
+      if (result.refundRequired && stripePaymentIntentId) {
+        const refund = await refundUnavailableProjectPayment({
+          proposalId,
+          buyerId,
+          stripeSessionId: session.id,
+          stripePaymentIntentId,
+          reason: result.error,
+        });
+        console.warn("[UNAVAILABLE_PROJECT_PAYMENT_REFUNDED]", {
+          proposalId,
+          buyerId,
+          stripeSessionId: session.id,
+          stripeRefundId: refund.id,
+        });
+        return new NextResponse(null, { status: 200 });
+      }
+
       console.error("Webhook: Payment processing failed.", result.error);
       await sendAdminNotification({
         subject: "MWC Admin - Pagamento de projeto exige revisao",

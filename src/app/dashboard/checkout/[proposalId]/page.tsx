@@ -23,7 +23,7 @@ export default async function CheckoutPage({
     where: { id: proposalId },
     include: {
       project: {
-        select: { title: true, ownerId: true },
+        select: { title: true, ownerId: true, status: true },
       },
       professional: {
         select: { name: true },
@@ -37,6 +37,13 @@ export default async function CheckoutPage({
 
   if (session.userType === "ADMIN" || proposal.project.ownerId !== userId) {
     notFound();
+  }
+
+  if (
+    proposal.status !== "PENDING" ||
+    !["OPEN", "WAITING_PAYMENT"].includes(proposal.project.status)
+  ) {
+    redirect("/dashboard/meus-projetos?proposalUnavailable=true");
   }
 
   const paymentMethods = await getPublicPaymentMethods();

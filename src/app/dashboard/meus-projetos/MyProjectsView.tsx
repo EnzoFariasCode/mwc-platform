@@ -38,11 +38,13 @@ import { toast } from "sonner";
 interface MyProjectsViewProps {
   initialProjects: any[];
   isSuccessPayment?: boolean; // <--- Nova propriedade
+  isProposalUnavailable?: boolean;
 }
 
 export default function MyProjectsView({
   initialProjects,
   isSuccessPayment,
+  isProposalUnavailable,
 }: MyProjectsViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -68,6 +70,13 @@ export default function MyProjectsView({
       window.history.replaceState(null, "", "/dashboard/meus-projetos");
     }
   }, [isSuccessPayment]);
+
+  useEffect(() => {
+    if (isProposalUnavailable) {
+      toast.error("Esta proposta foi cancelada e nao esta mais disponivel.");
+      window.history.replaceState(null, "", "/dashboard/meus-projetos");
+    }
+  }, [isProposalUnavailable]);
 
   useGSAP(
     () => {

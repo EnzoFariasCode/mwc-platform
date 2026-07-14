@@ -20,7 +20,12 @@ type FinalizeProjectPaymentInput = {
 
 type FinalizeProjectPaymentResult =
   | { success: true; alreadyProcessed?: boolean }
-  | { success: false; error: string; manualReviewRequired?: boolean };
+  | {
+      success: false;
+      error: string;
+      manualReviewRequired?: boolean;
+      refundRequired?: boolean;
+    };
 
 export async function finalizeProjectPayment({
   proposalId,
@@ -84,7 +89,11 @@ export async function finalizeProjectPayment({
     }
 
     if (checkoutHold.status !== ProjectCheckoutHoldStatus.PENDING) {
-      return { success: false, error: "Checkout nao esta pendente." };
+      return {
+        success: false,
+        error: "Checkout nao esta pendente.",
+        refundRequired: Boolean(stripePaymentIntentId),
+      };
     }
 
     if (checkoutHold.amount.comparedTo(proposal.price) !== 0) {
@@ -100,7 +109,11 @@ export async function finalizeProjectPayment({
     proposal.status !== ProposalStatus.PENDING &&
     proposal.status !== ProposalStatus.ACCEPTED
   ) {
-    return { success: false, error: "Proposta nao esta disponivel." };
+    return {
+      success: false,
+      error: "Proposta nao esta disponivel.",
+      refundRequired: Boolean(stripePaymentIntentId),
+    };
   }
 
   if (
@@ -160,6 +173,48 @@ export async function finalizeProjectPayment({
         } as FinalizeProjectPaymentResult;
       }
 
+      const claimedProposal = await tx.proposal.updateMany({
+        where: {
+          id: proposalId,
+          status: ProposalStatus.PENDING,
+          project: {
+            status: {
+              in: [ProjectStatus.OPEN, ProjectStatus.WAITING_PAYMENT],
+            },
+          },
+        },
+        data: { status: ProposalStatus.ACCEPTED },
+      });
+
+      if (claimedProposal.count !== 1) {
+        const freshProposal = await tx.proposal.findUnique({
+          where: { id: proposalId },
+          select: {
+            status: true,
+            project: { select: { status: true } },
+          },
+        });
+
+        if (
+          freshProposal?.status === ProposalStatus.ACCEPTED &&
+          (
+            [
+              ProjectStatus.IN_PROGRESS,
+              ProjectStatus.UNDER_REVIEW,
+              ProjectStatus.COMPLETED,
+            ] as ProjectStatus[]
+          ).includes(freshProposal.project.status)
+        ) {
+          return { success: true, alreadyProcessed: true };
+        }
+
+        return {
+          success: false,
+          error: "A proposta foi cancelada antes da confirmacao do pagamento.",
+          refundRequired: Boolean(stripePaymentIntentId),
+        } as FinalizeProjectPaymentResult;
+      }
+
       const updated = await tx.project.updateMany({
         where: {
           id: proposal.projectId,
@@ -202,11 +257,6 @@ export async function finalizeProjectPayment({
           error: "Estado invalido para confirmacao.",
         } as FinalizeProjectPaymentResult;
       }
-
-      await tx.proposal.update({
-        where: { id: proposalId },
-        data: { status: ProposalStatus.ACCEPTED },
-      });
 
       await tx.proposal.updateMany({
         where: {
