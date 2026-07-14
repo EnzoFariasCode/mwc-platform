@@ -14,6 +14,7 @@ type NotificationItem = {
   time: string;
   read: boolean;
   link: string;
+  createdAt: Date;
 };
 
 const typeMap = {
@@ -34,7 +35,7 @@ export async function getNotifications(): Promise<
 
   const persisted = await db.notification.findMany({
     where: { userId: session.id },
-    orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
+    orderBy: { createdAt: "desc" },
     take: 30,
     select: {
       id: true,
@@ -58,6 +59,7 @@ export async function getNotifications(): Promise<
       addSuffix: true,
       locale: ptBR,
     }),
+    createdAt: item.createdAt,
     read: Boolean(item.readAt),
     link:
       item.entityType === "CONVERSATION" && item.actorId
@@ -103,11 +105,17 @@ export async function getNotifications(): Promise<
           addSuffix: true,
           locale: ptBR,
         }),
+        createdAt: conv.lastMessageTime,
         read: false,
         link: `/dashboard/chat?newChat=${otherUserId}`,
       });
     });
   }
+
+  notifications.sort(
+    (first, second) =>
+      second.createdAt.getTime() - first.createdAt.getTime(),
+  );
 
   return { success: true, data: notifications };
 }
