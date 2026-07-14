@@ -25,6 +25,22 @@ export function canSendExternalContact({
   return !containsExternalContact(content) || hasPaidContext;
 }
 
+export function canExchangeTechMessages({
+  hasExistingConversation,
+  receiverIsPublicTechProfessional,
+  hasSharedContext,
+}: {
+  hasExistingConversation: boolean;
+  receiverIsPublicTechProfessional: boolean;
+  hasSharedContext: boolean;
+}) {
+  return (
+    hasExistingConversation ||
+    receiverIsPublicTechProfessional ||
+    hasSharedContext
+  );
+}
+
 export function isBroadcastDuplicateLimitReached({
   previousCount,
   limit,

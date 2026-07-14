@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { verifySession } from "@/lib/auth";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { db } from "@/lib/prisma";
+import { canExchangeTechMessages } from "@/modules/chat/lib/chat-safety";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { ActionResponse } from "@/modules/users/types/user-types";
 
@@ -92,7 +93,13 @@ export async function startConversation(
         receiver.userType === "PROFESSIONAL" && receiver.industry === "TECH";
       const hasSharedContext = await hasSharedTechContext(starterId, receiverId);
 
-      if (!receiverIsPublicTechProfessional && !hasSharedContext) {
+      if (
+        !canExchangeTechMessages({
+          hasExistingConversation: false,
+          receiverIsPublicTechProfessional,
+          hasSharedContext,
+        })
+      ) {
         return {
           success: false,
           error:

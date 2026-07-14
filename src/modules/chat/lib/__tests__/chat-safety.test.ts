@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CHAT_MAX_CONTENT_LENGTH,
+  canExchangeTechMessages,
   canSendExternalContact,
   containsExternalContact,
   isBroadcastDuplicateLimitReached,
@@ -47,6 +48,36 @@ describe("chat safety policy", () => {
       canSendExternalContact({
         content: "me chama no whatsapp",
         hasPaidContext: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("allows both participants to reply in an existing conversation", () => {
+    expect(
+      canExchangeTechMessages({
+        hasExistingConversation: true,
+        receiverIsPublicTechProfessional: false,
+        hasSharedContext: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("blocks cold messages to clients without shared context", () => {
+    expect(
+      canExchangeTechMessages({
+        hasExistingConversation: false,
+        receiverIsPublicTechProfessional: false,
+        hasSharedContext: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("allows starting a conversation with a public Tech professional", () => {
+    expect(
+      canExchangeTechMessages({
+        hasExistingConversation: false,
+        receiverIsPublicTechProfessional: true,
+        hasSharedContext: false,
       }),
     ).toBe(true);
   });

@@ -7,6 +7,7 @@ import { ActionResponse } from "@/modules/users/types/user-types";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import {
   CHAT_MAX_CONTENT_LENGTH,
+  canExchangeTechMessages,
   canSendExternalContact,
   containsExternalContact,
   isBroadcastDuplicateLimitReached,
@@ -201,16 +202,6 @@ export async function sendMessage(
 
     const receiverIsPublicTechProfessional =
       receiver.userType === "PROFESSIONAL" && receiver.industry === "TECH";
-    const hasSharedContext = await hasSharedTechContext(senderId, receiverId);
-
-    if (!receiverIsPublicTechProfessional && !hasSharedContext) {
-      return {
-        success: false,
-        error:
-          "Conversa permitida apenas com profissional Tech ou usuarios com projeto/proposta em comum.",
-      };
-    }
-
     let conversation = await db.conversation.findFirst({
       where: {
         OR: [
@@ -219,6 +210,24 @@ export async function sendMessage(
         ],
       },
     });
+    const hasSharedContext =
+      conversation || receiverIsPublicTechProfessional
+        ? false
+        : await hasSharedTechContext(senderId, receiverId);
+
+    if (
+      !canExchangeTechMessages({
+        hasExistingConversation: Boolean(conversation),
+        receiverIsPublicTechProfessional,
+        hasSharedContext,
+      })
+    ) {
+      return {
+        success: false,
+        error:
+          "Conversa permitida apenas com profissional Tech ou usuarios com projeto/proposta em comum.",
+      };
+    }
 
     if (!conversation) {
       const newConversationLimitError = await consumeRateLimit({

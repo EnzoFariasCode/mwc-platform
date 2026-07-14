@@ -353,7 +353,11 @@ function ChatPageInner() {
       }
     } catch (error) {
       console.error("Falha no envio:", error);
-      toast.error("Nao foi possivel enviar a mensagem.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel enviar a mensagem.",
+      );
       // Desfaz a mensagem otimista se der erro
       setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
       setInputText(text);
