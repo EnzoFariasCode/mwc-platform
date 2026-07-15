@@ -109,9 +109,9 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in">
-          <div className="bg-card border border-border w-full max-w-md rounded-2xl shadow-2xl overflow-hidden relative">
-            <div className="p-6 border-b border-border flex justify-between items-center bg-white/5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/90 p-2 backdrop-blur-sm animate-fade-in sm:p-4">
+          <div className="relative flex max-h-[calc(100dvh-1rem)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-border bg-white/5 p-4 sm:p-6">
               <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
                 <ArrowUpRight className="w-5 h-5 text-primary" />
                 Solicitar Saque Pix
@@ -126,7 +126,10 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form
+              onSubmit={handleSubmit}
+              className="custom-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-4 sm:space-y-6 sm:p-6"
+            >
               <div className="text-center space-y-2">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                   Saldo disponivel
@@ -204,12 +207,10 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
                 <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <h4 className="text-xs font-bold text-yellow-500">
-                    Processamento manual
+                    Prazo para saque
                   </h4>
                   <p className="text-[11px] text-yellow-500/80 leading-relaxed">
-                    O valor sera reservado imediatamente. O pagamento do cliente
-                    foi processado por cartao na Stripe; este saque sera pago
-                    manualmente na chave informada em ate 12 dias.
+                    O valor será disponibilizado em até 12 dias úteis.
                   </p>
                 </div>
               </div>
@@ -253,9 +254,9 @@ export function WithdrawButton({ balance, userCpf }: WithdrawButtonProps) {
                     className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
                   />
                   <span>
-                    Confirmo o valor, a chave Pix e estou ciente de que o
-                    pagamento sera processado manualmente em ate 12 dias, com
-                    data estimada ate {estimatedDueAt.toLocaleDateString("pt-BR")}.
+                    Confirmo o valor, a chave Pix e o prazo de até 12 dias úteis.
+                    Data estimada: até{" "}
+                    {estimatedDueAt.toLocaleDateString("pt-BR")}.
                   </span>
                 </label>
               </div>

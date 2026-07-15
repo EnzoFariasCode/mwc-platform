@@ -95,7 +95,7 @@ export async function requestWithdrawal(
   if (!deadlineAccepted) {
     return {
       success: false,
-      error: "Confirme que esta ciente do prazo de pagamento de ate 12 dias.",
+      error: "Confirme que esta ciente do prazo de ate 12 dias uteis.",
     };
   }
 
