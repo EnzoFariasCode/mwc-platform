@@ -34,11 +34,15 @@ export function DashboardModalsController({
 }: Props) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
-  const isTeacher = professional.onlineSpecialty === "TEACHER";
   const scheduleBlocked =
     missingProfessionalIdentity ||
     !verificationApproved ||
     !specialtyOperational;
+  const bookingBlockingItems = profileCompletion.missingItems.filter((item) =>
+    ["category", "identity", "fee", "session", "schedule"].includes(
+      item.key,
+    ),
+  );
 
   useEffect(() => {
     const openScheduleModal = () => {
@@ -85,31 +89,34 @@ export function DashboardModalsController({
         </div>
       )}
 
-      {missingProfessionalIdentity && (
+      {bookingBlockingItems.length > 0 && (
         <div className="mb-8 flex flex-col items-start gap-4 rounded-xl border border-red-500/30 bg-red-500/10 p-6 shadow-[0_0_30px_rgba(239,68,68,0.1)] sm:flex-row sm:items-center">
           <div className="rounded-full bg-red-500/20 p-3 text-red-500">
             <AlertTriangle className="h-6 w-6" />
           </div>
           <div className="flex-1">
             <h3 className="text-lg font-bold uppercase tracking-wide text-red-400">
-              Seu perfil esta incompleto
+              Perfil indisponivel para novos atendimentos
             </h3>
             <p className="mt-1 text-sm text-red-300/80">
-              {isTeacher
-                ? "Informe sua materia ou area de ensino para aparecer aos alunos."
-                : "Informe seu registro profissional para aparecer aos clientes."}
+              Complete os itens abaixo para aparecer na busca e receber
+              agendamentos:
             </p>
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {bookingBlockingItems.map((item) => (
+                <li
+                  key={item.key}
+                  className="rounded-md border border-red-400/20 bg-red-950/30 px-2.5 py-1 text-xs font-semibold text-red-200"
+                >
+                  {item.label}
+                </li>
+              ))}
+            </ul>
           </div>
-          <button
-            onClick={() => setIsProfileOpen(true)}
-            className="cursor-pointer whitespace-nowrap rounded-lg bg-red-500 px-6 py-3 text-sm font-bold text-white shadow-lg transition-all hover:bg-red-600 active:scale-95"
-          >
-            Completar Perfil Agora
-          </button>
         </div>
       )}
 
-      <div className="mt-4 grid items-stretch gap-3 lg:grid-cols-[auto_minmax(0,1fr)]">
+      <div className="mt-4 grid items-stretch gap-3 md:grid-cols-2 lg:grid-cols-[auto_auto_minmax(0,1fr)]">
         <button
           onClick={() => setIsScheduleOpen(true)}
           disabled={scheduleBlocked}
@@ -122,7 +129,15 @@ export function DashboardModalsController({
           <Settings2 className="h-5 w-5" /> Configurar Horarios
         </button>
 
-        <section className="rounded-lg border border-white/10 bg-[#0f172a]/80 p-4">
+        <button
+          type="button"
+          onClick={() => setIsProfileOpen(true)}
+          className="flex min-h-24 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#d73cbe]/25 bg-[#d73cbe]/10 px-8 py-3.5 text-sm font-bold text-[#d73cbe] transition-all hover:border-[#d73cbe]/45 hover:bg-[#d73cbe]/15 active:scale-95 lg:w-56"
+        >
+          <UserRound className="h-5 w-5" /> Editar perfil profissional
+        </button>
+
+        <section className="rounded-lg border border-white/10 bg-[#0f172a]/80 p-4 md:col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between gap-4 text-xs">
             <span className="font-semibold text-slate-300">
               Progresso do perfil
@@ -170,14 +185,6 @@ export function DashboardModalsController({
 
             {profileCompletion.percent < 100 ? (
               <div className="flex flex-wrap gap-2">
-                {!profileCompletion.sections.professional && (
-                  <button
-                    onClick={() => setIsProfileOpen(true)}
-                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 transition-colors hover:border-[#d73cbe]/40 hover:text-white"
-                  >
-                    <UserRound className="h-3.5 w-3.5" /> Perfil
-                  </button>
-                )}
                 {!profileCompletion.sections.schedule &&
                   !scheduleBlocked && (
                     <button

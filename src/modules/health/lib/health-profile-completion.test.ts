@@ -23,7 +23,7 @@ const completeProfile = {
   city: "Sao Paulo",
   state: "SP",
   availabilities: [
-    { isActive: true, startTime: "09:00", endTime: "18:00" },
+    { dayOfWeek: 1, isActive: true, startTime: "09:00", endTime: "18:00" },
   ],
 };
 

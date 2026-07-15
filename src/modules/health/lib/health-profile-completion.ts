@@ -1,4 +1,8 @@
-import { hasValidHealthProfessionalIdentity } from "./health-professional-eligibility";
+import {
+  hasValidBookableAvailability,
+  hasValidHealthProfessionalIdentity,
+} from "./health-professional-eligibility";
+import { isValidTimeZone } from "./appointment-completion-time";
 import { isProfessionalVerificationApproved } from "./professional-verification-policy";
 
 export type HealthProfileCompletionSection =
@@ -21,6 +25,7 @@ type HealthProfileCompletionInput = {
   teachingSubject: string | null | undefined;
   documentReg: string | null | undefined;
   professionalVerification?: {
+    specialty?: string | null;
     status?: string | null;
     expiresAt?: Date | string | null;
   } | null;
@@ -38,6 +43,7 @@ type HealthProfileCompletionInput = {
   city?: string | null;
   state?: string | null;
   availabilities?: Array<{
+    dayOfWeek: number;
     isActive: boolean;
     startTime: string;
     endTime: string;
@@ -48,14 +54,18 @@ function hasText(value: string | null | undefined) {
   return Boolean(value?.trim());
 }
 
-function hasPositiveMoney(value: unknown) {
+function hasMinimumAppointmentFee(value: unknown) {
   const amount = Number(value);
-  return Number.isFinite(amount) && amount > 0;
+  return Number.isFinite(amount) && amount >= 1;
 }
 
 export function getHealthProfileCompletion(
   profile: HealthProfileCompletionInput,
 ) {
+  const verificationSpecialty = profile.professionalVerification?.specialty;
+  const categoryMatchesVerification =
+    !verificationSpecialty || verificationSpecialty === profile.onlineSpecialty;
+
   const items: HealthProfileCompletionItem[] = [
     {
       key: "displayName",
@@ -73,7 +83,10 @@ export function getHealthProfileCompletion(
       key: "category",
       label: "Categoria profissional",
       section: "professional",
-      done: Boolean(profile.onlineSpecialty) && hasText(profile.jobTitle),
+      done:
+        Boolean(profile.onlineSpecialty) &&
+        hasText(profile.jobTitle) &&
+        categoryMatchesVerification,
     },
     {
       key: "identity",
@@ -103,27 +116,22 @@ export function getHealthProfileCompletion(
       key: "fee",
       label: "Valor do atendimento",
       section: "professional",
-      done: hasPositiveMoney(profile.consultationFee),
+      done: hasMinimumAppointmentFee(profile.consultationFee),
     },
     {
       key: "session",
       label: "Duracao e fuso horario",
       section: "professional",
       done:
-        Boolean(profile.sessionDuration && profile.sessionDuration > 0) &&
-        hasText(profile.timezone),
+        Number.isInteger(profile.sessionDuration) &&
+        Number(profile.sessionDuration) > 0 &&
+        Boolean(profile.timezone && isValidTimeZone(profile.timezone)),
     },
     {
       key: "schedule",
       label: "Agenda de atendimento",
       section: "schedule",
-      done: Boolean(
-        profile.availabilities?.some(
-          (availability) =>
-            availability.isActive &&
-            availability.startTime < availability.endTime,
-        ),
-      ),
+      done: hasValidBookableAvailability(profile.availabilities),
     },
     {
       key: "photo",

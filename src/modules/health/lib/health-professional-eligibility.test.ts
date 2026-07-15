@@ -73,7 +73,7 @@ describe("prontidao para agendamento do MWC Online", () => {
 
   it.each([
     ["titulo", { jobTitle: " " }],
-    ["preco", { consultationFee: 0 }],
+    ["preco", { consultationFee: 0.99 }],
     ["duracao", { sessionDuration: 0 }],
     ["timezone", { timezone: "Fuso/Invalido" }],
     ["agenda", { availabilities: [] }],

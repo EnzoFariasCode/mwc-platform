@@ -220,6 +220,7 @@ export function EditProProfileModal({
                     name="consultationFee" // Adicionado
                     type="number"
                     step="0.01" // Permite centavos
+                    min="1"
                     defaultValue={initialFee}
                     className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                   />

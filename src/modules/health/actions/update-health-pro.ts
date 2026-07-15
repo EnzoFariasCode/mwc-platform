@@ -31,7 +31,7 @@ const updateHealthProSchema = z.object({
     .default(50),
   consultationFee: z
     .number()
-    .positive("O valor da consulta deve ser maior que zero")
+    .min(1, "O valor do atendimento deve ser de no minimo R$ 1,00")
     .finite("Valor invalido")
     .optional()
     .nullable(),

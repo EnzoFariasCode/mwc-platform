@@ -64,12 +64,14 @@ export function getEligibleHealthProfessionalWhere(
         onlineSpecialty: "TEACHER",
         teachingSubject: { not: null },
         NOT: { teachingSubject: "" },
+        professionalVerification: { is: { specialty: "TEACHER" } },
       },
-      {
-        onlineSpecialty: { in: [...REGULATED_ONLINE_SPECIALTIES] },
+      ...REGULATED_ONLINE_SPECIALTIES.map((specialty) => ({
+        onlineSpecialty: specialty,
         documentReg: { not: null },
         NOT: { documentReg: "" },
-      },
+        professionalVerification: { is: { specialty } },
+      })),
     ],
   };
 }
@@ -81,7 +83,7 @@ export function getBookableHealthProfessionalWhere(
   return {
     ...getEligibleHealthProfessionalWhere(now),
     jobTitle: { not: null },
-    consultationFee: { gt: 0 },
+    consultationFee: { gte: 1 },
     sessionDuration: { gt: 0 },
     timezone: { not: "" },
     availabilities: {
@@ -122,8 +124,8 @@ export function getHealthProfessionalBookingReadinessError(
   }
 
   const fee = Number(professional.consultationFee);
-  if (!Number.isFinite(fee) || fee <= 0) {
-    return "Informe um valor de atendimento maior que zero.";
+  if (!Number.isFinite(fee) || fee < 1) {
+    return "Informe um valor de atendimento de no minimo R$ 1,00.";
   }
 
   if (
