@@ -77,7 +77,7 @@ export default async function ProntuarioPage({ params }: Props) {
               <div className="mb-1 flex items-center gap-3">
                 <FileText className="h-5 w-5 text-[#d73cbe]" />
                 <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                  Prontuario
+                  Registro de atendimento
                 </span>
                 <span className="inline-flex items-center rounded-full border border-[#d73cbe]/20 bg-[#d73cbe]/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#d73cbe]">
                   {label}

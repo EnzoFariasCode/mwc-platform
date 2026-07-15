@@ -46,7 +46,7 @@ export function ProfessionalAppointmentActionButtons({
       toast.success(
         result.processing
           ? "Cancelamento em processamento. As etapas pendentes serao repetidas automaticamente."
-          : "Consulta cancelada e reembolso solicitado.",
+          : "Atendimento cancelado e reembolso solicitado.",
       );
       router.refresh();
     });
@@ -62,7 +62,7 @@ export function ProfessionalAppointmentActionButtons({
       }
 
       setModalType(null);
-      toast.success("Ausencia do paciente registrada.");
+      toast.success("Ausencia do cliente registrada.");
       router.refresh();
     });
   };
@@ -84,7 +84,7 @@ export function ProfessionalAppointmentActionButtons({
       toast.success(
         result.processing
           ? "Reagendamento em processamento. As etapas pendentes serao repetidas automaticamente."
-          : "Consulta reagendada com sucesso. O paciente foi notificado.",
+          : "Atendimento reagendado com sucesso. O cliente foi notificado.",
       );
       router.refresh();
     });
@@ -118,20 +118,20 @@ export function ProfessionalAppointmentActionButtons({
         disabled={isPending || !canMarkNoShow}
         title={
           canMarkNoShow
-            ? "Marcar paciente como ausente"
-            : "Disponivel somente apos o termino previsto da consulta."
+            ? "Marcar cliente como ausente"
+            : "Disponivel somente apos o termino previsto do atendimento."
         }
         className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-xs font-bold text-yellow-300 transition-all hover:bg-yellow-500/20 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <AlertTriangle className="h-4 w-4" />
-        Paciente ausente
+        Cliente ausente
       </button>
 
       <AppointmentReasonModal
         isOpen={modalType === "cancel"}
-        title="Cancelar consulta"
+        title="Cancelar atendimento"
         description="Informe o motivo do cancelamento profissional."
-        summary="O paciente recebera reembolso integral pelo Stripe e o valor pendente sera removido dos seus lancamentos futuros."
+        summary="O cliente recebera reembolso integral e o valor pendente sera removido dos seus lancamentos futuros."
         confirmLabel="Confirmar cancelamento"
         isLoading={isPending}
         options={[
@@ -146,14 +146,14 @@ export function ProfessionalAppointmentActionButtons({
 
       <AppointmentReasonModal
         isOpen={modalType === "no-show"}
-        title="Paciente ausente"
+        title="Cliente ausente"
         description="Registre a evidencia ou contexto da ausencia."
-        summary="O agendamento sera marcado como paciente ausente e o valor pendente sera liberado para sua carteira."
+        summary="O agendamento sera marcado como cliente ausente e o valor pendente sera liberado para sua carteira."
         confirmLabel="Confirmar ausencia"
         isLoading={isPending}
         options={[
-          { value: "nao_entrou", label: "Paciente nao entrou na sala" },
-          { value: "sem_resposta", label: "Paciente nao respondeu contato" },
+          { value: "nao_entrou", label: "Cliente nao entrou na sala" },
+          { value: "sem_resposta", label: "Cliente nao respondeu ao contato" },
           { value: "atraso", label: "Atraso excedeu a tolerancia" },
           { value: "outro", label: "Outro motivo" },
         ]}

@@ -16,7 +16,7 @@ export function CompleteAppointmentButton({
 
   const handleComplete = () => {
     const confirmed = window.confirm(
-      "Confirmar que esta consulta foi realizada? O valor pendente sera liberado para saque.",
+      "Confirmar que este atendimento foi realizado? O valor pendente sera liberado para saque.",
     );
 
     if (!confirmed) return;
@@ -29,7 +29,7 @@ export function CompleteAppointmentButton({
         return;
       }
 
-      toast.success("Consulta marcada como concluida.");
+      toast.success("Atendimento marcado como concluido.");
     });
   };
 
@@ -40,8 +40,8 @@ export function CompleteAppointmentButton({
       disabled={disabled || isPending}
       title={
         disabled
-          ? "Disponivel somente apos o termino previsto da consulta."
-          : "Marcar consulta como concluida"
+          ? "Disponivel somente apos o termino previsto do atendimento."
+          : "Marcar atendimento como concluido"
       }
       className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
     >

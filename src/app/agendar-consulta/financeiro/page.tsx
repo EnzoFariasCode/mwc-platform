@@ -127,7 +127,7 @@ export default async function HealthFinanceiroPage() {
               Financeiro
             </h1>
             <p className="text-slate-400 text-sm mt-1">
-              Acompanhe consultas pagas, lancamentos futuros, saldo disponivel
+              Acompanhe atendimentos pagos, lancamentos futuros, saldo disponivel
               e solicitacoes de saque.
             </p>
           </div>
@@ -229,7 +229,7 @@ export default async function HealthFinanceiroPage() {
           </div>
           <div className="rounded-2xl border border-white/10 bg-[#0f172a]/70 p-5">
             <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">
-              Bruto em consultas
+              Bruto em atendimentos
             </p>
             <p className="text-2xl font-bold text-white mt-2">
               {formatCurrency(grossHealthRevenue)}
@@ -278,7 +278,7 @@ export default async function HealthFinanceiroPage() {
                   Nenhuma movimentacao ainda
                 </h3>
                 <p className="text-slate-400 max-w-sm mt-2">
-                  Quando um paciente pagar uma consulta, o valor liquido entrara
+                  Quando um cliente pagar um atendimento, o valor liquido entrara
                   como lancamento futuro ate a conclusao do atendimento.
                 </p>
               </div>

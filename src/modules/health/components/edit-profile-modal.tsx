@@ -12,14 +12,14 @@ import {
   Search,
 } from "lucide-react";
 import {
-  updatePatientProfile,
-  type PatientProfileData,
-} from "@/modules/users/actions/update-patient-profile";
+  updateAccountProfile,
+  type AccountProfileData,
+} from "@/modules/users/actions/update-account-profile";
 
 type EditProfileModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  initialData?: PatientProfileData | null;
+  initialData?: AccountProfileData | null;
   onSaved?: () => void;
 };
 
@@ -118,7 +118,7 @@ export function EditProfileModal({
     setIsSaving(true);
     setError(null);
 
-    const result = await updatePatientProfile(
+    const result = await updateAccountProfile(
       new FormData(event.currentTarget),
     );
 
@@ -406,14 +406,15 @@ export function EditProfileModal({
                   <input
                     type="checkbox"
                     name="whatsappConsent"
-                    defaultChecked
+                    defaultChecked={initialData?.whatsappConsent ?? false}
                     className="peer sr-only"
                   />
                   <div className="w-5 h-5 border-2 border-white/20 rounded md peer-checked:bg-[#d73cbe] peer-checked:border-[#d73cbe] transition-all" />
                   <Check className="absolute top-0.5 left-0.5 w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-all" />
                 </div>
                 <span className="text-sm text-slate-300">
-                  Li e concordo com os{" "}
+                  Autorizo a MWC a enviar notificacoes de atendimento para o
+                  numero informado e concordo com os{" "}
                   <span className="text-[#d73cbe] underline">
                     Termos de uso
                   </span>{" "}

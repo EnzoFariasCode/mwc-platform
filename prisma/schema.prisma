@@ -280,6 +280,7 @@ model User {
   paymentTermsAcceptances      PaymentTermsAcceptance[]
   professionalTermsAcceptances ProfessionalTermsAcceptance[]
   termsAcceptances             TermsAcceptance[]
+  whatsappConsentEvents        WhatsappConsentEvent[]
   withdrawalRequests           WithdrawalRequest[]
   clientRecordsAsPro           ClientRecord[]                @relation("ProfessionalRecords")
   clientRecordsAsPat           ClientRecord[]                @relation("PatientRecords")
@@ -1140,6 +1141,21 @@ model TermsAcceptance {
 
   @@index([userId])
   @@index([industry, sectorTermsVersion])
+}
+
+model WhatsappConsentEvent {
+  id             String   @id @default(cuid())
+  userId         String
+  granted        Boolean
+  phone          String?
+  consentVersion String
+  ipAddress      String
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 enum StripeEventStatus {

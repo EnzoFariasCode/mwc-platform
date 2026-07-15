@@ -5,9 +5,9 @@ import { useSession } from "next-auth/react";
 import { EditProfileModal } from "@/modules/health/components/edit-profile-modal";
 import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
 import {
-  getCurrentPatientProfile,
-  type PatientProfileData,
-} from "@/modules/users/actions/update-patient-profile";
+  getCurrentAccountProfile,
+  type AccountProfileData,
+} from "@/modules/users/actions/update-account-profile";
 import { Camera, Edit3, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,7 +22,7 @@ function formatPhoneNumber(value?: string | null) {
 export default function MeuPerfilPage() {
   const { data: session } = useSession();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [profile, setProfile] = useState<PatientProfileData | null>(null);
+  const [profile, setProfile] = useState<AccountProfileData | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -34,16 +34,16 @@ export default function MeuPerfilPage() {
       ? "Profissional MWC Online"
       : session?.user?.userType === "ADMIN"
         ? "Administrador"
-        : "Paciente ativo";
+        : "Cliente ativo";
 
   const imageUrl =
     previewImage || (userId ? `/api/images/user/${userId}` : null);
 
   // Carrega os dados reais do banco
   const loadProfile = async () => {
-    const result = await getCurrentPatientProfile();
+    const result = await getCurrentAccountProfile();
     if (result.data) {
-      setProfile(result.data as PatientProfileData);
+      setProfile(result.data as AccountProfileData);
     }
   };
 
@@ -171,15 +171,33 @@ export default function MeuPerfilPage() {
                 </span>
               </div>
 
-              <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-6">
-                <div className="flex items-center gap-3 text-emerald-500 mb-3">
+              <div
+                className={`rounded-2xl border p-6 ${
+                  profile?.whatsappConsent
+                    ? "border-emerald-500/10 bg-emerald-500/5"
+                    : "border-amber-500/10 bg-amber-500/5"
+                }`}
+              >
+                <div
+                  className={`mb-3 flex items-center gap-3 ${
+                    profile?.whatsappConsent
+                      ? "text-emerald-500"
+                      : "text-amber-400"
+                  }`}
+                >
                   <MessageSquare className="w-5 h-5" />
-                  <h4 className="font-bold text-sm">WhatsApp Ativo</h4>
+                  <h4 className="font-bold text-sm">
+                    {profile?.whatsappConsent
+                      ? "WhatsApp autorizado"
+                      : "WhatsApp nao autorizado"}
+                  </h4>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  {phoneDisplay
+                  {profile?.whatsappConsent && phoneDisplay
                     ? `Notifica\u00e7\u00f5es autorizadas para o n\u00famero: ${phoneDisplay}`
-                    : "Voc\u00ea ainda n\u00e3o cadastrou um n\u00famero para notifica\u00e7\u00f5es."}
+                    : phoneDisplay
+                      ? "O numero esta cadastrado, mas o envio de notificacoes nao foi autorizado."
+                      : "Voce ainda nao cadastrou um numero para notificacoes."}
                 </p>
               </div>
             </div>

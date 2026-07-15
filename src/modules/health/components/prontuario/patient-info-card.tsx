@@ -63,7 +63,7 @@ export function PatientInfoCard({ record }: Props) {
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-            Dados do Paciente
+            Dados do Cliente
           </p>
           <p className="text-sm font-bold text-white">{record.patientName}</p>
         </div>
@@ -90,7 +90,7 @@ export function PatientInfoCard({ record }: Props) {
           Aviso de privacidade
         </p>
         <p className="text-xs leading-relaxed text-slate-500">
-          Este prontuario e privado e visivel apenas para voce. O paciente nao
+          Este registro e privado e visivel apenas para voce. O cliente nao
           tem acesso a nenhuma informacao registrada aqui.
         </p>
       </div>

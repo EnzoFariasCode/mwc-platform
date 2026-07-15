@@ -49,15 +49,15 @@ export default async function ProntuariosPage() {
                 </span>
               </div>
               <h1 className="text-2xl font-bold uppercase tracking-tight text-white">
-                Prontuarios
+                Registros de atendimento
               </h1>
             </div>
           </div>
           <p className="text-sm text-slate-500">
             {records.length}{" "}
             {records.length === 1
-              ? "paciente registrado"
-              : "pacientes registrados"}
+              ? "cliente registrado"
+              : "clientes registrados"}
           </p>
         </div>
 
@@ -67,11 +67,11 @@ export default async function ProntuariosPage() {
               <BookOpen className="h-8 w-8 text-slate-600" />
             </div>
             <p className="font-medium text-slate-400">
-              Nenhum prontuario registrado ainda.
+              Nenhum registro de atendimento ainda.
             </p>
             <p className="mt-2 max-w-sm text-sm text-slate-600">
-              Os prontuarios sao criados automaticamente quando voce acessa o
-              botao Prontuario dentro de uma consulta agendada.
+              Os registros sao criados automaticamente quando voce acessa o
+              botao Registro dentro de um atendimento agendado.
             </p>
           </div>
         )}

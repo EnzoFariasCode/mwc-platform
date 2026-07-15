@@ -118,7 +118,7 @@ export function ClientRecordsList({ records }: Props) {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               className="w-full rounded-xl border border-white/10 bg-[#020617] py-3 pl-11 pr-4 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
-              placeholder="Pesquisar prontuario por nome, email, cidade ou especialidade..."
+              placeholder="Pesquisar registro por nome, email, cidade ou especialidade..."
             />
           </div>
 
@@ -167,12 +167,12 @@ export function ClientRecordsList({ records }: Props) {
 
       {visibleRecords.length === 0 ? (
         <div className="rounded-xl border border-dashed border-white/10 px-6 py-16 text-center text-sm text-slate-500">
-          Nenhum prontuario encontrado com os filtros atuais.
+          Nenhum registro encontrado com os filtros atuais.
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-white/10 bg-[#0f172a]/80">
           <div className="hidden grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr_120px] gap-4 border-b border-white/10 px-5 py-3 text-xs font-bold uppercase tracking-widest text-slate-500 md:grid">
-            <span>Paciente</span>
+            <span>Cliente</span>
             <span>Especialidade</span>
             <span>Registro</span>
             <span>Ultima atividade</span>

@@ -27,7 +27,7 @@ export function CancelAppointmentButton({
       toast.success(
         result.processing
           ? "Cancelamento em processamento. Voce sera notificado ao concluir."
-          : "Consulta cancelada com sucesso.",
+          : "Atendimento cancelado com sucesso.",
       );
     });
   };
@@ -46,7 +46,7 @@ export function CancelAppointmentButton({
 
       <AppointmentReasonModal
         isOpen={isModalOpen}
-        title="Cancelar consulta"
+        title="Cancelar atendimento"
         description="Informe o motivo do cancelamento antes de continuar."
         summary="Cancelamentos com mais de 24h geram reembolso integral. Com menos de 24h, nao ha reembolso e o valor e liberado ao profissional."
         confirmLabel="Confirmar cancelamento"

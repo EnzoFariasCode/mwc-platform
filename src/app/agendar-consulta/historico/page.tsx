@@ -106,7 +106,7 @@ export default async function HistoricoConsultasPage() {
       <div className="container mx-auto max-w-4xl px-4">
         <div className="mb-10">
           <h1 className="text-3xl font-futura font-bold uppercase tracking-tight">
-            Minhas <span className="text-[#d73cbe]">Consultas</span>
+            Meus <span className="text-[#d73cbe]">Atendimentos</span>
           </h1>
           <p className="text-slate-400 font-light">
             Gerencie seus horários e acesse suas salas de atendimento.

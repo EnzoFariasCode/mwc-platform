@@ -74,8 +74,8 @@ export function EditProProfileModal({
               Editar Perfil Profissional
             </h2>
             <p className="text-sm text-slate-400">
-              Essas informações aparecerão na sua vitrine pública para os
-              pacientes.
+                Essas informações aparecerão no seu perfil público para os
+                clientes.
             </p>
           </div>
           <button
@@ -185,9 +185,7 @@ export function EditProProfileModal({
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  {isTeacher
-                    ? "Metodologia de ensino"
-                    : "Abordagem / Especialidade principal"}
+                  Forma de atuacao
                 </label>
                 <input
                   name="approach" // Adicionado
@@ -196,7 +194,7 @@ export function EditProProfileModal({
                   placeholder={
                     isTeacher
                       ? "Ex: aulas praticas, reforco e resolucao de exercicios"
-                      : "Ex: Terapia Cognitivo-Comportamental"
+                      : "Descreva sua especialidade e forma de trabalho"
                   }
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
@@ -212,7 +210,7 @@ export function EditProProfileModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  Valor da Sessão (R$)
+                  Valor do atendimento (R$)
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-3 text-slate-500 text-sm">
@@ -274,7 +272,7 @@ export function EditProProfileModal({
                 name="bio" // Adicionado
                 rows={6}
                 defaultValue={initialData?.bio || ""}
-                placeholder="Conte sobre sua formação, experiência e como você ajuda seus pacientes..."
+                placeholder="Conte sobre sua formação, experiência e como você ajuda seus clientes..."
                 className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all resize-none custom-scrollbar"
               />
             </div>

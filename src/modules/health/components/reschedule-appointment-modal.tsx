@@ -55,7 +55,7 @@ export function RescheduleAppointmentModal({
           <div className="flex items-center gap-3">
             <CalendarClock className="w-5 h-5 text-[#d73cbe]" />
             <h2 className="text-lg font-bold text-white">
-              Reagendar consulta
+              Reagendar atendimento
             </h2>
           </div>
           <button
@@ -81,7 +81,7 @@ export function RescheduleAppointmentModal({
             <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
             <p className="text-xs text-yellow-300 leading-relaxed">
               O reagendamento so e permitido com pelo menos 24 horas de
-              antecedencia. O pagamento original permanece valido. O paciente
+              antecedencia. O pagamento original permanece valido. O cliente
               sera notificado por e-mail.
             </p>
           </div>

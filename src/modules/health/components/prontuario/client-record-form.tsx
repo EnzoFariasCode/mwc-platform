@@ -366,7 +366,7 @@ export function ClientRecordForm({ record }: Props) {
         return;
       }
 
-      toast.success("Prontuario salvo com sucesso.");
+      toast.success("Registro salvo com sucesso.");
     });
   };
 
@@ -418,7 +418,7 @@ export function ClientRecordForm({ record }: Props) {
           onChange={(event) => setGeneralNotes(event.target.value)}
           rows={4}
           className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
-          placeholder="Anotacoes gerais sobre o paciente..."
+          placeholder="Anotacoes gerais sobre o cliente..."
         />
       </div>
 
@@ -823,7 +823,7 @@ export function ClientRecordForm({ record }: Props) {
                 onChange={(event) => setFoodAversions(event.target.value)}
                 rows={3}
                 className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
-                placeholder="O que o paciente nao come de jeito nenhum..."
+                placeholder="O que o cliente nao come de jeito nenhum..."
               />
             </div>
           </div>

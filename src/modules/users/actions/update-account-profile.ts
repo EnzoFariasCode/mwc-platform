@@ -3,9 +3,11 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 
-// Tipagem atualizada para o Esquadrao
-export type PatientProfileData = {
+const WHATSAPP_CONSENT_VERSION = "whatsapp-v1.0";
+
+export type AccountProfileData = {
   id: string;
   name: string;
   displayName: string | null;
@@ -20,6 +22,7 @@ export type PatientProfileData = {
   neighborhood: string | null;
   city: string | null;
   state: string | null;
+  whatsappConsent: boolean;
 };
 
 function formatPhoneNumber(value?: string | null) {
@@ -31,7 +34,7 @@ function formatPhoneNumber(value?: string | null) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
-export async function getCurrentPatientProfile() {
+export async function getCurrentAccountProfile() {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -55,6 +58,11 @@ export async function getCurrentPatientProfile() {
       neighborhood: true,
       city: true,
       state: true,
+      whatsappConsentEvents: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { granted: true },
+      },
     },
   });
 
@@ -62,9 +70,12 @@ export async function getCurrentPatientProfile() {
     return { error: "Usu\u00e1rio n\u00e3o encontrado." };
   }
 
+  const { whatsappConsentEvents, ...profile } = user;
+
   return {
     data: {
-      ...user,
+      ...profile,
+      whatsappConsent: whatsappConsentEvents[0]?.granted ?? false,
       birthDate: user.birthDate
         ? user.birthDate.toISOString().slice(0, 10)
         : null,
@@ -72,7 +83,7 @@ export async function getCurrentPatientProfile() {
   };
 }
 
-export async function updatePatientProfile(formData: FormData) {
+export async function updateAccountProfile(formData: FormData) {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -84,6 +95,7 @@ export async function updatePatientProfile(formData: FormData) {
   const birthDate = formData.get("birthDate")?.toString();
   const gender = formData.get("gender")?.toString();
   const phone = formatPhoneNumber(formData.get("phone")?.toString());
+  const whatsappConsent = formData.get("whatsappConsent") === "on";
   const cep = formData.get("cep")?.toString().trim();
   const address = formData.get("address")?.toString().trim();
   const addressNumber = formData.get("addressNumber")?.toString().trim();
@@ -103,23 +115,71 @@ export async function updatePatientProfile(formData: FormData) {
     };
   }
 
+  if (whatsappConsent && !phone) {
+    return {
+      error: "Informe um telefone para autorizar notificacoes pelo WhatsApp.",
+    };
+  }
+
   try {
-    // 2. [PRISMA] Persistindo todos os campos no banco
-    await db.user.update({
-      where: { id: session.user.id },
-      data: {
-        name,
-        birthDate: birthDate ? new Date(birthDate) : null,
-        gender: gender || null,
-        phone: phone || null,
-        cep: cep || null,
-        address: address || null,
-        addressNumber: addressNumber || null,
-        complement: complement || null,
-        neighborhood: neighborhood || null,
-        city: city || null,
-        state: state || null,
-      },
+    const headersList = await headers();
+    const ipAddress =
+      headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      headersList.get("x-real-ip") ||
+      "unknown";
+    const userAgent = headersList.get("user-agent") || null;
+
+    await db.$transaction(async (tx) => {
+      const current = await tx.user.findUnique({
+        where: { id: session.user.id },
+        select: {
+          phone: true,
+          whatsappConsentEvents: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { granted: true, phone: true },
+          },
+        },
+      });
+
+      if (!current) {
+        throw new Error("Usuario nao encontrado.");
+      }
+
+      await tx.user.update({
+        where: { id: session.user.id },
+        data: {
+          name,
+          birthDate: birthDate ? new Date(birthDate) : null,
+          gender: gender || null,
+          phone: phone || null,
+          cep: cep || null,
+          address: address || null,
+          addressNumber: addressNumber || null,
+          complement: complement || null,
+          neighborhood: neighborhood || null,
+          city: city || null,
+          state: state || null,
+        },
+      });
+
+      const latestConsent = current.whatsappConsentEvents[0];
+      const consentChanged = latestConsent?.granted !== whatsappConsent;
+      const authorizedPhoneChanged =
+        whatsappConsent && latestConsent?.phone !== phone;
+
+      if (consentChanged || authorizedPhoneChanged) {
+        await tx.whatsappConsentEvent.create({
+          data: {
+            userId: session.user.id,
+            granted: whatsappConsent,
+            phone: phone || current.phone,
+            consentVersion: WHATSAPP_CONSENT_VERSION,
+            ipAddress,
+            userAgent,
+          },
+        });
+      }
     });
 
     // 3. [DEVOPS] Limpando o cache para refletir as mudancas
@@ -129,7 +189,7 @@ export async function updatePatientProfile(formData: FormData) {
 
     return { success: true };
   } catch (error) {
-    console.error("Erro ao atualizar perfil do paciente:", error);
+    console.error("Erro ao atualizar perfil da conta:", error);
     return { error: "Erro interno ao atualizar perfil." };
   }
 }

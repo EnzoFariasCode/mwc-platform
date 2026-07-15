@@ -108,7 +108,7 @@ function statusBadge(status: string) {
 
   if (status === "NO_SHOW") {
     return {
-      label: "Paciente ausente",
+      label: "Cliente ausente",
       icon: AlertTriangle,
       className: "bg-orange-500/10 text-orange-300 border-orange-500/20",
     };
@@ -146,7 +146,7 @@ function EmptyState({ activeTab }: { activeTab: "scheduled" | "history" }) {
       </div>
       <p className="text-slate-400">
         {activeTab === "scheduled"
-          ? "Nenhuma consulta agendada no momento."
+          ? "Nenhum atendimento agendado no momento."
           : "Nenhum atendimento no historico ainda."}
       </p>
     </div>
@@ -193,7 +193,7 @@ export function ProfessionalAppointmentsTabs({
             Atendimentos
           </h2>
           <p className="mt-1 text-slate-400">
-            Acompanhe consultas ativas, canceladas e realizadas.
+            Acompanhe atendimentos ativos, cancelados e realizados.
           </p>
         </div>
 
@@ -284,7 +284,7 @@ export function ProfessionalAppointmentsTabs({
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d73cbe]/20 bg-[#d73cbe]/10 px-4 py-2.5 text-xs font-bold text-[#d73cbe] transition-all hover:bg-[#d73cbe]/20 md:justify-end"
                       >
                         <FileText className="h-4 w-4" />
-                        Prontuario
+                        Registro
                       </Link>
                     )}
                     {appointment.status === "CONFIRMED" && (

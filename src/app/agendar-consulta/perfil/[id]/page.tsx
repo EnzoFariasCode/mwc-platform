@@ -141,12 +141,12 @@ export default async function ProfessionalHealthProfile({
                 </div>
                 <div>
                   <h3 className="font-bold text-white mb-1">
-                    {isTeacher ? "Aula online" : "Telemedicina"}
+                    Atendimento online
                   </h3>
                   <p className="text-sm text-slate-400">
                     {isTeacher
-                      ? "Aulas online por videochamada."
-                      : "Atendimentos online por videochamada segura."}
+                      ? "Atendimento online por videochamada."
+                      : "Atendimento online por videochamada segura."}
                   </p>
                 </div>
               </div>

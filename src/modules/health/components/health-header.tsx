@@ -87,7 +87,7 @@ export function HealthHeader() {
             }
             className="hover:text-[#d73cbe] transition-colors"
           >
-            Minhas Consultas
+            Meus Atendimentos
           </Link>
           {isPro && (
             <>
@@ -95,7 +95,7 @@ export function HealthHeader() {
                 href="/agendar-consulta/prontuarios"
                 className="hover:text-[#d73cbe] transition-colors"
               >
-                Prontuarios
+                Registros
               </Link>
               <Link
                 href="/agendar-consulta/financeiro"
@@ -127,7 +127,7 @@ export function HealthHeader() {
                   {firstName}
                 </span>
                 <span className="text-xs text-[#d73cbe] mt-1 font-medium uppercase tracking-wider">
-                  {isPro ? sessionUser?.jobTitle || "Especialista" : "Paciente"}
+                  {isPro ? sessionUser?.jobTitle || "Profissional" : "Cliente"}
                 </span>
               </div>
               <ChevronDown
@@ -160,7 +160,7 @@ export function HealthHeader() {
                     className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
                   >
                     <LayoutDashboard className="w-4 h-4 text-[#d73cbe]" />
-                    <span>{isPro ? "Meu Painel" : "Minhas Consultas"}</span>
+                    <span>{isPro ? "Meu Painel" : "Meus Atendimentos"}</span>
                   </Link>
 
                   {isPro && (
@@ -212,7 +212,7 @@ export function HealthHeader() {
             className="flex items-center gap-2 px-5 py-2.5 bg-[#d73cbe]/10 text-[#d73cbe] rounded-xl hover:bg-[#d73cbe] hover:text-white transition-all font-medium border border-[#d73cbe]/20 hover:border-[#d73cbe] shadow-lg shadow-purple-900/10"
           >
             <User className="w-4 h-4" />
-            Canal do Paciente
+            Area do Cliente
           </Link>
         )}
       </div>

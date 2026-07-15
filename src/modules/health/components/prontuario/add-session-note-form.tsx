@@ -265,7 +265,7 @@ export function AddSessionNoteForm({
           {specialty === "PSYCHOLOGIST" && (
             <div className="space-y-1.5">
               <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
-                Estado inicial do paciente
+                Estado inicial do cliente
               </label>
               <div className="flex flex-wrap gap-2">
                 {moodOptions.map((mood) => (
@@ -550,7 +550,7 @@ export function AddSessionNoteForm({
             <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
               {specialty === "TEACHER"
                 ? "Evolucao do aluno"
-                : "Evolucao do paciente"}
+                : "Evolucao do cliente"}
             </label>
             <textarea
               value={evolution}
@@ -559,7 +559,7 @@ export function AddSessionNoteForm({
               placeholder={
                 specialty === "TEACHER"
                   ? "Como o aluno evoluiu desde a ultima aula..."
-                  : "Como o paciente evoluiu desde a ultima sessao..."
+                  : "Como o cliente evoluiu desde o ultimo atendimento..."
               }
               className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
             />
@@ -578,7 +578,7 @@ export function AddSessionNoteForm({
                   value={foodRecall24h}
                   onChange={(event) => setFoodRecall24h(event.target.value)}
                   rows={4}
-                  placeholder="Anote o que o paciente relatou ter comido..."
+                  placeholder="Anote o que o cliente relatou ter comido..."
                   className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
                 />
               </div>

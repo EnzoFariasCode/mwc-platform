@@ -56,7 +56,7 @@ const bookingSteps = [
     number: "04",
     title: "Entre na videochamada",
     description:
-      "Paciente e profissional recebem o acesso para entrar na mesma sala no horario marcado.",
+      "Cliente e profissional recebem o acesso para entrar na mesma sala no horario marcado.",
     icon: Video,
   },
 ];
@@ -77,7 +77,7 @@ const trustPoints = [
   {
     title: "Historico centralizado",
     description:
-      "Consultas, status, horarios e acesso ao atendimento permanecem organizados na area do paciente.",
+      "Atendimentos, status, horarios e acesso permanecem organizados na area do cliente.",
     icon: CheckCircle2,
   },
 ];
@@ -86,19 +86,19 @@ const paymentPoints = [
   {
     title: "Checkout protegido",
     description:
-      "O pagamento e processado pela Stripe e a consulta so e confirmada depois da aprovacao.",
+      "O pagamento e processado com seguranca e o atendimento so e confirmado depois da aprovacao.",
     icon: LockKeyhole,
   },
   {
     title: "Politica de cancelamento",
     description:
-      "Cancelamentos do paciente com mais de 24 horas de antecedencia geram reembolso integral.",
+      "Cancelamentos do cliente com mais de 24 horas de antecedencia geram reembolso integral.",
     icon: RefreshCcw,
   },
   {
     title: "Protecao contra imprevistos",
     description:
-      "Se o profissional cancelar ou nao comparecer, o paciente tem direito ao reembolso integral.",
+      "Se o profissional cancelar ou nao comparecer, o cliente tem direito ao reembolso integral.",
     icon: ShieldCheck,
   },
 ];
@@ -112,17 +112,17 @@ const faqItems = [
   {
     question: "Como funciona o reembolso?",
     answer:
-      "Cancelamentos feitos pelo paciente com mais de 24 horas de antecedencia recebem reembolso integral. Com menos de 24 horas, nao ha reembolso. Se o profissional cancelar ou nao comparecer, o reembolso e integral.",
+      "Cancelamentos feitos pelo cliente com mais de 24 horas de antecedencia recebem reembolso integral. Com menos de 24 horas, nao ha reembolso. Se o profissional cancelar ou nao comparecer, o reembolso e integral.",
   },
   {
-    question: "A consulta e por video? Preciso instalar algo?",
+    question: "O atendimento e por video? Preciso instalar algo?",
     answer:
       "O atendimento usa um link de videochamada enviado aos participantes. Basta abrir o acesso no horario marcado em um navegador compativel.",
   },
   {
-    question: "Onde encontro o link e os dados da consulta?",
+    question: "Onde encontro o link e os dados do atendimento?",
     answer:
-      "Depois da confirmacao do pagamento, o agendamento aparece em Minhas Consultas com data, horario, profissional e acesso ao atendimento.",
+      "Depois da confirmacao do pagamento, o agendamento aparece em Meus Atendimentos com data, horario, profissional e acesso.",
   },
   {
     question: "O pagamento e seguro?",
@@ -373,7 +373,7 @@ export function HealthHomeClient({
             </div>
 
             <p className="online-reveal mt-5 text-xs leading-relaxed text-slate-500 opacity-0">
-              Cancelamentos do paciente com menos de 24 horas de antecedencia
+              Cancelamentos do cliente com menos de 24 horas de antecedencia
               nao geram reembolso. As regras completas sao apresentadas antes
               da confirmacao do pagamento.
             </p>

@@ -14,12 +14,12 @@ const paymentTerms = [
   {
     title: "Retencao do Valor (Escrow)",
     content:
-      "O valor pago ficara registrado e retido pela plataforma apos a aprovacao do pagamento. Ele nao sera liberado ao profissional ate que a consulta seja concluida, respeitadas as regras de cancelamento, disputa e chargeback.",
+      "O valor pago ficara registrado e retido pela plataforma apos a aprovacao do pagamento. Ele nao sera liberado ao profissional ate que o atendimento seja concluido, respeitadas as regras de cancelamento, disputa e chargeback.",
   },
   {
     title: "Liberacao do Valor",
     content:
-      "O valor sera liberado ao profissional apos a confirmacao de conclusao da consulta, seja pelo profissional ou automaticamente pelo sistema apos 24 horas do horario agendado, desde que nao exista disputa ou revisao financeira pendente.",
+      "O valor sera liberado ao profissional apos a confirmacao de conclusao do atendimento, seja pelo profissional ou automaticamente pelo sistema apos 24 horas do horario agendado, desde que nao exista disputa ou revisao financeira pendente.",
   },
   {
     title: "Seguranca de Pagamento",
@@ -27,14 +27,14 @@ const paymentTerms = [
       "Seu pagamento e processado pelo Stripe com criptografia PCI-DSS nivel 1. Seus dados de cartao nao sao armazenados em nossos servidores.",
   },
   {
-    title: "Cancelamento e Reembolso pelo Paciente",
+    title: "Cancelamento e Reembolso pelo Cliente",
     content:
       "Cancelamento com mais de 24h de antecedencia: reembolso integral processado em ate 5 a 10 dias uteis no metodo de pagamento original. Cancelamento com menos de 24h de antecedencia: sem direito a reembolso. O valor sera repassado ao profissional como compensacao pela reserva do horario.",
   },
   {
-    title: "Nao Comparecimento do Paciente",
+    title: "Nao Comparecimento do Cliente",
     content:
-      "Caso voce nao compareca a consulta sem cancelamento previo, o valor sera integralmente repassado ao profissional. Nao ha reembolso nessa situacao.",
+      "Caso voce nao compareca ao atendimento sem cancelamento previo, o valor sera integralmente repassado ao profissional. Nao ha reembolso nessa situacao.",
   },
   {
     title: "Cancelamento ou Nao Comparecimento do Profissional",

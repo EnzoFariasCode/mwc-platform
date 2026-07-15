@@ -104,7 +104,7 @@ export default async function ProHealthDashboard({
       patientName:
         appointment.patient?.displayName ||
         appointment.patient?.name ||
-        "Paciente Oculto",
+        "Cliente",
       patientId: appointment.patient.id,
     }),
   );
@@ -152,9 +152,8 @@ export default async function ProHealthDashboard({
               {displayName}
             </h1>
             <p className="mt-2 max-w-2xl text-slate-400 leading-relaxed text-sm md:text-base">
-              {isTeacher
-                ? "Gerencie sua agenda de aulas, confira os proximos alunos e acompanhe seu perfil no MWC Online."
-                : "Gerencie sua agenda de atendimentos, confira os proximos clientes e acompanhe seu perfil no MWC Online."}
+              Gerencie sua agenda, confira os proximos clientes e acompanhe seu
+              perfil profissional no MWC Online.
             </p>
           </div>
           <Link
@@ -283,7 +282,7 @@ export default async function ProHealthDashboard({
             pagination={professional.appointmentPagination}
           />
 
-          {/* Coluna Direita: Perfil Clínico e Gestão de Agenda */}
+          {/* Coluna Direita: Perfil profissional e gestao de agenda */}
           <div className="space-y-6">
             {/* GESTÃO DE AGENDA INFO */}
             <div className="rounded-xl border border-[#d73cbe]/20 bg-[#d73cbe]/5 p-5 backdrop-blur-sm relative overflow-hidden">
@@ -319,11 +318,11 @@ export default async function ProHealthDashboard({
               {/* O Botão de Agenda está no DashboardModalsController logo acima do Perfil! */}
             </div>
 
-            {/* PERFIL CLÍNICO */}
+            {/* PERFIL PROFISSIONAL */}
             <div className="rounded-xl border border-white/10 bg-[#0f172a]/80 p-5 backdrop-blur-sm">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-base font-bold uppercase tracking-tight">
-                  Perfil Clínico
+                  Perfil profissional
                 </h2>
               </div>
 
@@ -357,7 +356,7 @@ export default async function ProHealthDashboard({
                 </div>
                 <div className="rounded-lg border border-white/5 bg-white/[0.03] px-3.5 py-3 transition-colors hover:bg-white/[0.05]">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                    {isTeacher ? "Metodologia de ensino" : "Abordagem Clinica"}
+                    Forma de atuacao
                     {missingApproach && (
                       <AlertTriangle className="w-3 h-3 text-yellow-500" />
                     )}

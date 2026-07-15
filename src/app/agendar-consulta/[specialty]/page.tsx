@@ -234,7 +234,7 @@ export default function SpecialtyPage({
                   />
                   <div className="flex items-center gap-2 text-xs font-medium text-emerald-500 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 mt-4 w-fit">
                     <Video className="w-4 h-4" />
-                    {isTeacher ? "Aula online" : "Telemedicina"}
+                    Atendimento online
                   </div>
                 </div>
               </div>

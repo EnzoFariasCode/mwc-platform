@@ -46,14 +46,14 @@ export function ReportAppointmentDisputeButton({
       <AppointmentReasonModal
         isOpen={isModalOpen}
         title="Abrir disputa"
-        description="Explique o problema ocorrido na consulta."
-        summary="A equipe MWC analisara o caso antes de decidir entre reembolso ao paciente ou liberacao do valor ao profissional."
+        description="Explique o problema ocorrido no atendimento."
+        summary="A equipe MWC analisara o caso antes de decidir entre reembolso ao cliente ou liberacao do valor ao profissional."
         confirmLabel="Abrir disputa"
         isLoading={isPending}
         options={[
           { value: "profissional_ausente", label: "Profissional nao compareceu" },
-          { value: "problema_link", label: "Problema no link da consulta" },
-          { value: "consulta_nao_realizada", label: "Consulta nao foi realizada" },
+          { value: "problema_link", label: "Problema no link do atendimento" },
+          { value: "consulta_nao_realizada", label: "Atendimento nao foi realizado" },
           { value: "outro", label: "Outro problema" },
         ]}
         onClose={() => setIsModalOpen(false)}
