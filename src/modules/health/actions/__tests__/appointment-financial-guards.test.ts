@@ -117,6 +117,10 @@ vi.mock(
     requestAppointmentCancellation: vi.fn(),
   }),
 );
+vi.mock("@/modules/health/services/appointment-reschedule-recovery", () => ({
+  processAppointmentReschedule: vi.fn(),
+  requestAppointmentReschedule: vi.fn(),
+}));
 vi.mock("@/modules/health/services/transactional-email-service", () => ({
   sendAppointmentCompletedEmail: vi.fn(),
   sendCancellationEmail: vi.fn(),

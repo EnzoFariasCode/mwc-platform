@@ -9,7 +9,6 @@ import {
   sendAppointmentCompletedEmail,
   sendCancellationEmail,
   sendRefundProcessedEmail,
-  sendRescheduleEmail,
 } from "@/modules/health/services/transactional-email-service";
 import {
   generateDaySlots,
@@ -25,12 +24,15 @@ import { sendAdminNotification } from "@/modules/admin/services/admin-notificati
 import {
   cancelGoogleMeetEvent,
   findGoogleMeetEventId,
-  updateGoogleMeetEvent,
 } from "@/modules/health/services/google-meet-service";
 import {
   processAppointmentCancellation,
   requestAppointmentCancellation,
 } from "@/modules/health/services/appointment-cancellation-recovery";
+import {
+  processAppointmentReschedule,
+  requestAppointmentReschedule,
+} from "@/modules/health/services/appointment-reschedule-recovery";
 
 const ADMIN_HEALTH_DISPUTE_DECISION_LIMIT = 20;
 const ADMIN_HEALTH_DISPUTE_DECISION_WINDOW_MS = 10 * 60 * 1000;
@@ -318,6 +320,7 @@ async function cancelGoogleMeetForAppointment(params: {
 
 const terminalStatuses = [
   "CANCELLING",
+  "RESCHEDULING",
   "CANCELED",
   "COMPLETED",
   "REFUNDED",
@@ -1252,7 +1255,7 @@ export async function rescheduleHealthAppointment(
   appointmentId: string,
   newDate: string,
   newTime: string,
-): Promise<{ success?: boolean; error?: string }> {
+): Promise<{ success?: boolean; processing?: boolean; error?: string }> {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -1401,7 +1404,14 @@ export async function rescheduleHealthAppointment(
         date: parsedNewDate.dateOnly,
         time: newTime,
         status: {
-          in: ["PENDING_PAYMENT", "PAID", "MEETING_PENDING", "CONFIRMED"],
+          in: [
+            "PENDING_PAYMENT",
+            "PAID",
+            "MEETING_PENDING",
+            "CONFIRMED",
+            "CANCELLING",
+            "RESCHEDULING",
+          ],
         },
         id: { not: appointmentId },
       },
@@ -1429,81 +1439,20 @@ export async function rescheduleHealthAppointment(
       };
     }
 
-    const rescheduleNote = `Reagendado pelo profissional em ${new Date().toLocaleString("pt-BR")}. De ${appointment.date.toLocaleDateString("pt-BR")} as ${appointment.time} para ${newDate} as ${newTime}. Pagamento original mantido.`;
-    const notes = appointment.notes
-      ? `${appointment.notes}\n\n${rescheduleNote}`
-      : rescheduleNote;
-
-    const resolvedGoogleEvent = await resolveGoogleEventIdForAppointment({
+    const process = await requestAppointmentReschedule({
       appointmentId: appointment.id,
-      date: appointment.date,
-      time: appointment.time,
-      timezonePro: appointment.timezonePro,
-      meetLink: appointment.meetLink,
-      googleEventId: appointment.googleEventId,
-      durationMinutes: duration,
+      requestedById: session.user.id,
+      newDate: parsedNewDate.dateOnly,
+      newTime,
     });
-
-    if (resolvedGoogleEvent.error) {
-      return { error: resolvedGoogleEvent.error };
-    }
-
-    if (resolvedGoogleEvent.eventId) {
-      const googleUpdated = await updateGoogleMeetEvent({
-        eventId: resolvedGoogleEvent.eventId,
-        summary: `MWC Online - Consulta com ${appointment.professional.name ?? "profissional"}`,
-        description: `Consulta MWC Online reagendada de ${appointment.date.toLocaleDateString("pt-BR")} as ${appointment.time} para ${newDate} as ${newTime}.`,
-        startTime: newDateTime,
-        endTime: new Date(newDateTime.getTime() + duration * 60 * 1000),
-        attendees: [
-          appointment.patient.email,
-          appointment.professional.email,
-        ].filter((email): email is string => Boolean(email)),
-      });
-
-      if (!googleUpdated) {
-        return {
-          error:
-            "Nao foi possivel atualizar o evento no Google Calendar. O reagendamento nao foi aplicado.",
-        };
-      }
-    }
-
-    const updated = await db.appointment.updateMany({
-      where: {
-        id: appointmentId,
-        status: "CONFIRMED",
-        professionalId: session.user.id,
-      },
-      data: {
-        date: parsedNewDate.dateOnly,
-        time: newTime,
-        notes,
-      },
-    });
-
-    if (updated.count === 0) {
-      return { error: "Consulta nao esta mais disponivel para reagendamento." };
-    }
-
-    try {
-      await sendRescheduleEmail({
-        patient: appointment.patient,
-        professional: appointment.professional,
-        previousDate: appointment.date,
-        previousTime: appointment.time,
-        date: parsedNewDate.dateOnly,
-        time: newTime,
-        price: appointment.price,
-        meetLink: appointment.meetLink,
-      });
-    } catch (emailError) {
-      console.error("[RESCHEDULE] Email failed (non-blocking):", emailError);
-    }
+    const result = await processAppointmentReschedule(process.id);
 
     revalidateHealthAppointmentPaths(appointment.professionalId);
 
-    return { success: true };
+    return {
+      success: true,
+      processing: result.status !== "COMPLETED",
+    };
   } catch (error) {
     console.error("[RESCHEDULE_APPOINTMENT_ERROR]", error);
     return { error: "Erro ao reagendar consulta." };

@@ -10,6 +10,7 @@ import {
 } from "@/modules/health/services/transactional-email-service";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
+import { getAppointmentStartAt } from "@/modules/health/lib/appointment-completion-time";
 
 const MAX_MEET_ATTEMPTS = 5;
 const PROCESSING_LOCK_MINUTES = 10;
@@ -19,13 +20,6 @@ export type MeetingRecoveryResult = {
   appointmentId: string;
   error?: string;
 };
-
-function appointmentStart(date: Date, time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-  const start = new Date(date);
-  start.setHours(hours, minutes, 0, 0);
-  return start;
-}
 
 function createMeetRequestId(stripeSessionId: string) {
   return `mwc-${createHash("sha256")
@@ -296,13 +290,13 @@ export async function processAppointmentMeeting(
       meetRetryCount: true,
       date: true,
       time: true,
+      durationMinutes: true,
+      timezonePro: true,
       price: true,
       patientId: true,
       professionalId: true,
       patient: { select: { name: true, email: true } },
-      professional: {
-        select: { name: true, email: true, sessionDuration: true },
-      },
+      professional: { select: { name: true, email: true } },
     },
   });
 
@@ -317,10 +311,17 @@ export async function processAppointmentMeeting(
     return { status: "PENDING", appointmentId, error: "Sessao Stripe ausente." };
   }
 
-  const startTime = appointmentStart(appointment.date, appointment.time);
-  const durationMinutes = appointment.professional.sessionDuration || 50;
-
   try {
+    const startTime = getAppointmentStartAt({
+      date: appointment.date,
+      time: appointment.time,
+      timeZone: appointment.timezonePro,
+    });
+
+    if (!startTime) {
+      throw new Error("Data, horario ou fuso da consulta sao invalidos.");
+    }
+
     if (!appointment.patient.email || !appointment.professional.email) {
       throw new Error(
         "Paciente ou profissional sem email para receber a sala online.",
@@ -331,7 +332,9 @@ export async function processAppointmentMeeting(
       summary: `MWC Online - Consulta com ${appointment.professional.name ?? "profissional"}`,
       description: `Consulta MWC Online confirmada pelo pagamento Stripe ${appointment.stripeSessionId}.`,
       startTime,
-      endTime: new Date(startTime.getTime() + durationMinutes * 60 * 1000),
+      endTime: new Date(
+        startTime.getTime() + appointment.durationMinutes * 60 * 1000,
+      ),
       attendees: [
         appointment.patient.email,
         appointment.professional.email,

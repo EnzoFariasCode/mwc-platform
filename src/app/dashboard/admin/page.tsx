@@ -22,6 +22,7 @@ async function getAdminOverview() {
     disputedProjects,
     pendingWithdrawals,
     pendingCancellationReconciliations,
+    pendingRescheduleReconciliations,
   ] = await Promise.all([
     db.user.count(),
     db.user.count({ where: { isActive: true } }),
@@ -34,6 +35,9 @@ async function getAdminOverview() {
     db.appointmentCancellationProcess.count({
       where: { status: "RECONCILIATION_REQUIRED" },
     }),
+    db.appointmentRescheduleProcess.count({
+      where: { status: "RECONCILIATION_REQUIRED" },
+    }),
   ]);
 
   return {
@@ -44,6 +48,7 @@ async function getAdminOverview() {
     disputedProjects,
     pendingWithdrawals,
     pendingCancellationReconciliations,
+    pendingRescheduleReconciliations,
   };
 }
 
@@ -99,7 +104,7 @@ export default async function AdminDashboardPage() {
     },
     {
       title: "Reconciliação Online",
-      description: `${overview.pendingCancellationReconciliations} cancelamento(s) exigem ação manual.`,
+      description: `${overview.pendingCancellationReconciliations + overview.pendingRescheduleReconciliations} operação(ões) exigem ação manual.`,
       href: "/dashboard/admin/reconciliacoes",
       icon: AlertTriangle,
     },

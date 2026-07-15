@@ -36,6 +36,14 @@ function appointmentDateTime(date: Date, time: string) {
 }
 
 function statusBadge(status: string) {
+  if (status === "RESCHEDULING") {
+    return {
+      label: "Reagendamento em processamento",
+      className: "bg-cyan-500/10 text-cyan-300 border-cyan-500/20",
+      icon: Calendar,
+    };
+  }
+
   if (status === "CANCELLING") {
     return {
       label: "Cancelamento em processamento",
@@ -124,7 +132,7 @@ export default async function HistoricoConsultasPage() {
               const badge = statusBadge(appointment.status);
               const BadgeIcon = badge.icon;
               const canCancel =
-                !["CANCELLING", "CANCELED", "COMPLETED", "REFUNDED", "NO_SHOW", "DISPUTED", "MEETING_PENDING", "MEETING_FAILED"].includes(
+                !["CANCELLING", "RESCHEDULING", "CANCELED", "COMPLETED", "REFUNDED", "NO_SHOW", "DISPUTED", "MEETING_PENDING", "MEETING_FAILED"].includes(
                   appointment.status,
                 ) && appointment.date > new Date();
               const scheduledAt = appointmentDateTime(

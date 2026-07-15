@@ -46,6 +46,14 @@ function formatDate(date: string) {
 }
 
 function statusBadge(status: string) {
+  if (status === "RESCHEDULING") {
+    return {
+      label: "Reagendamento em processamento",
+      icon: CalendarClock,
+      className: "bg-cyan-500/10 text-cyan-300 border-cyan-500/20",
+    };
+  }
+
   if (status === "CANCELLING") {
     return {
       label: "Cancelamento em processamento",

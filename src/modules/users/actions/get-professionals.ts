@@ -5,6 +5,10 @@ import {
   getHealthSpecialtyById,
   getHealthSpecialtySearchIds,
 } from "@/modules/health/lib/specialties";
+import {
+  eligibleHealthProfessionalWhere,
+  hasValidProfessionalRegistration,
+} from "@/modules/health/lib/health-professional-eligibility";
 
 export async function getProfessionalsBySpecialty(specialtyId: string) {
   try {
@@ -16,9 +20,7 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
 
     const professionals = await db.user.findMany({
       where: {
-        userType: "PROFESSIONAL",
-        industry: "HEALTH",
-        isActive: true,
+        ...eligibleHealthProfessionalWhere,
         jobTitle: { not: null },
         OR: [
           ...specialty.terms.map((term) => ({
@@ -60,7 +62,10 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
       .filter((pro) => {
         const hasValidJobTitle = pro.jobTitle && pro.jobTitle.trim() !== "";
 
-        return hasValidJobTitle;
+        return (
+          hasValidJobTitle &&
+          hasValidProfessionalRegistration(pro.documentReg)
+        );
       })
       .map(({ profileImageBytes, ...pro }) => ({
         ...pro,

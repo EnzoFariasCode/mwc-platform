@@ -81,7 +81,11 @@ export function ProfessionalAppointmentActionButtons({
       }
 
       setShowReschedule(false);
-      toast.success("Consulta reagendada com sucesso. O paciente foi notificado.");
+      toast.success(
+        result.processing
+          ? "Reagendamento em processamento. As etapas pendentes serao repetidas automaticamente."
+          : "Consulta reagendada com sucesso. O paciente foi notificado.",
+      );
       router.refresh();
     });
   };

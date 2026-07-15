@@ -9,6 +9,10 @@ import { headers } from "next/headers";
 import { addMinutes, addMonths, endOfMonth, isBefore } from "date-fns";
 import { parseAppointmentDateTime, generateDaySlots } from "./slot-helpers";
 import { ONE_TIME_PAYMENT_METHODS } from "@/modules/stripe/lib/payment-methods";
+import {
+  eligibleHealthProfessionalWhere,
+  hasValidProfessionalRegistration,
+} from "@/modules/health/lib/health-professional-eligibility";
 
 // [NOVO] ConfiguraÃ§Ãµes de negÃ³cio
 const HOLD_EXPIRATION_MINUTES = 15;
@@ -61,8 +65,7 @@ export async function createCheckoutSession(
     const professional = await db.user.findFirst({
       where: {
         id: proId,
-        userType: "PROFESSIONAL",
-        industry: "HEALTH",
+        ...eligibleHealthProfessionalWhere,
       },
       select: {
         id: true,
@@ -70,12 +73,17 @@ export async function createCheckoutSession(
         consultationFee: true,
         sessionDuration: true,
         timezone: true,
+        documentReg: true,
       },
     });
 
-    if (!professional || !professional.consultationFee) {
+    if (
+      !professional ||
+      !hasValidProfessionalRegistration(professional.documentReg) ||
+      !professional.consultationFee
+    ) {
       throw new Error(
-        "Profissional nÃ£o encontrado ou sem valor de consulta configurado.",
+        "Profissional indisponivel para novos agendamentos.",
       );
     }
 

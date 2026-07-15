@@ -1,14 +1,17 @@
 "use server"; // 🛡️ ISSO AQUI SALVA VIDAS! Garante que roda só no servidor.
 
 import { db } from "@/lib/prisma";
+import {
+  eligibleHealthProfessionalWhere,
+  hasValidProfessionalRegistration,
+} from "@/modules/health/lib/health-professional-eligibility";
 
 export async function getHealthProfessionalById(id: string) {
   try {
     const pro = await db.user.findUnique({
       where: {
         id,
-        industry: "HEALTH",
-        isActive: true,
+        ...eligibleHealthProfessionalWhere,
       },
       select: {
         id: true,
@@ -37,7 +40,9 @@ export async function getHealthProfessionalById(id: string) {
       },
     });
 
-    if (!pro) return null;
+    if (!pro || !hasValidProfessionalRegistration(pro.documentReg)) {
+      return null;
+    }
 
     // 🛡️ Sanitização para o Front-end não engasgar com datas e dinheiro (Decimals)
     return {

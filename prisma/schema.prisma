@@ -55,6 +55,7 @@ enum BookingStatus {
   MEETING_FAILED // Falha definitiva na sala; reembolso solicitado
   CONFIRMED // Confirmado e na agenda
   CANCELLING // Cancelamento e reembolso em processamento
+  RESCHEDULING // Reagendamento em processamento
   COMPLETED // Realizada
   CANCELED // Cancelada
   DISPUTED // Em disputa pelo paciente
@@ -81,6 +82,20 @@ enum AppointmentCancellationInitiator {
   PROFESSIONAL
   ADMIN
   SYSTEM
+}
+
+enum AppointmentRescheduleStatus {
+  PENDING
+  PROCESSING
+  RETRY_SCHEDULED
+  RECONCILIATION_REQUIRED
+  COMPLETED
+}
+
+enum AppointmentRescheduleStepStatus {
+  PENDING
+  COMPLETED
+  SKIPPED
 }
 
 // =========================================================
@@ -429,6 +444,7 @@ model AppointmentHold {
   expiresAt       DateTime // UTC para expiração do carrinho (Ex: now + 15 min)
   stripeSessionId String?  @unique
   createdAt       DateTime @default(now())
+  rescheduleProcess AppointmentRescheduleProcess?
 
   // Índice para leitura rápida na hora de checar slots ocupados
   @@unique([professionalId, date, time])
@@ -479,11 +495,52 @@ model Appointment {
   sessionNote         SessionNote?
   transactions        Transaction[]
   cancellationProcess AppointmentCancellationProcess?
+  rescheduleProcesses AppointmentRescheduleProcess[]
 
   // Ajuda a prevenir consultas duplicadas no mesmo horário
   @@index([patientId])
   @@index([professionalId])
   @@index([status, meetLastAttemptAt])
+}
+
+model AppointmentRescheduleProcess {
+  id             String                      @id @default(cuid())
+  appointmentId  String
+  appointment    Appointment                 @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  requestedById  String
+  status         AppointmentRescheduleStatus @default(PENDING)
+  reservationId  String?                     @unique
+  reservation    AppointmentHold?            @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  previousDate DateTime @db.Date
+  previousTime String
+  newDate      DateTime @db.Date
+  newTime      String
+
+  attemptCount        Int       @default(0)
+  maxAttempts         Int       @default(3)
+  nextAttemptAt       DateTime  @default(now())
+  processingStartedAt DateTime?
+  lastAttemptAt       DateTime?
+  lastError           String?   @db.Text
+
+  calendarStatus    AppointmentRescheduleStepStatus @default(PENDING)
+  calendarUpdatedAt DateTime?
+  calendarLastError String?                         @db.Text
+  databaseStatus    AppointmentRescheduleStepStatus @default(PENDING)
+  databaseUpdatedAt DateTime?
+  databaseLastError String?                         @db.Text
+
+  reconciliationRequiredAt DateTime?
+  reconciliationAlertedAt  DateTime?
+  completedAt              DateTime?
+  completionNotifiedAt     DateTime?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@index([appointmentId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@index([processingStartedAt])
 }
 
 model AppointmentCancellationProcess {
