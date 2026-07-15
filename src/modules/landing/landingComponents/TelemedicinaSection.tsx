@@ -26,7 +26,7 @@ const onlineAreas = [
   { label: "Psicologia", icon: Brain, color: "text-[#d73cbe]" },
   { label: "Nutricao", icon: Apple, color: "text-emerald-400" },
   { label: "Personal", icon: Dumbbell, color: "text-orange-400" },
-  { label: "Ingles", icon: Languages, color: "text-blue-400" },
+  { label: "Professor", icon: Languages, color: "text-blue-400" },
   { label: "Advocacia", icon: Scale, color: "text-amber-400" },
 ];
 
