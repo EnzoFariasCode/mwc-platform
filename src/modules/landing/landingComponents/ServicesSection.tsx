@@ -2,14 +2,14 @@
 
 import { useRef } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation"; // 1. Importar hook de navegação
+import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 // Imports das imagens
 import eletricista from "@/assets/images/landingPage/eletricista.jpg";
-import encanador from "@/assets/images/landingPage/encanador.avif";
+import encanador from "@/assets/images/landingPage/encanador.jpg";
 import designer from "@/assets/images/landingPage/logocreator.webp";
 import pedreiro from "@/assets/images/landingPage/pedreiro.webp";
 import desenvolvedor from "@/assets/images/landingPage/sitecreator.webp";
