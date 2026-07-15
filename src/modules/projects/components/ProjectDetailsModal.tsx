@@ -208,6 +208,18 @@ export function ProjectDetailsModal({
                   </div>
                 </div>
 
+                {project.reviewDeadlineAt && (
+                  <div className="mb-5 flex items-start gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-100">
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
+                    <span>
+                      Voce pode analisar ate{" "}
+                      {formatCancellationDeadline(project.reviewDeadlineAt)}.
+                      Sem aprovacao, revisao ou disputa nesse prazo, o projeto
+                      sera finalizado e o pagamento liberado ao profissional.
+                    </span>
+                  </div>
+                )}
+
                 {/* Card de Entrega */}
                 <div className="bg-slate-950/50 border border-white/10 rounded-xl p-4 mb-6">
                   <div className="flex items-start gap-3">

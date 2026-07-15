@@ -3,8 +3,8 @@
 // =========================================================
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -265,16 +265,22 @@ model Project {
 
   status ProjectStatus @default(OPEN)
 
-  stripeSessionId       String?   @unique
-  stripePaymentIntentId String?
-  canceledAt            DateTime?
-  cancellationReason    String?   @db.Text
-  revisionRequestedAt   DateTime?
-  revisionReason        String?   @db.Text
-  disputeReason         String?   @db.Text
-  disputeOpenedAt       DateTime?
-  disputeResolvedAt     DateTime?
-  disputeResolution     String?   @db.Text
+  stripeSessionId          String?   @unique
+  stripePaymentIntentId    String?
+  canceledAt               DateTime?
+  cancellationProcessingAt DateTime?
+  cancellationReason       String?   @db.Text
+  revisionRequestedAt      DateTime?
+  revisionReason           String?   @db.Text
+  disputeReason            String?   @db.Text
+  disputeOpenedAt          DateTime?
+  disputeResolvedAt        DateTime?
+  disputeResolution        String?   @db.Text
+  deliveredAt              DateTime?
+  reviewDeadlineAt         DateTime?
+  reviewReminder3dSentAt   DateTime?
+  reviewReminder1dSentAt   DateTime?
+  autoReleasedAt           DateTime?
 
   attachments Json? @default("[]")
 
@@ -294,6 +300,7 @@ model Project {
   reviews      Review[]
 
   @@index([status])
+  @@index([status, reviewDeadlineAt])
   @@index([stripePaymentIntentId])
 }
 

@@ -5,6 +5,7 @@ import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
+import { getTechProjectReviewDeadline } from "@/modules/projects/lib/tech-project-review-deadline";
 
 const DELIVERY_DESCRIPTION_MIN = 20;
 const DELIVERY_DESCRIPTION_MAX = 3000;
@@ -88,20 +89,40 @@ export async function submitDelivery(
       };
     }
 
-    await db.$transaction([
-      db.deliverable.create({
+    const deliveredAt = new Date();
+    const reviewDeadlineAt = getTechProjectReviewDeadline(deliveredAt);
+
+    await db.$transaction(async (tx) => {
+      const movedToReview = await tx.project.updateMany({
+        where: {
+          id: projectId,
+          professionalId: userId,
+          status: "IN_PROGRESS",
+          cancellationProcessingAt: null,
+        },
+        data: {
+          status: "UNDER_REVIEW",
+          deliveredAt,
+          reviewDeadlineAt,
+          reviewReminder3dSentAt: null,
+          reviewReminder1dSentAt: null,
+          autoReleasedAt: null,
+        },
+      });
+
+      if (movedToReview.count !== 1) {
+        throw new Error("PROJECT_STATUS_CHANGED");
+      }
+
+      await tx.deliverable.create({
         data: {
           projectId,
           link: deliveryLink,
           description: deliveryDescription,
           senderId: userId,
         },
-      }),
-      db.project.update({
-        where: { id: projectId },
-        data: { status: "UNDER_REVIEW" },
-      }),
-    ]);
+      });
+    });
 
     await upsertNotification({
       userId: project.ownerId,
@@ -109,11 +130,14 @@ export async function submitDelivery(
       type: "WARNING",
       eventType: "TECH_DELIVERY_SUBMITTED",
       title: "Entrega aguardando aprovacao",
-      message: `O projeto "${project.title}" foi entregue. Revise para aprovar ou pedir ajustes.`,
+      message: `O projeto "${project.title}" foi entregue. Voce tem 7 dias para aprovar, pedir revisao ou abrir disputa. Sem acao, o pagamento sera liberado.`,
       link: "/dashboard/meus-projetos",
       entityType: "TECH_PROJECT",
       entityId: project.id,
-      metadata: { projectId: project.id },
+      metadata: {
+        projectId: project.id,
+        reviewDeadlineAt: reviewDeadlineAt.toISOString(),
+      },
     });
 
     revalidatePath("/dashboard/projetos-ativos");
@@ -122,6 +146,12 @@ export async function submitDelivery(
     return { success: true };
   } catch (error) {
     console.error("Erro ao entregar projeto:", error);
+    if (error instanceof Error && error.message === "PROJECT_STATUS_CHANGED") {
+      return {
+        success: false,
+        error: "O projeto mudou de status e nao pode mais ser entregue.",
+      };
+    }
     return { success: false, error: "Erro ao enviar entrega." };
   }
 }

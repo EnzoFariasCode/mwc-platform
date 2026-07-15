@@ -160,7 +160,10 @@ export default function CheckoutView({
                   profissional após você confirmar que recebeu os arquivos
                   finais conforme o combinado. Em caso de disputa ou
                   chargeback, o valor pode permanecer suspenso ou ser revertido
-                  durante a análise.
+                  durante a análise. Depois da entrega, você terá 7 dias para
+                  aprovar, pedir revisão ou abrir disputa. Sem manifestação
+                  nesse prazo, o projeto será finalizado e o pagamento liberado
+                  ao profissional.
                 </p>
               </div>
             </div>

@@ -350,6 +350,21 @@ export default function MyProjectsView({
                           </span>
                         </div>
                       )}
+
+                    {project.status === "UNDER_REVIEW" &&
+                      project.reviewDeadlineAt && (
+                        <div className="mt-3 flex items-start gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-100">
+                          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
+                          <span>
+                            Analise a entrega ate{" "}
+                            {formatCancellationDeadline(
+                              project.reviewDeadlineAt,
+                            )}
+                            . Voce pode aprovar, pedir revisao ou abrir disputa.
+                            Sem acao, o pagamento sera liberado ao profissional.
+                          </span>
+                        </div>
+                      )}
                   </div>
 
                   <div className="mb-6 grid grid-cols-2 gap-4 border-t border-white/5 pt-4">

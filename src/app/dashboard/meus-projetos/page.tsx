@@ -99,6 +99,13 @@ export default async function MeusProjetosPage({
       agreedPrice: project.agreedPrice ? project.agreedPrice.toNumber() : null,
       paymentConfirmedAt: paymentConfirmedAt?.toISOString() ?? null,
       cancellationDeadlineAt: cancellationDeadline?.toISOString() ?? null,
+      deliveredAt: project.deliveredAt?.toISOString() ?? null,
+      reviewDeadlineAt: project.reviewDeadlineAt?.toISOString() ?? null,
+      reviewReminder3dSentAt:
+        project.reviewReminder3dSentAt?.toISOString() ?? null,
+      reviewReminder1dSentAt:
+        project.reviewReminder1dSentAt?.toISOString() ?? null,
+      autoReleasedAt: project.autoReleasedAt?.toISOString() ?? null,
       canCancelPaid:
         project.status === "IN_PROGRESS" &&
         Boolean(

@@ -215,6 +215,9 @@ export async function cancelTechProject(
   projectId: string,
   reason?: string,
 ): Promise<ActionResponse> {
+  let paidCancellationClaimed = false;
+  let refundId: string | null = null;
+
   try {
     const session = await verifySession();
     const userId = session?.sub;
@@ -306,9 +309,52 @@ export async function cancelTechProject(
           error: "Pagamento Stripe nao encontrado para estorno.",
         };
       }
-    }
 
-    let refundId: string | null = null;
+      const claimed = await db.$transaction(async (tx) => {
+        const freshCompletedHold = await tx.projectCheckoutHold.findFirst({
+          where: {
+            projectId: project.id,
+            status: ProjectCheckoutHoldStatus.COMPLETED,
+            completedAt: { not: null },
+          },
+          orderBy: { completedAt: "desc" },
+          select: { completedAt: true },
+        });
+
+        if (
+          !freshCompletedHold?.completedAt ||
+          !canCancelPaidTechProject(freshCompletedHold.completedAt)
+        ) {
+          return false;
+        }
+
+        const result = await tx.project.updateMany({
+          where: {
+            id: project.id,
+            status: ProjectStatus.IN_PROGRESS,
+            cancellationProcessingAt: null,
+          },
+          data: {
+            status: ProjectStatus.CANCELED,
+            canceledAt: new Date(),
+            cancellationProcessingAt: new Date(),
+            cancellationReason: normalizedReason,
+          },
+        });
+
+        return result.count === 1;
+      });
+
+      if (!claimed) {
+        return {
+          success: false,
+          error:
+            "O projeto foi entregue, mudou de status ou ja possui um cancelamento em processamento.",
+        };
+      }
+
+      paidCancellationClaimed = true;
+    }
 
     if (isPaidCancellation && project.stripePaymentIntentId) {
       const refund = await stripe.refunds.create(
@@ -324,42 +370,26 @@ export async function cancelTechProject(
         select: {
           status: true,
           agreedPrice: true,
+          cancellationProcessingAt: true,
         },
       });
 
       if (!freshProject) throw new Error("PROJECT_NOT_FOUND");
 
       const freshStatusAllowed = isPaidCancellation
-        ? freshProject.status === ProjectStatus.IN_PROGRESS
+        ? freshProject.status === ProjectStatus.CANCELED &&
+          Boolean(freshProject.cancellationProcessingAt)
         : freshProject.status === ProjectStatus.OPEN ||
           freshProject.status === ProjectStatus.WAITING_PAYMENT;
 
       if (!freshStatusAllowed) throw new Error("PROJECT_STATUS_CHANGED");
-
-      if (isPaidCancellation) {
-        const freshCompletedHold = await tx.projectCheckoutHold.findFirst({
-          where: {
-            projectId: project.id,
-            status: ProjectCheckoutHoldStatus.COMPLETED,
-            completedAt: { not: null },
-          },
-          orderBy: { completedAt: "desc" },
-          select: { completedAt: true },
-        });
-
-        if (
-          !freshCompletedHold?.completedAt ||
-          !canCancelPaidTechProject(freshCompletedHold.completedAt)
-        ) {
-          throw new Error("CANCELLATION_WINDOW_EXPIRED");
-        }
-      }
 
       await tx.project.update({
         where: { id: project.id },
         data: {
           status: ProjectStatus.CANCELED,
           canceledAt: new Date(),
+          cancellationProcessingAt: null,
           cancellationReason: normalizedReason,
         },
       });
@@ -460,6 +490,21 @@ export async function cancelTechProject(
 
     return { success: true };
   } catch (error) {
+    if (paidCancellationClaimed && !refundId) {
+      await db.project.updateMany({
+        where: {
+          id: projectId,
+          status: ProjectStatus.CANCELED,
+          cancellationProcessingAt: { not: null },
+        },
+        data: {
+          status: ProjectStatus.IN_PROGRESS,
+          canceledAt: null,
+          cancellationProcessingAt: null,
+          cancellationReason: null,
+        },
+      });
+    }
     console.error("[CANCEL_TECH_PROJECT_ERROR]", error);
     return { success: false, error: "Erro ao cancelar projeto." };
   }
@@ -527,6 +572,13 @@ export async function requestTechProjectRevision(
         where: { id: project.id },
         data: {
           status: ProjectStatus.IN_PROGRESS,
+          deliveredAt: null,
+          reviewDeadlineAt: null,
+          reviewReminder3dSentAt: null,
+          reviewReminder1dSentAt: null,
+          autoReleasedAt: null,
+          revisionRequestedAt: new Date(),
+          revisionReason: normalizedReason,
         },
       });
     });
