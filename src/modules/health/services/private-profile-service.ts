@@ -23,6 +23,7 @@ export async function getHealthProfessionalDashboardById(userId: string) {
       consultationFee: true,
 
       sessionDuration: true, // Puxa o tempo da consulta (ex: 50 min)
+      timezone: true,
       availabilities: true, // <--- TABELA NOVA, // Puxa a grade de horários (JSON)
       exceptions: true, // <--- TABELA NOVA, // Puxa as exceções de horários (JSON)
 
@@ -32,6 +33,8 @@ export async function getHealthProfessionalDashboardById(userId: string) {
           id: true,
           date: true,
           time: true,
+          durationMinutes: true,
+          timezonePro: true,
           status: true,
           price: true,
           meetLink: true,

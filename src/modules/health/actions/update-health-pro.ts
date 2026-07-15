@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { buildProfessionalCredential } from "../lib/professional-credentials";
+import { isValidTimeZone } from "../lib/appointment-completion-time";
 
 // ─── Schema Zod ───────────────────────────────────────────────────────────────
 
@@ -53,6 +54,8 @@ const updateHealthProSchema = z.object({
     .finite("Valor inválido")
     .optional()
     .nullable(),
+
+  timezone: z.string().refine(isValidTimeZone, "Fuso horario invalido"),
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -87,6 +90,7 @@ function parseRawFormData(formData: FormData) {
     approach: toNullable("approach"),
     sessionDuration: parsedDuration,
     consultationFee: parsedFee,
+    timezone: toNullable("timezone") || "America/Sao_Paulo",
   };
 }
 
@@ -127,6 +131,7 @@ export async function updateHealthProProfile(formData: FormData) {
         approach: data.approach ?? null,
         sessionDuration: data.sessionDuration,
         consultationFee: data.consultationFee ?? null,
+        timezone: data.timezone,
       },
     });
 

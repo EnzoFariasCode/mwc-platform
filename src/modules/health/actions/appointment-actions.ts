@@ -15,6 +15,10 @@ import {
   generateDaySlots,
   parseAppointmentDateTime,
 } from "@/modules/health/actions/slot-helpers";
+import {
+  getAppointmentCompletionAt,
+  getAppointmentStartAt,
+} from "@/modules/health/lib/appointment-completion-time";
 import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
@@ -234,16 +238,6 @@ async function refundStripeCheckoutSession(
   );
 }
 
-function appointmentDateTime(date: Date, time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-  const dateTime = new Date(date);
-
-  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null;
-
-  dateTime.setHours(hours, minutes, 0, 0);
-  return Number.isNaN(dateTime.getTime()) ? null : dateTime;
-}
-
 function revalidateHealthAppointmentPaths(professionalId?: string) {
   revalidatePath("/agendar-consulta/historico");
   revalidatePath("/agendar-consulta/dashboard-profissional");
@@ -259,6 +253,7 @@ async function resolveGoogleEventIdForAppointment({
   appointmentId,
   date,
   time,
+  timezonePro,
   meetLink,
   googleEventId,
   durationMinutes,
@@ -266,6 +261,7 @@ async function resolveGoogleEventIdForAppointment({
   appointmentId: string;
   date: Date;
   time: string;
+  timezonePro: string;
   meetLink?: string | null;
   googleEventId?: string | null;
   durationMinutes: number;
@@ -273,7 +269,11 @@ async function resolveGoogleEventIdForAppointment({
   if (googleEventId) return { eventId: googleEventId };
   if (!meetLink) return { eventId: null };
 
-  const scheduledAt = appointmentDateTime(date, time);
+  const scheduledAt = getAppointmentStartAt({
+    date,
+    time,
+    timeZone: timezonePro,
+  });
 
   if (!scheduledAt) {
     return {
@@ -308,6 +308,7 @@ async function cancelGoogleMeetForAppointment(params: {
   appointmentId: string;
   date: Date;
   time: string;
+  timezonePro: string;
   meetLink?: string | null;
   googleEventId?: string | null;
   durationMinutes: number;
@@ -370,6 +371,8 @@ export async function cancelPatientAppointment(
         id: true,
         date: true,
         time: true,
+        durationMinutes: true,
+        timezonePro: true,
         price: true,
         status: true,
         patientId: true,
@@ -379,7 +382,7 @@ export async function cancelPatientAppointment(
         googleEventId: true,
         notes: true,
         patient: { select: { name: true, email: true } },
-        professional: { select: { name: true, email: true, sessionDuration: true } },
+        professional: { select: { name: true, email: true } },
       },
     });
 
@@ -393,7 +396,11 @@ export async function cancelPatientAppointment(
       throw new Error("Apenas consultas agendadas podem ser canceladas.");
     }
 
-    const scheduledAt = appointmentDateTime(appointment.date, appointment.time);
+    const scheduledAt = getAppointmentStartAt({
+      date: appointment.date,
+      time: appointment.time,
+      timeZone: appointment.timezonePro,
+    });
 
     if (!scheduledAt || scheduledAt <= new Date()) {
       throw new Error("Nao e possivel cancelar uma consulta passada.");
@@ -408,9 +415,10 @@ export async function cancelPatientAppointment(
         appointmentId: appointment.id,
         date: appointment.date,
         time: appointment.time,
+        timezonePro: appointment.timezonePro,
         meetLink: appointment.meetLink,
         googleEventId: appointment.googleEventId,
-        durationMinutes: appointment.professional.sessionDuration || 50,
+        durationMinutes: appointment.durationMinutes,
       });
 
       if (googleCancel.error) throw new Error(googleCancel.error);
@@ -422,6 +430,7 @@ export async function cancelPatientAppointment(
             id: true,
             date: true,
             time: true,
+            timezonePro: true,
             status: true,
             professionalId: true,
             stripeSessionId: true,
@@ -435,10 +444,11 @@ export async function cancelPatientAppointment(
           throw new Error("Apenas consultas agendadas podem ser canceladas.");
         }
 
-        const freshScheduledAt = appointmentDateTime(
-          freshAppointment.date,
-          freshAppointment.time,
-        );
+        const freshScheduledAt = getAppointmentStartAt({
+          date: freshAppointment.date,
+          time: freshAppointment.time,
+          timeZone: freshAppointment.timezonePro,
+        });
 
         if (!freshScheduledAt || freshScheduledAt <= new Date()) {
           throw new Error("Nao e possivel cancelar uma consulta passada.");
@@ -488,9 +498,10 @@ export async function cancelPatientAppointment(
       appointmentId: appointment.id,
       date: appointment.date,
       time: appointment.time,
+      timezonePro: appointment.timezonePro,
       meetLink: appointment.meetLink,
       googleEventId: appointment.googleEventId,
-      durationMinutes: appointment.professional.sessionDuration || 50,
+      durationMinutes: appointment.durationMinutes,
     });
 
     if (googleCancel.error) throw new Error(googleCancel.error);
@@ -590,6 +601,8 @@ export async function cancelProfessionalAppointment(
         id: true,
         date: true,
         time: true,
+        durationMinutes: true,
+        timezonePro: true,
         price: true,
         status: true,
         professionalId: true,
@@ -598,7 +611,7 @@ export async function cancelProfessionalAppointment(
         googleEventId: true,
         notes: true,
         patient: { select: { name: true, email: true } },
-        professional: { select: { name: true, email: true, sessionDuration: true } },
+        professional: { select: { name: true, email: true } },
       },
     });
 
@@ -620,9 +633,10 @@ export async function cancelProfessionalAppointment(
       appointmentId: appointment.id,
       date: appointment.date,
       time: appointment.time,
+      timezonePro: appointment.timezonePro,
       meetLink: appointment.meetLink,
       googleEventId: appointment.googleEventId,
-      durationMinutes: appointment.professional.sessionDuration || 50,
+      durationMinutes: appointment.durationMinutes,
     });
 
     if (googleCancel.error) throw new Error(googleCancel.error);
@@ -719,6 +733,7 @@ export async function reportHealthAppointmentDispute(
         id: true,
         date: true,
         time: true,
+        timezonePro: true,
         price: true,
         status: true,
         patientId: true,
@@ -740,7 +755,11 @@ export async function reportHealthAppointmentDispute(
       throw new Error("Apenas consultas confirmadas podem ser disputadas.");
     }
 
-    const scheduledAt = appointmentDateTime(appointment.date, appointment.time);
+    const scheduledAt = getAppointmentStartAt({
+      date: appointment.date,
+      time: appointment.time,
+      timeZone: appointment.timezonePro,
+    });
 
     if (!scheduledAt || scheduledAt > new Date()) {
       throw new Error("A disputa so pode ser aberta apos o horario da consulta.");
@@ -1065,6 +1084,8 @@ export async function completeHealthAppointment(appointmentId: string) {
           id: true,
           date: true,
           time: true,
+          durationMinutes: true,
+          timezonePro: true,
           price: true,
           status: true,
           professionalId: true,
@@ -1084,12 +1105,41 @@ export async function completeHealthAppointment(appointmentId: string) {
         throw new Error("Apenas consultas confirmadas podem ser concluidas.");
       }
 
-      await releaseAppointmentEscrow(tx, appointment);
+      const completionAt = getAppointmentCompletionAt({
+        date: appointment.date,
+        time: appointment.time,
+        timeZone: appointment.timezonePro,
+        durationMinutes: appointment.durationMinutes,
+      });
 
-      await tx.appointment.update({
-        where: { id: appointment.id },
+      if (!completionAt) {
+        throw new Error(
+          "Nao foi possivel validar o horario final desta consulta.",
+        );
+      }
+
+      if (completionAt.getTime() > Date.now()) {
+        throw new Error(
+          "A consulta so pode ser concluida depois do termino previsto da sessao.",
+        );
+      }
+
+      const claimedAppointment = await tx.appointment.updateMany({
+        where: {
+          id: appointment.id,
+          professionalId: session.user.id,
+          status: "CONFIRMED",
+        },
         data: { status: "COMPLETED" },
       });
+
+      if (claimedAppointment.count !== 1) {
+        throw new Error(
+          "A consulta mudou de status e nao pode mais ser concluida.",
+        );
+      }
+
+      await releaseAppointmentEscrow(tx, appointment);
 
       return appointment;
     });
@@ -1147,6 +1197,8 @@ export async function markPatientNoShowAppointment(
           id: true,
           date: true,
           time: true,
+          durationMinutes: true,
+          timezonePro: true,
           status: true,
           professionalId: true,
           stripeSessionId: true,
@@ -1164,10 +1216,38 @@ export async function markPatientNoShowAppointment(
         throw new Error("Apenas consultas confirmadas podem ser marcadas como ausencia.");
       }
 
-      const scheduledAt = appointmentDateTime(appointment.date, appointment.time);
+      const completionAt = getAppointmentCompletionAt({
+        date: appointment.date,
+        time: appointment.time,
+        timeZone: appointment.timezonePro,
+        durationMinutes: appointment.durationMinutes,
+      });
 
-      if (!scheduledAt || scheduledAt > new Date()) {
-        throw new Error("A ausencia so pode ser marcada apos o horario da consulta.");
+      if (!completionAt) {
+        throw new Error(
+          "Nao foi possivel validar o horario final desta consulta.",
+        );
+      }
+
+      if (completionAt.getTime() > Date.now()) {
+        throw new Error(
+          "A ausencia so pode ser marcada depois do termino previsto da sessao.",
+        );
+      }
+
+      const claimedAppointment = await tx.appointment.updateMany({
+        where: {
+          id: appointment.id,
+          professionalId: session.user.id,
+          status: "CONFIRMED",
+        },
+        data: { status: "NO_SHOW" },
+      });
+
+      if (claimedAppointment.count !== 1) {
+        throw new Error(
+          "A consulta mudou de status e nao pode ser marcada como ausencia.",
+        );
       }
 
       const releasedTransaction = await releaseAppointmentEscrow(
@@ -1182,7 +1262,7 @@ export async function markPatientNoShowAppointment(
 
       await tx.appointment.update({
         where: { id: appointment.id },
-        data: { status: "NO_SHOW", notes },
+        data: { notes },
       });
     });
 
@@ -1202,17 +1282,18 @@ export async function markPatientNoShowAppointment(
 
 export async function autoCompleteHealthAppointments() {
   const now = new Date();
-  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
   const appointments = await db.appointment.findMany({
     where: {
       status: "CONFIRMED",
-      date: { lte: twentyFourHoursAgo },
+      date: { lte: now },
     },
     select: {
       id: true,
       date: true,
       time: true,
+      durationMinutes: true,
+      timezonePro: true,
       price: true,
       professionalId: true,
       stripeSessionId: true,
@@ -1225,11 +1306,22 @@ export async function autoCompleteHealthAppointments() {
   const failed: Array<{ appointmentId: string; error: string }> = [];
 
   for (const appointment of appointments) {
-    const scheduledAt = appointmentDateTime(appointment.date, appointment.time);
+    const completionAt = getAppointmentCompletionAt({
+      date: appointment.date,
+      time: appointment.time,
+      timeZone: appointment.timezonePro,
+      durationMinutes: appointment.durationMinutes,
+    });
 
-    if (!scheduledAt) continue;
+    if (!completionAt) {
+      failed.push({
+        appointmentId: appointment.id,
+        error: "Nao foi possivel validar o termino da consulta.",
+      });
+      continue;
+    }
 
-    const releaseAt = new Date(scheduledAt.getTime() + 24 * 60 * 60 * 1000);
+    const releaseAt = new Date(completionAt.getTime() + 24 * 60 * 60 * 1000);
     if (releaseAt > now) continue;
 
     try {
@@ -1306,6 +1398,8 @@ export async function rescheduleHealthAppointment(
         id: true,
         date: true,
         time: true,
+        durationMinutes: true,
+        timezonePro: true,
         status: true,
         professionalId: true,
         patientId: true,
@@ -1316,7 +1410,7 @@ export async function rescheduleHealthAppointment(
         googleEventId: true,
         patient: { select: { name: true, email: true } },
         professional: {
-          select: { name: true, email: true, sessionDuration: true },
+          select: { name: true, email: true },
         },
       },
     });
@@ -1333,10 +1427,11 @@ export async function rescheduleHealthAppointment(
       return { error: "Apenas consultas confirmadas podem ser reagendadas." };
     }
 
-    const currentDateTime = appointmentDateTime(
-      appointment.date,
-      appointment.time,
-    );
+    const currentDateTime = getAppointmentStartAt({
+      date: appointment.date,
+      time: appointment.time,
+      timeZone: appointment.timezonePro,
+    });
 
     if (!currentDateTime) {
       return { error: "Data atual da consulta invalida." };
@@ -1358,12 +1453,22 @@ export async function rescheduleHealthAppointment(
       return { error: "Data ou horario invalido." };
     }
 
-    if (parsedNewDate.dateTime <= new Date()) {
+    const newDateTime = getAppointmentStartAt({
+      date: newDate,
+      time: newTime,
+      timeZone: appointment.timezonePro,
+    });
+
+    if (!newDateTime) {
+      return { error: "Data, horario ou fuso invalido." };
+    }
+
+    if (newDateTime <= new Date()) {
       return { error: "O novo horario deve ser no futuro." };
     }
 
     const hoursUntilNew =
-      (parsedNewDate.dateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+      (newDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
 
     if (hoursUntilNew < 24) {
       return {
@@ -1397,7 +1502,7 @@ export async function rescheduleHealthAppointment(
       return { error: "Profissional nao atende neste dia da semana." };
     }
 
-    const duration = appointment.professional.sessionDuration || 50;
+    const duration = appointment.durationMinutes;
     const validSlots = generateDaySlots(
       dayRule.startTime,
       dayRule.endTime,
@@ -1455,6 +1560,7 @@ export async function rescheduleHealthAppointment(
       appointmentId: appointment.id,
       date: appointment.date,
       time: appointment.time,
+      timezonePro: appointment.timezonePro,
       meetLink: appointment.meetLink,
       googleEventId: appointment.googleEventId,
       durationMinutes: duration,
@@ -1469,8 +1575,8 @@ export async function rescheduleHealthAppointment(
         eventId: resolvedGoogleEvent.eventId,
         summary: `MWC Online - Consulta com ${appointment.professional.name ?? "profissional"}`,
         description: `Consulta MWC Online reagendada de ${appointment.date.toLocaleDateString("pt-BR")} as ${appointment.time} para ${newDate} as ${newTime}.`,
-        startTime: parsedNewDate.dateTime,
-        endTime: new Date(parsedNewDate.dateTime.getTime() + duration * 60 * 1000),
+        startTime: newDateTime,
+        endTime: new Date(newDateTime.getTime() + duration * 60 * 1000),
         attendees: [
           appointment.patient.email,
           appointment.professional.email,

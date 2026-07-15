@@ -16,11 +16,14 @@ import {
 } from "lucide-react";
 import { CompleteAppointmentButton } from "@/modules/health/components/complete-appointment-button";
 import { ProfessionalAppointmentActionButtons } from "@/modules/health/components/professional-appointment-action-buttons";
+import { canCompleteHealthAppointment } from "@/modules/health/lib/appointment-completion-time";
 
 type ProfessionalAppointment = {
   id: string;
   date: string;
   time: string;
+  durationMinutes: number;
+  timezonePro: string;
   status: string;
   price: number;
   meetLink: string | null;
@@ -40,22 +43,6 @@ function formatDate(date: string) {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "medium",
   }).format(new Date(date));
-}
-
-function canCompleteAppointment(date: string, time: string) {
-  const appointmentDate = new Date(date);
-  const [hours, minutes] = time.split(":").map(Number);
-
-  if (
-    Number.isNaN(appointmentDate.getTime()) ||
-    !Number.isInteger(hours) ||
-    !Number.isInteger(minutes)
-  ) {
-    return false;
-  }
-
-  appointmentDate.setHours(hours, minutes, 0, 0);
-  return appointmentDate <= new Date();
 }
 
 function statusBadge(status: string) {
@@ -203,10 +190,12 @@ export function ProfessionalAppointmentsTabs({
           {visibleAppointments.map((appointment) => {
             const badge = statusBadge(appointment.status);
             const BadgeIcon = badge.icon;
-            const canComplete = canCompleteAppointment(
-              appointment.date,
-              appointment.time,
-            );
+            const canComplete = canCompleteHealthAppointment({
+              date: appointment.date,
+              time: appointment.time,
+              timeZone: appointment.timezonePro,
+              durationMinutes: appointment.durationMinutes,
+            });
 
             return (
               <div

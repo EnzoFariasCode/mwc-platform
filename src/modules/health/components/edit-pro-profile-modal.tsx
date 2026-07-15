@@ -211,6 +211,22 @@ export function EditProProfileModal({
                   <option value="90">1 hora e 30 min</option>
                 </select>
               </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
+                  Fuso horário
+                </label>
+                <select
+                  name="timezone"
+                  defaultValue={initialData?.timezone || "America/Sao_Paulo"}
+                  className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all appearance-none cursor-pointer"
+                >
+                  <option value="America/Noronha">Fernando de Noronha</option>
+                  <option value="America/Sao_Paulo">Brasília</option>
+                  <option value="America/Cuiaba">Cuiabá</option>
+                  <option value="America/Manaus">Manaus</option>
+                  <option value="America/Rio_Branco">Rio Branco</option>
+                </select>
+              </div>
             </div>
           </section>
 

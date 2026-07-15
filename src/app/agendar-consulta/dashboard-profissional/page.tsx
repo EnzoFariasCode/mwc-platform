@@ -57,6 +57,8 @@ export default async function ProHealthDashboard() {
       id: appointment.id,
       date: appointment.date.toISOString(),
       time: appointment.time,
+      durationMinutes: appointment.durationMinutes,
+      timezonePro: appointment.timezonePro,
       status: appointment.status,
       price: Number(appointment.price),
       meetLink: appointment.meetLink,

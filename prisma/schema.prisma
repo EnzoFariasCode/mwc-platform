@@ -175,6 +175,7 @@ model User {
   approach        String? // Abordagem clínica (Ex: "TCC", "Psicanálise")
   consultationFee Decimal? // Valor fixo da consulta base
   sessionDuration Int?     @default(50) // Duração da sessão em minutos (Padrão 50min)
+  timezone        String   @default("America/Sao_Paulo")
 
   // Armazenamento de Imagem no Banco
   profileImageBytes Bytes?
@@ -412,13 +413,14 @@ model AppointmentHold {
 }
 
 model Appointment {
-  id             String        @id @default(uuid())
-  shortId        String        @unique @default(uuid()) // Código público com fallback para não dar erro
-  date           DateTime      @db.Date
-  time           String
-  timezonePro    String        @default("America/Sao_Paulo")
-  timezoneClient String        @default("America/Sao_Paulo")
-  status         BookingStatus @default(PENDING_PAYMENT)
+  id              String        @id @default(uuid())
+  shortId         String        @unique @default(uuid()) // Código público com fallback para não dar erro
+  date            DateTime      @db.Date
+  time            String
+  durationMinutes Int           @default(50)
+  timezonePro     String        @default("America/Sao_Paulo")
+  timezoneClient  String        @default("America/Sao_Paulo")
+  status          BookingStatus @default(PENDING_PAYMENT)
 
   meetLink                String?
   googleEventId           String?

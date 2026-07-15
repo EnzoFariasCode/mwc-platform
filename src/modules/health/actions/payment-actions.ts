@@ -69,6 +69,7 @@ export async function createCheckoutSession(
         name: true,
         consultationFee: true,
         sessionDuration: true,
+        timezone: true,
       },
     });
 
@@ -284,6 +285,8 @@ export async function createCheckoutSession(
           patientId: session.user.id,
           date,
           time,
+          durationMinutes: String(professional.sessionDuration || 50),
+          timezonePro: professional.timezone,
           holdId: hold.id, // Passamos o Hold pro Stripe devolver no Webhook
           type: "HEALTH_APPOINTMENT",
           acceptedPaymentTerms: paymentTermsInfo?.acceptedPaymentTerms ? "true" : "false",

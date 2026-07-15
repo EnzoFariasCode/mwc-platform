@@ -3,6 +3,7 @@
 import Stripe from "stripe";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
+import { isValidTimeZone } from "@/modules/health/lib/appointment-completion-time";
 import { db } from "@/lib/prisma";
 import { processAppointmentMeeting } from "@/modules/health/services/appointment-meeting-recovery";
 
@@ -167,6 +168,8 @@ export async function finalizeHealthAppointmentPayment({
     select: {
       id: true,
       consultationFee: true,
+      sessionDuration: true,
+      timezone: true,
     },
   });
 
@@ -187,6 +190,17 @@ export async function finalizeHealthAppointmentPayment({
   }
 
   const expectedAmount = Math.round(Number(professional.consultationFee) * 100);
+  const metadataDuration = Number(session.metadata?.durationMinutes);
+  const durationMinutes =
+    Number.isInteger(metadataDuration) &&
+    metadataDuration > 0 &&
+    metadataDuration <= 480
+      ? metadataDuration
+      : professional.sessionDuration || 50;
+  const metadataTimeZone = session.metadata?.timezonePro || "";
+  const timezonePro = isValidTimeZone(metadataTimeZone)
+    ? metadataTimeZone
+    : professional.timezone;
 
   if (
     session.currency?.toLowerCase() !== "brl" ||
@@ -239,6 +253,8 @@ export async function finalizeHealthAppointmentPayment({
           professionalId: proId,
           date: appointmentDate.dateOnly,
           time,
+          durationMinutes,
+          timezonePro,
           status: "MEETING_PENDING",
           stripeSessionId: session.id,
           paymentConfirmedAt: new Date(),

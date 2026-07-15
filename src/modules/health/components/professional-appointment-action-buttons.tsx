@@ -111,7 +111,7 @@ export function ProfessionalAppointmentActionButtons({
         title={
           canMarkNoShow
             ? "Marcar paciente como ausente"
-            : "Disponivel somente apos o horario da consulta."
+            : "Disponivel somente apos o termino previsto da consulta."
         }
         className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-2.5 text-xs font-bold text-yellow-300 transition-all hover:bg-yellow-500/20 disabled:cursor-not-allowed disabled:opacity-50"
       >
