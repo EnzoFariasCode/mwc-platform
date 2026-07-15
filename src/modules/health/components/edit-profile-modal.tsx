@@ -1,7 +1,16 @@
 ﻿"use client";
 
-import { FormEvent, useState } from "react";
-import { User, MapPin, X, Save, Check, Phone } from "lucide-react";
+import { FormEvent, useRef, useState } from "react";
+import {
+  User,
+  MapPin,
+  X,
+  Save,
+  Check,
+  Phone,
+  LoaderCircle,
+  Search,
+} from "lucide-react";
 import {
   updatePatientProfile,
   type PatientProfileData,
@@ -23,6 +32,23 @@ function formatPhoneNumber(value?: string | null) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
+function formatCep(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+
+  return digits.length > 5
+    ? `${digits.slice(0, 5)}-${digits.slice(5)}`
+    : digits;
+}
+
+type CepAddress = {
+  cep: string;
+  address: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  error?: string;
+};
+
 export function EditProfileModal({
   isOpen,
   onClose,
@@ -31,8 +57,61 @@ export function EditProfileModal({
 }: EditProfileModalProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLookingUpCep, setIsLookingUpCep] = useState(false);
+  const [cepError, setCepError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   if (!isOpen) return null;
+
+  const setAddressField = (name: string, value: string) => {
+    const field = formRef.current?.elements.namedItem(name);
+
+    if (field instanceof HTMLInputElement) {
+      field.value = value;
+    }
+  };
+
+  const lookupCep = async (value: string) => {
+    const cep = value.replace(/\D/g, "");
+    setCepError(null);
+
+    if (cep.length !== 8) {
+      if (cep.length > 0) {
+        setCepError("Informe um CEP valido com 8 digitos.");
+      }
+      return;
+    }
+
+    setIsLookingUpCep(true);
+
+    try {
+      const response = await fetch(`/api/address/cep/${cep}`);
+      const result = (await response.json()) as CepAddress;
+
+      if (!response.ok) {
+        throw new Error(result.error || "CEP nao encontrado.");
+      }
+
+      setAddressField("cep", formatCep(result.cep));
+      setAddressField("address", result.address);
+      setAddressField("neighborhood", result.neighborhood);
+      setAddressField("city", result.city);
+      setAddressField("state", result.state);
+
+      const numberField = formRef.current?.elements.namedItem("addressNumber");
+      if (numberField instanceof HTMLInputElement) {
+        numberField.focus();
+      }
+    } catch (lookupError) {
+      setCepError(
+        lookupError instanceof Error
+          ? lookupError.message
+          : "Nao foi possivel consultar o CEP.",
+      );
+    } finally {
+      setIsLookingUpCep(false);
+    }
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -62,6 +141,7 @@ export function EditProfileModal({
       />
 
       <form
+        ref={formRef}
         onSubmit={handleSubmit}
         className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-[#0f172a] border border-white/10 rounded-2xl p-6 md:p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-200 custom-scrollbar"
       >
@@ -157,13 +237,50 @@ export function EditProfileModal({
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
                   CEP
                 </label>
-                <input
-                  name="cep"
-                  type="text"
-                  defaultValue={initialData?.cep || ""}
-                  placeholder="00000-000"
-                  className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
-                />
+                <div className="relative">
+                  <input
+                    name="cep"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    defaultValue={formatCep(initialData?.cep || "")}
+                    placeholder="00000-000"
+                    maxLength={9}
+                    onChange={(event) => {
+                      event.currentTarget.value = formatCep(
+                        event.currentTarget.value,
+                      );
+                      setCepError(null);
+                    }}
+                    onBlur={(event) => lookupCep(event.currentTarget.value)}
+                    className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 pl-4 pr-11 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
+                  />
+                  <button
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      const field = formRef.current?.elements.namedItem("cep");
+                      if (field instanceof HTMLInputElement) {
+                        lookupCep(field.value);
+                      }
+                    }}
+                    disabled={isLookingUpCep}
+                    title="Buscar endereco pelo CEP"
+                    aria-label="Buscar endereco pelo CEP"
+                    className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {isLookingUpCep ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                {cepError && (
+                  <p className="ml-1 text-xs text-red-400" role="alert">
+                    {cepError}
+                  </p>
+                )}
               </div>
               <div className="md:col-span-4 space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
