@@ -270,6 +270,12 @@ export default function DashboardSidebar() {
       roles: ["OWNER", "SUPPORT"],
     },
     {
+      icon: FileText,
+      label: "Verificacoes",
+      href: "/dashboard/admin/verificacoes",
+      roles: ["OWNER", "SUPPORT"],
+    },
+    {
       icon: ShieldCheck,
       label: "Mediação",
       href: "/dashboard/admin/disputas",

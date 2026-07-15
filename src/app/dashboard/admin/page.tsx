@@ -23,6 +23,7 @@ async function getAdminOverview() {
     pendingWithdrawals,
     pendingCancellationReconciliations,
     pendingRescheduleReconciliations,
+    pendingProfessionalVerifications,
   ] = await Promise.all([
     db.user.count(),
     db.user.count({ where: { isActive: true } }),
@@ -38,6 +39,9 @@ async function getAdminOverview() {
     db.appointmentRescheduleProcess.count({
       where: { status: "RECONCILIATION_REQUIRED" },
     }),
+    db.professionalVerification.count({
+      where: { status: { in: ["PENDING", "UNDER_REVIEW"] } },
+    }),
   ]);
 
   return {
@@ -49,6 +53,7 @@ async function getAdminOverview() {
     pendingWithdrawals,
     pendingCancellationReconciliations,
     pendingRescheduleReconciliations,
+    pendingProfessionalVerifications,
   };
 }
 
@@ -90,6 +95,16 @@ export default async function AdminDashboardPage() {
       href: "/dashboard/admin/usuarios",
       icon: Users,
     },
+    ...(admin.adminRole !== "FINANCE"
+      ? [
+          {
+            title: "Verificacoes",
+            description: `${overview.pendingProfessionalVerifications} profissional(is) aguardam analise.`,
+            href: "/dashboard/admin/verificacoes",
+            icon: ShieldCheck,
+          },
+        ]
+      : []),
     {
       title: "Mediacao",
       description: `${overview.disputedProjects} projeto(s) em disputa agora.`,

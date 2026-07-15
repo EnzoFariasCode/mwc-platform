@@ -10,7 +10,7 @@ import { addMinutes, addMonths, endOfMonth, isBefore } from "date-fns";
 import { parseAppointmentDateTime, generateDaySlots } from "./slot-helpers";
 import { ONE_TIME_PAYMENT_METHODS } from "@/modules/stripe/lib/payment-methods";
 import {
-  eligibleHealthProfessionalWhere,
+  getEligibleHealthProfessionalWhere,
   hasValidHealthProfessionalIdentity,
 } from "@/modules/health/lib/health-professional-eligibility";
 
@@ -65,7 +65,7 @@ export async function createCheckoutSession(
     const professional = await db.user.findFirst({
       where: {
         id: proId,
-        ...eligibleHealthProfessionalWhere,
+        ...getEligibleHealthProfessionalWhere(),
       },
       select: {
         id: true,

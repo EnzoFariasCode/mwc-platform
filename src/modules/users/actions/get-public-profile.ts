@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { Industry, Prisma, UserType } from "@prisma/client";
 import { hasValidHealthProfessionalIdentity } from "@/modules/health/lib/health-professional-eligibility";
+import { isProfessionalVerificationApproved } from "@/modules/health/lib/professional-verification-policy";
 
 type PublicReview = {
   id: string;
@@ -77,6 +78,7 @@ export async function getPublicProfile(
         },
         sessionDuration: true,
         consultationFee: true,
+        professionalVerification: { select: { status: true, expiresAt: true } },
         // -------------------------------------------------------------------
         reviewsReceived: {
           where: {
@@ -112,12 +114,16 @@ export async function getPublicProfile(
       const hasValidJobTitle =
         professional.jobTitle && professional.jobTitle.trim() !== "";
       const hasFee = professional.consultationFee !== null;
+      const isVerified = isProfessionalVerificationApproved(
+        professional.professionalVerification,
+      );
 
       const hasValidAgenda =
         Array.isArray(professional.availabilities) &&
         professional.availabilities.length > 0;
 
       if (
+        !isVerified ||
         !hasValidIdentity ||
         !hasValidJobTitle ||
         !hasValidAgenda ||
@@ -150,6 +156,7 @@ export async function getPublicProfile(
       availabilities: _av,
       sessionDuration: _sd,
       consultationFee: _cf,
+      professionalVerification: _professionalVerification,
       reviewsReceived: rawReviews, // Extraímos as avaliações com tipagem imperfeita
       ...rest
     } = professional;
@@ -162,6 +169,7 @@ export async function getPublicProfile(
     void _av;
     void _sd;
     void _cf;
+    void _professionalVerification;
 
     // --- 🛠️ CORREÇÃO DE TIPAGEM PARA O TYPESCRIPT ---
     // Mapeamos o array e garantimos ao TS que o comment é string (já filtramos no banco)

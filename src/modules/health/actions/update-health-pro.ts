@@ -9,7 +9,6 @@ import {
   getHealthProfessionalIdentityError,
   isTeacherOnlineSpecialty,
 } from "../lib/health-professional-eligibility";
-import { buildProfessionalCredential } from "../lib/professional-credentials";
 
 const ALLOWED_DURATIONS = [30, 50, 60, 90] as const;
 
@@ -48,21 +47,11 @@ function parseRawFormData(formData: FormData) {
 
   const rawDuration = formData.get("sessionDuration");
   const rawFee = formData.get("consultationFee");
-  const credentialType = formData.get("documentRegType");
-  const credentialNumber = formData.get("documentRegNumber");
-  const documentReg =
-    typeof credentialType === "string" &&
-    typeof credentialNumber === "string" &&
-    credentialType.trim() &&
-    credentialNumber.trim()
-      ? buildProfessionalCredential(credentialType, credentialNumber)
-      : toNullable("documentReg");
-
   return {
     displayName: toNullable("displayName"),
     bio: toNullable("bio"),
     jobTitle: toNullable("jobTitle"),
-    documentReg,
+    documentReg: toNullable("documentReg"),
     teachingSubject: toNullable("teachingSubject"),
     approach: toNullable("approach"),
     sessionDuration: rawDuration !== null ? Number(rawDuration) : 50,
@@ -85,7 +74,12 @@ export async function updateHealthProProfile(formData: FormData) {
 
   const professional = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { onlineSpecialty: true },
+    select: {
+      onlineSpecialty: true,
+      documentReg: true,
+      teachingSubject: true,
+      professionalVerification: { select: { id: true, status: true } },
+    },
   });
 
   if (!professional?.onlineSpecialty) {
@@ -100,34 +94,71 @@ export async function updateHealthProProfile(formData: FormData) {
   }
 
   const data = parsed.data;
-  const identityError = getHealthProfessionalIdentityError({
-    onlineSpecialty: professional.onlineSpecialty,
-    documentReg: data.documentReg,
-    teachingSubject: data.teachingSubject,
-  });
-
-  if (identityError) return { error: identityError };
-
   const isTeacher = isTeacherOnlineSpecialty(professional.onlineSpecialty);
 
+  if (isTeacher) {
+    const identityError = getHealthProfessionalIdentityError({
+      onlineSpecialty: professional.onlineSpecialty,
+      documentReg: null,
+      teachingSubject: data.teachingSubject,
+    });
+    if (identityError) return { error: identityError };
+  }
+
+  const teachingSubjectChanged =
+    isTeacher &&
+    (professional.teachingSubject?.trim() || "") !==
+      (data.teachingSubject?.trim() || "");
+
+  if (
+    teachingSubjectChanged &&
+    ["PENDING", "UNDER_REVIEW"].includes(
+      professional.professionalVerification?.status || "",
+    )
+  ) {
+    return {
+      error:
+        "Aguarde a analise atual antes de alterar sua materia ou area de ensino.",
+    };
+  }
+
   try {
-    await db.user.update({
-      where: { id: session.user.id },
-      data: {
-        displayName: data.displayName ?? null,
-        bio: data.bio ?? null,
-        jobTitle: isTeacher ? "Professor" : (data.jobTitle ?? null),
-        documentReg: isTeacher ? null : (data.documentReg ?? null),
-        teachingSubject: isTeacher ? (data.teachingSubject ?? null) : null,
-        approach: data.approach ?? null,
-        sessionDuration: data.sessionDuration,
-        consultationFee: data.consultationFee ?? null,
-        timezone: data.timezone,
-      },
+    await db.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: session.user.id },
+        data: {
+          displayName: data.displayName ?? null,
+          bio: data.bio ?? null,
+          jobTitle: isTeacher ? "Professor" : (data.jobTitle ?? null),
+          documentReg: isTeacher ? null : professional.documentReg,
+          teachingSubject: isTeacher ? (data.teachingSubject ?? null) : null,
+          approach: data.approach ?? null,
+          sessionDuration: data.sessionDuration,
+          consultationFee: data.consultationFee ?? null,
+          timezone: data.timezone,
+        },
+      });
+
+      if (
+        teachingSubjectChanged &&
+        professional.professionalVerification?.status === "APPROVED"
+      ) {
+        await tx.professionalVerification.update({
+          where: { id: professional.professionalVerification.id },
+          data: {
+            status: "CHANGES_REQUIRED",
+            reviewReason:
+              "A materia foi alterada. Envie uma qualificacao compativel para nova analise.",
+            verifiedAt: null,
+            expiresAt: null,
+          },
+        });
+      }
     });
 
     revalidatePath("/agendar-consulta/dashboard-profissional");
     revalidatePath(`/agendar-consulta/perfil/${session.user.id}`);
+    revalidatePath("/agendar-consulta/verificacao");
 
     return { success: true };
   } catch (error) {

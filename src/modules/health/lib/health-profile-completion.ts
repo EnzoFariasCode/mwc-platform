@@ -1,4 +1,5 @@
 import { hasValidHealthProfessionalIdentity } from "./health-professional-eligibility";
+import { isProfessionalVerificationApproved } from "./professional-verification-policy";
 
 export type HealthProfileCompletionSection =
   | "professional"
@@ -19,6 +20,10 @@ type HealthProfileCompletionInput = {
   onlineSpecialty: string | null | undefined;
   teachingSubject: string | null | undefined;
   documentReg: string | null | undefined;
+  professionalVerification?: {
+    status?: string | null;
+    expiresAt?: Date | string | null;
+  } | null;
   approach?: string | null;
   consultationFee?: unknown;
   sessionDuration?: number | null;
@@ -78,6 +83,12 @@ export function getHealthProfileCompletion(
           : "Registro profissional",
       section: "professional",
       done: hasValidHealthProfessionalIdentity(profile),
+    },
+    {
+      key: "verification",
+      label: "Verificacao profissional",
+      section: "professional",
+      done: isProfessionalVerificationApproved(profile.professionalVerification),
     },
     {
       key: "approach",

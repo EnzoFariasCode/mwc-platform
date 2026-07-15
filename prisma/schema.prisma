@@ -154,6 +154,39 @@ enum HealthSpecialty {
   TEACHER
 }
 
+enum ProfessionalVerificationStatus {
+  DRAFT
+  PENDING
+  UNDER_REVIEW
+  CHANGES_REQUIRED
+  APPROVED
+  REJECTED
+  SUSPENDED
+  EXPIRED
+}
+
+enum ProfessionalCouncil {
+  CRP
+  CRN
+  CREF
+  OAB
+  NOT_APPLICABLE
+}
+
+enum ProfessionalVerificationDocumentType {
+  IDENTITY_DOCUMENT
+  PROFESSIONAL_CREDENTIAL
+  QUALIFICATION_DOCUMENT
+}
+
+enum ProfessionalRegistryCheckResult {
+  ACTIVE
+  INACTIVE
+  NOT_FOUND
+  INCONCLUSIVE
+  NOT_APPLICABLE
+}
+
 model User {
   id            String     @id @default(uuid())
   name          String
@@ -213,8 +246,8 @@ model User {
   onlineSpecialty HealthSpecialty? // Categoria estavel do profissional no MWC Online
   teachingSubject String? // Materia ou area de ensino para profissionais professores
   consultationFee Decimal? // Valor fixo da consulta base
-  sessionDuration Int?     @default(50) // Duração da sessão em minutos (Padrão 50min)
-  timezone        String   @default("America/Sao_Paulo")
+  sessionDuration Int?             @default(50) // Duração da sessão em minutos (Padrão 50min)
+  timezone        String           @default("America/Sao_Paulo")
 
   // Armazenamento de Imagem no Banco
   profileImageBytes Bytes?
@@ -268,23 +301,75 @@ model User {
   exceptions          AvailabilityException[]    @relation("ProExceptions")
 
   // --- Relacionamentos Gerais ---
-  conversationsAsA Conversation[]  @relation("ParticipantA")
-  conversationsAsB Conversation[]  @relation("ParticipantB")
-  sentMessages     Message[]       @relation("SentMessages")
-  favorites        Favorite[]      @relation("UserFavorites")
-  favoritedBy      Favorite[]      @relation("FavoritedBy")
-  reviewsWritten   Review[]        @relation("ReviewsAuthored")
-  reviewsReceived  Review[]        @relation("ReviewsReceived")
-  healthReviewsWritten  HealthAppointmentReview[] @relation("HealthReviewsAuthored")
-  healthReviewsReceived HealthAppointmentReview[] @relation("HealthReviewsReceived")
-  accounts         Account[]
-  sessions         Session[]
-  adminAuditLogs   AdminAuditLog[] @relation("AdminAuditActor")
-  notifications    Notification[]  @relation("UserNotifications")
+  conversationsAsA         Conversation[]             @relation("ParticipantA")
+  conversationsAsB         Conversation[]             @relation("ParticipantB")
+  sentMessages             Message[]                  @relation("SentMessages")
+  favorites                Favorite[]                 @relation("UserFavorites")
+  favoritedBy              Favorite[]                 @relation("FavoritedBy")
+  reviewsWritten           Review[]                   @relation("ReviewsAuthored")
+  reviewsReceived          Review[]                   @relation("ReviewsReceived")
+  healthReviewsWritten     HealthAppointmentReview[]  @relation("HealthReviewsAuthored")
+  healthReviewsReceived    HealthAppointmentReview[]  @relation("HealthReviewsReceived")
+  accounts                 Account[]
+  sessions                 Session[]
+  adminAuditLogs           AdminAuditLog[]            @relation("AdminAuditActor")
+  notifications            Notification[]             @relation("UserNotifications")
+  professionalVerification ProfessionalVerification?  @relation("ProfessionalVerificationOwner")
+  verificationReviews      ProfessionalVerification[] @relation("ProfessionalVerificationReviewer")
 
   @@index([isActive])
   @@index([industry, userType, professionalPlanTier])
   @@index([industry, userType, onlineSpecialty, isActive])
+}
+
+model ProfessionalVerification {
+  id                  String                           @id @default(uuid())
+  professionalId      String                           @unique
+  specialty           HealthSpecialty
+  status              ProfessionalVerificationStatus   @default(DRAFT)
+  council             ProfessionalCouncil
+  registrationNumber  String?
+  registrationRegion  String?
+  qualificationTitle  String?
+  officialSourceUrl   String?
+  officialCheckResult ProfessionalRegistryCheckResult?
+  officialCheckedAt   DateTime?
+  submittedAt         DateTime?
+  reviewedAt          DateTime?
+  reviewerId          String?
+  reviewReason        String?                          @db.Text
+  verifiedAt          DateTime?
+  expiresAt           DateTime?
+  privacyAcceptedAt   DateTime?
+  privacyTermsVersion String?
+  createdAt           DateTime                         @default(now())
+  updatedAt           DateTime                         @updatedAt
+
+  professional User                               @relation("ProfessionalVerificationOwner", fields: [professionalId], references: [id], onDelete: Cascade)
+  reviewer     User?                              @relation("ProfessionalVerificationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  documents    ProfessionalVerificationDocument[]
+
+  @@index([status, submittedAt])
+  @@index([specialty, status])
+  @@index([reviewerId])
+}
+
+model ProfessionalVerificationDocument {
+  id             String                               @id @default(uuid())
+  verificationId String
+  type           ProfessionalVerificationDocumentType
+  fileName       String
+  mimeType       String
+  size           Int
+  sha256         String
+  bytes          Bytes
+  createdAt      DateTime                             @default(now())
+  updatedAt      DateTime                             @updatedAt
+
+  verification ProfessionalVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+
+  @@unique([verificationId, type])
+  @@index([verificationId])
 }
 
 // =========================================================
@@ -441,14 +526,14 @@ model AvailabilityException {
 }
 
 model AppointmentHold {
-  id              String   @id @default(uuid())
-  professionalId  String
-  patientId       String
-  date            DateTime @db.Date
-  time            String
-  expiresAt       DateTime // UTC para expiração do carrinho (Ex: now + 15 min)
-  stripeSessionId String?  @unique
-  createdAt       DateTime @default(now())
+  id                String                        @id @default(uuid())
+  professionalId    String
+  patientId         String
+  date              DateTime                      @db.Date
+  time              String
+  expiresAt         DateTime // UTC para expiração do carrinho (Ex: now + 15 min)
+  stripeSessionId   String?                       @unique
+  createdAt         DateTime                      @default(now())
   rescheduleProcess AppointmentRescheduleProcess?
 
   // Índice para leitura rápida na hora de checar slots ocupados
@@ -510,13 +595,13 @@ model Appointment {
 }
 
 model AppointmentRescheduleProcess {
-  id             String                      @id @default(cuid())
-  appointmentId  String
-  appointment    Appointment                 @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  requestedById  String
-  status         AppointmentRescheduleStatus @default(PENDING)
-  reservationId  String?                     @unique
-  reservation    AppointmentHold?            @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  id            String                      @id @default(cuid())
+  appointmentId String
+  appointment   Appointment                 @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  requestedById String
+  status        AppointmentRescheduleStatus @default(PENDING)
+  reservationId String?                     @unique
+  reservation   AppointmentHold?            @relation(fields: [reservationId], references: [id], onDelete: SetNull)
 
   previousDate DateTime @db.Date
   previousTime String
@@ -541,8 +626,8 @@ model AppointmentRescheduleProcess {
   reconciliationAlertedAt  DateTime?
   completedAt              DateTime?
   completionNotifiedAt     DateTime?
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 
   @@index([appointmentId, createdAt])
   @@index([status, nextAttemptAt])

@@ -81,6 +81,31 @@ export async function getHealthProfessionalDashboardById(
 
       sessionDuration: true, // Puxa o tempo da consulta (ex: 50 min)
       timezone: true,
+      professionalVerification: {
+        select: {
+          id: true,
+          specialty: true,
+          status: true,
+          council: true,
+          registrationNumber: true,
+          registrationRegion: true,
+          qualificationTitle: true,
+          submittedAt: true,
+          reviewedAt: true,
+          reviewReason: true,
+          verifiedAt: true,
+          expiresAt: true,
+          documents: {
+            select: {
+              id: true,
+              type: true,
+              fileName: true,
+              size: true,
+              createdAt: true,
+            },
+          },
+        },
+      },
       availabilities: true, // <--- TABELA NOVA, // Puxa a grade de horários (JSON)
       exceptions: true, // <--- TABELA NOVA, // Puxa as exceções de horários (JSON)
     },

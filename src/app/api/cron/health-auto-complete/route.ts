@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { autoCompleteHealthAppointments } from "@/modules/health/actions/appointment-actions";
+import { expireProfessionalVerifications } from "@/modules/health/services/professional-verification-expiration";
 
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -17,6 +18,11 @@ export async function GET(req: Request) {
   }
 
   const result = await autoCompleteHealthAppointments();
+  const verificationResult = await expireProfessionalVerifications();
 
-  return NextResponse.json({ success: true, ...result });
+  return NextResponse.json({
+    success: true,
+    ...result,
+    expiredProfessionalVerifications: verificationResult.expired,
+  });
 }

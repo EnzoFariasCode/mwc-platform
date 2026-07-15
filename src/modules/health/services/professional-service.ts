@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/prisma";
 import {
-  eligibleHealthProfessionalWhere,
+  getEligibleHealthProfessionalWhere,
   hasValidHealthProfessionalIdentity,
 } from "@/modules/health/lib/health-professional-eligibility";
 
@@ -15,10 +15,10 @@ function publicReviewerName(name: string | null | undefined) {
 
 export async function getHealthProfessionalById(id: string) {
   try {
-    const pro = await db.user.findUnique({
+    const pro = await db.user.findFirst({
       where: {
+        ...getEligibleHealthProfessionalWhere(),
         id,
-        ...eligibleHealthProfessionalWhere,
       },
       select: {
         id: true,

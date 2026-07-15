@@ -1,0 +1,60 @@
+import { auth } from "@/auth";
+import { db } from "@/lib/prisma";
+import { NextResponse } from "next/server";
+
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function GET(_request: Request, { params }: RouteContext) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const document = await db.professionalVerificationDocument.findUnique({
+    where: { id },
+    select: {
+      bytes: true,
+      mimeType: true,
+      fileName: true,
+      verification: { select: { professionalId: true } },
+    },
+  });
+
+  if (!document) {
+    return NextResponse.json(
+      { error: "Documento nao encontrado." },
+      { status: 404 },
+    );
+  }
+
+  const isOwner = document.verification.professionalId === session.user.id;
+  let isAuthorizedAdmin = false;
+
+  if (session.user.userType === "ADMIN") {
+    const admin = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { isActive: true, adminRole: true },
+    });
+    isAuthorizedAdmin = Boolean(
+      admin?.isActive &&
+        (!admin.adminRole || ["OWNER", "SUPPORT"].includes(admin.adminRole)),
+    );
+  }
+
+  if (!isOwner && !isAuthorizedAdmin) {
+    return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+  }
+
+  const disposition = document.mimeType === "application/pdf" ? "inline" : "inline";
+
+  return new NextResponse(document.bytes as unknown as BodyInit, {
+    headers: {
+      "Content-Type": document.mimeType,
+      "Content-Disposition": `${disposition}; filename="${document.fileName}"`,
+      "Cache-Control": "private, no-store, max-age=0",
+      "Content-Security-Policy": "sandbox; default-src 'none';",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}

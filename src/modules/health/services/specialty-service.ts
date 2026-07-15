@@ -1,6 +1,6 @@
 import { db } from "@/lib/prisma";
 import { healthSpecialties } from "@/modules/health/lib/specialties";
-import { eligibleHealthProfessionalWhere } from "@/modules/health/lib/health-professional-eligibility";
+import { getEligibleHealthProfessionalWhere } from "@/modules/health/lib/health-professional-eligibility";
 
 export async function getHealthSpecialtyCards() {
   const cards = await Promise.all(
@@ -9,7 +9,7 @@ export async function getHealthSpecialtyCards() {
       // atendem aos critérios sem precisar baixar os dados deles para a memória.
       const count = await db.user.count({
         where: {
-          ...eligibleHealthProfessionalWhere,
+          ...getEligibleHealthProfessionalWhere(),
           onlineSpecialty: specialty.code,
           jobTitle: { not: null },
         },

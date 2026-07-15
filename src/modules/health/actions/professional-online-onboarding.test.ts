@@ -5,9 +5,16 @@ const mocks = vi.hoisted(() => {
     onlineSpecialty: "TEACHER",
     documentReg: null as string | null,
     teachingSubject: null as string | null,
+    professionalVerification: { id: "verification-1", status: "DRAFT" },
   };
 
   const tx = {
+    user: {
+      update: vi.fn(async () => ({ id: "professional-1" })),
+    },
+    professionalVerification: {
+      update: vi.fn(),
+    },
     professionalAvailability: {
       deleteMany: vi.fn(),
       createMany: vi.fn(),
@@ -17,7 +24,6 @@ const mocks = vi.hoisted(() => {
   const db = {
     user: {
       findUnique: vi.fn(async () => ({ ...professional })),
-      update: vi.fn(async () => ({ id: "professional-1" })),
     },
     $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) =>
       callback(tx),
@@ -32,6 +38,7 @@ const mocks = vi.hoisted(() => {
         onlineSpecialty: "TEACHER",
         documentReg: null,
         teachingSubject: null,
+        professionalVerification: { id: "verification-1", status: "DRAFT" },
       };
       vi.clearAllMocks();
     },
@@ -91,7 +98,7 @@ describe("onboarding do profissional Online", () => {
     const result = await updateHealthProProfile(profileForm());
 
     expect(result.error).toContain("materia");
-    expect(mocks.db.user.update).not.toHaveBeenCalled();
+    expect(mocks.tx.user.update).not.toHaveBeenCalled();
   });
 
   it("salva Professor com materia e remove qualquer registro", async () => {
@@ -104,7 +111,7 @@ describe("onboarding do profissional Online", () => {
     );
 
     expect(result).toEqual({ success: true });
-    expect(mocks.db.user.update).toHaveBeenCalledWith(
+    expect(mocks.tx.user.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           jobTitle: "Professor",
@@ -115,19 +122,24 @@ describe("onboarding do profissional Online", () => {
     );
   });
 
-  it("continua exigindo registro das categorias regulamentadas", async () => {
+  it("preserva o registro regulamentado para o fluxo documental", async () => {
     mocks.setProfessional({
       onlineSpecialty: "PSYCHOLOGIST",
       documentReg: null,
       teachingSubject: null,
+      professionalVerification: { id: "verification-1", status: "DRAFT" },
     });
 
     const result = await updateHealthProProfile(
       profileForm({ jobTitle: "Psicologo(a)" }),
     );
 
-    expect(result.error).toContain("registro profissional");
-    expect(mocks.db.user.update).not.toHaveBeenCalled();
+    expect(result).toEqual({ success: true });
+    expect(mocks.tx.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ documentReg: null }),
+      }),
+    );
   });
 
   it("permite que Professor com materia configure a agenda", async () => {
@@ -135,6 +147,7 @@ describe("onboarding do profissional Online", () => {
       onlineSpecialty: "TEACHER",
       documentReg: null,
       teachingSubject: "Fisica",
+      professionalVerification: { id: "verification-1", status: "APPROVED" },
     });
 
     const result = await updateHealthSchedule(schedule);

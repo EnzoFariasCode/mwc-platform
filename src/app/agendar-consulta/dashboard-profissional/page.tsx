@@ -18,9 +18,11 @@ import { formatProfessionalCredential } from "@/modules/health/lib/professional-
 import { ScheduleConfigLink } from "@/modules/health/components/schedule-config-link";
 import {
   hasValidHealthProfessionalIdentity,
+  isOnlineSpecialtyOperational,
   isTeacherOnlineSpecialty,
 } from "@/modules/health/lib/health-professional-eligibility";
 import { getHealthProfileCompletion } from "@/modules/health/lib/health-profile-completion";
+import { isProfessionalVerificationApproved } from "@/modules/health/lib/professional-verification-policy";
 
 // Funções Utilitárias de Formatação
 function formatCurrency(value: number | null) {
@@ -76,6 +78,13 @@ export default async function ProHealthDashboard({
   );
   const missingApproach = !professional.approach;
   const profileCompletion = getHealthProfileCompletion(professional);
+  const verificationApproved = isProfessionalVerificationApproved(
+    professional.professionalVerification,
+  );
+  const specialtyOperational = isOnlineSpecialtyOperational(
+    professional.onlineSpecialty,
+  );
+  const publicProfileAvailable = verificationApproved && specialtyOperational;
   const appointmentItems = (professional.proAppointments ?? []).map(
     (appointment) => ({
       id: appointment.id,
@@ -105,6 +114,8 @@ export default async function ProHealthDashboard({
         <DashboardModalsController
           professional={professional}
           missingProfessionalIdentity={missingProfessionalIdentity}
+          verificationApproved={verificationApproved}
+          specialtyOperational={specialtyOperational}
           profileCompletion={profileCompletion}
         />
 
@@ -124,11 +135,19 @@ export default async function ProHealthDashboard({
             </p>
           </div>
           <Link
-            href={`/agendar-consulta/perfil/${professional.id}`}
+            href={
+              publicProfileAvailable
+                ? `/agendar-consulta/perfil/${professional.id}`
+                : "/agendar-consulta/verificacao"
+            }
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d73cbe]/30 bg-[#d73cbe]/10 px-6 py-3.5 text-sm font-semibold text-[#d73cbe] transition-all hover:bg-[#d73cbe] hover:text-white active:scale-95 shrink-0"
           >
             <ExternalLink className="h-4 w-4" />
-            Ver perfil público
+            {publicProfileAvailable
+              ? "Ver perfil público"
+              : verificationApproved
+                ? "Categoria indisponível"
+                : "Verificar perfil"}
           </Link>
         </div>
 
@@ -261,7 +280,13 @@ export default async function ProHealthDashboard({
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-400">Disponibilidade</span>
-                  <ScheduleConfigLink disabled={missingProfessionalIdentity} />
+                  <ScheduleConfigLink
+                    disabled={
+                      missingProfessionalIdentity ||
+                      !verificationApproved ||
+                      !specialtyOperational
+                    }
+                  />
                 </div>
               </div>
               {/* O Botão de Agenda está no DashboardModalsController logo acima do Perfil! */}

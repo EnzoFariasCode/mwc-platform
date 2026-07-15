@@ -8,6 +8,7 @@ const completeProfile = {
   onlineSpecialty: "TEACHER",
   teachingSubject: "Matematica",
   documentReg: null,
+  professionalVerification: { status: "APPROVED", expiresAt: null },
   approach: "Aulas praticas",
   consultationFee: 100,
   sessionDuration: 50,

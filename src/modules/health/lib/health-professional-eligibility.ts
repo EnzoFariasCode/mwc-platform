@@ -7,30 +7,54 @@ const REGULATED_ONLINE_SPECIALTIES = [
   "LAWYER",
 ] as const;
 
+export function isOnlineSpecialtyOperational(
+  specialty: string | null | undefined,
+) {
+  return (
+    specialty !== "LAWYER" ||
+    process.env.ENABLE_MWC_ONLINE_LAWYERS === "true"
+  );
+}
+
 type ProfessionalIdentityInput = {
   onlineSpecialty: string | null | undefined;
   documentReg: string | null | undefined;
   teachingSubject: string | null | undefined;
 };
 
-export const eligibleHealthProfessionalWhere = {
-  userType: "PROFESSIONAL",
-  industry: "HEALTH",
-  isActive: true,
-  onlineSpecialty: { not: null },
-  OR: [
-    {
-      onlineSpecialty: "TEACHER",
-      teachingSubject: { not: null },
-      NOT: { teachingSubject: "" },
+export function getEligibleHealthProfessionalWhere(
+  now = new Date(),
+): Prisma.UserWhereInput {
+  const lawyersEnabled = isOnlineSpecialtyOperational("LAWYER");
+
+  return {
+    userType: "PROFESSIONAL",
+    industry: "HEALTH",
+    isActive: true,
+    onlineSpecialty: { not: null },
+    ...(lawyersEnabled
+      ? {}
+      : { AND: [{ onlineSpecialty: { not: "LAWYER" } }] }),
+    professionalVerification: {
+      is: {
+        status: "APPROVED",
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
     },
-    {
-      onlineSpecialty: { in: [...REGULATED_ONLINE_SPECIALTIES] },
-      documentReg: { not: null },
-      NOT: { documentReg: "" },
-    },
-  ],
-} satisfies Prisma.UserWhereInput;
+    OR: [
+      {
+        onlineSpecialty: "TEACHER",
+        teachingSubject: { not: null },
+        NOT: { teachingSubject: "" },
+      },
+      {
+        onlineSpecialty: { in: [...REGULATED_ONLINE_SPECIALTIES] },
+        documentReg: { not: null },
+        NOT: { documentReg: "" },
+      },
+    ],
+  };
+}
 
 export function hasValidProfessionalRegistration(
   documentReg: string | null | undefined,

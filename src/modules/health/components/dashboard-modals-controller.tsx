@@ -7,6 +7,7 @@ import {
   CalendarRange,
   CheckCircle2,
   ContactRound,
+  ShieldCheck,
   Settings2,
   UserRound,
 } from "lucide-react";
@@ -19,30 +20,71 @@ import { OPEN_HEALTH_SCHEDULE_MODAL } from "./schedule-config-link";
 interface Props {
   professional: HealthProfessionalProfile;
   missingProfessionalIdentity: boolean;
+  verificationApproved: boolean;
+  specialtyOperational: boolean;
   profileCompletion: HealthProfileCompletion;
 }
 
 export function DashboardModalsController({
   professional,
   missingProfessionalIdentity,
+  verificationApproved,
+  specialtyOperational,
   profileCompletion,
 }: Props) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const isTeacher = professional.onlineSpecialty === "TEACHER";
+  const scheduleBlocked =
+    missingProfessionalIdentity ||
+    !verificationApproved ||
+    !specialtyOperational;
 
   useEffect(() => {
     const openScheduleModal = () => {
-      if (!missingProfessionalIdentity) setIsScheduleOpen(true);
+      if (!scheduleBlocked) setIsScheduleOpen(true);
     };
 
     window.addEventListener(OPEN_HEALTH_SCHEDULE_MODAL, openScheduleModal);
     return () =>
       window.removeEventListener(OPEN_HEALTH_SCHEDULE_MODAL, openScheduleModal);
-  }, [missingProfessionalIdentity]);
+  }, [scheduleBlocked]);
 
   return (
     <>
+      {!verificationApproved && (
+        <div className="mb-4 flex flex-col items-start gap-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 sm:flex-row sm:items-center">
+          <div className="rounded-full bg-amber-500/15 p-3 text-amber-400">
+            <ShieldCheck className="h-6 w-6" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-amber-300">
+              Verificacao profissional necessaria
+            </h3>
+            <p className="mt-1 text-sm text-amber-100/70">
+              Envie seus documentos para liberar agenda, perfil publico e novos atendimentos.
+            </p>
+          </div>
+          <Link
+            href="/agendar-consulta/verificacao"
+            className="rounded-lg bg-amber-400 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-amber-300"
+          >
+            Enviar documentos
+          </Link>
+        </div>
+      )}
+
+      {!specialtyOperational && (
+        <div className="mb-4 rounded-xl border border-slate-500/30 bg-slate-500/10 p-5">
+          <h3 className="font-bold text-slate-200">
+            Categoria temporariamente indisponivel
+          </h3>
+          <p className="mt-1 text-sm text-slate-400">
+            A verificacao pode ser concluida, mas novos atendimentos de Advocacia permanecem bloqueados ate a liberacao regulatoria da MWC.
+          </p>
+        </div>
+      )}
+
       {missingProfessionalIdentity && (
         <div className="mb-8 flex flex-col items-start gap-4 rounded-xl border border-red-500/30 bg-red-500/10 p-6 shadow-[0_0_30px_rgba(239,68,68,0.1)] sm:flex-row sm:items-center">
           <div className="rounded-full bg-red-500/20 p-3 text-red-500">
@@ -70,9 +112,9 @@ export function DashboardModalsController({
       <div className="mt-4 grid items-stretch gap-3 lg:grid-cols-[auto_minmax(0,1fr)]">
         <button
           onClick={() => setIsScheduleOpen(true)}
-          disabled={missingProfessionalIdentity}
+          disabled={scheduleBlocked}
           className={`flex min-h-24 w-full items-center justify-center gap-2 rounded-lg px-8 py-3.5 text-sm font-bold transition-all active:scale-95 lg:w-56 ${
-            missingProfessionalIdentity
+            scheduleBlocked
               ? "cursor-not-allowed bg-white/5 text-slate-500"
               : "cursor-pointer bg-[#d73cbe] text-white shadow-lg shadow-[#d73cbe]/20 hover:bg-[#b02da0]"
           }`}
@@ -137,7 +179,7 @@ export function DashboardModalsController({
                   </button>
                 )}
                 {!profileCompletion.sections.schedule &&
-                  !missingProfessionalIdentity && (
+                  !scheduleBlocked && (
                     <button
                       onClick={() => setIsScheduleOpen(true)}
                       className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 transition-colors hover:border-[#d73cbe]/40 hover:text-white"

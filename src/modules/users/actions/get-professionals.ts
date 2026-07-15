@@ -3,7 +3,7 @@
 import { db } from "@/lib/prisma";
 import { getHealthSpecialtyById } from "@/modules/health/lib/specialties";
 import {
-  eligibleHealthProfessionalWhere,
+  getEligibleHealthProfessionalWhere,
   hasValidHealthProfessionalIdentity,
 } from "@/modules/health/lib/health-professional-eligibility";
 
@@ -17,7 +17,7 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
 
     const professionals = await db.user.findMany({
       where: {
-        ...eligibleHealthProfessionalWhere,
+        ...getEligibleHealthProfessionalWhere(),
         onlineSpecialty: specialty.code,
         jobTitle: { not: null },
       },

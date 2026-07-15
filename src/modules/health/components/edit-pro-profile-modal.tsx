@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, FormEvent } from "react";
+import Link from "next/link";
 import {
   X,
   Save,
@@ -12,10 +13,6 @@ import {
 // Importando a Server Action que criamos na etapa anterior
 import { updateHealthProProfile } from "../actions/update-health-pro";
 import type { HealthProfessionalProfile } from "../types";
-import {
-  parseProfessionalCredential,
-  PROFESSIONAL_CREDENTIAL_TYPES,
-} from "../lib/professional-credentials";
 
 type EditProProfileModalProps = {
   isOpen: boolean;
@@ -38,7 +35,6 @@ export function EditProProfileModal({
     typeof initialData?.consultationFee === "string"
       ? initialData.consultationFee
       : 150;
-  const initialCredential = parseProfessionalCredential(initialData?.documentReg);
   const isTeacher = initialData?.onlineSpecialty === "TEACHER";
 
   // Lógica real conectada ao Back-end
@@ -167,30 +163,24 @@ export function EditProProfileModal({
                 className={`space-y-1.5 md:col-span-2 ${isTeacher ? "hidden" : ""}`}
               >
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  Registro profissional *
+                  Registro profissional
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-3">
-                  <select
-                    name="documentRegType"
-                    required={!isTeacher}
-                    defaultValue={initialCredential.type}
-                    className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all appearance-none cursor-pointer"
+                <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#020617] p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {initialData?.documentReg || "Aguardando verificacao"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      O registro somente pode ser alterado pelo processo documental.
+                    </p>
+                  </div>
+                  <Link
+                    href="/agendar-consulta/verificacao"
+                    onClick={onClose}
+                    className="text-xs font-bold text-[#d73cbe] hover:text-white"
                   >
-                    {PROFESSIONAL_CREDENTIAL_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    name="documentRegNumber"
-                    type="text"
-                    inputMode="numeric"
-                    required={!isTeacher}
-                    defaultValue={initialCredential.number}
-                    placeholder="Numero do registro"
-                    className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
-                  />
+                    Gerenciar verificacao
+                  </Link>
                 </div>
               </div>
               <div className="space-y-1.5">

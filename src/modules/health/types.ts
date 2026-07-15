@@ -36,6 +36,43 @@ export type HealthProfessionalProfile = {
   consultationFee?: unknown;
   sessionDuration?: number | null;
   timezone?: string | null;
+  professionalVerification?: {
+    id: string;
+    specialty:
+      | "PSYCHOLOGIST"
+      | "NUTRITIONIST"
+      | "PERSONAL_TRAINER"
+      | "TEACHER"
+      | "LAWYER";
+    status:
+      | "DRAFT"
+      | "PENDING"
+      | "UNDER_REVIEW"
+      | "CHANGES_REQUIRED"
+      | "APPROVED"
+      | "REJECTED"
+      | "SUSPENDED"
+      | "EXPIRED";
+    council: "CRP" | "CRN" | "CREF" | "OAB" | "NOT_APPLICABLE";
+    registrationNumber: string | null;
+    registrationRegion: string | null;
+    qualificationTitle: string | null;
+    submittedAt: Date | string | null;
+    reviewedAt: Date | string | null;
+    reviewReason: string | null;
+    verifiedAt: Date | string | null;
+    expiresAt: Date | string | null;
+    documents: Array<{
+      id: string;
+      type:
+        | "IDENTITY_DOCUMENT"
+        | "PROFESSIONAL_CREDENTIAL"
+        | "QUALIFICATION_DOCUMENT";
+      fileName: string;
+      size: number;
+      createdAt: Date | string;
+    }>;
+  } | null;
   hasProfileImage?: boolean;
   availabilities?: Array<{
     dayOfWeek: number;
