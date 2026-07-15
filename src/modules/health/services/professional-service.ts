@@ -6,6 +6,13 @@ import {
   hasValidProfessionalRegistration,
 } from "@/modules/health/lib/health-professional-eligibility";
 
+function publicReviewerName(name: string | null | undefined) {
+  const parts = name?.trim().split(/\s+/).filter(Boolean) ?? [];
+  if (parts.length === 0) return "Paciente MWC";
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts.at(-1)?.charAt(0).toUpperCase()}.`;
+}
+
 export async function getHealthProfessionalById(id: string) {
   try {
     const pro = await db.user.findUnique({
@@ -29,6 +36,20 @@ export async function getHealthProfessionalById(id: string) {
         city: true,
         state: true,
         profileImageBytes: true,
+        healthReviewsReceived: {
+          where: { isVisible: true },
+          orderBy: { createdAt: "desc" },
+          take: 8,
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            createdAt: true,
+            author: {
+              select: { name: true, displayName: true },
+            },
+          },
+        },
         availabilities: {
           select: {
             dayOfWeek: true,
@@ -60,6 +81,15 @@ export async function getHealthProfessionalById(id: string) {
       state: pro.state,
       availabilities: pro.availabilities,
       hasProfileImage: Boolean(pro.profileImageBytes),
+      reviews: pro.healthReviewsReceived.map((review) => ({
+        id: review.id,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: review.createdAt,
+        authorName: publicReviewerName(
+          review.author.displayName || review.author.name,
+        ),
+      })),
       consultationFee: pro.consultationFee
         ? pro.consultationFee.toNumber()
         : 150,

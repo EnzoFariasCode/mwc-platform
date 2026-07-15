@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import {
   Banknote,
@@ -30,6 +30,18 @@ type ProfessionalAppointment = {
   notes: string | null;
   patientName: string;
   patientId: string;
+};
+
+type AppointmentPagination = {
+  scheduled: PaginationState;
+  history: PaginationState;
+};
+
+type PaginationState = {
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
 };
 
 function formatCurrency(value: number) {
@@ -143,13 +155,13 @@ function EmptyState({ activeTab }: { activeTab: "scheduled" | "history" }) {
 
 export function ProfessionalAppointmentsTabs({
   appointments,
+  activeTab,
+  pagination,
 }: {
   appointments: ProfessionalAppointment[];
+  activeTab: "scheduled" | "history";
+  pagination: AppointmentPagination;
 }) {
-  const [activeTab, setActiveTab] = useState<"scheduled" | "history">(
-    "scheduled",
-  );
-
   const scheduled = useMemo(
     () =>
       appointments.filter((item) => !finishedStatuses.includes(item.status)),
@@ -161,6 +173,17 @@ export function ProfessionalAppointmentsTabs({
   );
 
   const visibleAppointments = activeTab === "scheduled" ? scheduled : history;
+  const activePagination = pagination[activeTab];
+  const pageHref = (tab: "scheduled" | "history", page: number) => {
+    const params = new URLSearchParams({
+      tab,
+      scheduledPage: String(
+        tab === "scheduled" ? page : pagination.scheduled.page,
+      ),
+      historyPage: String(tab === "history" ? page : pagination.history.page),
+    });
+    return `/agendar-consulta/dashboard-profissional?${params.toString()}`;
+  };
 
   return (
     <div className="rounded-3xl border border-white/10 bg-[#0f172a]/80 p-8 backdrop-blur-sm">
@@ -175,28 +198,26 @@ export function ProfessionalAppointmentsTabs({
         </div>
 
         <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-[#020617]/70 p-1 text-sm font-bold">
-          <button
-            type="button"
-            onClick={() => setActiveTab("scheduled")}
+          <Link
+            href={pageHref("scheduled", pagination.scheduled.page)}
             className={`cursor-pointer rounded-lg px-4 py-2 transition-colors ${
               activeTab === "scheduled"
                 ? "bg-[#d73cbe] text-white"
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            Agendados ({scheduled.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("history")}
+            Agendados ({pagination.scheduled.totalItems})
+          </Link>
+          <Link
+            href={pageHref("history", pagination.history.page)}
             className={`cursor-pointer rounded-lg px-4 py-2 transition-colors ${
               activeTab === "history"
                 ? "bg-[#d73cbe] text-white"
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            Historico ({history.length})
-          </button>
+            Historico ({pagination.history.totalItems})
+          </Link>
         </div>
       </div>
 
@@ -296,6 +317,39 @@ export function ProfessionalAppointmentsTabs({
             );
           })}
         </div>
+      )}
+
+      {activePagination.totalPages > 1 && (
+        <nav
+          className="mt-6 flex items-center justify-between gap-4 border-t border-white/10 pt-5"
+          aria-label={`Paginacao de ${activeTab === "scheduled" ? "agendamentos" : "historico"}`}
+        >
+          <Link
+            href={pageHref(activeTab, activePagination.page - 1)}
+            aria-disabled={activePagination.page === 1}
+            className={`rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold transition-colors ${
+              activePagination.page === 1
+                ? "pointer-events-none text-slate-700"
+                : "text-slate-300 hover:border-[#d73cbe]/40 hover:text-white"
+            }`}
+          >
+            Anterior
+          </Link>
+          <span className="text-sm text-slate-500">
+            Pagina {activePagination.page} de {activePagination.totalPages}
+          </span>
+          <Link
+            href={pageHref(activeTab, activePagination.page + 1)}
+            aria-disabled={activePagination.page === activePagination.totalPages}
+            className={`rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold transition-colors ${
+              activePagination.page === activePagination.totalPages
+                ? "pointer-events-none text-slate-700"
+                : "text-slate-300 hover:border-[#d73cbe]/40 hover:text-white"
+            }`}
+          >
+            Proxima
+          </Link>
+        </nav>
       )}
     </div>
   );

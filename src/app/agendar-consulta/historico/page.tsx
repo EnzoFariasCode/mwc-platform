@@ -3,6 +3,8 @@ import { getHealthPatientHistoryById } from "@/modules/health/services/private-p
 import { CancelAppointmentButton } from "@/modules/health/components/cancel-appointment-button";
 import { ReportAppointmentDisputeButton } from "@/modules/health/components/report-appointment-dispute-button";
 import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
+import { getAppointmentStartAt } from "@/modules/health/lib/appointment-completion-time";
+import { HealthAppointmentReviewButton } from "@/modules/health/components/health-appointment-review-button";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -23,16 +25,6 @@ function formatDate(date: Date) {
     month: "short",
     year: "numeric",
   }).format(date);
-}
-
-function appointmentDateTime(date: Date, time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-  const dateTime = new Date(date);
-
-  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null;
-
-  dateTime.setHours(hours, minutes, 0, 0);
-  return Number.isNaN(dateTime.getTime()) ? null : dateTime;
 }
 
 function statusBadge(status: string) {
@@ -135,10 +127,11 @@ export default async function HistoricoConsultasPage() {
                 !["CANCELLING", "RESCHEDULING", "CANCELED", "COMPLETED", "REFUNDED", "NO_SHOW", "DISPUTED", "MEETING_PENDING", "MEETING_FAILED"].includes(
                   appointment.status,
                 ) && appointment.date > new Date();
-              const scheduledAt = appointmentDateTime(
-                appointment.date,
-                appointment.time,
-              );
+              const scheduledAt = getAppointmentStartAt({
+                date: appointment.date,
+                time: appointment.time,
+                timeZone: appointment.timezonePro,
+              });
               const canDispute =
                 appointment.status === "CONFIRMED" &&
                 !!scheduledAt &&
@@ -204,6 +197,12 @@ export default async function HistoricoConsultasPage() {
                           appointmentId={appointment.id}
                         />
                       </div>
+                    ) : appointment.status === "COMPLETED" ? (
+                      <HealthAppointmentReviewButton
+                        appointmentId={appointment.id}
+                        professionalName={professionalName}
+                        reviewed={Boolean(appointment.healthReview)}
+                      />
                     ) : canDispute ? (
                       <ReportAppointmentDisputeButton
                         appointmentId={appointment.id}

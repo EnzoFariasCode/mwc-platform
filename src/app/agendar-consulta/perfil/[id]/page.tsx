@@ -129,6 +129,77 @@ export default async function ProfessionalHealthProfile({
                 </div>
               </div>
             </div>
+
+            <section className="space-y-5 border-t border-white/10 pt-8">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-futura font-bold uppercase tracking-wide text-white">
+                    Avaliacoes de pacientes
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Experiencias publicadas apos atendimentos concluidos.
+                  </p>
+                </div>
+                {pro.ratingCount > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-slate-300">
+                    <Star className="h-5 w-5 fill-yellow-500 text-yellow-500" />
+                    <strong className="text-white">{pro.rating.toFixed(1)}</strong>
+                    <span>
+                      {pro.ratingCount} {pro.ratingCount === 1 ? "avaliacao" : "avaliacoes"}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {pro.reviews.length > 0 ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {pro.reviews.map((review) => (
+                    <article
+                      key={review.id}
+                      className="rounded-lg border border-white/10 bg-[#0f172a]/60 p-5"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5 text-sm font-bold text-white">
+                            {review.authorName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-white">
+                              {review.authorName}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {new Intl.DateTimeFormat("pt-BR", {
+                                month: "short",
+                                year: "numeric",
+                              }).format(review.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                        <div
+                          className="flex items-center gap-1 text-sm font-bold text-yellow-400"
+                          aria-label={`${review.rating} de 5 estrelas`}
+                        >
+                          <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+                          {review.rating}.0
+                        </div>
+                      </div>
+                      {review.comment && (
+                        <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                          {review.comment}
+                        </p>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-white/10 px-6 py-10 text-center">
+                  <Star className="mx-auto h-6 w-6 text-slate-600" />
+                  <p className="mt-3 text-sm text-slate-500">
+                    Este profissional ainda nao recebeu avaliacoes publicas.
+                  </p>
+                </div>
+              )}
+            </section>
           </div>
 
           {/* COLUNA DIREITA: CALENDÁRIO INTELIGENTE */}

@@ -26,8 +26,19 @@ function formatCurrency(value: number | null) {
   });
 }
 
-export default async function ProHealthDashboard() {
+function pageParam(value: string | string[] | undefined) {
+  const parsed = Number(Array.isArray(value) ? value[0] : value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+}
+
+export default async function ProHealthDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await auth();
+  const query = await searchParams;
+  const activeTab = query.tab === "history" ? "history" : "scheduled";
 
   // Verificação de autenticação e permissão
   if (
@@ -40,6 +51,10 @@ export default async function ProHealthDashboard() {
 
   const professional = await getHealthProfessionalDashboardById(
     session.user.id,
+    {
+      scheduledPage: pageParam(query.scheduledPage),
+      historyPage: pageParam(query.historyPage),
+    },
   );
 
   if (!professional) {
@@ -118,9 +133,9 @@ export default async function ProHealthDashboard() {
               </span>
             </div>
             <div className="mt-4">
-              <p className="text-sm text-slate-400">Agendamentos Realizados</p>
+              <p className="text-sm text-slate-400">Atendimentos realizados</p>
               <p className="mt-1 text-3xl font-bold text-white leading-none">
-                {professional.proAppointments?.length || 0}
+                {professional.completedAppointmentsCount}
               </p>
             </div>
           </div>
@@ -205,7 +220,11 @@ export default async function ProHealthDashboard() {
 
         {/* Conteúdo Principal */}
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <ProfessionalAppointmentsTabs appointments={appointmentItems} />
+          <ProfessionalAppointmentsTabs
+            appointments={appointmentItems}
+            activeTab={activeTab}
+            pagination={professional.appointmentPagination}
+          />
 
           {/* Coluna Direita: Perfil Clínico e Gestão de Agenda */}
           <div className="space-y-6">

@@ -13,6 +13,8 @@ interface ReviewModalProps {
   confirmLabel?: string;
   successMessage?: string;
   errorMessage?: string;
+  commentHint?: string;
+  maxCommentLength?: number;
   onConfirm: (rating: number, comment?: string) => Promise<{
     success: boolean;
     error?: string;
@@ -27,6 +29,8 @@ export function ReviewModal({
   confirmLabel = "Confirmar Avaliacao",
   successMessage = "Avaliacao enviada com sucesso!",
   errorMessage = "Erro ao enviar avaliacao.",
+  commentHint,
+  maxCommentLength = 1000,
   onConfirm,
 }: ReviewModalProps) {
   const [rating, setRating] = useState(5);
@@ -111,9 +115,16 @@ export function ReviewModal({
               rows={4}
               placeholder="Compartilhe sua experiencia..."
               value={comment}
+              maxLength={maxCommentLength}
               onChange={(e) => setComment(e.target.value)}
               className="w-full bg-slate-900 border border-white/10 rounded-xl p-4 text-sm text-white focus:border-[#d73cbe] outline-none resize-none"
             />
+            <div className="flex items-start justify-between gap-4 text-xs text-slate-500">
+              <span>{commentHint}</span>
+              <span className="shrink-0">
+                {comment.length}/{maxCommentLength}
+              </span>
+            </div>
           </div>
 
           <button
