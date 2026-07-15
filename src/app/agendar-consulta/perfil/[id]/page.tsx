@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { formatProfessionalCredential } from "@/modules/health/lib/professional-credentials";
 import { GraduationCap, Star, MapPin, Video, ShieldCheck } from "lucide-react";
 import { auth } from "@/auth";
@@ -15,6 +15,15 @@ export default async function ProfessionalHealthProfile({
 }) {
   const { id } = await params;
   const [pro, session] = await Promise.all([getHealthProfessionalById(id), auth()]);
+
+  if (
+    !pro &&
+    session?.user?.id === id &&
+    session.user.userType === "PROFESSIONAL" &&
+    session.user.industry === "HEALTH"
+  ) {
+    redirect("/agendar-consulta/verificacao?notice=profile-unavailable");
+  }
 
   if (!pro) {
     notFound();

@@ -5,11 +5,16 @@ import {
   expectedCouncilForSpecialty,
   specialtyVerificationLabel,
 } from "@/modules/health/lib/professional-verification-policy";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-export default async function ProfessionalVerificationPage() {
+export default async function ProfessionalVerificationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ notice?: string | string[] }>;
+}) {
+  const query = await searchParams;
   const session = await auth();
   if (
     !session?.user?.id ||
@@ -49,6 +54,10 @@ export default async function ProfessionalVerificationPage() {
   }
 
   const verification = professional.professionalVerification;
+  const showProfileUnavailableNotice =
+    query.notice === "profile-unavailable" ||
+    (Array.isArray(query.notice) &&
+      query.notice.includes("profile-unavailable"));
 
   return (
     <main className="min-h-screen bg-[#020617] px-4 py-10 text-white">
@@ -56,6 +65,23 @@ export default async function ProfessionalVerificationPage() {
         <Link href="/agendar-consulta/dashboard-profissional" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white">
           <ArrowLeft className="h-4 w-4" /> Voltar ao painel
         </Link>
+        {showProfileUnavailableNotice && (
+          <div
+            role="status"
+            className="flex gap-3 rounded-lg border border-amber-400/25 bg-amber-400/10 p-4 text-amber-100"
+          >
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+            <div>
+              <p className="text-sm font-semibold">
+                Seu perfil publico ainda nao esta disponivel
+              </p>
+              <p className="mt-1 text-sm leading-6 text-amber-100/75">
+                O perfil sera liberado para clientes depois que a verificacao
+                profissional for aprovada.
+              </p>
+            </div>
+          </div>
+        )}
         <header className="flex items-start gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#d73cbe]/10 text-[#d73cbe]">
             <ShieldCheck className="h-6 w-6" />
