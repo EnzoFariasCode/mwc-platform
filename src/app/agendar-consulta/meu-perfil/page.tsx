@@ -29,6 +29,12 @@ export default function MeuPerfilPage() {
   const [isUploading, setIsUploading] = useState(false);
 
   const userId = session?.user?.id;
+  const accountLabel =
+    session?.user?.userType === "PROFESSIONAL"
+      ? "Profissional MWC Online"
+      : session?.user?.userType === "ADMIN"
+        ? "Administrador"
+        : "Paciente ativo";
 
   const imageUrl =
     previewImage || (userId ? `/api/images/user/${userId}` : null);
@@ -161,7 +167,7 @@ export default function MeuPerfilPage() {
 
                 <h2 className="text-xl font-bold">{profileName}</h2>
                 <span className="mt-2 px-3 py-1 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-widest rounded-full border border-emerald-500/20">
-                  Paciente Ativo
+                  {accountLabel}
                 </span>
               </div>
 
