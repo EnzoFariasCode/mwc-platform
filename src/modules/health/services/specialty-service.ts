@@ -1,8 +1,5 @@
 import { db } from "@/lib/prisma";
-import {
-  getHealthSpecialtySearchIds,
-  healthSpecialties,
-} from "@/modules/health/lib/specialties";
+import { healthSpecialties } from "@/modules/health/lib/specialties";
 import { eligibleHealthProfessionalWhere } from "@/modules/health/lib/health-professional-eligibility";
 
 export async function getHealthSpecialtyCards() {
@@ -13,22 +10,8 @@ export async function getHealthSpecialtyCards() {
       const count = await db.user.count({
         where: {
           ...eligibleHealthProfessionalWhere,
+          onlineSpecialty: specialty.code,
           jobTitle: { not: null },
-
-          OR: [
-            ...specialty.terms.map((term) => ({
-              jobTitle: {
-                contains: term,
-                mode: "insensitive" as const,
-              },
-            })),
-            ...getHealthSpecialtySearchIds(specialty).map((id) => ({
-              approach: {
-                contains: id,
-                mode: "insensitive" as const,
-              },
-            })),
-          ],
         },
       });
 

@@ -60,6 +60,8 @@ export async function getHealthProfessionalDashboardById(
       displayName: true,
       image: true,
       jobTitle: true,
+      onlineSpecialty: true,
+      teachingSubject: true,
       documentReg: true,
       approach: true,
       city: true,

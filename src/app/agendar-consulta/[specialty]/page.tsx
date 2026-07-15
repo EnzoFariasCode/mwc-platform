@@ -16,6 +16,8 @@ interface Professional {
   name: string;
   displayName: string | null;
   jobTitle: string | null;
+  onlineSpecialty: string | null;
+  teachingSubject: string | null;
   documentReg: string | null;
   bio: string | null;
   hasProfileImage: boolean;
@@ -163,6 +165,7 @@ export default function SpecialtyPage({
           {professionals.map((pro) => {
             const displayName = pro.displayName ?? pro.name;
             const isOwnProfile = session?.user?.id === pro.id;
+            const isTeacher = pro.onlineSpecialty === "TEACHER";
 
             return (
               <div
@@ -186,11 +189,18 @@ export default function SpecialtyPage({
                         <h2 className="font-bold text-xl leading-tight text-white">
                           {displayName}
                         </h2>
-                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        {!isTeacher && (
+                          <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        )}
                       </div>
                       <p className="text-sm text-[#d73cbe] font-medium uppercase tracking-wide mb-1">
-                        {pro.jobTitle}
+                        {isTeacher ? "Professor" : pro.jobTitle}
                       </p>
+                      {isTeacher && (
+                        <p className="mb-2 text-sm text-slate-400">
+                          Especialidade: {pro.teachingSubject}
+                        </p>
+                      )}
                       <div className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-lg border border-white/5 w-fit">
                         <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
                         <span className="text-sm font-bold text-white">
@@ -223,7 +233,8 @@ export default function SpecialtyPage({
                     }}
                   />
                   <div className="flex items-center gap-2 text-xs font-medium text-emerald-500 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 mt-4 w-fit">
-                    <Video className="w-4 h-4" /> Telemedicina
+                    <Video className="w-4 h-4" />
+                    {isTeacher ? "Aula online" : "Telemedicina"}
                   </div>
                 </div>
               </div>

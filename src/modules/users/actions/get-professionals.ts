@@ -1,13 +1,10 @@
 "use server";
 
 import { db } from "@/lib/prisma";
-import {
-  getHealthSpecialtyById,
-  getHealthSpecialtySearchIds,
-} from "@/modules/health/lib/specialties";
+import { getHealthSpecialtyById } from "@/modules/health/lib/specialties";
 import {
   eligibleHealthProfessionalWhere,
-  hasValidProfessionalRegistration,
+  hasValidHealthProfessionalIdentity,
 } from "@/modules/health/lib/health-professional-eligibility";
 
 export async function getProfessionalsBySpecialty(specialtyId: string) {
@@ -21,21 +18,8 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
     const professionals = await db.user.findMany({
       where: {
         ...eligibleHealthProfessionalWhere,
+        onlineSpecialty: specialty.code,
         jobTitle: { not: null },
-        OR: [
-          ...specialty.terms.map((term) => ({
-            jobTitle: {
-              contains: term,
-              mode: "insensitive" as const,
-            },
-          })),
-          ...getHealthSpecialtySearchIds(specialty).map((id) => ({
-            approach: {
-              contains: id,
-              mode: "insensitive" as const,
-            },
-          })),
-        ],
       },
       select: {
         id: true,
@@ -45,6 +29,8 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
         rating: true,
         ratingCount: true,
         jobTitle: true,
+        onlineSpecialty: true,
+        teachingSubject: true,
         documentReg: true,
         consultationFee: true,
         industry: true,
@@ -62,10 +48,7 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
       .filter((pro) => {
         const hasValidJobTitle = pro.jobTitle && pro.jobTitle.trim() !== "";
 
-        return (
-          hasValidJobTitle &&
-          hasValidProfessionalRegistration(pro.documentReg)
-        );
+        return hasValidJobTitle && hasValidHealthProfessionalIdentity(pro);
       })
       .map(({ profileImageBytes, ...pro }) => ({
         ...pro,

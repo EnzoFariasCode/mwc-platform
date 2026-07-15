@@ -2,18 +2,11 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { HealthSpecialty, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 // =========================================================
 // TYPES
 // =========================================================
-
-type Specialty =
-  | "PSYCHOLOGIST"
-  | "NUTRITIONIST"
-  | "PERSONAL_TRAINER"
-  | "LAWYER"
-  | "ENGLISH_TEACHER";
 
 export type SessionNoteItem = {
   id: string;
@@ -121,7 +114,7 @@ export async function getOrCreateClientRecord(
 
     const professional = await db.user.findUnique({
       where: { id: professionalId },
-      select: { jobTitle: true },
+      select: { onlineSpecialty: true },
     });
 
     const patient = await db.user.findUnique({
@@ -142,7 +135,14 @@ export async function getOrCreateClientRecord(
       return { success: false, error: "Paciente nao encontrado." };
     }
 
-    const specialty = resolveSpecialty(professional?.jobTitle ?? "");
+    if (!professional?.onlineSpecialty) {
+      return {
+        success: false,
+        error: "Categoria profissional do MWC Online nao configurada.",
+      };
+    }
+
+    const specialty: HealthSpecialty = professional.onlineSpecialty;
 
     const record = await db.clientRecord.upsert({
       where: {
@@ -692,30 +692,6 @@ export async function listProfessionalClientRecords(): Promise<{
     console.error("[LIST_PROFESSIONAL_CLIENT_RECORDS]", error);
     return { success: false, error: "Erro ao carregar prontuarios." };
   }
-}
-
-// =========================================================
-// HELPERS
-// =========================================================
-
-function resolveSpecialty(jobTitle: string): Specialty {
-  const title = jobTitle.toLowerCase();
-
-  if (title.includes("psicol")) return "PSYCHOLOGIST";
-  if (title.includes("nutri")) return "NUTRITIONIST";
-  if (title.includes("personal") || title.includes("trainer")) {
-    return "PERSONAL_TRAINER";
-  }
-  if (title.includes("advog") || title.includes("jurid")) return "LAWYER";
-  if (
-    title.includes("ingl") ||
-    title.includes("english") ||
-    title.includes("professor")
-  ) {
-    return "ENGLISH_TEACHER";
-  }
-
-  return "PSYCHOLOGIST";
 }
 
 function serializeClientRecord(record: {

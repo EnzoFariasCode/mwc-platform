@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { formatProfessionalCredential } from "@/modules/health/lib/professional-credentials";
-import { Star, MapPin, Video, ShieldCheck } from "lucide-react";
+import { GraduationCap, Star, MapPin, Video, ShieldCheck } from "lucide-react";
 import { auth } from "@/auth";
 import { getHealthProfessionalById } from "@/modules/health/services/professional-service";
 import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
@@ -22,6 +22,7 @@ export default async function ProfessionalHealthProfile({
 
   const proName = pro.displayName || pro.name;
   const isOwnProfile = session?.user?.id === id;
+  const isTeacher = pro.onlineSpecialty === "TEACHER";
   const documentReg = formatProfessionalCredential(pro.documentReg);
 
   return (
@@ -52,9 +53,9 @@ export default async function ProfessionalHealthProfile({
               <div className="flex flex-col justify-center relative z-10">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="bg-[#d73cbe]/20 text-[#d73cbe] px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border border-[#d73cbe]/20">
-                    {pro.jobTitle || "Especialista MWC"}
+                    {isTeacher ? "Professor" : pro.jobTitle || "Especialista MWC"}
                   </span>
-                  {documentReg && (
+                  {!isTeacher && documentReg && (
                     <span className="bg-white/5 text-slate-400 px-3 py-1 rounded-full text-[10px] font-medium border border-white/5">
                       {documentReg}
                     </span>
@@ -65,7 +66,13 @@ export default async function ProfessionalHealthProfile({
                   {proName}
                 </h1>
 
-                {pro.approach && (
+                {isTeacher && (
+                  <p className="mb-4 text-sm text-slate-400">
+                    Especialidade: {pro.teachingSubject}
+                  </p>
+                )}
+
+                {!isTeacher && pro.approach && (
                   <p className="text-slate-400 text-sm mb-4">
                     Abordagem:{" "}
                     <span className="text-white font-medium">
@@ -95,7 +102,7 @@ export default async function ProfessionalHealthProfile({
             {/* SOBRE */}
             <div className="bg-[#0f172a]/50 border border-white/5 rounded-2xl p-8">
               <h2 className="text-xl font-futura font-bold text-white mb-4 uppercase tracking-wide">
-                Sobre o especialista
+                {isTeacher ? "Sobre o professor" : "Sobre o especialista"}
               </h2>
               <p className="text-slate-400 leading-relaxed font-light whitespace-pre-wrap">
                 {pro.bio ||
@@ -109,22 +116,34 @@ export default async function ProfessionalHealthProfile({
                   <Video className="w-6 h-6 text-blue-500" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white mb-1">Telemedicina</h3>
+                  <h3 className="font-bold text-white mb-1">
+                    {isTeacher ? "Aula online" : "Telemedicina"}
+                  </h3>
                   <p className="text-sm text-slate-400">
-                    Atendimentos online por videochamada segura.
+                    {isTeacher
+                      ? "Aulas online por videochamada."
+                      : "Atendimentos online por videochamada segura."}
                   </p>
                 </div>
               </div>
               <div className="bg-[#0f172a]/50 border border-white/5 rounded-2xl p-6 flex gap-4">
                 <div className="p-3 bg-emerald-500/10 rounded-xl h-fit">
-                  <ShieldCheck className="w-6 h-6 text-emerald-500" />
+                  {isTeacher ? (
+                    <GraduationCap className="w-6 h-6 text-emerald-500" />
+                  ) : (
+                    <ShieldCheck className="w-6 h-6 text-emerald-500" />
+                  )}
                 </div>
                 <div>
                   <h3 className="font-bold text-white mb-1">
-                    Registro profissional
+                    {isTeacher
+                      ? "Especialidade de ensino"
+                      : "Registro profissional"}
                   </h3>
                   <p className="text-sm text-slate-400">
-                    Identificação profissional informada e exibida no perfil.
+                    {isTeacher
+                      ? pro.teachingSubject
+                      : "Identificacao profissional informada e exibida no perfil."}
                   </p>
                 </div>
               </div>
@@ -134,10 +153,12 @@ export default async function ProfessionalHealthProfile({
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 className="text-xl font-futura font-bold uppercase tracking-wide text-white">
-                    Avaliacoes de pacientes
+                    {isTeacher ? "Avaliacoes de alunos" : "Avaliacoes de clientes"}
                   </h2>
                   <p className="mt-1 text-sm text-slate-400">
-                    Experiencias publicadas apos atendimentos concluidos.
+                    {isTeacher
+                      ? "Experiencias publicadas apos aulas concluidas."
+                      : "Experiencias publicadas apos atendimentos concluidos."}
                   </p>
                 </div>
                 {pro.ratingCount > 0 && (

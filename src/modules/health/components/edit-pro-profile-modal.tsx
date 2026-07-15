@@ -39,6 +39,7 @@ export function EditProProfileModal({
       ? initialData.consultationFee
       : 150;
   const initialCredential = parseProfessionalCredential(initialData?.documentReg);
+  const isTeacher = initialData?.onlineSpecialty === "TEACHER";
 
   // Lógica real conectada ao Back-end
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -120,24 +121,58 @@ export function EditProProfileModal({
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  Título Profissional (Ex: Psicólogo Clínico)
+                  {isTeacher
+                    ? "Categoria"
+                    : "Titulo Profissional (Ex: Psicologo Clinico)"}
                 </label>
                 <input
                   name="jobTitle" // Adicionado
                   type="text"
-                  defaultValue={initialData?.jobTitle || ""}
+                  readOnly={isTeacher}
+                  defaultValue={isTeacher ? "Professor" : initialData?.jobTitle || ""}
                   placeholder="Ex: Médico Psiquiatra"
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
               </div>
-              <div className="space-y-1.5 md:col-span-2">
+              {isTeacher && (
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
+                    Materia ou area de ensino *
+                  </label>
+                  <input
+                    name="teachingSubject"
+                    type="text"
+                    required
+                    maxLength={100}
+                    list="teaching-subject-suggestions"
+                    defaultValue={initialData?.teachingSubject || ""}
+                    placeholder="Ex: Ingles, Portugues, Matematica, Fisica..."
+                    className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
+                  />
+                  <datalist id="teaching-subject-suggestions">
+                    <option value="Ingles" />
+                    <option value="Portugues" />
+                    <option value="Matematica" />
+                    <option value="Fisica" />
+                    <option value="Quimica" />
+                    <option value="Historia" />
+                    <option value="Musica" />
+                  </datalist>
+                  <p className="text-xs text-slate-500">
+                    Essa especialidade sera exibida aos alunos no seu perfil.
+                  </p>
+                </div>
+              )}
+              <div
+                className={`space-y-1.5 md:col-span-2 ${isTeacher ? "hidden" : ""}`}
+              >
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
                   Registro profissional *
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-3">
                   <select
                     name="documentRegType"
-                    required
+                    required={!isTeacher}
                     defaultValue={initialCredential.type}
                     className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all appearance-none cursor-pointer"
                   >
@@ -151,7 +186,7 @@ export function EditProProfileModal({
                     name="documentRegNumber"
                     type="text"
                     inputMode="numeric"
-                    required
+                    required={!isTeacher}
                     defaultValue={initialCredential.number}
                     placeholder="Numero do registro"
                     className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
@@ -160,13 +195,19 @@ export function EditProProfileModal({
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                  Abordagem / Especialidade principal
+                  {isTeacher
+                    ? "Metodologia de ensino"
+                    : "Abordagem / Especialidade principal"}
                 </label>
                 <input
                   name="approach" // Adicionado
                   type="text"
                   defaultValue={initialData?.approach || ""}
-                  placeholder="Ex: Terapia Cognitivo-Comportamental"
+                  placeholder={
+                    isTeacher
+                      ? "Ex: aulas praticas, reforco e resolucao de exercicios"
+                      : "Ex: Terapia Cognitivo-Comportamental"
+                  }
                   className="w-full bg-[#020617] border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:border-[#d73cbe] outline-none transition-all"
                 />
               </div>

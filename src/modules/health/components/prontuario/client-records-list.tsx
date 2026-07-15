@@ -36,7 +36,7 @@ const specialtyLabel: Record<string, string> = {
   NUTRITIONIST: "Nutricao",
   PERSONAL_TRAINER: "Personal Trainer",
   LAWYER: "Advocacia",
-  ENGLISH_TEACHER: "Ingles",
+  TEACHER: "Professor",
 };
 
 const specialtyColor: Record<string, string> = {
@@ -44,7 +44,7 @@ const specialtyColor: Record<string, string> = {
   NUTRITIONIST: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20",
   PERSONAL_TRAINER: "bg-blue-500/10 text-blue-300 border-blue-500/20",
   LAWYER: "bg-yellow-500/10 text-yellow-300 border-yellow-500/20",
-  ENGLISH_TEACHER: "bg-[#d73cbe]/10 text-[#d73cbe] border-[#d73cbe]/20",
+  TEACHER: "bg-[#d73cbe]/10 text-[#d73cbe] border-[#d73cbe]/20",
 };
 
 function formatDate(date: string | null) {

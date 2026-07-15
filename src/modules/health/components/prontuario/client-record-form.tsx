@@ -119,12 +119,12 @@ const specialtyFields: Record<string, SpecialtyField[]> = {
     },
     { key: "currentProgram", label: "Programa atual", type: "textarea" },
   ],
-  ENGLISH_TEACHER: [
+  TEACHER: [
+    { key: "subject", label: "Materia", type: "text" },
     {
       key: "currentLevel",
       label: "Nivel atual",
-      type: "select",
-      options: ["A1", "A2", "B1", "B2", "C1", "C2"],
+      type: "text",
     },
     { key: "goal", label: "Objetivo do aluno", type: "text" },
     { key: "materialsUsed", label: "Materiais utilizados", type: "textarea" },
@@ -830,7 +830,7 @@ export function ClientRecordForm({ record }: Props) {
         </>
       )}
 
-      {record.specialty === "ENGLISH_TEACHER" && (
+      {record.specialty === "TEACHER" && (
         <>
           <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
@@ -841,45 +841,32 @@ export function ClientRecordForm({ record }: Props) {
                 <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
                   Nivel atual
                 </label>
-                <select
+                <input
+                  type="text"
                   value={englishCurrentLevel}
                   onChange={(event) =>
                     setEnglishCurrentLevel(event.target.value)
                   }
-                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
-                >
-                  <option value="">Selecionar...</option>
-                  <option value="iniciante">Iniciante</option>
-                  <option value="A1">A1</option>
-                  <option value="A2">A2</option>
-                  <option value="B1">B1</option>
-                  <option value="B2">B2</option>
-                  <option value="C1">C1</option>
-                  <option value="C2">C2</option>
-                </select>
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  placeholder="Ex: iniciante, intermediario, 8o ano..."
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
-                  Motivo principal do estudo
+                  Objetivo do aluno
                 </label>
-                <select
+                <input
+                  type="text"
                   value={englishMainGoal}
                   onChange={(event) => setEnglishMainGoal(event.target.value)}
-                  className="w-full cursor-pointer rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
-                >
-                  <option value="">Selecionar...</option>
-                  <option value="viagem">Viagem</option>
-                  <option value="trabalho">Trabalho</option>
-                  <option value="certificacao">Certificacao TOEFL/IELTS</option>
-                  <option value="lazer">Lazer</option>
-                  <option value="conversacao">Conversacao</option>
-                  <option value="outro">Outro</option>
-                </select>
+                  className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
+                  placeholder="Ex: reforco escolar, vestibular, desenvolvimento pessoal..."
+                />
               </div>
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
-                Experiencias anteriores com o idioma
+                Experiencias anteriores com a materia
               </label>
               <textarea
                 value={englishPreviousExperience}
@@ -888,7 +875,7 @@ export function ClientRecordForm({ record }: Props) {
                 }
                 rows={3}
                 className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
-                placeholder="Ja estudou antes? Morou fora? Teve contato profissional?"
+                placeholder="Como foi o contato anterior do aluno com este conteudo?"
               />
             </div>
             <div className="space-y-1.5">
@@ -902,7 +889,7 @@ export function ClientRecordForm({ record }: Props) {
                 }
                 rows={3}
                 className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
-                placeholder="Ex: trava ao falar, nao entende nativos, gramatica fraca..."
+                placeholder="Conceitos, exercicios ou etapas que exigem mais atencao..."
               />
             </div>
           </div>

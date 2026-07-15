@@ -15,6 +15,14 @@ export type HealthProfessionalProfile = {
   displayName?: string | null;
   bio?: string | null;
   jobTitle?: string | null;
+  onlineSpecialty?:
+    | "PSYCHOLOGIST"
+    | "NUTRITIONIST"
+    | "PERSONAL_TRAINER"
+    | "TEACHER"
+    | "LAWYER"
+    | null;
+  teachingSubject?: string | null;
   documentReg?: string | null;
   approach?: string | null;
   consultationFee?: unknown;

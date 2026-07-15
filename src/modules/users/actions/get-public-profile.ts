@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { Industry, Prisma, UserType } from "@prisma/client";
+import { hasValidHealthProfessionalIdentity } from "@/modules/health/lib/health-professional-eligibility";
 
 type PublicReview = {
   id: string;
@@ -68,6 +69,8 @@ export async function getPublicProfile(
         createdAt: true,
         // --- 🛡️ CAMPOS ADICIONADOS APENAS PARA A BARREIRA DE QUALIDADE ---
         industry: true,
+        onlineSpecialty: true,
+        teachingSubject: true,
         documentReg: true,
         availabilities: {
           where: { isActive: true },
@@ -105,8 +108,7 @@ export async function getPublicProfile(
 
     // --- 🛡️ BARREIRA DE QUALIDADE (QA & Back-end) ---
     if (professional.industry === "HEALTH") {
-      const hasValidDoc =
-        professional.documentReg && professional.documentReg.trim() !== "";
+      const hasValidIdentity = hasValidHealthProfessionalIdentity(professional);
       const hasValidJobTitle =
         professional.jobTitle && professional.jobTitle.trim() !== "";
       const hasFee = professional.consultationFee !== null;
@@ -115,7 +117,12 @@ export async function getPublicProfile(
         Array.isArray(professional.availabilities) &&
         professional.availabilities.length > 0;
 
-      if (!hasValidDoc || !hasValidJobTitle || !hasValidAgenda || !hasFee) {
+      if (
+        !hasValidIdentity ||
+        !hasValidJobTitle ||
+        !hasValidAgenda ||
+        !hasFee
+      ) {
         return {
           success: false,
           error: "Este perfil está indisponível no momento.",
@@ -138,6 +145,8 @@ export async function getPublicProfile(
       profileImageBytes: _profileImageBytes,
       hourlyRate: _hourlyRate,
       documentReg: _doc,
+      onlineSpecialty: _onlineSpecialty,
+      teachingSubject: _teachingSubject,
       availabilities: _av,
       sessionDuration: _sd,
       consultationFee: _cf,
@@ -148,6 +157,8 @@ export async function getPublicProfile(
     void _profileImageBytes;
     void _hourlyRate;
     void _doc;
+    void _onlineSpecialty;
+    void _teachingSubject;
     void _av;
     void _sd;
     void _cf;

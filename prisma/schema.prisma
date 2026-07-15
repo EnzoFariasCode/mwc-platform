@@ -151,7 +151,7 @@ enum HealthSpecialty {
   NUTRITIONIST
   PERSONAL_TRAINER
   LAWYER
-  ENGLISH_TEACHER
+  TEACHER
 }
 
 model User {
@@ -210,6 +210,8 @@ model User {
   // =========================================================
   documentReg     String? // Para CRM, CRP, CREF, etc. (Ex: "CRP 06/12345")
   approach        String? // Abordagem clínica (Ex: "TCC", "Psicanálise")
+  onlineSpecialty HealthSpecialty? // Categoria estavel do profissional no MWC Online
+  teachingSubject String? // Materia ou area de ensino para profissionais professores
   consultationFee Decimal? // Valor fixo da consulta base
   sessionDuration Int?     @default(50) // Duração da sessão em minutos (Padrão 50min)
   timezone        String   @default("America/Sao_Paulo")
@@ -282,6 +284,7 @@ model User {
 
   @@index([isActive])
   @@index([industry, userType, professionalPlanTier])
+  @@index([industry, userType, onlineSpecialty, isActive])
 }
 
 // =========================================================

@@ -1,85 +1,61 @@
 "use server";
 
-import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { buildProfessionalCredential } from "../lib/professional-credentials";
 import { isValidTimeZone } from "../lib/appointment-completion-time";
-
-// ─── Schema Zod ───────────────────────────────────────────────────────────────
+import {
+  getHealthProfessionalIdentityError,
+  isTeacherOnlineSpecialty,
+} from "../lib/health-professional-eligibility";
+import { buildProfessionalCredential } from "../lib/professional-credentials";
 
 const ALLOWED_DURATIONS = [30, 50, 60, 90] as const;
 
 const updateHealthProSchema = z.object({
-  displayName: z
+  displayName: z.string().max(80).optional().nullable(),
+  bio: z.string().max(1000).optional().nullable(),
+  jobTitle: z.string().max(100).optional().nullable(),
+  documentReg: z.string().max(50).optional().nullable(),
+  teachingSubject: z
     .string()
-    .max(80, "Nome de exibição deve ter no máximo 80 caracteres")
+    .max(100, "Materia ou area de ensino deve ter no maximo 100 caracteres")
     .optional()
     .nullable(),
-
-  bio: z
-    .string()
-    .max(1000, "Bio deve ter no máximo 1000 caracteres")
-    .optional()
-    .nullable(),
-
-  jobTitle: z
-    .string()
-    .max(100, "Título profissional deve ter no máximo 100 caracteres")
-    .optional()
-    .nullable(),
-
-  documentReg: z
-    .string()
-    .min(1, "Informe o tipo e o numero do registro profissional")
-    .max(50, "Registro profissional deve ter no máximo 50 caracteres"),
-
-  approach: z
-    .string()
-    .max(500, "Abordagem deve ter no máximo 500 caracteres")
-    .optional()
-    .nullable(),
-
+  approach: z.string().max(500).optional().nullable(),
   sessionDuration: z
     .number()
-    .refine((v) => (ALLOWED_DURATIONS as readonly number[]).includes(v), {
-      message: "Duração deve ser 30, 50, 60 ou 90 minutos",
-    })
+    .refine((value) =>
+      (ALLOWED_DURATIONS as readonly number[]).includes(value),
+    )
     .default(50),
-
   consultationFee: z
     .number()
-    .nonnegative("O valor da consulta não pode ser negativo")
-    .finite("Valor inválido")
+    .positive("O valor da consulta deve ser maior que zero")
+    .finite("Valor invalido")
     .optional()
     .nullable(),
-
   timezone: z.string().refine(isValidTimeZone, "Fuso horario invalido"),
 });
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Converte FormData em objeto bruto antes de passar pro Zod */
 function parseRawFormData(formData: FormData) {
+  const toNullable = (key: string) => {
+    const value = formData.get(key);
+    if (typeof value !== "string" || value.trim() === "") return null;
+    return value.trim();
+  };
+
   const rawDuration = formData.get("sessionDuration");
   const rawFee = formData.get("consultationFee");
-  const rawDocumentRegType = formData.get("documentRegType");
-  const rawDocumentRegNumber = formData.get("documentRegNumber");
-
-  const parsedDuration = rawDuration !== null ? Number(rawDuration) : 50;
-  const parsedFee = rawFee !== null && rawFee !== "" ? Number(rawFee) : null;
-
-  // Strings opcionais: converte vazio em null para o banco
-  const toNullable = (key: string) => {
-    const v = formData.get(key);
-    if (typeof v !== "string" || v.trim() === "") return null;
-    return v.trim();
-  };
+  const credentialType = formData.get("documentRegType");
+  const credentialNumber = formData.get("documentRegNumber");
   const documentReg =
-    typeof rawDocumentRegType === "string" &&
-    typeof rawDocumentRegNumber === "string"
-      ? buildProfessionalCredential(rawDocumentRegType, rawDocumentRegNumber)
+    typeof credentialType === "string" &&
+    typeof credentialNumber === "string" &&
+    credentialType.trim() &&
+    credentialNumber.trim()
+      ? buildProfessionalCredential(credentialType, credentialNumber)
       : toNullable("documentReg");
 
   return {
@@ -87,14 +63,14 @@ function parseRawFormData(formData: FormData) {
     bio: toNullable("bio"),
     jobTitle: toNullable("jobTitle"),
     documentReg,
+    teachingSubject: toNullable("teachingSubject"),
     approach: toNullable("approach"),
-    sessionDuration: parsedDuration,
-    consultationFee: parsedFee,
+    sessionDuration: rawDuration !== null ? Number(rawDuration) : 50,
+    consultationFee:
+      rawFee !== null && rawFee !== "" ? Number(rawFee) : null,
     timezone: toNullable("timezone") || "America/Sao_Paulo",
   };
 }
-
-// ─── Server Action ────────────────────────────────────────────────────────────
 
 export async function updateHealthProProfile(formData: FormData) {
   const session = await auth();
@@ -104,21 +80,35 @@ export async function updateHealthProProfile(formData: FormData) {
     session.user.userType !== "PROFESSIONAL" ||
     session.user.industry !== "HEALTH"
   ) {
-    return { error: "Não autorizado" };
+    return { error: "Nao autorizado" };
   }
 
-  // 1. Montar objeto bruto (sem any, sem cast inseguro)
-  const raw = parseRawFormData(formData);
+  const professional = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { onlineSpecialty: true },
+  });
 
-  // 2. Validar com Zod (bloqueia NaN, Infinity, strings fora do limite etc.)
-  const parsed = updateHealthProSchema.safeParse(raw);
+  if (!professional?.onlineSpecialty) {
+    return { error: "Categoria profissional do MWC Online nao configurada." };
+  }
 
+  const parsed = updateHealthProSchema.safeParse(parseRawFormData(formData));
   if (!parsed.success) {
-    const firstError = parsed.error.issues[0]?.message ?? "Dados inválidos";
-    return { error: firstError };
+    return {
+      error: parsed.error.issues[0]?.message ?? "Dados invalidos",
+    };
   }
 
   const data = parsed.data;
+  const identityError = getHealthProfessionalIdentityError({
+    onlineSpecialty: professional.onlineSpecialty,
+    documentReg: data.documentReg,
+    teachingSubject: data.teachingSubject,
+  });
+
+  if (identityError) return { error: identityError };
+
+  const isTeacher = isTeacherOnlineSpecialty(professional.onlineSpecialty);
 
   try {
     await db.user.update({
@@ -126,8 +116,9 @@ export async function updateHealthProProfile(formData: FormData) {
       data: {
         displayName: data.displayName ?? null,
         bio: data.bio ?? null,
-        jobTitle: data.jobTitle ?? null,
-        documentReg: data.documentReg ?? null,
+        jobTitle: isTeacher ? "Professor" : (data.jobTitle ?? null),
+        documentReg: isTeacher ? null : (data.documentReg ?? null),
+        teachingSubject: isTeacher ? (data.teachingSubject ?? null) : null,
         approach: data.approach ?? null,
         sessionDuration: data.sessionDuration,
         consultationFee: data.consultationFee ?? null,
@@ -140,7 +131,7 @@ export async function updateHealthProProfile(formData: FormData) {
 
     return { success: true };
   } catch (error) {
-    console.error("Erro ao atualizar perfil clínico:", error);
+    console.error("Erro ao atualizar perfil profissional:", error);
     return { error: "Erro interno ao salvar dados" };
   }
 }

@@ -3,7 +3,7 @@
 import { db } from "@/lib/prisma";
 import {
   eligibleHealthProfessionalWhere,
-  hasValidProfessionalRegistration,
+  hasValidHealthProfessionalIdentity,
 } from "@/modules/health/lib/health-professional-eligibility";
 
 function publicReviewerName(name: string | null | undefined) {
@@ -26,6 +26,8 @@ export async function getHealthProfessionalById(id: string) {
         displayName: true,
         bio: true,
         jobTitle: true,
+        onlineSpecialty: true,
+        teachingSubject: true,
         documentReg: true,
         approach: true,
         consultationFee: true,
@@ -61,7 +63,7 @@ export async function getHealthProfessionalById(id: string) {
       },
     });
 
-    if (!pro || !hasValidProfessionalRegistration(pro.documentReg)) {
+    if (!pro || !hasValidHealthProfessionalIdentity(pro)) {
       return null;
     }
 
@@ -72,6 +74,8 @@ export async function getHealthProfessionalById(id: string) {
       displayName: pro.displayName,
       bio: pro.bio,
       jobTitle: pro.jobTitle,
+      onlineSpecialty: pro.onlineSpecialty,
+      teachingSubject: pro.teachingSubject,
       documentReg: pro.documentReg,
       approach: pro.approach,
       sessionDuration: pro.sessionDuration,

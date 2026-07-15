@@ -2,11 +2,19 @@ export type HealthSpecialtyId =
   | "psicologia"
   | "nutricao"
   | "personal"
-  | "ingles"
+  | "professor"
   | "advocacia";
+
+export type OnlineSpecialtyCode =
+  | "PSYCHOLOGIST"
+  | "NUTRITIONIST"
+  | "PERSONAL_TRAINER"
+  | "TEACHER"
+  | "LAWYER";
 
 export type HealthSpecialty = {
   id: HealthSpecialtyId;
+  code: OnlineSpecialtyCode;
   name: string;
   description: string;
   image: string;
@@ -20,6 +28,7 @@ export type HealthSpecialty = {
 export const healthSpecialties: HealthSpecialty[] = [
   {
     id: "psicologia",
+    code: "PSYCHOLOGIST",
     name: "Psicologia",
     description:
       "Terapia online para ansiedade, depressao, autoestima e autoconhecimento.",
@@ -41,6 +50,7 @@ export const healthSpecialties: HealthSpecialty[] = [
   },
   {
     id: "nutricao",
+    code: "NUTRITIONIST",
     name: "Nutricao",
     description: "Planos alimentares, emagrecimento, hipertrofia e rotina.",
     image:
@@ -53,6 +63,7 @@ export const healthSpecialties: HealthSpecialty[] = [
   },
   {
     id: "personal",
+    code: "PERSONAL_TRAINER",
     name: "Personal Trainer",
     description: "Treinos personalizados e acompanhamento de rotina fisica.",
     image:
@@ -64,9 +75,10 @@ export const healthSpecialties: HealthSpecialty[] = [
     terms: ["Personal Trainer", "Personal", "Educador Fisico"],
   },
   {
-    id: "ingles",
-    name: "Professor de Ingles",
-    description: "Aulas online focadas em conversacao, negocios e fluencia.",
+    id: "professor",
+    code: "TEACHER",
+    name: "Professor",
+    description: "Aulas online para diferentes materias, niveis e objetivos.",
     image:
       "https://images.unsplash.com/photo-1577412647305-991150c7d163?auto=format&fit=crop&w=600&q=80",
     color:
@@ -74,15 +86,19 @@ export const healthSpecialties: HealthSpecialty[] = [
     accentText: "text-blue-400",
     accentBg: "bg-blue-500",
     terms: [
+      "Professor",
+      "Professora",
       "Professor de Ingles",
       "Professor(a) de Ingles",
       "Professora de Ingles",
       "Ingles",
       "English Teacher",
     ],
+    legacyIds: ["ingles"],
   },
   {
     id: "advocacia",
+    code: "LAWYER",
     name: "Advocacia",
     description: "Consultoria juridica online, contratos, duvidas e mediacao.",
     image:
@@ -107,4 +123,18 @@ export function getHealthSpecialtyById(id: string) {
 
 export function getHealthSpecialtySearchIds(specialty: HealthSpecialty) {
   return [specialty.id, ...(specialty.legacyIds ?? [])];
+}
+
+export function getOnlineSpecialtyByJobTitle(jobTitle: string) {
+  const normalizedTitle = jobTitle.trim().toLowerCase();
+
+  if (!normalizedTitle) return null;
+
+  return (
+    healthSpecialties.find((specialty) =>
+      specialty.terms.some((term) =>
+        normalizedTitle.includes(term.toLowerCase()),
+      ),
+    ) ?? null
+  );
 }

@@ -16,6 +16,10 @@ import { DashboardModalsController } from "@/modules/health/components/dashboard
 import { ProfessionalAppointmentsTabs } from "@/modules/health/components/professional-appointments-tabs";
 import { formatProfessionalCredential } from "@/modules/health/lib/professional-credentials";
 import { ScheduleConfigLink } from "@/modules/health/components/schedule-config-link";
+import {
+  hasValidHealthProfessionalIdentity,
+  isTeacherOnlineSpecialty,
+} from "@/modules/health/lib/health-professional-eligibility";
 
 // Funções Utilitárias de Formatação
 function formatCurrency(value: number | null) {
@@ -65,7 +69,10 @@ export default async function ProHealthDashboard({
   const documentReg = formatProfessionalCredential(professional.documentReg);
 
   // TRAVA DE SEGURANÇA (Regra de Negócio)
-  const missingCredential = !professional.documentReg;
+  const isTeacher = isTeacherOnlineSpecialty(professional.onlineSpecialty);
+  const missingProfessionalIdentity = !hasValidHealthProfessionalIdentity(
+    professional,
+  );
   const missingApproach = !professional.approach;
   const appointmentItems = (professional.proAppointments ?? []).map(
     (appointment) => ({
@@ -95,7 +102,7 @@ export default async function ProHealthDashboard({
             ========================================= */}
         <DashboardModalsController
           professional={professional}
-          missingCredential={missingCredential}
+          missingProfessionalIdentity={missingProfessionalIdentity}
         />
 
         {/* Header de Boas-vindas */}
@@ -108,8 +115,9 @@ export default async function ProHealthDashboard({
               {displayName}
             </h1>
             <p className="mt-2 max-w-2xl text-slate-400 leading-relaxed text-sm md:text-base">
-              Gerencie sua agenda de atendimentos, confira os próximos pacientes
-              e acompanhe seu posicionamento dentro do portal MWC Online.
+              {isTeacher
+                ? "Gerencie sua agenda de aulas, confira os proximos alunos e acompanhe seu perfil no MWC Online."
+                : "Gerencie sua agenda de atendimentos, confira os proximos clientes e acompanhe seu perfil no MWC Online."}
             </p>
           </div>
           <Link
@@ -212,7 +220,7 @@ export default async function ProHealthDashboard({
             <div className="mt-4">
               <p className="text-sm text-slate-400">Atuação exclusiva</p>
               <p className="mt-1 text-lg font-bold text-[#d73cbe] truncate leading-tight">
-                Telemedicina (Meet)
+                {isTeacher ? "Aulas online (Meet)" : "Atendimento online (Meet)"}
               </p>
             </div>
           </div>
@@ -250,7 +258,7 @@ export default async function ProHealthDashboard({
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-400">Disponibilidade</span>
-                  <ScheduleConfigLink disabled={missingCredential} />
+                  <ScheduleConfigLink disabled={missingProfessionalIdentity} />
                 </div>
               </div>
               {/* O Botão de Agenda está no DashboardModalsController logo acima do Perfil! */}
@@ -267,28 +275,34 @@ export default async function ProHealthDashboard({
               <div className="space-y-2.5 text-sm">
                 <div className="rounded-lg border border-white/5 bg-white/[0.03] px-3.5 py-3 transition-colors hover:bg-white/[0.05]">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                    Especialidade
+                    {isTeacher ? "Categoria" : "Especialidade"}
                   </p>
                   <p className="mt-0.5 text-sm font-semibold text-white">
-                    {professional.jobTitle || "Não informado"}
+                    {isTeacher
+                      ? "Professor"
+                      : professional.jobTitle || "Nao informado"}
                   </p>
                 </div>
                 <div className="rounded-lg border border-white/5 bg-white/[0.03] px-3.5 py-3 transition-colors hover:bg-white/[0.05]">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                    Registro Profissional
-                    {missingCredential && (
+                    {isTeacher
+                      ? "Especialidade de ensino"
+                      : "Registro Profissional"}
+                    {missingProfessionalIdentity && (
                       <AlertTriangle className="w-3 h-3 text-red-500" />
                     )}
                   </p>
                   <p
-                    className={`mt-0.5 text-sm font-semibold font-mono ${missingCredential ? "text-red-400" : "text-white"}`}
+                    className={`mt-0.5 text-sm font-semibold ${isTeacher ? "" : "font-mono"} ${missingProfessionalIdentity ? "text-red-400" : "text-white"}`}
                   >
-                    {documentReg || "Pendente"}
+                    {isTeacher
+                      ? professional.teachingSubject || "Pendente"
+                      : documentReg || "Pendente"}
                   </p>
                 </div>
                 <div className="rounded-lg border border-white/5 bg-white/[0.03] px-3.5 py-3 transition-colors hover:bg-white/[0.05]">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                    Abordagem Clínica
+                    {isTeacher ? "Metodologia de ensino" : "Abordagem Clinica"}
                     {missingApproach && (
                       <AlertTriangle className="w-3 h-3 text-yellow-500" />
                     )}
@@ -300,8 +314,9 @@ export default async function ProHealthDashboard({
                   </p>
                   {missingApproach && (
                     <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
-                      Ex: Terapia Cognitivo-Comportamental, Psicanálise, etc.
-                      Isso ajuda pacientes a te encontrarem.
+                      {isTeacher
+                        ? "Ex: reforco, aulas praticas e resolucao de exercicios."
+                        : "Ex: Terapia Cognitivo-Comportamental, Psicanalise, etc."}
                     </p>
                   )}
                 </div>

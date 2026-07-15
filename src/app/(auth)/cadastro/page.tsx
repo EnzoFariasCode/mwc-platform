@@ -351,9 +351,7 @@ function RegisterContent() {
                       </option>
                       <option value="Personal Trainer">Personal Trainer</option>
                       <option value="Nutricionista">Nutricionista</option>
-                      <option value="Professor(a) de Ingles">
-                        Professor(a) de Ingles
-                      </option>
+                      <option value="Professor">Professor</option>
                       <option value="Psicologo(a)">Psicologo(a)</option>
                       <option value="Advogado(a)">Advogado(a)</option>
                     </select>

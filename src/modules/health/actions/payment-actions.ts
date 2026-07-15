@@ -11,7 +11,7 @@ import { parseAppointmentDateTime, generateDaySlots } from "./slot-helpers";
 import { ONE_TIME_PAYMENT_METHODS } from "@/modules/stripe/lib/payment-methods";
 import {
   eligibleHealthProfessionalWhere,
-  hasValidProfessionalRegistration,
+  hasValidHealthProfessionalIdentity,
 } from "@/modules/health/lib/health-professional-eligibility";
 
 // [NOVO] ConfiguraÃ§Ãµes de negÃ³cio
@@ -73,13 +73,15 @@ export async function createCheckoutSession(
         consultationFee: true,
         sessionDuration: true,
         timezone: true,
+        onlineSpecialty: true,
+        teachingSubject: true,
         documentReg: true,
       },
     });
 
     if (
       !professional ||
-      !hasValidProfessionalRegistration(professional.documentReg) ||
+      !hasValidHealthProfessionalIdentity(professional) ||
       !professional.consultationFee
     ) {
       throw new Error(

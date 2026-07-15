@@ -20,7 +20,7 @@ const specialtyLabel: Record<string, string> = {
   NUTRITIONIST: "Nutricao",
   PERSONAL_TRAINER: "Personal Trainer",
   LAWYER: "Advocacia",
-  ENGLISH_TEACHER: "Ingles",
+  TEACHER: "Professor",
 };
 
 export default async function ProntuarioPage({ params }: Props) {

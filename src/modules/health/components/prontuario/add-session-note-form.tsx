@@ -22,7 +22,7 @@ const moodOptions = [
   "Fechado",
 ];
 
-const englishSkillOptions = ["Speaking", "Listening", "Reading", "Writing"];
+const teacherFocusOptions = ["Teoria", "Pratica", "Exercicios", "Revisao"];
 
 export function AddSessionNoteForm({
   clientRecordId,
@@ -142,14 +142,16 @@ export function AddSessionNoteForm({
         ? `${fullContent}\n\n---\n${nutritionExtra}`
         : fullContent;
 
-      const englishExtra =
-        specialty === "ENGLISH_TEACHER"
+      const teacherExtra =
+        specialty === "TEACHER"
           ? [
               "Diario de aula:",
               englishAttendance ? `Presenca: ${englishAttendance}` : "",
-              englishLessonTopic ? `Topico da aula: ${englishLessonTopic}` : "",
+              englishLessonTopic
+                ? `Conteudo trabalhado: ${englishLessonTopic}`
+                : "",
               englishFocusedSkills.length > 0
-                ? `Habilidades focadas: ${englishFocusedSkills.join(", ")}`
+                ? `Foco da aula: ${englishFocusedSkills.join(", ")}`
                 : "",
               englishMaterialUsed ? `Material utilizado: ${englishMaterialUsed}` : "",
               englishEngagementLevel
@@ -158,9 +160,9 @@ export function AddSessionNoteForm({
               englishRecurringErrors
                 ? `Erros recorrentes/pontos de atencao: ${englishRecurringErrors}`
                 : "",
-              englishHomework ? `Homework enviado: ${englishHomework}` : "",
+              englishHomework ? `Tarefa proposta: ${englishHomework}` : "",
               englishPreviousHomeworkStatus
-                ? `Homework anterior: ${englishPreviousHomeworkStatus}`
+                ? `Tarefa anterior: ${englishPreviousHomeworkStatus}`
                 : "",
               englishNextLessonPlan
                 ? `Planejamento da proxima aula: ${englishNextLessonPlan}`
@@ -173,8 +175,8 @@ export function AddSessionNoteForm({
               .join("\n")
           : "";
 
-      const noteContent = englishExtra
-        ? `${finalContent}\n\n---\n${englishExtra}`
+      const noteContent = teacherExtra
+        ? `${finalContent}\n\n---\n${teacherExtra}`
         : finalContent;
 
       const result = await createSessionNote(clientRecordId, {
@@ -445,7 +447,7 @@ export function AddSessionNoteForm({
             </div>
           )}
 
-          {specialty === "ENGLISH_TEACHER" && (
+          {specialty === "TEACHER" && (
             <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
               <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
                 Metadados da Aula
@@ -473,7 +475,7 @@ export function AddSessionNoteForm({
                 </div>
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
-                    Topico da aula
+                    Conteudo trabalhado
                   </label>
                   <input
                     type="text"
@@ -482,16 +484,16 @@ export function AddSessionNoteForm({
                       setEnglishLessonTopic(event.target.value)
                     }
                     className="w-full rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors focus:border-[#d73cbe]/50 focus:outline-none"
-                    placeholder="Ex: Present Perfect, Business Vocabulary..."
+                    placeholder="Tema, capitulo, conceito ou atividade trabalhada..."
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
-                  Habilidades focadas na sessao
+                  Foco da aula
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {englishSkillOptions.map((skill) => (
+                  {teacherFocusOptions.map((skill) => (
                     <button
                       key={skill}
                       type="button"
@@ -532,7 +534,8 @@ export function AddSessionNoteForm({
 
           <div className="space-y-1.5">
             <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
-              Nota da sessao <span className="text-red-400">*</span>
+              {specialty === "TEACHER" ? "Observacoes da aula" : "Nota da sessao"}{" "}
+              <span className="text-red-400">*</span>
             </label>
             <textarea
               value={content}
@@ -545,13 +548,19 @@ export function AddSessionNoteForm({
 
           <div className="space-y-1.5">
             <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
-              Evolucao do paciente
+              {specialty === "TEACHER"
+                ? "Evolucao do aluno"
+                : "Evolucao do paciente"}
             </label>
             <textarea
               value={evolution}
               onChange={(event) => setEvolution(event.target.value)}
               rows={3}
-              placeholder="Como o paciente evoluiu desde a ultima sessao..."
+              placeholder={
+                specialty === "TEACHER"
+                  ? "Como o aluno evoluiu desde a ultima aula..."
+                  : "Como o paciente evoluiu desde a ultima sessao..."
+              }
               className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
             />
           </div>
@@ -633,10 +642,10 @@ export function AddSessionNoteForm({
             </div>
           )}
 
-          {specialty === "ENGLISH_TEACHER" && (
+          {specialty === "TEACHER" && (
             <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
               <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                Desempenho, Homework e Proximos Passos
+                Desempenho, Tarefas e Proximos Passos
               </p>
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
@@ -665,14 +674,14 @@ export function AddSessionNoteForm({
                     setEnglishRecurringErrors(event.target.value)
                   }
                   rows={3}
-                  placeholder="Pronuncia, gramatica, vocabulário ou confusoes recorrentes..."
+                  placeholder="Conceitos, etapas, exercicios ou dificuldades recorrentes..."
                   className="w-full resize-none rounded-xl border border-white/10 bg-[#020617] px-4 py-3 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]/50 focus:outline-none"
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
-                    Homework enviado
+                    Tarefa proposta
                   </label>
                   <textarea
                     value={englishHomework}
@@ -684,7 +693,7 @@ export function AddSessionNoteForm({
                 </div>
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">
-                    Status do homework anterior
+                    Status da tarefa anterior
                   </label>
                   <select
                     value={englishPreviousHomeworkStatus}

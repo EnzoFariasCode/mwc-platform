@@ -13,6 +13,7 @@ import {
   getProfessionalTerms,
   type ProfessionalTermsIndustry,
 } from "@/modules/legal/terms-versions";
+import { getOnlineSpecialtyByJobTitle } from "@/modules/health/lib/specialties";
 
 export async function registerUser(
   formData: FormData,
@@ -31,6 +32,10 @@ export async function registerUser(
   const jobTitle = formData.get("jobTitle")?.toString().trim();
   const experienceRaw = formData.get("experienceLevel")?.toString();
   const industryRaw = formData.get("industry")?.toString(); // Extraindo o novo campo
+  const onlineSpecialty =
+    isPro && industryRaw === Industry.HEALTH && jobTitle
+      ? getOnlineSpecialtyByJobTitle(jobTitle)
+      : null;
 
   // 1. Validacao basica
   if (!name || !email || !password) {
@@ -56,6 +61,12 @@ export async function registerUser(
       return {
         success: false,
         error: "Profissionais precisam selecionar um setor valido.",
+      };
+    }
+    if (industryRaw === Industry.HEALTH && !onlineSpecialty) {
+      return {
+        success: false,
+        error: "Selecione uma categoria valida do MWC Online.",
       };
     }
     if (!acceptedProfessionalTerms) {
@@ -107,6 +118,7 @@ export async function registerUser(
           userType: isPro ? UserType.PROFESSIONAL : UserType.CLIENT,
           industry,
           jobTitle: isPro ? jobTitle : null,
+          onlineSpecialty: onlineSpecialty?.code ?? null,
           yearsOfExperience: isPro ? yearsOfExperience : null,
         },
       });

@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { hasValidHealthProfessionalIdentity } from "../lib/health-professional-eligibility";
 
 // ─── Schema Zod ───────────────────────────────────────────────────────────────
 
@@ -76,6 +77,24 @@ export async function updateHealthSchedule(scheduleData: WeeklyAvailability) {
 
   try {
     const proId = session.user.id;
+
+    const professional = await db.user.findUnique({
+      where: { id: proId },
+      select: {
+        onlineSpecialty: true,
+        documentReg: true,
+        teachingSubject: true,
+      },
+    });
+
+    if (!professional || !hasValidHealthProfessionalIdentity(professional)) {
+      return {
+        error:
+          professional?.onlineSpecialty === "TEACHER"
+            ? "Informe sua materia ou area de ensino antes de configurar a agenda."
+            : "Informe seu registro profissional antes de configurar a agenda.",
+      };
+    }
 
     // Transação: Limpa a agenda antiga e insere a nova nas tabelas relacionais
     await db.$transaction(async (tx) => {
