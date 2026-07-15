@@ -43,7 +43,11 @@ export function ProfessionalAppointmentActionButtons({
       }
 
       setModalType(null);
-      toast.success("Consulta cancelada e reembolso solicitado.");
+      toast.success(
+        result.processing
+          ? "Cancelamento em processamento. As etapas pendentes serao repetidas automaticamente."
+          : "Consulta cancelada e reembolso solicitado.",
+      );
       router.refresh();
     });
   };

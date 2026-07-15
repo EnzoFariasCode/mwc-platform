@@ -36,6 +36,15 @@ interface FindMeetEventParams {
   endTime: Date;
 }
 
+export type GoogleMeetLookupResult =
+  | { status: "FOUND"; eventId: string }
+  | { status: "NOT_FOUND" }
+  | { status: "FAILED"; error: string };
+
+export type GoogleMeetCancellationResult =
+  | { status: "CANCELED" | "ALREADY_CANCELED" }
+  | { status: "FAILED"; error: string };
+
 function requiredEnv(name: string) {
   const value = process.env[name];
 
@@ -97,6 +106,18 @@ function eventHasMeetLink(
   return eventLinks.some(
     (link) => link && normalizeMeetLink(link) === normalizedMeetLink,
   );
+}
+
+function externalErrorStatus(error: unknown) {
+  if (!error || typeof error !== "object") return null;
+
+  const candidate = error as {
+    code?: unknown;
+    response?: { status?: unknown };
+  };
+  const value = candidate.response?.status ?? candidate.code;
+  const parsed = typeof value === "string" ? Number(value) : value;
+  return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : null;
 }
 
 export async function createGoogleMeetEvent({
@@ -189,6 +210,20 @@ export async function findGoogleMeetEventId({
   startTime,
   endTime,
 }: FindMeetEventParams): Promise<string | null> {
+  const result = await findGoogleMeetEventForCancellation({
+    meetLink,
+    startTime,
+    endTime,
+  });
+
+  return result.status === "FOUND" ? result.eventId : null;
+}
+
+export async function findGoogleMeetEventForCancellation({
+  meetLink,
+  startTime,
+  endTime,
+}: FindMeetEventParams): Promise<GoogleMeetLookupResult> {
   try {
     const calendar = getCalendarClient();
     const searchStart = new Date(startTime.getTime() - 24 * 60 * 60 * 1000);
@@ -205,10 +240,15 @@ export async function findGoogleMeetEventId({
       eventHasMeetLink(event, meetLink),
     );
 
-    return matchingEvent?.id ?? null;
+    return matchingEvent?.id
+      ? { status: "FOUND", eventId: matchingEvent.id }
+      : { status: "NOT_FOUND" };
   } catch (error) {
     console.error("[Google Meet API] Erro ao localizar evento:", error);
-    return null;
+    return {
+      status: "FAILED",
+      error: "Falha ao consultar o evento no Google Calendar.",
+    };
   }
 }
 
@@ -227,5 +267,35 @@ export async function cancelGoogleMeetEvent(
   } catch (error) {
     console.error("[Google Meet API] Erro ao cancelar evento:", error);
     return false;
+  }
+}
+
+export async function cancelGoogleMeetEventIdempotently(
+  eventId: string,
+): Promise<GoogleMeetCancellationResult> {
+  try {
+    const calendar = getCalendarClient();
+    await calendar.events.delete({
+      calendarId: getCalendarId(),
+      eventId,
+      sendUpdates: "all",
+    });
+
+    return { status: "CANCELED" };
+  } catch (error) {
+    const status = externalErrorStatus(error);
+
+    if (status === 404 || status === 410) {
+      return { status: "ALREADY_CANCELED" };
+    }
+
+    console.error(
+      "[Google Meet API] Erro ao cancelar evento de forma idempotente:",
+      error,
+    );
+    return {
+      status: "FAILED",
+      error: "Falha ao cancelar o evento no Google Calendar.",
+    };
   }
 }

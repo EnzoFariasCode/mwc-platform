@@ -54,11 +54,33 @@ enum BookingStatus {
   MEETING_PENDING // Pago, aguardando criacao da sala online
   MEETING_FAILED // Falha definitiva na sala; reembolso solicitado
   CONFIRMED // Confirmado e na agenda
+  CANCELLING // Cancelamento e reembolso em processamento
   COMPLETED // Realizada
   CANCELED // Cancelada
   DISPUTED // Em disputa pelo paciente
   REFUNDED // Reembolsado ao paciente
   NO_SHOW // Paciente não compareceu
+}
+
+enum AppointmentCancellationStatus {
+  PENDING
+  PROCESSING
+  RETRY_SCHEDULED
+  RECONCILIATION_REQUIRED
+  COMPLETED
+}
+
+enum AppointmentCancellationStepStatus {
+  PENDING
+  COMPLETED
+  SKIPPED
+}
+
+enum AppointmentCancellationInitiator {
+  PATIENT
+  PROFESSIONAL
+  ADMIN
+  SYSTEM
 }
 
 // =========================================================
@@ -454,13 +476,54 @@ model Appointment {
   serviceTypeId String?
   serviceType   ServiceType? @relation(fields: [serviceTypeId], references: [id])
 
-  sessionNote  SessionNote?
-  transactions Transaction[]
+  sessionNote         SessionNote?
+  transactions        Transaction[]
+  cancellationProcess AppointmentCancellationProcess?
 
   // Ajuda a prevenir consultas duplicadas no mesmo horário
   @@index([patientId])
   @@index([professionalId])
   @@index([status, meetLastAttemptAt])
+}
+
+model AppointmentCancellationProcess {
+  id            String                           @id @default(cuid())
+  appointmentId String                           @unique
+  appointment   Appointment                      @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  requestedById String
+  initiator     AppointmentCancellationInitiator
+  reason        String?                          @db.Text
+  status        AppointmentCancellationStatus    @default(PENDING)
+
+  attemptCount        Int       @default(0)
+  maxAttempts         Int       @default(3)
+  nextAttemptAt       DateTime  @default(now())
+  processingStartedAt DateTime?
+  lastAttemptAt       DateTime?
+  lastError           String?   @db.Text
+
+  meetStatus     AppointmentCancellationStepStatus @default(PENDING)
+  meetCanceledAt DateTime?
+  meetLastError  String?                           @db.Text
+
+  refundStatus    AppointmentCancellationStepStatus @default(PENDING)
+  refundId        String?
+  refundedAt      DateTime?
+  refundLastError String?                           @db.Text
+
+  escrowStatus     AppointmentCancellationStepStatus @default(PENDING)
+  escrowCanceledAt DateTime?
+  escrowLastError  String?                           @db.Text
+
+  reconciliationRequiredAt DateTime?
+  reconciliationAlertedAt  DateTime?
+  completedAt              DateTime?
+  completionNotifiedAt     DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([processingStartedAt])
 }
 
 model ClientRecord {

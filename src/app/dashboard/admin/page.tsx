@@ -21,6 +21,7 @@ async function getAdminOverview() {
     openProjects,
     disputedProjects,
     pendingWithdrawals,
+    pendingCancellationReconciliations,
   ] = await Promise.all([
     db.user.count(),
     db.user.count({ where: { isActive: true } }),
@@ -29,6 +30,9 @@ async function getAdminOverview() {
     db.project.count({ where: { status: ProjectStatus.DISPUTE } }),
     db.withdrawalRequest.count({
       where: { status: WithdrawalStatus.PENDING },
+    }),
+    db.appointmentCancellationProcess.count({
+      where: { status: "RECONCILIATION_REQUIRED" },
     }),
   ]);
 
@@ -39,6 +43,7 @@ async function getAdminOverview() {
     openProjects,
     disputedProjects,
     pendingWithdrawals,
+    pendingCancellationReconciliations,
   };
 }
 
@@ -92,6 +97,12 @@ export default async function AdminDashboardPage() {
       href: "/dashboard/admin/financeiro",
       icon: Wallet,
     },
+    {
+      title: "Reconciliação Online",
+      description: `${overview.pendingCancellationReconciliations} cancelamento(s) exigem ação manual.`,
+      href: "/dashboard/admin/reconciliacoes",
+      icon: AlertTriangle,
+    },
   ];
 
   return (
@@ -132,7 +143,7 @@ export default async function AdminDashboardPage() {
         ))}
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {shortcuts.map((item) => (
           <Link
             key={item.href}

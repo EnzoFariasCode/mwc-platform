@@ -110,6 +110,13 @@ vi.mock("@/modules/health/services/google-meet-service", () => ({
   findGoogleMeetEventId: vi.fn(),
   updateGoogleMeetEvent: vi.fn(),
 }));
+vi.mock(
+  "@/modules/health/services/appointment-cancellation-recovery",
+  () => ({
+    processAppointmentCancellation: vi.fn(),
+    requestAppointmentCancellation: vi.fn(),
+  }),
+);
 vi.mock("@/modules/health/services/transactional-email-service", () => ({
   sendAppointmentCompletedEmail: vi.fn(),
   sendCancellationEmail: vi.fn(),

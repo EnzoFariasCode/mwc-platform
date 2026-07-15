@@ -24,7 +24,11 @@ export function CancelAppointmentButton({
       }
 
       setIsModalOpen(false);
-      toast.success("Consulta cancelada com sucesso.");
+      toast.success(
+        result.processing
+          ? "Cancelamento em processamento. Voce sera notificado ao concluir."
+          : "Consulta cancelada com sucesso.",
+      );
     });
   };
 

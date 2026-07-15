@@ -27,6 +27,10 @@ import {
   findGoogleMeetEventId,
   updateGoogleMeetEvent,
 } from "@/modules/health/services/google-meet-service";
+import {
+  processAppointmentCancellation,
+  requestAppointmentCancellation,
+} from "@/modules/health/services/appointment-cancellation-recovery";
 
 const ADMIN_HEALTH_DISPUTE_DECISION_LIMIT = 20;
 const ADMIN_HEALTH_DISPUTE_DECISION_WINDOW_MS = 10 * 60 * 1000;
@@ -81,29 +85,6 @@ async function releaseAppointmentEscrow(
     data: {
       pendingBalance: { decrement: pendingTransaction.amount },
       walletBalance: { increment: pendingTransaction.amount },
-    },
-  });
-
-  return pendingTransaction;
-}
-
-async function cancelAppointmentEscrow(
-  tx: Prisma.TransactionClient,
-  appointment: EscrowAppointment,
-) {
-  const pendingTransaction = await findPendingCreditTransaction(tx, appointment);
-
-  if (!pendingTransaction) return;
-
-  await tx.transaction.update({
-    where: { id: pendingTransaction.id },
-    data: { status: "CANCELED" },
-  });
-
-  await tx.user.update({
-    where: { id: appointment.professionalId },
-    data: {
-      pendingBalance: { decrement: pendingTransaction.amount },
     },
   });
 
@@ -336,6 +317,7 @@ async function cancelGoogleMeetForAppointment(params: {
 }
 
 const terminalStatuses = [
+  "CANCELLING",
   "CANCELED",
   "COMPLETED",
   "REFUNDED",
@@ -494,72 +476,20 @@ export async function cancelPatientAppointment(
       throw new Error("Consulta sem referencia de pagamento Stripe.");
     }
 
-    const googleCancel = await cancelGoogleMeetForAppointment({
+    const cancellation = await requestAppointmentCancellation({
       appointmentId: appointment.id,
-      date: appointment.date,
-      time: appointment.time,
-      timezonePro: appointment.timezonePro,
-      meetLink: appointment.meetLink,
-      googleEventId: appointment.googleEventId,
-      durationMinutes: appointment.durationMinutes,
+      requestedById: session.user.id,
+      initiator: "PATIENT",
+      reason: normalizedReason,
     });
-
-    if (googleCancel.error) throw new Error(googleCancel.error);
-
-    const refund = await refundStripeCheckoutSession(
-      appointment.stripeSessionId,
-      `health-appointment-cancel-${appointment.id}`,
-    );
-
-    await db.$transaction(async (tx) => {
-      const freshAppointment = await tx.appointment.findUnique({
-        where: { id: appointment.id },
-        select: {
-          id: true,
-          status: true,
-          professionalId: true,
-          stripeSessionId: true,
-          notes: true,
-        },
-      });
-
-      if (!freshAppointment) throw new Error("Consulta nao encontrada.");
-
-      if (terminalStatuses.includes(freshAppointment.status as never)) {
-        throw new Error("Apenas consultas agendadas podem ser canceladas.");
-      }
-
-      const canceledTransaction = await cancelAppointmentEscrow(
-        tx,
-        freshAppointment,
-      );
-
-      const cancelNote = `Cancelada pelo paciente em ${new Date().toLocaleString("pt-BR")}. Motivo: ${normalizedReason || "Nao informado"}. Reembolso Stripe solicitado: ${refund.id}. Transacao: ${canceledTransaction?.id ?? "nao encontrada"}.`;
-      const notes = freshAppointment.notes
-        ? `${freshAppointment.notes}\n\n${cancelNote}`
-        : cancelNote;
-
-      await tx.appointment.update({
-        where: { id: freshAppointment.id },
-        data: { status: "CANCELED", notes },
-      });
-    });
+    const result = await processAppointmentCancellation(cancellation.id);
 
     revalidateHealthAppointmentPaths(appointment.professionalId);
 
-    await sendCancellationEmail({
-      patient: appointment.patient,
-      professional: appointment.professional,
-      date: appointment.date,
-      time: appointment.time,
-      price: appointment.price,
-      reason: normalizedReason,
-      refundId: refund.id,
-      canceledBy: "patient",
-      refundRequested: true,
-    });
-
-    return { success: true };
+    return {
+      success: true,
+      processing: result.status !== "COMPLETED",
+    };
   } catch (error) {
     console.error("[CANCEL_PATIENT_APPOINTMENT_ERROR]", error);
     return {
@@ -629,72 +559,20 @@ export async function cancelProfessionalAppointment(
       throw new Error("Consulta sem referencia de pagamento Stripe.");
     }
 
-    const googleCancel = await cancelGoogleMeetForAppointment({
+    const cancellation = await requestAppointmentCancellation({
       appointmentId: appointment.id,
-      date: appointment.date,
-      time: appointment.time,
-      timezonePro: appointment.timezonePro,
-      meetLink: appointment.meetLink,
-      googleEventId: appointment.googleEventId,
-      durationMinutes: appointment.durationMinutes,
+      requestedById: session.user.id,
+      initiator: "PROFESSIONAL",
+      reason: normalizedReason,
     });
-
-    if (googleCancel.error) throw new Error(googleCancel.error);
-
-    const refund = await refundStripeCheckoutSession(
-      appointment.stripeSessionId,
-      `health-appointment-pro-cancel-${appointment.id}`,
-    );
-
-    await db.$transaction(async (tx) => {
-      const freshAppointment = await tx.appointment.findUnique({
-        where: { id: appointment.id },
-        select: {
-          id: true,
-          status: true,
-          professionalId: true,
-          stripeSessionId: true,
-          notes: true,
-        },
-      });
-
-      if (!freshAppointment) throw new Error("Consulta nao encontrada.");
-
-      if (terminalStatuses.includes(freshAppointment.status as never)) {
-        throw new Error("Apenas consultas agendadas podem ser canceladas.");
-      }
-
-      const canceledTransaction = await cancelAppointmentEscrow(
-        tx,
-        freshAppointment,
-      );
-
-      const cancelNote = `Cancelada pelo profissional em ${new Date().toLocaleString("pt-BR")}. Motivo: ${normalizedReason || "Nao informado"}. Reembolso Stripe solicitado: ${refund.id}. Transacao: ${canceledTransaction?.id ?? "nao encontrada"}.`;
-      const notes = freshAppointment.notes
-        ? `${freshAppointment.notes}\n\n${cancelNote}`
-        : cancelNote;
-
-      await tx.appointment.update({
-        where: { id: freshAppointment.id },
-        data: { status: "CANCELED", notes },
-      });
-    });
+    const result = await processAppointmentCancellation(cancellation.id);
 
     revalidateHealthAppointmentPaths(appointment.professionalId);
 
-    await sendCancellationEmail({
-      patient: appointment.patient,
-      professional: appointment.professional,
-      date: appointment.date,
-      time: appointment.time,
-      price: appointment.price,
-      reason: normalizedReason,
-      refundId: refund.id,
-      canceledBy: "professional",
-      refundRequested: true,
-    });
-
-    return { success: true };
+    return {
+      success: true,
+      processing: result.status !== "COMPLETED",
+    };
   } catch (error) {
     console.error("[CANCEL_PROFESSIONAL_APPOINTMENT_ERROR]", error);
     return {

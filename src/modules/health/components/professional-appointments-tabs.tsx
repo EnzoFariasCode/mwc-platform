@@ -46,6 +46,14 @@ function formatDate(date: string) {
 }
 
 function statusBadge(status: string) {
+  if (status === "CANCELLING") {
+    return {
+      label: "Cancelamento em processamento",
+      icon: Timer,
+      className: "bg-amber-500/10 text-amber-300 border-amber-500/20",
+    };
+  }
+
   if (status === "MEETING_PENDING") {
     return {
       label: "Preparando sala",
@@ -102,6 +110,7 @@ function statusBadge(status: string) {
 }
 
 const finishedStatuses: readonly string[] = [
+  "CANCELLING",
   "COMPLETED",
   "CANCELED",
   "REFUNDED",
