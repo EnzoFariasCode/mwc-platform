@@ -13,6 +13,14 @@ export type HealthProfessionalProfile = {
   id: string;
   name: string | null;
   displayName?: string | null;
+  birthDate?: Date | string | null;
+  phone?: string | null;
+  cep?: string | null;
+  address?: string | null;
+  addressNumber?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
   bio?: string | null;
   jobTitle?: string | null;
   onlineSpecialty?:

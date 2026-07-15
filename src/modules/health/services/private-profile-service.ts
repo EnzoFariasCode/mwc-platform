@@ -59,6 +59,14 @@ export async function getHealthProfessionalDashboardById(
       name: true,
       displayName: true,
       image: true,
+      profileImageBytes: true,
+      bio: true,
+      birthDate: true,
+      phone: true,
+      cep: true,
+      address: true,
+      addressNumber: true,
+      neighborhood: true,
       jobTitle: true,
       onlineSpecialty: true,
       teachingSubject: true,
@@ -124,8 +132,11 @@ export async function getHealthProfessionalDashboardById(
     }),
   ]);
 
+  const { profileImageBytes, ...professionalData } = professional;
+
   return {
-    ...professional,
+    ...professionalData,
+    hasProfileImage: Boolean(profileImageBytes || professional.image),
     proAppointments: [...scheduledAppointments, ...historyAppointments],
     completedAppointmentsCount,
     appointmentPagination: {

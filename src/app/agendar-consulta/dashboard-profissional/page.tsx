@@ -20,6 +20,7 @@ import {
   hasValidHealthProfessionalIdentity,
   isTeacherOnlineSpecialty,
 } from "@/modules/health/lib/health-professional-eligibility";
+import { getHealthProfileCompletion } from "@/modules/health/lib/health-profile-completion";
 
 // Funções Utilitárias de Formatação
 function formatCurrency(value: number | null) {
@@ -74,6 +75,7 @@ export default async function ProHealthDashboard({
     professional,
   );
   const missingApproach = !professional.approach;
+  const profileCompletion = getHealthProfileCompletion(professional);
   const appointmentItems = (professional.proAppointments ?? []).map(
     (appointment) => ({
       id: appointment.id,
@@ -103,6 +105,7 @@ export default async function ProHealthDashboard({
         <DashboardModalsController
           professional={professional}
           missingProfessionalIdentity={missingProfessionalIdentity}
+          profileCompletion={profileCompletion}
         />
 
         {/* Header de Boas-vindas */}
