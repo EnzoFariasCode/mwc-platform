@@ -10,6 +10,15 @@ const mocks = vi.hoisted(() => {
     onlineSpecialty: "TEACHER",
     teachingSubject: "Fisica" as string | null,
     documentReg: null as string | null,
+    jobTitle: "Professor",
+    availabilities: [
+      {
+        dayOfWeek: 1,
+        startTime: "09:00",
+        endTime: "18:00",
+        isActive: true,
+      },
+    ],
   };
 
   const tx = {
@@ -67,11 +76,23 @@ const mocks = vi.hoisted(() => {
         onlineSpecialty: "TEACHER",
         teachingSubject: "Fisica",
         documentReg: null,
+        jobTitle: "Professor",
+        availabilities: [
+          {
+            dayOfWeek: 1,
+            startTime: "09:00",
+            endTime: "18:00",
+            isActive: true,
+          },
+        ],
       };
       vi.clearAllMocks();
     },
     setTeachingSubject(value: string | null) {
       professional.teachingSubject = value;
+    },
+    removeAvailability() {
+      professional.availabilities = [];
     },
   };
 });
@@ -117,6 +138,19 @@ describe("checkout de Professor", () => {
 
   it("rejeita chamada direta para Professor sem materia", async () => {
     mocks.setTeachingSubject(null);
+
+    const result = await createCheckoutSession(
+      "teacher-1",
+      futureDate(),
+      "09:00",
+    );
+
+    expect(result.error).toContain("indisponivel");
+    expect(mocks.stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("rejeita chamada direta para profissional sem agenda ativa", async () => {
+    mocks.removeAvailability();
 
     const result = await createCheckoutSession(
       "teacher-1",

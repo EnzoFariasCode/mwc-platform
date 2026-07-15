@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { formatProfessionalCredential } from "@/modules/health/lib/professional-credentials";
 import { GraduationCap, Star, MapPin, Video, ShieldCheck } from "lucide-react";
 import { auth } from "@/auth";
+import { db } from "@/lib/prisma";
+import { isProfessionalVerificationApproved } from "@/modules/health/lib/professional-verification-policy";
 import { getHealthProfessionalById } from "@/modules/health/services/professional-service";
 import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
 import { ProfileViewClient } from "./profile-view-client";
@@ -22,7 +24,20 @@ export default async function ProfessionalHealthProfile({
     session.user.userType === "PROFESSIONAL" &&
     session.user.industry === "HEALTH"
   ) {
-    redirect("/agendar-consulta/verificacao?notice=profile-unavailable");
+    const owner = await db.user.findUnique({
+      where: { id },
+      select: {
+        professionalVerification: {
+          select: { status: true, expiresAt: true },
+        },
+      },
+    });
+
+    redirect(
+      isProfessionalVerificationApproved(owner?.professionalVerification)
+        ? "/agendar-consulta/dashboard-profissional?notice=profile-incomplete"
+        : "/agendar-consulta/verificacao?notice=profile-unavailable",
+    );
   }
 
   if (!pro) {

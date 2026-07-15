@@ -18,6 +18,7 @@ import { formatProfessionalCredential } from "@/modules/health/lib/professional-
 import { ScheduleConfigLink } from "@/modules/health/components/schedule-config-link";
 import {
   hasValidHealthProfessionalIdentity,
+  getHealthProfessionalBookingReadinessError,
   isOnlineSpecialtyOperational,
   isTeacherOnlineSpecialty,
 } from "@/modules/health/lib/health-professional-eligibility";
@@ -46,6 +47,7 @@ export default async function ProHealthDashboard({
   const session = await auth();
   const query = await searchParams;
   const activeTab = query.tab === "history" ? "history" : "scheduled";
+  const showIncompleteProfileNotice = query.notice === "profile-incomplete";
 
   // Verificação de autenticação e permissão
   if (
@@ -84,7 +86,10 @@ export default async function ProHealthDashboard({
   const specialtyOperational = isOnlineSpecialtyOperational(
     professional.onlineSpecialty,
   );
-  const publicProfileAvailable = verificationApproved && specialtyOperational;
+  const bookingReadinessError =
+    getHealthProfessionalBookingReadinessError(professional);
+  const publicProfileAvailable =
+    verificationApproved && specialtyOperational && !bookingReadinessError;
   const appointmentItems = (professional.proAppointments ?? []).map(
     (appointment) => ({
       id: appointment.id,
@@ -119,6 +124,24 @@ export default async function ProHealthDashboard({
           profileCompletion={profileCompletion}
         />
 
+        {showIncompleteProfileNotice && bookingReadinessError && (
+          <div
+            role="status"
+            className="flex gap-3 rounded-lg border border-amber-400/25 bg-amber-400/10 p-4 text-amber-100"
+          >
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+            <div>
+              <p className="text-sm font-semibold">
+                Seu perfil publico ainda nao esta disponivel
+              </p>
+              <p className="mt-1 text-sm leading-6 text-amber-100/75">
+                {bookingReadinessError} Complete os dados para aparecer na
+                busca e receber novos agendamentos.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Header de Boas-vindas */}
         <div className="flex flex-col gap-6 rounded-xl border border-white/10 bg-[#0f172a]/80 p-6 md:p-8 backdrop-blur-sm md:flex-row md:items-center md:justify-between">
           <div>
@@ -138,16 +161,20 @@ export default async function ProHealthDashboard({
             href={
               publicProfileAvailable
                 ? `/agendar-consulta/perfil/${professional.id}`
-                : "/agendar-consulta/verificacao"
+                : !verificationApproved
+                  ? "/agendar-consulta/verificacao"
+                  : "/agendar-consulta/dashboard-profissional?notice=profile-incomplete"
             }
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d73cbe]/30 bg-[#d73cbe]/10 px-6 py-3.5 text-sm font-semibold text-[#d73cbe] transition-all hover:bg-[#d73cbe] hover:text-white active:scale-95 shrink-0"
           >
             <ExternalLink className="h-4 w-4" />
             {publicProfileAvailable
               ? "Ver perfil público"
-              : verificationApproved
-                ? "Categoria indisponível"
-                : "Verificar perfil"}
+              : !verificationApproved
+                ? "Verificar perfil"
+                : !specialtyOperational
+                  ? "Categoria indisponível"
+                  : "Completar perfil"}
           </Link>
         </div>
 

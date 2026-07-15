@@ -3,8 +3,8 @@
 import { db } from "@/lib/prisma";
 import { getHealthSpecialtyById } from "@/modules/health/lib/specialties";
 import {
-  getEligibleHealthProfessionalWhere,
-  hasValidHealthProfessionalIdentity,
+  getBookableHealthProfessionalWhere,
+  getHealthProfessionalBookingReadinessError,
 } from "@/modules/health/lib/health-professional-eligibility";
 
 export async function getProfessionalsBySpecialty(specialtyId: string) {
@@ -17,9 +17,8 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
 
     const professionals = await db.user.findMany({
       where: {
-        ...getEligibleHealthProfessionalWhere(),
+        ...getBookableHealthProfessionalWhere(),
         onlineSpecialty: specialty.code,
-        jobTitle: { not: null },
       },
       select: {
         id: true,
@@ -40,20 +39,31 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
         city: true,
         state: true,
         profileImageBytes: true,
+        timezone: true,
+        availabilities: {
+          where: { isActive: true },
+          select: {
+            dayOfWeek: true,
+            startTime: true,
+            endTime: true,
+            isActive: true,
+          },
+        },
       },
     });
 
-    // Filtro JS muito mais leve, apenas para remover espaços em branco vazios
     const validProfessionals = professionals
-      .filter((pro) => {
-        const hasValidJobTitle = pro.jobTitle && pro.jobTitle.trim() !== "";
-
-        return hasValidJobTitle && hasValidHealthProfessionalIdentity(pro);
-      })
-      .map(({ profileImageBytes, ...pro }) => ({
-        ...pro,
-        hasProfileImage: profileImageBytes !== null,
-      }));
+      .filter((pro) => !getHealthProfessionalBookingReadinessError(pro))
+      .map((professional) => {
+        const { profileImageBytes, availabilities, timezone, ...publicData } =
+          professional;
+        void availabilities;
+        void timezone;
+        return {
+          ...publicData,
+          hasProfileImage: profileImageBytes !== null,
+        };
+      });
 
     return { data: validProfessionals };
   } catch (error) {

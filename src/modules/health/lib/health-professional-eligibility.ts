@@ -1,4 +1,7 @@
 import type { Prisma } from "@prisma/client";
+import { isValidTimeZone } from "./appointment-completion-time";
+
+const HH_MM_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const REGULATED_ONLINE_SPECIALTIES = [
   "PSYCHOLOGIST",
@@ -20,6 +23,21 @@ type ProfessionalIdentityInput = {
   onlineSpecialty: string | null | undefined;
   documentReg: string | null | undefined;
   teachingSubject: string | null | undefined;
+};
+
+type ProfessionalAvailabilityInput = {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isActive: boolean;
+};
+
+type BookableHealthProfessionalInput = ProfessionalIdentityInput & {
+  jobTitle: string | null | undefined;
+  consultationFee: unknown;
+  sessionDuration: number | null | undefined;
+  timezone: string | null | undefined;
+  availabilities: ProfessionalAvailabilityInput[] | null | undefined;
 };
 
 export function getEligibleHealthProfessionalWhere(
@@ -54,6 +72,79 @@ export function getEligibleHealthProfessionalWhere(
       },
     ],
   };
+}
+
+/** Regra canonica para qualquer perfil que possa ser encontrado e agendado. */
+export function getBookableHealthProfessionalWhere(
+  now = new Date(),
+): Prisma.UserWhereInput {
+  return {
+    ...getEligibleHealthProfessionalWhere(now),
+    jobTitle: { not: null },
+    consultationFee: { gt: 0 },
+    sessionDuration: { gt: 0 },
+    timezone: { not: "" },
+    availabilities: {
+      some: {
+        isActive: true,
+        startTime: { not: "" },
+        endTime: { not: "" },
+      },
+    },
+  };
+}
+
+export function hasValidBookableAvailability(
+  availabilities: ProfessionalAvailabilityInput[] | null | undefined,
+) {
+  return Boolean(
+    availabilities?.some(
+      (availability) =>
+        availability.isActive &&
+        Number.isInteger(availability.dayOfWeek) &&
+        availability.dayOfWeek >= 0 &&
+        availability.dayOfWeek <= 6 &&
+        HH_MM_PATTERN.test(availability.startTime) &&
+        HH_MM_PATTERN.test(availability.endTime) &&
+        availability.startTime < availability.endTime,
+    ),
+  );
+}
+
+export function getHealthProfessionalBookingReadinessError(
+  professional: BookableHealthProfessionalInput,
+) {
+  const identityError = getHealthProfessionalIdentityError(professional);
+  if (identityError) return identityError;
+
+  if (!professional.jobTitle?.trim()) {
+    return "Informe seu titulo profissional.";
+  }
+
+  const fee = Number(professional.consultationFee);
+  if (!Number.isFinite(fee) || fee <= 0) {
+    return "Informe um valor de atendimento maior que zero.";
+  }
+
+  if (
+    !Number.isInteger(professional.sessionDuration) ||
+    Number(professional.sessionDuration) <= 0
+  ) {
+    return "Informe uma duracao valida para o atendimento.";
+  }
+
+  if (
+    !professional.timezone?.trim() ||
+    !isValidTimeZone(professional.timezone)
+  ) {
+    return "Informe um fuso horario valido.";
+  }
+
+  if (!hasValidBookableAvailability(professional.availabilities)) {
+    return "Configure ao menos um periodo valido na agenda.";
+  }
+
+  return null;
 }
 
 export function hasValidProfessionalRegistration(

@@ -1,26 +1,48 @@
 import { db } from "@/lib/prisma";
 import { healthSpecialties } from "@/modules/health/lib/specialties";
-import { getEligibleHealthProfessionalWhere } from "@/modules/health/lib/health-professional-eligibility";
+import {
+  getBookableHealthProfessionalWhere,
+  getHealthProfessionalBookingReadinessError,
+} from "@/modules/health/lib/health-professional-eligibility";
 
 export async function getHealthSpecialtyCards() {
-  const cards = await Promise.all(
-    healthSpecialties.map(async (specialty) => {
-      // Usamos db.user.count para saber exatamente quantos profissionais
-      // atendem aos critérios sem precisar baixar os dados deles para a memória.
-      const count = await db.user.count({
-        where: {
-          ...getEligibleHealthProfessionalWhere(),
-          onlineSpecialty: specialty.code,
-          jobTitle: { not: null },
+  const candidates = await db.user.findMany({
+    where: getBookableHealthProfessionalWhere(),
+    select: {
+      onlineSpecialty: true,
+      teachingSubject: true,
+      documentReg: true,
+      jobTitle: true,
+      consultationFee: true,
+      sessionDuration: true,
+      timezone: true,
+      availabilities: {
+        where: { isActive: true },
+        select: {
+          dayOfWeek: true,
+          startTime: true,
+          endTime: true,
+          isActive: true,
         },
-      });
+      },
+    },
+  });
 
-      return {
-        ...specialty,
-        count: count,
-      };
-    }),
-  );
+  const counts = new Map<string, number>();
+  for (const professional of candidates) {
+    if (
+      professional.onlineSpecialty &&
+      !getHealthProfessionalBookingReadinessError(professional)
+    ) {
+      counts.set(
+        professional.onlineSpecialty,
+        (counts.get(professional.onlineSpecialty) ?? 0) + 1,
+      );
+    }
+  }
 
-  return cards;
+  return healthSpecialties.map((specialty) => ({
+    ...specialty,
+    count: counts.get(specialty.code) ?? 0,
+  }));
 }

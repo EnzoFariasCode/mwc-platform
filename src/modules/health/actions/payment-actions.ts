@@ -10,8 +10,8 @@ import { addMinutes, addMonths, endOfMonth, isBefore } from "date-fns";
 import { parseAppointmentDateTime, generateDaySlots } from "./slot-helpers";
 import { ONE_TIME_PAYMENT_METHODS } from "@/modules/stripe/lib/payment-methods";
 import {
-  getEligibleHealthProfessionalWhere,
-  hasValidHealthProfessionalIdentity,
+  getBookableHealthProfessionalWhere,
+  getHealthProfessionalBookingReadinessError,
 } from "@/modules/health/lib/health-professional-eligibility";
 
 // [NOVO] ConfiguraÃ§Ãµes de negÃ³cio
@@ -65,7 +65,7 @@ export async function createCheckoutSession(
     const professional = await db.user.findFirst({
       where: {
         id: proId,
-        ...getEligibleHealthProfessionalWhere(),
+        ...getBookableHealthProfessionalWhere(),
       },
       select: {
         id: true,
@@ -76,13 +76,22 @@ export async function createCheckoutSession(
         onlineSpecialty: true,
         teachingSubject: true,
         documentReg: true,
+        jobTitle: true,
+        availabilities: {
+          where: { isActive: true },
+          select: {
+            dayOfWeek: true,
+            startTime: true,
+            endTime: true,
+            isActive: true,
+          },
+        },
       },
     });
 
     if (
       !professional ||
-      !hasValidHealthProfessionalIdentity(professional) ||
-      !professional.consultationFee
+      getHealthProfessionalBookingReadinessError(professional)
     ) {
       throw new Error(
         "Profissional indisponivel para novos agendamentos.",

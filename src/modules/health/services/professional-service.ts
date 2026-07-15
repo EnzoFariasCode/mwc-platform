@@ -2,8 +2,8 @@
 
 import { db } from "@/lib/prisma";
 import {
-  getEligibleHealthProfessionalWhere,
-  hasValidHealthProfessionalIdentity,
+  getBookableHealthProfessionalWhere,
+  getHealthProfessionalBookingReadinessError,
 } from "@/modules/health/lib/health-professional-eligibility";
 
 function publicReviewerName(name: string | null | undefined) {
@@ -17,7 +17,7 @@ export async function getHealthProfessionalById(id: string) {
   try {
     const pro = await db.user.findFirst({
       where: {
-        ...getEligibleHealthProfessionalWhere(),
+        ...getBookableHealthProfessionalWhere(),
         id,
       },
       select: {
@@ -32,6 +32,7 @@ export async function getHealthProfessionalById(id: string) {
         approach: true,
         consultationFee: true,
         sessionDuration: true,
+        timezone: true,
         hourlyRate: true,
         rating: true,
         ratingCount: true,
@@ -63,7 +64,7 @@ export async function getHealthProfessionalById(id: string) {
       },
     });
 
-    if (!pro || !hasValidHealthProfessionalIdentity(pro)) {
+    if (!pro || getHealthProfessionalBookingReadinessError(pro)) {
       return null;
     }
 

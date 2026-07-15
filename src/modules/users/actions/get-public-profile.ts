@@ -3,8 +3,10 @@
 import { db } from "@/lib/prisma";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { Industry, Prisma, UserType } from "@prisma/client";
-import { hasValidHealthProfessionalIdentity } from "@/modules/health/lib/health-professional-eligibility";
-import { isProfessionalVerificationApproved } from "@/modules/health/lib/professional-verification-policy";
+import {
+  getBookableHealthProfessionalWhere,
+  getHealthProfessionalBookingReadinessError,
+} from "@/modules/health/lib/health-professional-eligibility";
 
 type PublicReview = {
   id: string;
@@ -44,8 +46,16 @@ export async function getPublicProfile(
   userId: string,
 ): Promise<ActionResponse<PublicProfile>> {
   try {
-    const professional = await db.user.findUnique({
-      where: { id: userId },
+    const professional = await db.user.findFirst({
+      where: {
+        id: userId,
+        userType: "PROFESSIONAL",
+        isActive: true,
+        OR: [
+          { industry: { not: "HEALTH" } },
+          getBookableHealthProfessionalWhere(),
+        ],
+      },
       select: {
         id: true,
         name: true,
@@ -78,7 +88,7 @@ export async function getPublicProfile(
         },
         sessionDuration: true,
         consultationFee: true,
-        professionalVerification: { select: { status: true, expiresAt: true } },
+        timezone: true,
         // -------------------------------------------------------------------
         reviewsReceived: {
           where: {
@@ -101,34 +111,8 @@ export async function getPublicProfile(
       return { success: false, error: "Perfil não encontrado." };
     }
 
-    if (professional.userType !== "PROFESSIONAL" || !professional.isActive) {
-      return {
-        success: false,
-        error: "Este perfil está indisponível no momento.",
-      };
-    }
-
-    // --- 🛡️ BARREIRA DE QUALIDADE (QA & Back-end) ---
     if (professional.industry === "HEALTH") {
-      const hasValidIdentity = hasValidHealthProfessionalIdentity(professional);
-      const hasValidJobTitle =
-        professional.jobTitle && professional.jobTitle.trim() !== "";
-      const hasFee = professional.consultationFee !== null;
-      const isVerified = isProfessionalVerificationApproved(
-        professional.professionalVerification,
-      );
-
-      const hasValidAgenda =
-        Array.isArray(professional.availabilities) &&
-        professional.availabilities.length > 0;
-
-      if (
-        !isVerified ||
-        !hasValidIdentity ||
-        !hasValidJobTitle ||
-        !hasValidAgenda ||
-        !hasFee
-      ) {
+      if (getHealthProfessionalBookingReadinessError(professional)) {
         return {
           success: false,
           error: "Este perfil está indisponível no momento.",
@@ -156,7 +140,7 @@ export async function getPublicProfile(
       availabilities: _av,
       sessionDuration: _sd,
       consultationFee: _cf,
-      professionalVerification: _professionalVerification,
+      timezone: _timezone,
       reviewsReceived: rawReviews, // Extraímos as avaliações com tipagem imperfeita
       ...rest
     } = professional;
@@ -169,7 +153,7 @@ export async function getPublicProfile(
     void _av;
     void _sd;
     void _cf;
-    void _professionalVerification;
+    void _timezone;
 
     // --- 🛠️ CORREÇÃO DE TIPAGEM PARA O TYPESCRIPT ---
     // Mapeamos o array e garantimos ao TS que o comment é string (já filtramos no banco)
