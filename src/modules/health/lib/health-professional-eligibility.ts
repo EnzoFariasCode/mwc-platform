@@ -38,6 +38,9 @@ type BookableHealthProfessionalInput = ProfessionalIdentityInput & {
   sessionDuration: number | null | undefined;
   timezone: string | null | undefined;
   availabilities: ProfessionalAvailabilityInput[] | null | undefined;
+  professionalVerification?: {
+    specialty?: string | null;
+  } | null;
 };
 
 export function getEligibleHealthProfessionalWhere(
@@ -116,6 +119,15 @@ export function hasValidBookableAvailability(
 export function getHealthProfessionalBookingReadinessError(
   professional: BookableHealthProfessionalInput,
 ) {
+  const verificationSpecialty =
+    professional.professionalVerification?.specialty;
+  if (
+    verificationSpecialty &&
+    verificationSpecialty !== professional.onlineSpecialty
+  ) {
+    return "A categoria profissional nao corresponde a verificacao aprovada.";
+  }
+
   const identityError = getHealthProfessionalIdentityError(professional);
   if (identityError) return identityError;
 

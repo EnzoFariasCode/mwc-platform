@@ -81,7 +81,7 @@ export default async function CheckoutSuccessPage({
             href="/agendar-consulta/historico"
             className="w-full py-4 bg-[#d73cbe] hover:bg-[#b02da0] text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#d73cbe]/25 cursor-pointer active:scale-95"
           >
-            Ver minhas consultas <CalendarClock className="w-4 h-4" />
+            Ver meus atendimentos <CalendarClock className="w-4 h-4" />
           </Link>
 
           <Link

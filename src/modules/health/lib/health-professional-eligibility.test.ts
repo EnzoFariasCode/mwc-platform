@@ -21,6 +21,7 @@ const readyTeacher = {
       isActive: true,
     },
   ],
+  professionalVerification: { specialty: "TEACHER" },
 };
 
 describe("identidade profissional do MWC Online", () => {
@@ -77,6 +78,10 @@ describe("prontidao para agendamento do MWC Online", () => {
     ["duracao", { sessionDuration: 0 }],
     ["timezone", { timezone: "Fuso/Invalido" }],
     ["agenda", { availabilities: [] }],
+    [
+      "categoria da verificacao",
+      { professionalVerification: { specialty: "PSYCHOLOGIST" } },
+    ],
     [
       "periodo invertido",
       {
