@@ -7,6 +7,10 @@ import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import type { ActionResponse } from "@/modules/users/types/user-types";
+import {
+  claimWithdrawalTransition,
+  transitionWithdrawalTransaction,
+} from "@/modules/admin/services/withdrawal-state-transition";
 
 const ADMIN_WITHDRAWAL_DECISION_LIMIT = 30;
 const ADMIN_WITHDRAWAL_DECISION_WINDOW_MS = 10 * 60 * 1000;
@@ -78,19 +82,21 @@ export async function approveWithdrawal(
         );
       }
 
-      await tx.withdrawalRequest.update({
-        where: { id: withdrawal.id },
+      await claimWithdrawalTransition(tx, {
+        withdrawalId: withdrawal.id,
+        expectedStatuses: ["PROCESSING"],
+        nextStatus: "COMPLETED",
         data: {
-          status: "COMPLETED",
           providerRef,
           processedAt,
           failedAt: null,
           failureReason: null,
         },
       });
-      await tx.transaction.update({
-        where: { id: withdrawal.transactionId },
-        data: { status: "COMPLETED" },
+      await transitionWithdrawalTransaction(tx, {
+        transactionId: withdrawal.transactionId,
+        expectedStatuses: ["PROCESSING"],
+        nextStatus: "COMPLETED",
       });
 
       const audit = await createAdminAuditLog(tx, {

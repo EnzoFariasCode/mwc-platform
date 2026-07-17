@@ -6,6 +6,10 @@ import { db } from "@/lib/prisma";
 import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import type { ActionResponse } from "@/modules/users/types/user-types";
+import {
+  claimWithdrawalTransition,
+  transitionWithdrawalTransaction,
+} from "@/modules/admin/services/withdrawal-state-transition";
 
 export async function startWithdrawalProcessing(
   withdrawalId: string,
@@ -34,14 +38,16 @@ export async function startWithdrawalProcessing(
         throw new Error("Somente saques pendentes podem iniciar processamento.");
       }
 
-      await tx.withdrawalRequest.update({
-        where: { id: current.id },
-        data: { status: "PROCESSING" },
+      await claimWithdrawalTransition(tx, {
+        withdrawalId: current.id,
+        expectedStatuses: ["PENDING"],
+        nextStatus: "PROCESSING",
       });
 
-      await tx.transaction.updateMany({
-        where: { id: current.transactionId, status: "PENDING" },
-        data: { status: "PROCESSING" },
+      await transitionWithdrawalTransaction(tx, {
+        transactionId: current.transactionId,
+        expectedStatuses: ["PENDING"],
+        nextStatus: "PROCESSING",
       });
 
       await createAdminAuditLog(tx, {

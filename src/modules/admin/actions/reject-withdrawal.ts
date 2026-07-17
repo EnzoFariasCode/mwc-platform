@@ -8,6 +8,10 @@ import { revalidatePath } from "next/cache";
 import { createAdminAuditLog } from "./audit-log";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
+import {
+  claimWithdrawalTransition,
+  transitionWithdrawalTransaction,
+} from "@/modules/admin/services/withdrawal-state-transition";
 
 type WithdrawalDecision = "FAILED" | "CANCELED";
 const ADMIN_WITHDRAWAL_DECISION_LIMIT = 30;
@@ -82,22 +86,25 @@ export async function rejectWithdrawal(
         throw new Error("Esta solicitacao de saque ja foi processada.");
       }
 
-      await tx.withdrawalRequest.update({
-        where: { id: withdrawal.id },
+      await claimWithdrawalTransition(tx, {
+        withdrawalId: withdrawal.id,
+        expectedStatuses: [
+          WithdrawalStatus.PENDING,
+          WithdrawalStatus.PROCESSING,
+        ],
+        nextStatus: decision,
         data: {
-          status: decision,
           failedAt: decision === "FAILED" ? new Date() : null,
           failureReason: normalizedReason,
           processedAt: null,
         },
       });
 
-      await tx.transaction.update({
-        where: { id: withdrawal.transactionId },
-        data: {
-          status:
-            decision === WithdrawalStatus.FAILED ? "FAILED" : "CANCELED",
-        },
+      await transitionWithdrawalTransaction(tx, {
+        transactionId: withdrawal.transactionId,
+        expectedStatuses: ["PENDING", "PROCESSING"],
+        nextStatus:
+          decision === WithdrawalStatus.FAILED ? "FAILED" : "CANCELED",
       });
 
       await tx.user.update({
