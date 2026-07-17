@@ -20,6 +20,8 @@ import {
 } from "@/modules/health/lib/appointment-completion-time";
 import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
+import { requireAdminRole } from "@/lib/get-session";
+import { validateAdminDecisionReason } from "@/modules/admin/lib/admin-decision-reason";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 import {
   cancelGoogleMeetEvent,
@@ -723,25 +725,10 @@ export async function resolveHealthAppointmentDispute({
   decision: "REFUND_PATIENT" | "RELEASE_TO_PROFESSIONAL";
   reason?: string;
 }) {
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    return { error: "Nao autorizado." };
-  }
-
-  if (session.user.role !== "ADMIN" && session.user.userType !== "ADMIN") {
-    return { error: "Acao restrita a administradores." };
-  }
-
-  if (
-    session.user.adminRole !== "OWNER" &&
-    session.user.adminRole !== "SUPPORT"
-  ) {
-    return { error: "Acao restrita ao suporte administrativo." };
-  }
+  const admin = await requireAdminRole(["OWNER", "SUPPORT"]);
 
   const rateLimitError = await consumeRateLimit({
-    key: `admin:health-dispute-decision:user:${session.user.id}`,
+    key: `admin:health-dispute-decision:user:${admin.id}`,
     limit: ADMIN_HEALTH_DISPUTE_DECISION_LIMIT,
     windowMs: ADMIN_HEALTH_DISPUTE_DECISION_WINDOW_MS,
     message: "Muitas decisoes de disputa em sequencia. Aguarde um instante.",
@@ -755,7 +742,11 @@ export async function resolveHealthAppointmentDispute({
     return { error: "Consulta invalida." };
   }
 
-  const normalizedReason = normalizeActionReason(reason);
+  const reasonResult = validateAdminDecisionReason(reason);
+  if (!reasonResult.success) {
+    return { error: reasonResult.error };
+  }
+  const normalizedReason = reasonResult.value;
 
   try {
     const appointment = await db.appointment.findUnique({
@@ -840,7 +831,7 @@ export async function resolveHealthAppointmentDispute({
         });
 
         await createAdminAuditLog(tx, {
-          actorId: session.user.id,
+          actorId: admin.id,
           action: "HEALTH_DISPUTE_REFUND_PATIENT",
           entityType: "HEALTH_APPOINTMENT",
           entityId: freshAppointment.id,
@@ -877,7 +868,7 @@ export async function resolveHealthAppointmentDispute({
       });
 
       await createAdminAuditLog(tx, {
-        actorId: session.user.id,
+        actorId: admin.id,
         action: "HEALTH_DISPUTE_RELEASE_PROFESSIONAL",
         entityType: "HEALTH_APPOINTMENT",
         entityId: freshAppointment.id,

@@ -2,10 +2,26 @@ import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { getAdminWithdrawals } from "@/modules/admin/actions/get-withdrawals";
 import AdminFinanceiroView, { AdminWithdrawalItem } from "./AdminFinanceiroView";
 
-export default async function AdminFinanceiroPage() {
-  const withdrawals = await getAdminWithdrawals();
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-  const safeWithdrawals: AdminWithdrawalItem[] = withdrawals.map(
+function valueOf(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function AdminFinanceiroPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const query = {
+    page: Number(valueOf(params.page)) || 1,
+    search: valueOf(params.q) || "",
+    status: valueOf(params.status) || "PENDING",
+    dateFrom: valueOf(params.dateFrom) || "",
+    dateTo: valueOf(params.dateTo) || "",
+  } as const;
+  const result = await getAdminWithdrawals(query);
+
+  const safeWithdrawals: AdminWithdrawalItem[] = result.items.map(
     (withdrawal) => ({
       id: withdrawal.id,
       amount: withdrawal.amount.toNumber(),
@@ -44,7 +60,12 @@ export default async function AdminFinanceiroPage() {
 
   return (
     <PageContainer>
-      <AdminFinanceiroView withdrawals={safeWithdrawals} />
+      <AdminFinanceiroView
+        withdrawals={safeWithdrawals}
+        pagination={result.pagination}
+        summary={result.summary}
+        query={query}
+      />
     </PageContainer>
   );
 }

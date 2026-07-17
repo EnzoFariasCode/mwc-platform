@@ -31,7 +31,8 @@ export async function getUserSession() {
   const user = await isUserActive(session.user.id);
   if (!user?.isActive) return null;
 
-  const userType = session.user.userType ?? user.userType;
+  // O banco e a fonte de verdade para autorizacao; a sessao pode estar obsoleta.
+  const userType = user.userType;
   const adminRole = normalizeAdminRole({
     userType,
     adminRole: user.adminRole,
@@ -57,12 +58,29 @@ export async function requireAdminUser() {
   return session;
 }
 
-export async function requireAdminRole(allowedRoles: AdminRole[]) {
-  const session = await requireAdminUser();
+export async function getAdminAccess(allowedRoles: AdminRole[]) {
+  const session = await getUserSession();
 
-  if (!canAccessAdminRoles(session.adminRole, allowedRoles)) {
+  if (!session) {
+    return { status: "UNAUTHENTICATED" as const };
+  }
+
+  if (
+    session.userType !== "ADMIN" ||
+    !canAccessAdminRoles(session.adminRole, allowedRoles)
+  ) {
+    return { status: "FORBIDDEN" as const };
+  }
+
+  return { status: "AUTHORIZED" as const, session };
+}
+
+export async function requireAdminRole(allowedRoles: AdminRole[]) {
+  const access = await getAdminAccess(allowedRoles);
+
+  if (access.status !== "AUTHORIZED") {
     redirect("/");
   }
 
-  return session;
+  return access.session;
 }

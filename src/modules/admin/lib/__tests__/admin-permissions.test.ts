@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   allowedAdminRolesForArea,
+  allowedAdminRolesForAuditEntity,
   canAccessAdminArea,
   canAccessAdminRoles,
   normalizeAdminRole,
@@ -41,5 +42,38 @@ describe("admin permissions", () => {
   it("rejects empty or missing roles", () => {
     expect(canAccessAdminRoles(null, ["OWNER"])).toBe(false);
     expect(canAccessAdminRoles(undefined, ["OWNER"])).toBe(false);
+  });
+
+  it("isolates financial audit logs from SUPPORT", () => {
+    const roles = allowedAdminRolesForAuditEntity("WITHDRAWAL_REQUEST");
+
+    expect(roles).toEqual(["OWNER", "FINANCE"]);
+    expect(canAccessAdminRoles("SUPPORT", roles)).toBe(false);
+  });
+
+  it("isolates support audit logs from FINANCE", () => {
+    for (const entityType of [
+      "TECH_PROJECT",
+      "HEALTH_APPOINTMENT",
+      "USER_ACCOUNT",
+      "PROFESSIONAL_VERIFICATION",
+    ]) {
+      const roles = allowedAdminRolesForAuditEntity(entityType);
+      expect(roles).toEqual(["OWNER", "SUPPORT"]);
+      expect(canAccessAdminRoles("FINANCE", roles)).toBe(false);
+    }
+  });
+
+  it("keeps reconciliation audit logs available to operational roles", () => {
+    expect(
+      allowedAdminRolesForAuditEntity("APPOINTMENT_CANCELLATION"),
+    ).toEqual(["OWNER", "FINANCE", "SUPPORT"]);
+    expect(
+      allowedAdminRolesForAuditEntity("APPOINTMENT_RESCHEDULE"),
+    ).toEqual(["OWNER", "FINANCE", "SUPPORT"]);
+  });
+
+  it("denies unknown audit entity types", () => {
+    expect(allowedAdminRolesForAuditEntity("UNKNOWN_ENTITY")).toEqual([]);
   });
 });

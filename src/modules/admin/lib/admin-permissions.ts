@@ -1,5 +1,23 @@
 export type AdminRole = "OWNER" | "FINANCE" | "SUPPORT";
 export type AdminArea = "FINANCE" | "SUPPORT" | "USERS" | "DISPUTES";
+export type AdminAuditEntityType =
+  | "TECH_PROJECT"
+  | "HEALTH_APPOINTMENT"
+  | "WITHDRAWAL_REQUEST"
+  | "USER_ACCOUNT"
+  | "APPOINTMENT_CANCELLATION"
+  | "APPOINTMENT_RESCHEDULE"
+  | "PROFESSIONAL_VERIFICATION";
+
+const adminAuditRolesByEntity = {
+  TECH_PROJECT: ["OWNER", "SUPPORT"],
+  HEALTH_APPOINTMENT: ["OWNER", "SUPPORT"],
+  WITHDRAWAL_REQUEST: ["OWNER", "FINANCE"],
+  USER_ACCOUNT: ["OWNER", "SUPPORT"],
+  APPOINTMENT_CANCELLATION: ["OWNER", "FINANCE", "SUPPORT"],
+  APPOINTMENT_RESCHEDULE: ["OWNER", "FINANCE", "SUPPORT"],
+  PROFESSIONAL_VERIFICATION: ["OWNER", "SUPPORT"],
+} satisfies Record<AdminAuditEntityType, AdminRole[]>;
 
 export function normalizeAdminRole({
   userType,
@@ -29,4 +47,12 @@ export function canAccessAdminArea(
   area: AdminArea,
 ) {
   return canAccessAdminRoles(adminRole, allowedAdminRolesForArea(area));
+}
+
+export function allowedAdminRolesForAuditEntity(
+  entityType: string,
+): AdminRole[] {
+  if (!Object.hasOwn(adminAuditRolesByEntity, entityType)) return [];
+
+  return adminAuditRolesByEntity[entityType as AdminAuditEntityType];
 }

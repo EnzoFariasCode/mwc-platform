@@ -1,23 +1,19 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
+import { getAdminAccess } from "@/lib/get-session";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
 export async function GET(_request: Request, { params }: RouteContext) {
-  const session = await auth();
+  const access = await getAdminAccess(["OWNER", "FINANCE"]);
 
-  if (
-    !session?.user?.id ||
-    (session.user.role !== "ADMIN" && session.user.userType !== "ADMIN")
-  ) {
+  if (access.status === "UNAUTHENTICATED") {
     return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
   }
 
-  const adminRole = session.user.adminRole ?? "OWNER";
-  if (adminRole !== "OWNER" && adminRole !== "FINANCE") {
+  if (access.status === "FORBIDDEN") {
     return NextResponse.json({ error: "Acesso restrito." }, { status: 403 });
   }
 

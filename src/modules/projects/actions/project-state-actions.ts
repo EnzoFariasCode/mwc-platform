@@ -16,6 +16,7 @@ import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { canCancelPaidTechProject } from "@/modules/projects/lib/tech-project-cancellation";
+import { validateAdminDecisionReason } from "@/modules/admin/lib/admin-decision-reason";
 
 const PLATFORM_FEE_PERCENT = 10;
 const ADMIN_DISPUTE_DECISION_LIMIT = 20;
@@ -760,7 +761,11 @@ export async function resolveTechProjectDispute({
       return { success: false, error: "Decisao de disputa invalida." };
     }
 
-    const normalizedReason = normalizeReason(reason);
+    const reasonResult = validateAdminDecisionReason(reason);
+    if (!reasonResult.success) {
+      return { success: false, error: reasonResult.error };
+    }
+    const normalizedReason = reasonResult.value;
 
     type ProjectDisputePayment = {
       id: string;

@@ -4,6 +4,12 @@ import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/prisma";
 import { requireAdminRole } from "@/lib/get-session";
+import {
+  allowedAdminRolesForAuditEntity,
+  type AdminAuditEntityType,
+} from "@/modules/admin/lib/admin-permissions";
+
+export type { AdminAuditEntityType } from "@/modules/admin/lib/admin-permissions";
 
 type AuditClient = Pick<typeof db, "$executeRaw">;
 
@@ -29,15 +35,6 @@ export type AdminAuditAction =
   | "PROFESSIONAL_VERIFICATION_CHANGES_REQUIRED"
   | "PROFESSIONAL_VERIFICATION_REJECTED"
   | "PROFESSIONAL_VERIFICATION_SUSPENDED";
-
-export type AdminAuditEntityType =
-  | "TECH_PROJECT"
-  | "HEALTH_APPOINTMENT"
-  | "WITHDRAWAL_REQUEST"
-  | "USER_ACCOUNT"
-  | "APPOINTMENT_CANCELLATION"
-  | "APPOINTMENT_RESCHEDULE"
-  | "PROFESSIONAL_VERIFICATION";
 
 export type AdminAuditMetadata = Record<
   string,
@@ -114,7 +111,7 @@ export async function getAdminAuditLogs({
   entityType: AdminAuditEntityType;
   entityId: string;
 }) {
-  await requireAdminRole(["OWNER", "FINANCE", "SUPPORT"]);
+  await requireAdminRole(allowedAdminRolesForAuditEntity(entityType));
 
   return db.$queryRaw<
     Array<{

@@ -28,29 +28,87 @@ export type AdminUserRow = {
   } | null;
 };
 
+export type AdminUserQuery = {
+  page?: number;
+  search?: string;
+  userType?: string;
+  industry?: string;
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+const ADMIN_USERS_PAGE_SIZE = 25;
+
+function dateBoundary(value: string | undefined, endExclusive = false) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  if (endExclusive) parsed.setUTCDate(parsed.getUTCDate() + 1);
+  return parsed;
+}
+
 function isAdminRoleValue(value: string): value is AdminRoleValue {
   return ["OWNER", "FINANCE", "SUPPORT"].includes(value);
 }
 
-export async function getAdminUsers(): Promise<AdminUserRow[]> {
+export async function getAdminUsers(query: AdminUserQuery = {}) {
   await requireAdminRole(["OWNER", "SUPPORT"]);
 
-  const users = await db.$queryRaw<
-    Array<Omit<AdminUserRow, "auditLog">>
-  >`
-    SELECT
-      id,
-      name,
-      email,
-      "userType",
-      industry,
-      "adminRole",
-      "isActive",
-      "createdAt"
-    FROM "User"
-    ORDER BY "createdAt" DESC
-    LIMIT 50
-  `;
+  const requestedPage = Math.max(1, Math.trunc(query.page || 1));
+  const search = query.search?.trim().slice(0, 200) || "";
+  const userType = Object.values(UserType).includes(query.userType as UserType)
+    ? (query.userType as UserType)
+    : undefined;
+  const industry = Object.values(Industry).includes(query.industry as Industry)
+    ? (query.industry as Industry)
+    : undefined;
+  const where: Prisma.UserWhereInput = {
+    ...(search
+      ? {
+          OR: [
+            { id: { contains: search, mode: "insensitive" } },
+            { name: { contains: search, mode: "insensitive" } },
+            { email: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+    ...(userType ? { userType } : {}),
+    ...(industry ? { industry } : {}),
+    ...(query.status === "ACTIVE"
+      ? { isActive: true }
+      : query.status === "SUSPENDED"
+        ? { isActive: false }
+        : {}),
+    createdAt: {
+      ...(dateBoundary(query.dateFrom)
+        ? { gte: dateBoundary(query.dateFrom) }
+        : {}),
+      ...(dateBoundary(query.dateTo, true)
+        ? { lt: dateBoundary(query.dateTo, true) }
+        : {}),
+    },
+  };
+
+  const totalItems = await db.user.count({ where });
+  const totalPages = Math.max(1, Math.ceil(totalItems / ADMIN_USERS_PAGE_SIZE));
+  const page = Math.min(requestedPage, totalPages);
+  const users = await db.user.findMany({
+    where,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip: (page - 1) * ADMIN_USERS_PAGE_SIZE,
+    take: ADMIN_USERS_PAGE_SIZE,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      userType: true,
+      industry: true,
+      adminRole: true,
+      isActive: true,
+      createdAt: true,
+    },
+  });
 
   const userIds = users.map((user) => user.id);
   const auditLogs =
@@ -86,10 +144,18 @@ export async function getAdminUsers(): Promise<AdminUserRow[]> {
     auditLogs.map((auditLog) => [auditLog.entityId, auditLog]),
   );
 
-  return users.map((user) => ({
-    ...user,
-    auditLog: auditByUserId.get(user.id) ?? null,
-  }));
+  return {
+    items: users.map((user) => ({
+      ...user,
+      auditLog: auditByUserId.get(user.id) ?? null,
+    })) satisfies AdminUserRow[],
+    pagination: {
+      page,
+      pageSize: ADMIN_USERS_PAGE_SIZE,
+      totalItems,
+      totalPages,
+    },
+  };
 }
 
 export async function toggleUserStatus(

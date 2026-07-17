@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { CheckCircle2, Loader2, Search, UserCog, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateBR, formatDateTimeBR } from "@/lib/formatters";
@@ -36,22 +36,6 @@ function formatDate(value: string) {
 
 function formatDateTime(value: string) {
   return formatDateTimeBR(value);
-}
-
-function isWithinDateRange(value: string, dateFrom: string, dateTo: string) {
-  const date = new Date(value);
-
-  if (dateFrom) {
-    const from = new Date(`${dateFrom}T00:00:00`);
-    if (date < from) return false;
-  }
-
-  if (dateTo) {
-    const to = new Date(`${dateTo}T23:59:59`);
-    if (date > to) return false;
-  }
-
-  return true;
 }
 
 function userTypeLabel(userType: AdminUserItem["userType"]) {
@@ -90,23 +74,27 @@ function auditActionLabel(action: string) {
 
 export default function AdminUsuariosView({
   users,
+  pagination,
+  query,
 }: {
   users: AdminUserItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+  query: {
+    search: string;
+    userType: string;
+    industry: string;
+    status: string;
+    dateFrom: string;
+    dateTo: string;
+  };
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [userTypeFilter, setUserTypeFilter] = useState<
-    "ALL" | AdminUserItem["userType"]
-  >("ALL");
-  const [industryFilter, setIndustryFilter] = useState<
-    "ALL" | AdminUserItem["industry"]
-  >("ALL");
-  const [statusFilter, setStatusFilter] = useState<
-    "ALL" | "ACTIVE" | "SUSPENDED"
-  >("ALL");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
 
   function handleToggle(user: AdminUserItem) {
     startTransition(async () => {
@@ -139,34 +127,17 @@ export default function AdminUsuariosView({
     });
   }
 
-  const normalizedSearch = searchTerm.trim().toLowerCase();
-  const filteredUsers = users.filter((user) => {
-    const haystack = [
-      user.id,
-      user.name,
-      user.email,
-      user.userType,
-      user.industry,
-      user.adminRole,
-      user.isActive ? "ativo active" : "suspenso suspended",
-      user.auditLog?.action,
-      user.auditLog?.actorName,
-      user.auditLog?.actorEmail,
-      user.auditLog?.reason,
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    return (
-      (!normalizedSearch || haystack.includes(normalizedSearch)) &&
-      (userTypeFilter === "ALL" || user.userType === userTypeFilter) &&
-      (industryFilter === "ALL" || user.industry === industryFilter) &&
-      (statusFilter === "ALL" ||
-        (statusFilter === "ACTIVE" && user.isActive) ||
-        (statusFilter === "SUSPENDED" && !user.isActive)) &&
-      isWithinDateRange(user.createdAt, dateFrom, dateTo)
-    );
-  });
+  function pageHref(page: number) {
+    const params = new URLSearchParams();
+    if (query.search) params.set("q", query.search);
+    if (query.userType !== "ALL") params.set("userType", query.userType);
+    if (query.industry !== "ALL") params.set("industry", query.industry);
+    if (query.status !== "ALL") params.set("status", query.status);
+    if (query.dateFrom) params.set("dateFrom", query.dateFrom);
+    if (query.dateTo) params.set("dateTo", query.dateTo);
+    params.set("page", String(page));
+    return `/dashboard/admin/usuarios?${params.toString()}`;
+  }
 
   return (
     <div className="space-y-8">
@@ -180,8 +151,8 @@ export default function AdminUsuariosView({
             Controle de Usuários
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            Visualize os 50 usuários mais recentes e suspenda contas sem apagar
-            dados transacionais ou médicos.
+            Consulte todos os usuarios e suspenda contas sem apagar dados
+            transacionais ou medicos.
           </p>
         </div>
 
@@ -189,28 +160,29 @@ export default function AdminUsuariosView({
           <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
             Listados
           </p>
-          <p className="text-xl font-bold text-white">{users.length}</p>
+          <p className="text-xl font-bold text-white">
+            {pagination.totalItems}
+          </p>
         </div>
       </div>
 
       <div className="rounded-2xl border border-white/5 bg-slate-900 p-4">
-        <div className="grid gap-3 xl:grid-cols-[1.5fr_0.75fr_0.75fr_0.75fr_0.75fr_0.75fr_auto]">
+        <form
+          method="get"
+          className="grid gap-3 xl:grid-cols-[1.5fr_0.75fr_0.75fr_0.75fr_0.75fr_0.75fr_auto_auto]"
+        >
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              name="q"
+              defaultValue={query.search}
               placeholder="Buscar por ID real, email, nome..."
               className="h-11 w-full rounded-xl border border-white/10 bg-slate-950 pl-9 pr-3 text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-[#d73cbe]"
             />
           </label>
           <select
-            value={userTypeFilter}
-            onChange={(event) =>
-              setUserTypeFilter(
-                event.target.value as "ALL" | AdminUserItem["userType"],
-              )
-            }
+            name="userType"
+            defaultValue={query.userType}
             className="h-11 rounded-xl border border-white/10 bg-slate-950 px-3 text-sm font-bold text-slate-300 outline-none focus:border-[#d73cbe]"
           >
             <option value="ALL">Todos tipos</option>
@@ -219,12 +191,8 @@ export default function AdminUsuariosView({
             <option value="ADMIN">Admin</option>
           </select>
           <select
-            value={industryFilter}
-            onChange={(event) =>
-              setIndustryFilter(
-                event.target.value as "ALL" | AdminUserItem["industry"],
-              )
-            }
+            name="industry"
+            defaultValue={query.industry}
             className="h-11 rounded-xl border border-white/10 bg-slate-950 px-3 text-sm font-bold text-slate-300 outline-none focus:border-[#d73cbe]"
           >
             <option value="ALL">Todos setores</option>
@@ -232,12 +200,8 @@ export default function AdminUsuariosView({
             <option value="HEALTH">Saude</option>
           </select>
           <select
-            value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(
-                event.target.value as "ALL" | "ACTIVE" | "SUSPENDED",
-              )
-            }
+            name="status"
+            defaultValue={query.status}
             className="h-11 rounded-xl border border-white/10 bg-slate-950 px-3 text-sm font-bold text-slate-300 outline-none focus:border-[#d73cbe]"
           >
             <option value="ALL">Todos status</option>
@@ -246,33 +210,31 @@ export default function AdminUsuariosView({
           </select>
           <input
             type="date"
-            value={dateFrom}
-            onChange={(event) => setDateFrom(event.target.value)}
+            name="dateFrom"
+            defaultValue={query.dateFrom}
             className="h-11 rounded-xl border border-white/10 bg-slate-950 px-3 text-sm font-bold text-slate-300 outline-none focus:border-[#d73cbe]"
           />
           <input
             type="date"
-            value={dateTo}
-            onChange={(event) => setDateTo(event.target.value)}
+            name="dateTo"
+            defaultValue={query.dateTo}
             className="h-11 rounded-xl border border-white/10 bg-slate-950 px-3 text-sm font-bold text-slate-300 outline-none focus:border-[#d73cbe]"
           />
           <button
-            type="button"
-            onClick={() => {
-              setSearchTerm("");
-              setUserTypeFilter("ALL");
-              setIndustryFilter("ALL");
-              setStatusFilter("ALL");
-              setDateFrom("");
-              setDateTo("");
-            }}
+            type="submit"
+            className="h-11 rounded-xl bg-[#d73cbe] px-4 text-xs font-bold text-white transition-colors hover:bg-[#b02da0]"
+          >
+            Aplicar
+          </button>
+          <Link
+            href="/dashboard/admin/usuarios"
             className="h-11 rounded-xl border border-white/10 bg-slate-950 px-4 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800"
           >
             Limpar
-          </button>
-        </div>
+          </Link>
+        </form>
         <p className="mt-3 text-xs font-bold text-slate-500">
-          Exibindo {filteredUsers.length} de {users.length} usuarios carregados.
+          Exibindo {users.length} de {pagination.totalItems} resultado(s).
         </p>
       </div>
 
@@ -293,7 +255,7 @@ export default function AdminUsuariosView({
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filteredUsers.map((user) => (
+              {users.map((user) => (
                 <tr
                   key={user.id}
                   className="transition-colors hover:bg-white/[0.02]"
@@ -415,6 +377,29 @@ export default function AdminUsuariosView({
           </table>
         </div>
       </div>
+      {pagination.totalPages > 1 && (
+        <nav className="flex items-center justify-between gap-4 text-sm">
+          <Link
+            href={pageHref(Math.max(1, pagination.page - 1))}
+            aria-disabled={pagination.page === 1}
+            className={`rounded-xl border px-4 py-2 font-bold ${pagination.page === 1 ? "pointer-events-none border-white/5 text-slate-700" : "border-white/10 text-slate-300 hover:bg-slate-800"}`}
+          >
+            Anterior
+          </Link>
+          <span className="text-slate-400">
+            Pagina {pagination.page} de {pagination.totalPages}
+          </span>
+          <Link
+            href={pageHref(
+              Math.min(pagination.totalPages, pagination.page + 1),
+            )}
+            aria-disabled={pagination.page === pagination.totalPages}
+            className={`rounded-xl border px-4 py-2 font-bold ${pagination.page === pagination.totalPages ? "pointer-events-none border-white/5 text-slate-700" : "border-white/10 text-slate-300 hover:bg-slate-800"}`}
+          >
+            Proxima
+          </Link>
+        </nav>
+      )}
     </div>
   );
 }

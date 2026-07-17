@@ -99,6 +99,13 @@ vi.mock(
   async () => await import("../../lib/appointment-completion-time"),
 );
 vi.mock("@/lib/action-rate-limit", () => ({ consumeRateLimit: vi.fn() }));
+vi.mock("@/lib/get-session", () => ({
+  requireAdminRole: vi.fn(async () => ({
+    id: "admin-1",
+    userType: "ADMIN",
+    adminRole: "OWNER",
+  })),
+}));
 vi.mock("@/modules/admin/actions/audit-log", () => ({
   createAdminAuditLog: vi.fn(),
 }));

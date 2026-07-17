@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   CheckCircle2,
   CircleDollarSign,
@@ -93,26 +94,31 @@ function deadlineLabel(dueAt: string, status: string) {
   return `Vence em ${remainingDays} dia(s)`;
 }
 
-function isWithinDateRange(value: string, dateFrom: string, dateTo: string) {
-  const date = new Date(value);
-
-  if (dateFrom) {
-    const from = new Date(`${dateFrom}T00:00:00`);
-    if (date < from) return false;
-  }
-
-  if (dateTo) {
-    const to = new Date(`${dateTo}T23:59:59`);
-    if (date > to) return false;
-  }
-
-  return true;
-}
-
 export default function AdminFinanceiroView({
   withdrawals,
+  pagination,
+  summary,
+  query,
 }: {
   withdrawals: AdminWithdrawalItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+  summary: {
+    statusCounts: Record<string, number>;
+    pendingCount: number;
+    pendingAmount: number;
+    completedAmount: number;
+  };
+  query: {
+    search: string;
+    status: string;
+    dateFrom: string;
+    dateTo: string;
+  };
 }) {
   const router = useRouter();
   const [approvingId, setApprovingId] = useState<string | null>(null);
@@ -122,11 +128,6 @@ export default function AdminFinanceiroView({
   const [withdrawalReasons, setWithdrawalReasons] = useState<
     Record<string, string>
   >({});
-  const [statusFilter, setStatusFilter] =
-    useState<WithdrawalStatusFilter>("PENDING");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
 
   async function handleStartProcessing(withdrawalId: string) {
     setProcessingId(withdrawalId);
@@ -217,45 +218,6 @@ export default function AdminFinanceiroView({
     setUploadingAuditId(null);
   }
 
-  const pendingWithdrawals = withdrawals.filter(
-    (item) => item.status === "PENDING" || item.status === "PROCESSING",
-  );
-  const normalizedSearch = searchTerm.trim().toLowerCase();
-  const searchedWithdrawals = withdrawals.filter((item) => {
-    const haystack = [
-      item.id,
-      item.status,
-      item.pixKey,
-      item.pixKeyType,
-      item.transactionId,
-      item.user.id,
-      item.user.name,
-      item.user.email,
-      item.auditLog?.id,
-      item.auditLog?.actorName,
-      item.auditLog?.actorEmail,
-      item.auditLog?.reason,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
-    return (
-      (!normalizedSearch || haystack.includes(normalizedSearch)) &&
-      isWithinDateRange(item.createdAt, dateFrom, dateTo)
-    );
-  });
-  const filteredWithdrawals =
-    statusFilter === "ALL"
-      ? searchedWithdrawals
-      : searchedWithdrawals.filter((item) => item.status === statusFilter);
-  const pendingAmount = pendingWithdrawals.reduce(
-    (sum, item) => sum + item.amount,
-    0,
-  );
-  const completedAmount = withdrawals
-    .filter((item) => item.status === "COMPLETED")
-    .reduce((sum, item) => sum + item.amount, 0);
   const filters: Array<{ value: WithdrawalStatusFilter; label: string }> = [
     { value: "PENDING", label: "Pendentes" },
     { value: "COMPLETED", label: "Transferidos" },
@@ -264,6 +226,16 @@ export default function AdminFinanceiroView({
     { value: "CANCELED", label: "Cancelados" },
     { value: "ALL", label: "Todos" },
   ];
+
+  function queryHref({ page = 1, status = query.status } = {}) {
+    const params = new URLSearchParams();
+    if (query.search) params.set("q", query.search);
+    if (status !== "PENDING") params.set("status", status);
+    if (query.dateFrom) params.set("dateFrom", query.dateFrom);
+    if (query.dateTo) params.set("dateTo", query.dateTo);
+    params.set("page", String(page));
+    return `/dashboard/admin/financeiro?${params.toString()}`;
+  }
 
   return (
     <div className="space-y-8">
@@ -283,77 +255,81 @@ export default function AdminFinanceiroView({
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Metric label="Pendentes" value={pendingWithdrawals.length.toString()} />
-          <Metric label="A transferir" value={formatMoney(pendingAmount)} />
-          <Metric label="Transferido" value={formatMoney(completedAmount)} />
+          <Metric label="Pendentes" value={summary.pendingCount.toString()} />
+          <Metric label="A transferir" value={formatMoney(summary.pendingAmount)} />
+          <Metric label="Transferido" value={formatMoney(summary.completedAmount)} />
         </div>
       </div>
 
       <div className="rounded-2xl border border-white/5 bg-slate-900 p-4">
-        <div className="grid gap-3 lg:grid-cols-[1.6fr_0.8fr_0.8fr_auto]">
+        <form
+          method="get"
+          className="grid gap-3 lg:grid-cols-[1.6fr_0.8fr_0.8fr_auto_auto]"
+        >
+          <input type="hidden" name="status" value={query.status} />
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              name="q"
+              defaultValue={query.search}
               placeholder="Buscar por ID real, email, PIX, transacao..."
               className="h-11 w-full rounded-xl border border-white/10 bg-slate-950 pl-9 pr-3 text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-emerald-300"
             />
           </label>
           <input
             type="date"
-            value={dateFrom}
-            onChange={(event) => setDateFrom(event.target.value)}
+            name="dateFrom"
+            defaultValue={query.dateFrom}
             className="h-11 rounded-xl border border-white/10 bg-slate-950 px-3 text-sm font-bold text-slate-300 outline-none focus:border-emerald-300"
           />
           <input
             type="date"
-            value={dateTo}
-            onChange={(event) => setDateTo(event.target.value)}
+            name="dateTo"
+            defaultValue={query.dateTo}
             className="h-11 rounded-xl border border-white/10 bg-slate-950 px-3 text-sm font-bold text-slate-300 outline-none focus:border-emerald-300"
           />
           <button
-            type="button"
-            onClick={() => {
-              setSearchTerm("");
-              setDateFrom("");
-              setDateTo("");
-              setStatusFilter("PENDING");
-            }}
+            type="submit"
+            className="h-11 rounded-xl bg-emerald-500 px-4 text-xs font-bold text-black transition-colors hover:bg-emerald-400"
+          >
+            Aplicar
+          </button>
+          <Link
+            href="/dashboard/admin/financeiro"
             className="h-11 rounded-xl border border-white/10 bg-slate-950 px-4 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800"
           >
             Limpar
-          </button>
-        </div>
+          </Link>
+        </form>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {filters.map((filter) => {
           const count =
             filter.value === "ALL"
-              ? searchedWithdrawals.length
-              : searchedWithdrawals.filter(
-                  (item) => item.status === filter.value,
-                ).length;
+              ? Object.values(summary.statusCounts).reduce(
+                  (total, value) => total + value,
+                  0,
+                )
+              : summary.statusCounts[filter.value] || 0;
 
           return (
-            <button
+            <Link
               key={filter.value}
-              type="button"
-              onClick={() => setStatusFilter(filter.value)}
+              href={queryHref({ status: filter.value })}
               className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
-                statusFilter === filter.value
+                query.status === filter.value
                   ? "border-emerald-400 bg-emerald-400 text-black"
                   : "border-white/10 bg-slate-900 text-slate-300 hover:border-white/20 hover:bg-slate-800"
               }`}
             >
               {filter.label} ({count})
-            </button>
+            </Link>
           );
         })}
       </div>
 
-      {filteredWithdrawals.length === 0 ? (
+      {withdrawals.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-12 text-center">
           <CheckCircle2 className="mx-auto mb-4 h-10 w-10 text-emerald-400" />
           <h2 className="text-lg font-bold text-white">
@@ -380,7 +356,7 @@ export default function AdminFinanceiroView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {filteredWithdrawals.map((withdrawal) => (
+                {withdrawals.map((withdrawal) => (
                   <tr
                     key={withdrawal.id}
                     className="transition-colors hover:bg-white/[0.02]"
@@ -630,6 +606,30 @@ export default function AdminFinanceiroView({
             </table>
           </div>
         </div>
+      )}
+      {pagination.totalPages > 1 && (
+        <nav className="flex items-center justify-between gap-4 text-sm">
+          <Link
+            href={queryHref({ page: Math.max(1, pagination.page - 1) })}
+            aria-disabled={pagination.page === 1}
+            className={`rounded-xl border px-4 py-2 font-bold ${pagination.page === 1 ? "pointer-events-none border-white/5 text-slate-700" : "border-white/10 text-slate-300 hover:bg-slate-800"}`}
+          >
+            Anterior
+          </Link>
+          <span className="text-slate-400">
+            Pagina {pagination.page} de {pagination.totalPages} —{" "}
+            {pagination.totalItems} resultado(s)
+          </span>
+          <Link
+            href={queryHref({
+              page: Math.min(pagination.totalPages, pagination.page + 1),
+            })}
+            aria-disabled={pagination.page === pagination.totalPages}
+            className={`rounded-xl border px-4 py-2 font-bold ${pagination.page === pagination.totalPages ? "pointer-events-none border-white/5 text-slate-700" : "border-white/10 text-slate-300 hover:bg-slate-800"}`}
+          >
+            Proxima
+          </Link>
+        </nav>
       )}
     </div>
   );
