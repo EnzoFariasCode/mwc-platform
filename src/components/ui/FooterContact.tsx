@@ -18,7 +18,6 @@ function FooterContact() {
 
   useGSAP(
     () => {
-      // 1. Colunas do Footer (Surgem de baixo)
       gsap.fromTo(
         ".gsap-footer-col",
         { y: 50, opacity: 0 },
@@ -26,24 +25,8 @@ function FooterContact() {
           y: 0,
           opacity: 1,
           duration: 1,
-          stagger: 0.2, // Uma coluna por vez
+          stagger: 0.2,
           ease: "power3.out",
-          scrollTrigger: {
-            trigger: containerRef.current,
-            start: "top 90%", // Anima assim que o topo do footer encostar no fim da tela
-          },
-        }
-      );
-
-      // 2. Linha Decorativa Roxa (Efeito de desenho crescendo)
-      gsap.fromTo(
-        ".gsap-nav-line",
-        { height: "0%" }, // Começa sem altura
-        {
-          height: "100%", // Cresce até o fim
-          duration: 1.5,
-          ease: "expo.out",
-          delay: 0.5, // Espera as colunas subirem um pouco
           scrollTrigger: {
             trigger: containerRef.current,
             start: "top 90%",
@@ -51,7 +34,21 @@ function FooterContact() {
         }
       );
 
-      // 3. Ícones Sociais (Pop effect)
+      gsap.fromTo(
+        ".gsap-nav-line",
+        { height: "0%" },
+        {
+          height: "100%",
+          duration: 1.5,
+          ease: "expo.out",
+          delay: 0.5,
+          scrollTrigger: {
+            trigger: containerRef.current,
+            start: "top 90%",
+          },
+        }
+      );
+
       gsap.fromTo(
         ".gsap-social-icon",
         { scale: 0, opacity: 0 },
@@ -76,12 +73,9 @@ function FooterContact() {
       ref={containerRef}
       className="bg-slate-950 border-t border-white/5 pt-20 pb-10 px-4 relative overflow-hidden"
     >
-      {/* Background Glow no Rodapé */}
       <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-purple-900/10 rounded-full blur-[100px] -z-10" />
 
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-12 md:gap-8 items-center md:items-start text-center md:text-left">
-        {/* COLUNA 1 */}
-        {/* Adicionei 'gsap-footer-col' e 'opacity-0' */}
         <div className="gsap-footer-col opacity-0 flex flex-col items-center gap-8 w-full md:w-1/3">
           <div className="flex flex-col items-center">
             <div className="w-32 mb-4">
@@ -98,7 +92,6 @@ function FooterContact() {
             </h2>
           </div>
 
-          {/* Ícones Sociais */}
           <div className="flex gap-4 p-3 border border-white/10 rounded-xl bg-white/5 backdrop-blur-sm">
             <a
               href="https://www.instagram.com/maxi.musworldclick/"
@@ -117,12 +110,8 @@ function FooterContact() {
           </div>
         </div>
 
-        {/* COLUNA 2 */}
-        {/* Adicionei 'gsap-footer-col' e 'opacity-0' */}
         <div className="gsap-footer-col opacity-0 flex flex-col md:flex-row gap-12 w-full md:w-1/3 justify-center">
-          {/* Grupo 1 */}
           <nav className="relative pl-6 md:text-left">
-            {/* Linha Vertical - Adicionei 'gsap-nav-line' */}
             <div className="gsap-nav-line hidden md:block absolute top-0 bottom-0 left-0 w-0.5 bg-[#d73cbe]"></div>
             <div className="hidden md:block absolute top-0 left-[-4px] w-2.5 h-2.5 bg-[#d73cbe] rotate-45"></div>
 
@@ -168,9 +157,7 @@ function FooterContact() {
             </ul>
           </nav>
 
-          {/* Grupo 2 */}
           <nav className="relative pl-6 md:text-left">
-            {/* Linha Vertical - Adicionei 'gsap-nav-line' */}
             <div className="gsap-nav-line hidden md:block absolute top-0 bottom-0 left-0 w-0.5 bg-[#d73cbe]"></div>
             <div className="hidden md:block absolute bottom-0 left-[-4px] w-2.5 h-2.5 bg-[#d73cbe] rotate-45"></div>
 
@@ -211,8 +198,6 @@ function FooterContact() {
           </nav>
         </div>
 
-        {/* COLUNA 3 */}
-        {/* Adicionei 'gsap-footer-col' e 'opacity-0' */}
         <div className="gsap-footer-col opacity-0 flex flex-col items-center md:items-end gap-6 w-full md:w-1/3">
           <h3 className="text-2xl font-bold text-white uppercase tracking-wider">
             Contato
@@ -220,10 +205,10 @@ function FooterContact() {
 
           <address className="not-italic flex flex-col items-center md:items-end gap-3 text-slate-400">
             <a
-              href="mailto:maximusworldclick@gmail.com"
+              href="mailto:suporte@maximusworldclick.com"
               className="flex items-center gap-2 hover:text-white transition-colors"
             >
-              <Mail className="w-4 h-4" /> maximusworldclick@gmail.com
+              <Mail className="w-4 h-4" /> suporte@maximusworldclick.com
             </a>
             <a
               href="tel:+551199999999"
