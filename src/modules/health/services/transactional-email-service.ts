@@ -59,15 +59,27 @@ async function sendHealthEmail({
   });
 }
 
-function buildBaseDetails(payload: HealthAppointmentEmailPayload) {
-  return [
+function buildBaseDetails(
+  payload: HealthAppointmentEmailPayload,
+  { includeMeetLink = true }: { includeMeetLink?: boolean } = {},
+) {
+  const details = [
     ["Paciente", payload.patient.name || "Paciente"],
     ["Profissional", payload.professional.name || "Profissional"],
     ["Data", formatDate(payload.date)],
     ["Horario", payload.time],
     ["Valor", formatMoney(payload.price)],
-    ["Link da consulta", payload.meetLink],
   ] satisfies Array<[string, string | null | undefined]>;
+
+  return includeMeetLink
+    ? [
+        ...details,
+        ["Link da consulta", payload.meetLink] as [
+          string,
+          string | null | undefined,
+        ],
+      ]
+    : details;
 }
 
 export async function sendPaymentConfirmedEmail(
@@ -79,8 +91,9 @@ export async function sendPaymentConfirmedEmail(
     lines: [
       "Seu pagamento foi confirmado e sua consulta esta agendada.",
       "O valor ficara retido em escrow e sera liberado ao profissional apos a conclusao da consulta.",
+      "O acesso a sala sera exibido na plataforma 10 minutos antes do horario agendado.",
     ],
-    details: buildBaseDetails(payload),
+    details: buildBaseDetails(payload, { includeMeetLink: false }),
     actionLabel: "Acompanhar consulta",
     actionUrl: `${appUrl}/agendar-consulta/historico`,
   });
@@ -97,8 +110,9 @@ export async function sendPaymentConfirmedEmail(
     lines: [
       "Uma nova consulta foi confirmada na sua agenda.",
       "O valor esta em Lancamentos Futuros e sera liberado apos a conclusao.",
+      "O acesso a sala sera exibido na plataforma 10 minutos antes do horario agendado.",
     ],
-    details: buildBaseDetails(payload),
+    details: buildBaseDetails(payload, { includeMeetLink: false }),
     actionLabel: "Abrir agenda",
     actionUrl: `${appUrl}/agendar-consulta/dashboard-profissional`,
   });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canAccessHealthMeeting,
   canCompleteHealthAppointment,
   getAppointmentCompletionAt,
 } from "./appointment-completion-time";
@@ -34,6 +35,27 @@ describe("appointment completion time", () => {
         new Date("2026-07-15T13:50:00.000Z"),
       ),
     ).toBe(true);
+  });
+
+  it("exposes the meeting only from ten minutes before it starts until it ends", () => {
+    expect(
+      canAccessHealthMeeting(
+        appointment,
+        new Date("2026-07-15T12:49:59.999Z"),
+      ),
+    ).toBe(false);
+    expect(
+      canAccessHealthMeeting(
+        appointment,
+        new Date("2026-07-15T12:50:00.000Z"),
+      ),
+    ).toBe(true);
+    expect(
+      canAccessHealthMeeting(
+        appointment,
+        new Date("2026-07-15T13:50:00.001Z"),
+      ),
+    ).toBe(false);
   });
 
   it("rejects invalid time zones and durations", () => {

@@ -16,7 +16,10 @@ import {
 } from "lucide-react";
 import { CompleteAppointmentButton } from "@/modules/health/components/complete-appointment-button";
 import { ProfessionalAppointmentActionButtons } from "@/modules/health/components/professional-appointment-action-buttons";
-import { canCompleteHealthAppointment } from "@/modules/health/lib/appointment-completion-time";
+import {
+  canAccessHealthMeeting,
+  canCompleteHealthAppointment,
+} from "@/modules/health/lib/appointment-completion-time";
 
 type ProfessionalAppointment = {
   id: string;
@@ -234,6 +237,14 @@ export function ProfessionalAppointmentsTabs({
               timeZone: appointment.timezonePro,
               durationMinutes: appointment.durationMinutes,
             });
+            const canAccessMeeting =
+              appointment.status === "CONFIRMED" &&
+              canAccessHealthMeeting({
+                date: appointment.date,
+                time: appointment.time,
+                timeZone: appointment.timezonePro,
+                durationMinutes: appointment.durationMinutes,
+              });
 
             return (
               <div
@@ -266,7 +277,7 @@ export function ProfessionalAppointmentsTabs({
                       <Banknote className="h-4 w-4 text-slate-500" />
                       {formatCurrency(appointment.price)}
                     </p>
-                    {appointment.meetLink && (
+                    {appointment.meetLink && canAccessMeeting && (
                       <a
                         href={appointment.meetLink}
                         target="_blank"

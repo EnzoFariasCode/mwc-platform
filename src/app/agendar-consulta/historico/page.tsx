@@ -3,7 +3,10 @@ import { getHealthPatientHistoryById } from "@/modules/health/services/private-p
 import { CancelAppointmentButton } from "@/modules/health/components/cancel-appointment-button";
 import { ReportAppointmentDisputeButton } from "@/modules/health/components/report-appointment-dispute-button";
 import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
-import { getAppointmentStartAt } from "@/modules/health/lib/appointment-completion-time";
+import {
+  canAccessHealthMeeting,
+  getAppointmentStartAt,
+} from "@/modules/health/lib/appointment-completion-time";
 import { HealthAppointmentReviewButton } from "@/modules/health/components/health-appointment-review-button";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -136,6 +139,14 @@ export default async function HistoricoConsultasPage() {
                 appointment.status === "CONFIRMED" &&
                 !!scheduledAt &&
                 scheduledAt <= new Date();
+              const canAccessMeeting =
+                appointment.status === "CONFIRMED" &&
+                canAccessHealthMeeting({
+                  date: appointment.date,
+                  time: appointment.time,
+                  timeZone: appointment.timezonePro,
+                  durationMinutes: appointment.durationMinutes,
+                });
 
               return (
                 <div
@@ -182,7 +193,7 @@ export default async function HistoricoConsultasPage() {
 
                     {canCancel ? (
                       <div className="flex flex-wrap items-center justify-end gap-2">
-                        {appointment.meetLink && (
+                        {appointment.meetLink && canAccessMeeting && (
                           <a
                             href={appointment.meetLink}
                             target="_blank"

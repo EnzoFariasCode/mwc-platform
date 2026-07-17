@@ -56,6 +56,10 @@ function requiredEnv(name: string) {
 }
 
 function getCalendarClient() {
+  return google.calendar({ version: "v3", auth: getGoogleAuthClient() });
+}
+
+function getGoogleAuthClient() {
   const oauth2Client = new google.auth.OAuth2(
     requiredEnv("GOOGLE_CALENDAR_CLIENT_ID"),
     requiredEnv("GOOGLE_CALENDAR_CLIENT_SECRET"),
@@ -65,7 +69,57 @@ function getCalendarClient() {
     refresh_token: requiredEnv("GOOGLE_CALENDAR_REFRESH_TOKEN"),
   });
 
-  return google.calendar({ version: "v3", auth: oauth2Client });
+  return oauth2Client;
+}
+
+function shouldEnforceOpenMeetAccess() {
+  return process.env.GOOGLE_MEET_ENFORCE_OPEN_ACCESS === "true";
+}
+
+function getMeetingCode(meetLink: string) {
+  try {
+    const url = new URL(meetLink);
+    if (url.protocol !== "https:" || url.hostname !== "meet.google.com") {
+      return null;
+    }
+
+    const [meetingCode] = url.pathname.split("/").filter(Boolean);
+    return meetingCode || null;
+  } catch {
+    return null;
+  }
+}
+
+async function enforceOpenMeetAccess(meetLink: string) {
+  if (!shouldEnforceOpenMeetAccess()) return true;
+
+  const meetingCode = getMeetingCode(meetLink);
+  if (!meetingCode) return false;
+
+  try {
+    const meet = google.meet({ version: "v2", auth: getGoogleAuthClient() });
+    const currentSpace = await meet.spaces.get({
+      name: `spaces/${meetingCode}`,
+    });
+    const spaceName = currentSpace.data.name;
+
+    if (!spaceName) return false;
+    if (currentSpace.data.config?.accessType === "OPEN") return true;
+
+    const updatedSpace = await meet.spaces.patch({
+      name: spaceName,
+      updateMask: "config.accessType",
+      requestBody: {
+        name: spaceName,
+        config: { accessType: "OPEN" },
+      },
+    });
+
+    return updatedSpace.data.config?.accessType === "OPEN";
+  } catch (error) {
+    console.error("[Google Meet API] Erro ao configurar acesso aberto:", error);
+    return false;
+  }
 }
 
 function getCalendarId() {
@@ -156,6 +210,16 @@ export async function createGoogleMeetEvent({
     });
 
     if (!event.data.hangoutLink || !event.data.id) {
+      return null;
+    }
+
+    const openAccessConfigured = await enforceOpenMeetAccess(
+      event.data.hangoutLink,
+    );
+
+    if (!openAccessConfigured) {
+      // Evita manter um evento sem uso quando a politica OPEN e obrigatoria.
+      await cancelGoogleMeetEventIdempotently(event.data.id);
       return null;
     }
 

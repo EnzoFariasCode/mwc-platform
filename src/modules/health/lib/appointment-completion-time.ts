@@ -1,4 +1,5 @@
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const MEETING_EARLY_ACCESS_MINUTES = 10;
 
 type AppointmentCompletionInput = {
   date: Date | string;
@@ -154,4 +155,20 @@ export function canCompleteHealthAppointment(
 ) {
   const completionAt = getAppointmentCompletionAt(input);
   return Boolean(completionAt && completionAt.getTime() <= now.getTime());
+}
+
+export function canAccessHealthMeeting(
+  input: AppointmentCompletionInput,
+  now = new Date(),
+) {
+  const startAt = getAppointmentStartAt(input);
+  const completionAt = getAppointmentCompletionAt(input);
+
+  if (!startAt || !completionAt) return false;
+
+  const accessStartsAt = new Date(
+    startAt.getTime() - MEETING_EARLY_ACCESS_MINUTES * 60 * 1000,
+  );
+
+  return now >= accessStartsAt && now <= completionAt;
 }

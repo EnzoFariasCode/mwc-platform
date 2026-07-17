@@ -189,6 +189,7 @@ export async function getHealthPatientHistoryById(userId: string) {
           id: true,
           date: true,
           time: true,
+          durationMinutes: true,
           timezonePro: true,
           status: true,
           price: true,
