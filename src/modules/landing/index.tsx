@@ -15,9 +15,9 @@ async function LandingPage() {
       <HeroSection />
       <ServicesSection />
       <HowToUse />
-      <TelemedicinaSection />
       <Fluxo />
       <WorkerSection />
+      <TelemedicinaSection />
       <PayInfo paymentMethods={paymentMethods} />
     </div>
   );
