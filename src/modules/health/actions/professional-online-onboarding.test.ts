@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   let professional = {
+    userType: "PROFESSIONAL",
+    industry: "HEALTH",
+    isActive: true,
     onlineSpecialty: "TEACHER",
     documentReg: null as string | null,
     teachingSubject: null as string | null,
@@ -35,6 +38,9 @@ const mocks = vi.hoisted(() => {
     tx,
     reset() {
       professional = {
+        userType: "PROFESSIONAL",
+        industry: "HEALTH",
+        isActive: true,
         onlineSpecialty: "TEACHER",
         documentReg: null,
         teachingSubject: null,
@@ -58,6 +64,9 @@ vi.mock("@/auth", () => ({
   })),
 }));
 vi.mock("@/lib/prisma", () => ({ db: mocks.db }));
+vi.mock("@/lib/action-rate-limit", () => ({
+  consumeRateLimit: vi.fn(async () => null),
+}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { updateHealthProProfile } from "./update-health-pro";
@@ -124,6 +133,9 @@ describe("onboarding do profissional Online", () => {
 
   it("preserva o registro regulamentado para o fluxo documental", async () => {
     mocks.setProfessional({
+      userType: "PROFESSIONAL",
+      industry: "HEALTH",
+      isActive: true,
       onlineSpecialty: "PSYCHOLOGIST",
       documentReg: null,
       teachingSubject: null,
@@ -142,8 +154,28 @@ describe("onboarding do profissional Online", () => {
     );
   });
 
+  it("revalida no banco se a conta profissional continua ativa", async () => {
+    mocks.setProfessional({
+      userType: "PROFESSIONAL",
+      industry: "HEALTH",
+      isActive: false,
+      onlineSpecialty: "TEACHER",
+      documentReg: null,
+      teachingSubject: "Matematica",
+      professionalVerification: { id: "verification-1", status: "APPROVED" },
+    });
+
+    const result = await updateHealthProProfile(profileForm());
+
+    expect(result).toEqual({ error: "Nao autorizado" });
+    expect(mocks.tx.user.update).not.toHaveBeenCalled();
+  });
+
   it("permite que Professor com materia configure a agenda", async () => {
     mocks.setProfessional({
+      userType: "PROFESSIONAL",
+      industry: "HEALTH",
+      isActive: true,
       onlineSpecialty: "TEACHER",
       documentReg: null,
       teachingSubject: "Fisica",

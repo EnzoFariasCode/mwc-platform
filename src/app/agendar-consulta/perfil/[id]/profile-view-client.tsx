@@ -1,26 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
 import { Edit3 } from "lucide-react";
 import { EditProProfileModal } from "@/modules/health/components/edit-pro-profile-modal";
 import type { HealthProfessionalProfile } from "@/modules/health/types";
 
 export function ProfileViewClient({
-  proId,
   proData,
 }: {
-  proId: string;
   proData: HealthProfessionalProfile;
 }) {
-  const { data: session } = useSession();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-
-  // Verifica se o ID do usuário logado é igual ao ID da página do perfil
-  const isOwner = session?.user?.id === proId;
-
-  // Se não for o dono, não renderiza o botão nem o modal
-  if (!isOwner) return null;
 
   return (
     <>

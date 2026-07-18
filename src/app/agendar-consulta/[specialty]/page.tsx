@@ -1,247 +1,190 @@
-"use client";
-
-import { use, useState, useEffect } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
-import { Star, Video, ShieldCheck, ArrowLeft } from "lucide-react";
+import { notFound } from "next/navigation";
+import { ArrowLeft, ShieldCheck, Star, Video } from "lucide-react";
 
-import { getProfessionalsBySpecialty } from "@/modules/users/actions/get-professionals";
+import { auth } from "@/auth";
 import { MonthlyScheduleClient } from "@/app/agendar-consulta/perfil/[id]/monthly-schedule-client";
-import { getHealthSpecialtyById } from "@/modules/health/lib/specialties";
 import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
+import { getHealthSpecialtyById } from "@/modules/health/lib/specialties";
+import { getProfessionalsBySpecialty } from "@/modules/users/actions/get-professionals";
 
-// ─── Tipagem Corrigida (Visão do Arquiteto Back-end) ──────────────────────────
-interface Professional {
-  id: string;
-  name: string;
-  displayName: string | null;
-  jobTitle: string | null;
-  onlineSpecialty: string | null;
-  teachingSubject: string | null;
-  documentReg: string | null;
-  bio: string | null;
-  hasProfileImage: boolean;
-  rating: number;
-  ratingCount: number;
-  approach: string | null;
-  industry: string | null;
-  sessionDuration: number | null;
-  consultationFee: number | string | null;
-  city?: string | null;
-  state?: string | null;
+type SpecialtyPageProps = {
+  params: Promise<{ specialty: string }>;
+};
+
+export async function generateMetadata({
+  params,
+}: SpecialtyPageProps): Promise<Metadata> {
+  const { specialty } = await params;
+  const config = getHealthSpecialtyById(specialty);
+
+  if (!config) return { title: "Especialidade indisponível | MWC Online" };
+
+  return {
+    title: `${config.name} online | MWC Online`,
+    description: `Encontre especialistas em ${config.name}, compare perfis, valores e horários disponíveis.`,
+  };
 }
 
-export default function SpecialtyPage({
-  params,
-}: {
-  params: Promise<{ specialty: string }>;
-}) {
-  const resolvedParams = use(params);
-  const specialty = resolvedParams.specialty;
+export default async function SpecialtyPage({ params }: SpecialtyPageProps) {
+  const { specialty } = await params;
   const specialtyConfig = getHealthSpecialtyById(specialty);
-  const specialtyName = specialtyConfig?.name ?? "Especialidade";
-  const { data: session } = useSession();
+  if (!specialtyConfig) notFound();
 
-  const [professionals, setProfessionals] = useState<Professional[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [result, session] = await Promise.all([
+    getProfessionalsBySpecialty(specialtyConfig.id),
+    auth(),
+  ]);
 
-  useEffect(() => {
-    async function fetchProfessionals() {
-      if (!specialtyConfig) {
-        setProfessionals([]);
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
-      try {
-        const result = await getProfessionalsBySpecialty(specialty);
-        if (result.error) {
-          setError(result.error);
-        } else {
-          setProfessionals((result.data || []) as Professional[]);
-        }
-      } catch {
-        setError("Falha ao carregar especialistas.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchProfessionals();
-  }, [specialty, specialtyConfig]);
-
-  if (!specialtyConfig) {
+  if (result.error) {
     return (
-      <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8">
-        <div className="container mx-auto max-w-5xl px-4">
-          <Link
-            href="/agendar-consulta"
-            className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-6 text-sm"
-          >
-            <ArrowLeft className="w-4 h-4" /> Voltar para especialidades
-          </Link>
-          <h1 className="text-4xl md:text-5xl font-futura font-bold text-white mb-4 uppercase tracking-tighter">
-            Especialidade indisponivel
+      <main className="flex min-h-screen items-center justify-center bg-[#020617] px-4 pb-24 pt-8 font-poppins text-white">
+        <div className="max-w-md text-center" role="alert">
+          <h1 className="font-futura text-2xl font-bold uppercase">
+            Não foi possível carregar os especialistas
           </h1>
-          <p className="text-slate-400 text-lg font-light max-w-2xl">
-            Esta area nao faz parte do catalogo atual da MWC Online.
+          <p className="mt-3 text-sm leading-relaxed text-slate-400">
+            Ocorreu uma falha temporária. Tente novamente ou volte para a lista
+            de especialidades.
           </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#d73cbe] mx-auto mb-4" />
-          <p className="text-slate-400">Carregando especialistas...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-400 mb-4">{error}</p>
-          <Link
-            href="/agendar-consulta"
-            className="text-[#d73cbe] hover:text-white"
-          >
-            Voltar para especialidades
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (professionals.length === 0) {
-    return (
-      <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8">
-        <div className="container mx-auto max-w-5xl px-4">
-          <div className="mb-10">
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link
+              href={`/agendar-consulta/${specialtyConfig.id}`}
+              className="rounded-lg bg-[#d73cbe] px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-[#b02b9b]"
+            >
+              Tentar novamente
+            </Link>
             <Link
               href="/agendar-consulta"
-              className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-6 text-sm"
+              className="rounded-lg border border-white/10 px-5 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
             >
-              <ArrowLeft className="w-4 h-4" /> Voltar para especialidades
+              Ver especialidades
             </Link>
-            <h1 className="text-4xl md:text-5xl font-futura font-bold text-white mb-4 uppercase tracking-tighter">
-              Especialistas em{" "}
-              <span className="text-[#d73cbe]">{specialtyName}</span>
-            </h1>
-            <p className="text-slate-400 text-lg font-light max-w-2xl">
-              Ainda não temos especialistas nesta área. Em breve teremos os
-              melhores profissionais para você!
-            </p>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
+  const professionals = result.data ?? [];
+
   return (
-    <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8">
+    <main className="min-h-screen bg-[#020617] pb-24 pt-8 font-poppins text-white">
       <div className="container mx-auto max-w-5xl px-4">
-        <div className="mb-10">
+        <header className="mb-10">
           <Link
             href="/agendar-consulta"
-            className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-6 text-sm"
+            className="mb-6 inline-flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white"
           >
-            <ArrowLeft className="w-4 h-4" /> Voltar para especialidades
+            <ArrowLeft className="h-4 w-4" /> Voltar para especialidades
           </Link>
-          <h1 className="text-4xl md:text-5xl font-futura font-bold text-white mb-4 uppercase tracking-tighter">
+          <h1 className="font-futura text-4xl font-bold uppercase tracking-tighter text-white md:text-5xl">
             Especialistas em{" "}
-            <span className="text-[#d73cbe]">{specialtyName}</span>
+            <span className="text-[#d73cbe]">{specialtyConfig.name}</span>
           </h1>
-        </div>
+        </header>
 
-        <div className="space-y-8">
-          {professionals.map((pro) => {
-            const displayName = pro.displayName ?? pro.name;
-            const isOwnProfile = session?.user?.id === pro.id;
-            const isTeacher = pro.onlineSpecialty === "TEACHER";
+        {professionals.length === 0 ? (
+          <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-8 text-center">
+            <h2 className="text-xl font-bold text-white">
+              Novos especialistas em breve
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-400">
+              Ainda não há profissionais disponíveis nesta especialidade.
+              Consulte outra área ou tente novamente mais tarde.
+            </p>
+            <Link
+              href="/agendar-consulta#especialidades"
+              className="mt-6 inline-flex rounded-lg border border-white/10 px-5 py-3 text-sm font-bold text-slate-200 transition-colors hover:bg-white/5"
+            >
+              Explorar outras especialidades
+            </Link>
+          </section>
+        ) : (
+          <section className="space-y-8" aria-label="Especialistas disponíveis">
+            {professionals.map((professional) => {
+              const isOwnProfile = session?.user?.id === professional.id;
+              const isTeacher = professional.onlineSpecialty === "TEACHER";
 
-            return (
-              <div
-                key={pro.id}
-                className="bg-[#0f172a]/60 backdrop-blur-md border border-white/10 rounded-[32px] p-6 lg:p-8 flex flex-col lg:flex-row gap-8 transition-all hover:border-white/20 hover:shadow-2xl relative overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 w-64 h-64 bg-[#d73cbe]/5 rounded-full blur-[80px] pointer-events-none" />
+              return (
+                <article
+                  key={professional.id}
+                  className="relative flex flex-col gap-8 overflow-hidden rounded-[32px] border border-white/10 bg-[#0f172a]/60 p-6 backdrop-blur-md transition-all hover:border-white/20 hover:shadow-2xl lg:flex-row lg:p-8"
+                >
+                  <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-[#d73cbe]/5 blur-[80px]" />
 
-                {/* COLUNA ESQUERDA: Perfil */}
-                <div className="lg:w-[45%] flex flex-col gap-5 z-10">
-                  <div className="flex gap-5 items-start">
-                    <ProfileInitialsAvatar
-                      name={displayName}
-                      src={`/api/images/user/${pro.id}`}
-                      hasImage={pro.hasProfileImage}
-                      className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0 border border-white/10 shadow-lg bg-slate-800"
-                      textClassName="text-xl"
-                    />
-                    <div className="pt-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h2 className="font-bold text-xl leading-tight text-white">
-                          {displayName}
-                        </h2>
-                        {!isTeacher && (
-                          <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                        )}
-                      </div>
-                      <p className="text-sm text-[#d73cbe] font-medium uppercase tracking-wide mb-1">
-                        {isTeacher ? "Professor" : pro.jobTitle}
-                      </p>
-                      {isTeacher && (
-                        <p className="mb-2 text-sm text-slate-400">
-                          Especialidade: {pro.teachingSubject}
+                  <div className="z-10 flex flex-col gap-5 lg:w-[45%]">
+                    <div className="flex items-start gap-5">
+                      <ProfileInitialsAvatar
+                        name={professional.name}
+                        src={`/api/images/health-professional/${professional.id}`}
+                        hasImage={professional.hasProfileImage}
+                        className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-800 shadow-lg"
+                        textClassName="text-xl"
+                      />
+                      <div className="pt-1">
+                        <div className="mb-1 flex items-center gap-2">
+                          <h2 className="text-xl font-bold leading-tight text-white">
+                            {professional.name}
+                          </h2>
+                          <ShieldCheck
+                            className="h-4 w-4 text-emerald-500"
+                            aria-label="Perfil profissional verificado"
+                          />
+                        </div>
+                        <p className="mb-1 text-sm font-medium uppercase tracking-wide text-[#d73cbe]">
+                          {isTeacher ? "Professor" : professional.jobTitle}
                         </p>
-                      )}
-                      <div className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-lg border border-white/5 w-fit">
-                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                        <span className="text-sm font-bold text-white">
-                          {(pro.rating ?? 0).toFixed(1)}
-                        </span>
+                        {isTeacher && (
+                          <p className="mb-2 text-sm text-slate-400">
+                            Especialidade: {professional.teachingSubject}
+                          </p>
+                        )}
+                        <div
+                          className="flex w-fit items-center gap-1.5 rounded-lg border border-white/5 bg-white/5 px-2 py-1"
+                          aria-label={`Avaliação ${professional.rating.toFixed(1)} de 5`}
+                        >
+                          <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+                          <span className="text-sm font-bold text-white">
+                            {professional.rating.toFixed(1)}
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    <p className="mt-2 line-clamp-3 text-sm font-light leading-relaxed text-slate-400">
+                      {professional.bio ?? "Sem biografia disponível."}
+                    </p>
+                    <div className="mt-2 border-t border-white/5 pt-4">
+                      <Link
+                        href={`/agendar-consulta/perfil/${professional.id}`}
+                        className="text-xs font-medium text-slate-400 underline underline-offset-4 transition-colors hover:text-white"
+                      >
+                        Ver perfil completo
+                      </Link>
+                    </div>
                   </div>
-                  <p className="text-sm text-slate-400 leading-relaxed font-light mt-2 line-clamp-3">
-                    {pro.bio ?? "Sem biografia disponível."}
-                  </p>
-                  <div className="mt-2 pt-4 border-t border-white/5">
-                    <Link
-                      href={`/agendar-consulta/perfil/${pro.id}`}
-                      className="text-xs font-medium text-slate-400 hover:text-white transition-colors underline underline-offset-4"
-                    >
-                      Ver perfil completo
-                    </Link>
-                  </div>
-                </div>
 
-                {/* COLUNA DIREITA: Calendário (Sanitização aplicada aqui!) */}
-                <div className="lg:w-[55%] border-t lg:border-t-0 lg:border-l border-white/10 pt-6 lg:pt-0 lg:pl-8 flex flex-col z-10">
-                  <MonthlyScheduleClient
-                    readOnly={isOwnProfile}
-                    pro={{
-                      ...pro,
-                      consultationFee: pro.consultationFee ?? 0,
-                      sessionDuration: pro.sessionDuration ?? 0,
-                    }}
-                  />
-                  <div className="flex items-center gap-2 text-xs font-medium text-emerald-500 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 mt-4 w-fit">
-                    <Video className="w-4 h-4" />
-                    Atendimento online
+                  <div className="z-10 flex flex-col border-t border-white/10 pt-6 lg:w-[55%] lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+                    <MonthlyScheduleClient
+                      readOnly={isOwnProfile}
+                      pro={{
+                        id: professional.id,
+                        consultationFee: professional.consultationFee,
+                        sessionDuration: professional.sessionDuration ?? 0,
+                      }}
+                    />
+                    <div className="mt-4 flex w-fit items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-500">
+                      <Video className="h-4 w-4" />
+                      Atendimento online
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                </article>
+              );
+            })}
+          </section>
+        )}
       </div>
-    </div>
+    </main>
   );
 }

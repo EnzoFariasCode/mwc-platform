@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { formatProfessionalCredential } from "@/modules/health/lib/professional-credentials";
-import { GraduationCap, Star, MapPin, Video, ShieldCheck } from "lucide-react";
+import { ArrowLeft, GraduationCap, Star, MapPin, Video, ShieldCheck } from "lucide-react";
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { isProfessionalVerificationApproved } from "@/modules/health/lib/professional-verification-policy";
@@ -8,7 +9,7 @@ import { getHealthProfessionalById } from "@/modules/health/services/professiona
 import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
 import { ProfileViewClient } from "./profile-view-client";
 import { MonthlyScheduleClient } from "./monthly-schedule-client";
-import { BackButtonClient } from "./back-button-client"; // <-- Importamos o novo botão inteligente
+import { healthSpecialties } from "@/modules/health/lib/specialties";
 
 export default async function ProfessionalHealthProfile({
   params,
@@ -44,20 +45,45 @@ export default async function ProfessionalHealthProfile({
     notFound();
   }
 
-  const proName = pro.displayName || pro.name;
   const isOwnProfile = session?.user?.id === id;
   const isTeacher = pro.onlineSpecialty === "TEACHER";
   const documentReg = formatProfessionalCredential(pro.documentReg);
+  const specialtyId = healthSpecialties.find(
+    (specialty) => specialty.code === pro.onlineSpecialty,
+  )?.id;
+  const editorAccount = isOwnProfile
+    ? await db.user.findUnique({
+        where: { id },
+        select: { name: true, displayName: true, timezone: true },
+      })
+    : null;
+  const editorData = editorAccount
+    ? {
+        ...pro,
+        name: editorAccount.name,
+        displayName: editorAccount.displayName,
+        timezone: editorAccount.timezone,
+      }
+    : null;
 
   return (
     <div className="min-h-screen bg-[#020617] text-white font-poppins pb-24 pt-8">
       <div className="container mx-auto max-w-6xl px-4">
         {/* CABEÇALHO */}
         <div className="flex justify-between items-center mb-8">
-          {/* NOSSO NOVO BOTÃO INTELIGENTE */}
-          <BackButtonClient />
+          <Link
+            href={
+              specialtyId
+                ? `/agendar-consulta/${specialtyId}`
+                : "/agendar-consulta"
+            }
+            className="inline-flex items-center gap-2 text-slate-400 transition-colors hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Voltar para especialistas
+          </Link>
 
-          <ProfileViewClient proId={id} proData={pro} />
+          {editorData && <ProfileViewClient proData={editorData} />}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8 items-start">
@@ -67,8 +93,8 @@ export default async function ProfessionalHealthProfile({
               <div className="absolute top-0 right-0 w-64 h-64 bg-[#d73cbe]/5 rounded-full blur-[100px] pointer-events-none" />
 
               <ProfileInitialsAvatar
-                name={proName}
-                src={`/api/images/user/${id}`}
+                name={pro.name}
+                src={`/api/images/health-professional/${id}`}
                 hasImage={pro.hasProfileImage}
                 className="relative w-32 h-32 md:w-40 md:h-40 rounded-2xl overflow-hidden shrink-0 border-2 border-white/10 shadow-2xl bg-slate-800"
                 textClassName="text-3xl"
@@ -87,7 +113,7 @@ export default async function ProfessionalHealthProfile({
                 </div>
 
                 <h1 className="text-3xl md:text-4xl font-futura font-bold text-white mb-2 uppercase tracking-tight">
-                  {proName}
+                  {pro.name}
                 </h1>
 
                 {isTeacher && (

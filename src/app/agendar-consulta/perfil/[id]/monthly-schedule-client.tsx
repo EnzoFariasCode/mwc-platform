@@ -44,6 +44,8 @@ export function MonthlyScheduleClient({
     {},
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
 
   const duration = pro.sessionDuration || 50;
 
@@ -75,18 +77,26 @@ export function MonthlyScheduleClient({
   useEffect(() => {
     async function fetchSlots() {
       setIsLoading(true);
-      const start = startOfMonth(currentMonth);
-      const end = endOfMonth(currentMonth);
-
-      const slotsMap = await getMonthlySlots(pro.id, start, end, duration);
-      setMonthlySlots(slotsMap);
-      setIsLoading(false);
+      setScheduleError(null);
+      try {
+        const result = await getMonthlySlots(
+          pro.id,
+          format(currentMonth, "yyyy-MM"),
+        );
+        setMonthlySlots(result.slots);
+        setScheduleError(result.error ?? null);
+      } catch {
+        setMonthlySlots({});
+        setScheduleError("Nao foi possivel carregar a agenda agora.");
+      } finally {
+        setIsLoading(false);
+      }
     }
 
     if (pro.id) {
       fetchSlots();
     }
-  }, [pro.id, currentMonth, duration]);
+  }, [pro.id, currentMonth, retryToken]);
 
   const slotsRealmenteDisponiveis = selectedDate
     ? monthlySlots[format(selectedDate, "yyyy-MM-dd")] || []
@@ -215,6 +225,17 @@ export function MonthlyScheduleClient({
           {isLoading ? (
             <div className="text-center p-3 rounded-lg bg-white/5 border border-white/5 text-xs text-slate-500 animate-pulse">
               Carregando agenda...
+            </div>
+          ) : scheduleError ? (
+            <div className="rounded-lg border border-red-500/15 bg-red-500/5 p-3 text-center text-xs text-red-300">
+              <p>{scheduleError}</p>
+              <button
+                type="button"
+                onClick={() => setRetryToken((value) => value + 1)}
+                className="mt-2 font-semibold text-white underline underline-offset-4"
+              >
+                Tentar novamente
+              </button>
             </div>
           ) : slotsRealmenteDisponiveis.length > 0 ? (
             <div className="grid grid-cols-4 gap-1.5 max-h-32 overflow-y-auto pr-0.5 custom-scrollbar">

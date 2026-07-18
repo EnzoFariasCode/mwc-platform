@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { isValidTimeZone } from "../lib/appointment-completion-time";
 import {
   getHealthProfessionalIdentityError,
@@ -72,17 +73,39 @@ export async function updateHealthProProfile(formData: FormData) {
     return { error: "Nao autorizado" };
   }
 
+  if (!(formData instanceof FormData)) {
+    return { error: "Dados invalidos" };
+  }
+
+  const rateLimitError = await consumeRateLimit({
+    key: `health-profile-update:${session.user.id}`,
+    limit: 10,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (rateLimitError) return { error: rateLimitError };
+
   const professional = await db.user.findUnique({
     where: { id: session.user.id },
     select: {
       onlineSpecialty: true,
+      userType: true,
+      industry: true,
+      isActive: true,
       documentReg: true,
       teachingSubject: true,
       professionalVerification: { select: { id: true, status: true } },
     },
   });
 
-  if (!professional?.onlineSpecialty) {
+  if (
+    !professional?.isActive ||
+    professional.userType !== "PROFESSIONAL" ||
+    professional.industry !== "HEALTH"
+  ) {
+    return { error: "Nao autorizado" };
+  }
+
+  if (!professional.onlineSpecialty) {
     return { error: "Categoria profissional do MWC Online nao configurada." };
   }
 

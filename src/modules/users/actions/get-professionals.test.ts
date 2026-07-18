@@ -77,7 +77,6 @@ describe("busca de professores", () => {
       expect.objectContaining({
         onlineSpecialty: "TEACHER",
         teachingSubject: "Matematica",
-        documentReg: null,
       }),
     );
     expect(mocks.db.user.findMany).toHaveBeenCalledWith(
@@ -85,6 +84,34 @@ describe("busca de professores", () => {
         where: expect.objectContaining({ onlineSpecialty: "TEACHER" }),
       }),
     );
+  });
+
+  it("retorna somente dados necessarios para a vitrine publica", async () => {
+    const result = await getProfessionalsBySpecialty("professor");
+
+    expect(result.data?.[0]).toEqual({
+      id: "teacher-1",
+      name: "Professor Teste",
+      bio: null,
+      rating: 0,
+      jobTitle: "Professor",
+      onlineSpecialty: "TEACHER",
+      teachingSubject: "Matematica",
+      sessionDuration: 50,
+      consultationFee: 100,
+      hasProfileImage: false,
+    });
+    expect(result.data?.[0]).not.toHaveProperty("documentReg");
+    expect(result.data?.[0]).not.toHaveProperty("image");
+    expect(result.data?.[0]).not.toHaveProperty("profileImageBytes");
+    expect(result.data?.[0]).not.toHaveProperty("timezone");
+  });
+
+  it("rejeita identificador invalido sem consultar o banco", async () => {
+    const result = await getProfessionalsBySpecialty("x".repeat(41));
+
+    expect(result.data).toEqual([]);
+    expect(mocks.db.user.findMany).not.toHaveBeenCalled();
   });
 
   it("mantem Professor sem materia fora dos resultados", async () => {

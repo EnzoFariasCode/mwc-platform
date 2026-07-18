@@ -1,102 +1,195 @@
-// src/modules/health/actions/get-monthly-slots.ts
 "use server";
 
 import { db } from "@/lib/prisma";
+import { consumeRateLimit } from "@/lib/action-rate-limit";
+import { getRateLimitKeys } from "@/lib/rate-limit";
+import { getBookableHealthProfessionalWhere } from "@/modules/health/lib/health-professional-eligibility";
 import {
-  format,
   addMinutes,
-  parse,
-  isBefore,
-  startOfDay,
+  addMonths,
   eachDayOfInterval,
+  endOfMonth,
+  format,
+  isBefore,
+  parse,
+  startOfDay,
+  startOfMonth,
 } from "date-fns";
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const MIN_SESSION_MINUTES = 5;
+const MAX_SESSION_MINUTES = 480;
+
+export type MonthlySlotsResult = {
+  slots: Record<string, string[]>;
+  error?: string;
+};
+
+function requestedMonth(month: string, now: Date) {
+  const match = MONTH_PATTERN.exec(month);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const requested = new Date(year, monthIndex, 1);
+  const current = startOfMonth(now);
+  const next = startOfMonth(addMonths(now, 1));
+
+  if (
+    requested.getFullYear() !== year ||
+    requested.getMonth() !== monthIndex ||
+    (requested.getTime() !== current.getTime() &&
+      requested.getTime() !== next.getTime())
+  ) {
+    return null;
+  }
+
+  return requested;
+}
 
 export async function getMonthlySlots(
   proId: string,
-  startDate: Date,
-  endDate: Date,
-  durationMinutes: number = 50,
-) {
-  // 1. Busca os dias da semana em que o profissional trabalha
-  const availabilities = await db.professionalAvailability.findMany({
-    where: { professionalId: proId, isActive: true },
-  });
-
-  // 2. Busca as folgas e feriados (Exceções)
-  const exceptions = await db.availabilityException.findMany({
-    where: { professionalId: proId, date: { gte: startDate, lte: endDate } },
-  });
-
-  // 3. Busca consultas já pagas ou confirmadas
-  const appointments = await db.appointment.findMany({
-    where: {
-      professionalId: proId,
-      date: { gte: startDate, lte: endDate },
-      status: { not: "CANCELED" },
-    },
-  });
-
-  // 4. Busca reservas atômicas (Holds) ativas de outros pacientes
-  const now = new Date();
-  const holds = await db.appointmentHold.findMany({
-    where: {
-      professionalId: proId,
-      date: { gte: startDate, lte: endDate },
-      expiresAt: { gt: now }, // Só considera holds que ainda não expiraram
-    },
-  });
-
-  const slotsMap: Record<string, string[]> = {};
-  const days = eachDayOfInterval({ start: startDate, end: endDate });
-
-  for (const date of days) {
-    const dateStr = format(date, "yyyy-MM-dd");
-    if (isBefore(startOfDay(date), startOfDay(now))) continue; // Ignora o passado
-
-    // Checa se o médico tirou folga neste dia
-    const exception = exceptions.find(
-      (e) => format(e.date, "yyyy-MM-dd") === dateStr,
-    );
-    if (exception && !exception.isAvailable) continue;
-
-    // Checa se ele trabalha neste dia da semana (0 = Dom, 1 = Seg...)
-    const dayOfWeek = date.getDay();
-    const rule = availabilities.find((a) => a.dayOfWeek === dayOfWeek);
-    if (!rule) continue;
-
-    // Gera os horários do dia
-    const daySlots: string[] = [];
-    let currentSlot = parse(rule.startTime, "HH:mm", date);
-    const endSlot = parse(rule.endTime, "HH:mm", date);
-
-    while (addMinutes(currentSlot, durationMinutes) <= endSlot) {
-      if (isBefore(currentSlot, now)) {
-        currentSlot = addMinutes(currentSlot, durationMinutes);
-        continue;
-      }
-
-      const timeStr = format(currentSlot, "HH:mm");
-
-      // Bate o horário contra agendamentos e holds temporários
-      const isBooked = appointments.some(
-        (a) => format(a.date, "yyyy-MM-dd") === dateStr && a.time === timeStr,
-      );
-      const isHeld = holds.some(
-        (h) => format(h.date, "yyyy-MM-dd") === dateStr && h.time === timeStr,
-      );
-
-      if (!isBooked && !isHeld) {
-        daySlots.push(timeStr);
-      }
-
-      currentSlot = addMinutes(currentSlot, durationMinutes);
-    }
-
-    // Se sobrou algum horário livre no dia, adiciona ao mapa
-    if (daySlots.length > 0) {
-      slotsMap[dateStr] = daySlots;
-    }
+  month: string,
+): Promise<MonthlySlotsResult> {
+  if (
+    typeof proId !== "string" ||
+    !UUID_PATTERN.test(proId) ||
+    typeof month !== "string"
+  ) {
+    return { slots: {}, error: "Agenda solicitada invalida." };
   }
 
-  return slotsMap; // Retorna ex: { "2026-05-27": ["08:00", "09:00"] }
+  const now = new Date();
+  const monthStart = requestedMonth(month, now);
+  if (!monthStart) {
+    return { slots: {}, error: "Mes fora da janela de agendamento." };
+  }
+
+  const rateLimitKeys = await getRateLimitKeys("health:public-slots");
+  for (const key of rateLimitKeys) {
+    const error = await consumeRateLimit({
+      key,
+      limit: 90,
+      windowMs: 60_000,
+      message: "Muitas consultas de agenda. Aguarde um minuto e tente novamente.",
+    });
+    if (error) return { slots: {}, error };
+  }
+
+  const professional = await db.user.findFirst({
+    where: {
+      id: proId,
+      ...getBookableHealthProfessionalWhere(now),
+    },
+    select: {
+      sessionDuration: true,
+      availabilities: {
+        where: { isActive: true },
+        select: {
+          dayOfWeek: true,
+          startTime: true,
+          endTime: true,
+          isActive: true,
+        },
+      },
+    },
+  });
+
+  const durationMinutes = professional?.sessionDuration;
+  if (
+    !professional ||
+    !Number.isInteger(durationMinutes) ||
+    Number(durationMinutes) < MIN_SESSION_MINUTES ||
+    Number(durationMinutes) > MAX_SESSION_MINUTES
+  ) {
+    return { slots: {}, error: "Profissional indisponivel para agendamento." };
+  }
+  const duration = Number(durationMinutes);
+
+  const endDate = endOfMonth(monthStart);
+  const [exceptions, appointments, holds] = await Promise.all([
+    db.availabilityException.findMany({
+      where: {
+        professionalId: proId,
+        date: { gte: monthStart, lte: endDate },
+      },
+      select: { date: true, isAvailable: true },
+    }),
+    db.appointment.findMany({
+      where: {
+        professionalId: proId,
+        date: { gte: monthStart, lte: endDate },
+        status: { not: "CANCELED" },
+      },
+      select: { date: true, time: true },
+    }),
+    db.appointmentHold.findMany({
+      where: {
+        professionalId: proId,
+        date: { gte: monthStart, lte: endDate },
+        expiresAt: { gt: now },
+      },
+      select: { date: true, time: true },
+    }),
+  ]);
+
+  const blockedDates = new Set(
+    exceptions
+      .filter((exception) => !exception.isAvailable)
+      .map((exception) => format(exception.date, "yyyy-MM-dd")),
+  );
+  const occupiedSlots = new Set([
+    ...appointments.map(
+      (appointment) =>
+        `${format(appointment.date, "yyyy-MM-dd")}|${appointment.time}`,
+    ),
+    ...holds.map(
+      (hold) => `${format(hold.date, "yyyy-MM-dd")}|${hold.time}`,
+    ),
+  ]);
+  const availabilityByDay = new Map(
+    professional.availabilities
+      .filter(
+        (availability) =>
+          Number.isInteger(availability.dayOfWeek) &&
+          availability.dayOfWeek >= 0 &&
+          availability.dayOfWeek <= 6 &&
+          TIME_PATTERN.test(availability.startTime) &&
+          TIME_PATTERN.test(availability.endTime) &&
+          availability.startTime < availability.endTime,
+      )
+      .map((availability) => [availability.dayOfWeek, availability]),
+  );
+
+  const slots: Record<string, string[]> = {};
+  for (const date of eachDayOfInterval({ start: monthStart, end: endDate })) {
+    if (isBefore(startOfDay(date), startOfDay(now))) continue;
+
+    const dateKey = format(date, "yyyy-MM-dd");
+    if (blockedDates.has(dateKey)) continue;
+
+    const rule = availabilityByDay.get(date.getDay());
+    if (!rule) continue;
+
+    let currentSlot = parse(rule.startTime, "HH:mm", date);
+    const endSlot = parse(rule.endTime, "HH:mm", date);
+    const availableTimes: string[] = [];
+
+    while (addMinutes(currentSlot, duration) <= endSlot) {
+      if (!isBefore(currentSlot, now)) {
+        const time = format(currentSlot, "HH:mm");
+        if (!occupiedSlots.has(`${dateKey}|${time}`)) {
+          availableTimes.push(time);
+        }
+      }
+      currentSlot = addMinutes(currentSlot, duration);
+    }
+
+    if (availableTimes.length > 0) slots[dateKey] = availableTimes;
+  }
+
+  return { slots };
 }

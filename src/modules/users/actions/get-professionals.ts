@@ -1,5 +1,3 @@
-"use server";
-
 import { db } from "@/lib/prisma";
 import { getHealthSpecialtyById } from "@/modules/health/lib/specialties";
 import {
@@ -9,7 +7,11 @@ import {
 
 export async function getProfessionalsBySpecialty(specialtyId: string) {
   try {
-    const specialty = getHealthSpecialtyById(specialtyId.toLowerCase());
+    if (typeof specialtyId !== "string" || specialtyId.length > 40) {
+      return { data: [] };
+    }
+
+    const specialty = getHealthSpecialtyById(specialtyId);
 
     if (!specialty) {
       return { data: [] };
@@ -26,18 +28,12 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
         displayName: true,
         bio: true,
         rating: true,
-        ratingCount: true,
         jobTitle: true,
         onlineSpecialty: true,
         teachingSubject: true,
         documentReg: true,
         consultationFee: true,
-        industry: true,
-        image: true,
         sessionDuration: true,
-        approach: true,
-        city: true,
-        state: true,
         profileImageBytes: true,
         timezone: true,
         availabilities: {
@@ -55,13 +51,20 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
     const validProfessionals = professionals
       .filter((pro) => !getHealthProfessionalBookingReadinessError(pro))
       .map((professional) => {
-        const { profileImageBytes, availabilities, timezone, ...publicData } =
-          professional;
-        void availabilities;
-        void timezone;
+        const publicName =
+          professional.displayName?.trim() || professional.name.trim();
+
         return {
-          ...publicData,
-          hasProfileImage: profileImageBytes !== null,
+          id: professional.id,
+          name: publicName,
+          bio: professional.bio,
+          rating: professional.rating,
+          jobTitle: professional.jobTitle,
+          onlineSpecialty: professional.onlineSpecialty,
+          teachingSubject: professional.teachingSubject,
+          sessionDuration: professional.sessionDuration,
+          consultationFee: Number(professional.consultationFee),
+          hasProfileImage: professional.profileImageBytes !== null,
         };
       });
 

@@ -227,7 +227,7 @@ export default function CheckoutSaudePage({
                 <div className="flex gap-4 items-center mb-6">
                   <ProfileInitialsAvatar
                     name={professional.name || "Profissional"}
-                    src={`/api/images/user/${professional.id}`}
+                    src={`/api/images/health-professional/${professional.id}`}
                     hasImage={professional.hasProfileImage}
                     className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 bg-slate-800"
                   />

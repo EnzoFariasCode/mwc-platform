@@ -1,10 +1,15 @@
-"use server"; // 🛡️ ISSO AQUI SALVA VIDAS! Garante que roda só no servidor.
+"use server";
 
 import { db } from "@/lib/prisma";
+import { consumeRateLimit } from "@/lib/action-rate-limit";
+import { getRateLimitKeys } from "@/lib/rate-limit";
 import {
   getBookableHealthProfessionalWhere,
   getHealthProfessionalBookingReadinessError,
 } from "@/modules/health/lib/health-professional-eligibility";
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function publicReviewerName(name: string | null | undefined) {
   const parts = name?.trim().split(/\s+/).filter(Boolean) ?? [];
@@ -14,94 +19,102 @@ function publicReviewerName(name: string | null | undefined) {
 }
 
 export async function getHealthProfessionalById(id: string) {
-  try {
-    const pro = await db.user.findFirst({
-      where: {
-        ...getBookableHealthProfessionalWhere(),
-        id,
-      },
-      select: {
-        id: true,
-        name: true,
-        displayName: true,
-        bio: true,
-        jobTitle: true,
-        onlineSpecialty: true,
-        teachingSubject: true,
-        documentReg: true,
-        approach: true,
-        consultationFee: true,
-        sessionDuration: true,
-        timezone: true,
-        hourlyRate: true,
-        rating: true,
-        ratingCount: true,
-        city: true,
-        state: true,
-        profileImageBytes: true,
-        healthReviewsReceived: {
-          where: { isVisible: true },
-          orderBy: { createdAt: "desc" },
-          take: 8,
-          select: {
-            id: true,
-            rating: true,
-            comment: true,
-            createdAt: true,
-            author: {
-              select: { name: true, displayName: true },
-            },
-          },
-        },
-        availabilities: {
-          select: {
-            dayOfWeek: true,
-            isActive: true,
-            startTime: true,
-            endTime: true,
-          },
-        },
-      },
+  if (typeof id !== "string" || !UUID_PATTERN.test(id)) return null;
+
+  const keys = await getRateLimitKeys("health:public-professional");
+  for (const key of keys) {
+    const error = await consumeRateLimit({
+      key,
+      limit: 120,
+      windowMs: 60_000,
+      message: "Muitas consultas de perfil. Aguarde um minuto.",
     });
+    if (error) throw new Error(error);
+  }
 
-    if (!pro || getHealthProfessionalBookingReadinessError(pro)) {
-      return null;
-    }
+  const professional = await db.user.findFirst({
+    where: {
+      ...getBookableHealthProfessionalWhere(),
+      id,
+    },
+    select: {
+      id: true,
+      name: true,
+      displayName: true,
+      bio: true,
+      jobTitle: true,
+      onlineSpecialty: true,
+      teachingSubject: true,
+      documentReg: true,
+      approach: true,
+      consultationFee: true,
+      sessionDuration: true,
+      timezone: true,
+      rating: true,
+      ratingCount: true,
+      city: true,
+      state: true,
+      profileImageBytes: true,
+      healthReviewsReceived: {
+        where: { isVisible: true },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: {
+          id: true,
+          rating: true,
+          comment: true,
+          createdAt: true,
+          author: {
+            select: { name: true, displayName: true },
+          },
+        },
+      },
+      availabilities: {
+        where: { isActive: true },
+        select: {
+          dayOfWeek: true,
+          isActive: true,
+          startTime: true,
+          endTime: true,
+        },
+      },
+    },
+  });
 
-    // 🛡️ Sanitização para o Front-end não engasgar com datas e dinheiro (Decimals)
-    return {
-      id: pro.id,
-      name: pro.name,
-      displayName: pro.displayName,
-      bio: pro.bio,
-      jobTitle: pro.jobTitle,
-      onlineSpecialty: pro.onlineSpecialty,
-      teachingSubject: pro.teachingSubject,
-      documentReg: pro.documentReg,
-      approach: pro.approach,
-      sessionDuration: pro.sessionDuration,
-      rating: pro.rating,
-      ratingCount: pro.ratingCount,
-      city: pro.city,
-      state: pro.state,
-      availabilities: pro.availabilities,
-      hasProfileImage: Boolean(pro.profileImageBytes),
-      reviews: pro.healthReviewsReceived.map((review) => ({
-        id: review.id,
-        rating: review.rating,
-        comment: review.comment,
-        createdAt: review.createdAt,
-        authorName: publicReviewerName(
-          review.author.displayName || review.author.name,
-        ),
-      })),
-      consultationFee: pro.consultationFee
-        ? pro.consultationFee.toNumber()
-        : 150,
-      hourlyRate: pro.hourlyRate ? pro.hourlyRate.toNumber() : 0,
-    };
-  } catch (error) {
-    console.error("Erro ao buscar profissional:", error);
+  if (
+    !professional ||
+    getHealthProfessionalBookingReadinessError(professional)
+  ) {
     return null;
   }
+
+  return {
+    id: professional.id,
+    name:
+      professional.displayName?.trim() ||
+      professional.name.trim() ||
+      "Profissional MWC",
+    bio: professional.bio,
+    jobTitle: professional.jobTitle,
+    onlineSpecialty: professional.onlineSpecialty,
+    teachingSubject: professional.teachingSubject,
+    documentReg: professional.documentReg,
+    approach: professional.approach,
+    sessionDuration: professional.sessionDuration,
+    rating: professional.rating,
+    ratingCount: professional.ratingCount,
+    city: professional.city,
+    state: professional.state,
+    hasProfileImage: Boolean(professional.profileImageBytes),
+    reviews: professional.healthReviewsReceived.map((review) => ({
+      id: review.id,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt,
+      authorName: publicReviewerName(
+        review.author.displayName || review.author.name,
+      ),
+    })),
+    consultationFee: Number(professional.consultationFee),
+  };
 }
