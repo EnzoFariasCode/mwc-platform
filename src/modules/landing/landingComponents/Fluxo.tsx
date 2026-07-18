@@ -1,156 +1,143 @@
 "use client";
 
 import { useRef } from "react";
-import Image from "next/image";
+import {
+  BadgeCheck,
+  FileCheck2,
+  FileText,
+  MessageCircleMore,
+  Scale,
+  WalletCards,
+} from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 
+const protectionSteps = [
+  {
+    title: "Conversa dentro da MWC",
+    description:
+      "Alinhe escopo, prazo e detalhes pelo chat interno, mantendo o histórico da negociação em um só lugar.",
+    icon: MessageCircleMore,
+  },
+  {
+    title: "Proposta registrada",
+    description:
+      "Compare condições e aceite uma proposta com valor e prazo definidos antes de iniciar o trabalho.",
+    icon: FileText,
+  },
+  {
+    title: "Pagamento protegido",
+    description:
+      "O pagamento é processado pela plataforma e permanece protegido durante a execução do serviço.",
+    icon: WalletCards,
+  },
+  {
+    title: "Entrega para análise",
+    description:
+      "O profissional envia a entrega pela MWC para que você confira o resultado e acompanhe o andamento.",
+    icon: FileCheck2,
+  },
+  {
+    title: "Aprovação ou revisão",
+    description:
+      "Você pode aprovar a entrega ou solicitar uma revisão conforme as condições combinadas no projeto.",
+    icon: BadgeCheck,
+  },
+  {
+    title: "Mediação de disputas",
+    description:
+      "Se houver um desacordo, a MWC preserva os registros e analisa a disputa antes da destinação do valor.",
+    icon: Scale,
+  },
+];
+
 export function Fluxo() {
   const containerRef = useRef<HTMLElement>(null);
 
   useGSAP(
     () => {
-      // 1. Título (Sobe padrão)
       gsap.fromTo(
-        ".gsap-title",
-        { y: 50, opacity: 0 },
+        ".gsap-protection-heading",
+        { y: 32, opacity: 0 },
         {
           y: 0,
           opacity: 1,
-          duration: 1,
+          duration: 0.8,
           ease: "power3.out",
           scrollTrigger: {
-            trigger: ".gsap-title",
-            start: "top 85%",
-          },
-        }
-      );
-
-      // 2. Imagem (Efeito de Zoom Out + Foco)
-      // Ela começa um pouco maior (scale: 1.1) e desfocada, e "aterrissa" na tela.
-      gsap.fromTo(
-        ".gsap-image-container",
-        { scale: 0.9, opacity: 0, filter: "blur(10px)" },
-        {
-          scale: 1,
-          opacity: 1,
-          filter: "blur(0px)",
-          duration: 1.2,
-          ease: "expo.out",
-          scrollTrigger: {
-            trigger: ".gsap-image-container",
+            trigger: containerRef.current,
             start: "top 80%",
           },
-        }
-      );
-
-      // 3. Caixas de Texto (Vêm da Direita em Cascata)
-      gsap.fromTo(
-        ".gsap-box",
-        { x: 100, opacity: 0 }, // Começam deslocadas para a direita
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.8,
-          stagger: 0.2, // Um box entra depois do outro
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: ".gsap-boxes-container", // Gatilho no pai das caixas
-            start: "top 75%",
-          },
-        }
-      );
-
-      // 4. Blob de Fundo (Movimento sutil com Scrub)
-      gsap.to(".gsap-blob", {
-        y: 100, // Move para baixo conforme rola
-        scrollTrigger: {
-          trigger: containerRef.current,
-          start: "top bottom",
-          end: "bottom top",
-          scrub: 1, // Animação presa ao scroll
         },
-      });
+      );
+
+      gsap.fromTo(
+        ".gsap-protection-card",
+        { y: 48, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.7,
+          stagger: 0.1,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: ".gsap-protection-grid",
+            start: "top 80%",
+          },
+        },
+      );
     },
-    { scope: containerRef }
+    { scope: containerRef },
   );
 
   return (
     <section
       ref={containerRef}
-      className="relative border-b border-white/5 bg-slate-950 px-4 py-16 overflow-hidden lg:py-20"
+      className="relative overflow-hidden border-b border-white/5 bg-[#07101f] px-4 py-16 lg:py-20"
     >
-      {/* Background Decorativo (Adicionei a classe 'gsap-blob') */}
-      <div className="gsap-blob absolute right-0 top-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-900/10 rounded-full blur-[120px] -z-10" />
+      <div className="absolute left-1/2 top-1/2 -z-10 h-[560px] w-[760px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-900/10 blur-[130px]" />
 
-      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
-        {/* COLUNA DA ESQUERDA: Título e Imagem */}
-        <div className="flex-1 flex flex-col gap-6 w-full">
-          {/* Adicionei 'gsap-title' e 'opacity-0' */}
-          <h2 className="gsap-title opacity-0 text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-white leading-tight font-futura uppercase">
-            Entenda o Fluxo <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
-              do Negócio
-            </span>
+      <div className="mx-auto max-w-6xl">
+        <div className="gsap-protection-heading mx-auto mb-12 max-w-3xl text-center opacity-0">
+          <h2 className="font-futura text-2xl font-bold uppercase leading-tight text-white sm:text-3xl md:text-4xl">
+            Sua contratação protegida
+            <span className="block text-[#d73cbe]">do acordo à entrega</span>
           </h2>
-
-          {/* Adicionei 'gsap-image-container' e 'opacity-0' */}
-          <div className="gsap-image-container opacity-0 relative group w-full max-w-md lg:max-w-full mx-auto lg:mx-0">
-            {/* Efeito de borda brilhante na imagem */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg opacity-75 blur-md group-hover:opacity-100 transition duration-500"></div>
-
-            <Image
-              src="https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2070&auto=format&fit=crop"
-              alt="Business meeting"
-              width={2070}
-              height={1380}
-              className="relative w-full h-auto object-cover rounded-lg border border-white/10 shadow-2xl"
-            />
-          </div>
+          <p className="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-slate-400 sm:text-base">
+            A MWC registra as etapas importantes da negociação para dar mais
+            clareza ao cliente e ao profissional durante todo o projeto.
+          </p>
         </div>
 
-        {/* COLUNA DA DIREITA: Caixas de Texto */}
-        {/* Adicionei 'gsap-boxes-container' para ser o gatilho */}
-        <div className="gsap-boxes-container flex-1 flex flex-col gap-4 w-full">
-          {/* Box 1 - Adicionei 'gsap-box' e 'opacity-0' */}
-          <div className="gsap-box opacity-0 p-6 border border-white/20 hover:border-purple-500/50 rounded-md bg-white/[0.02] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.05] group">
-            <h3 className="text-lg md:text-xl font-bold text-white mb-2 font-sans uppercase tracking-wide group-hover:text-[#d73cbe] transition-colors">
-              Peça o que precisa
-            </h3>
-            <p className="text-slate-400 leading-relaxed text-sm md:text-base">
-              Tem uma necessidade? Escolha o tipo de profissional que procura
-              (eletricista, cozinheiro, designer, etc.) e descreva o serviço em
-              poucos cliques.
-            </p>
-          </div>
-
-          {/* Box 2 - Adicionei 'gsap-box' e 'opacity-0' */}
-          <div className="gsap-box opacity-0 p-6 border border-white/20 hover:border-purple-500/50 rounded-md bg-white/[0.02] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.05] group">
-            <h3 className="text-lg md:text-xl font-bold text-white mb-2 font-sans uppercase tracking-wide group-hover:text-[#d73cbe] transition-colors">
-              Converse com profissionais
-            </h3>
-            <p className="text-slate-400 leading-relaxed text-sm md:text-base">
-              Os profissionais recebem sua solicitação e respondem pelo nosso
-              chat interno — de forma segura, rápida e sem expor seus dados
-              pessoais.
-            </p>
-          </div>
-
-          {/* Box 3 - Adicionei 'gsap-box' e 'opacity-0' */}
-          <div className="gsap-box opacity-0 p-6 border border-white/20 hover:border-purple-500/50 rounded-md bg-white/[0.02] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.05] group">
-            <h3 className="text-lg md:text-xl font-bold text-white mb-2 font-sans uppercase tracking-wide group-hover:text-[#d73cbe] transition-colors">
-              Combine e feche negócio
-            </h3>
-            <p className="text-slate-400 leading-relaxed text-sm md:text-base">
-              Negocie valores, prazos e finalize o serviço com o Pagamento
-              Seguro (Escrow) dentro da plataforma. O dinheiro só sai quando
-              você aprovar.
-            </p>
-          </div>
+        <div className="gsap-protection-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {protectionSteps.map((step, index) => (
+            <article
+              key={step.title}
+              className="gsap-protection-card group relative overflow-hidden rounded-lg border border-white/10 bg-white/[0.035] p-6 opacity-0 transition-colors hover:border-[#d73cbe]/35 hover:bg-white/[0.055]"
+            >
+              <span className="absolute right-5 top-4 font-futura text-4xl font-bold text-white/[0.035]">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <div className="flex h-11 w-11 items-center justify-center rounded-md border border-[#d73cbe]/20 bg-[#d73cbe]/10 text-[#d73cbe] transition-transform group-hover:-translate-y-1">
+                <step.icon className="h-5 w-5" />
+              </div>
+              <h3 className="mt-5 text-base font-bold text-white">
+                {step.title}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                {step.description}
+              </p>
+            </article>
+          ))}
         </div>
+
+        <p className="mt-8 text-center text-xs leading-relaxed text-slate-500">
+          A liberação ou reversão de valores segue o status do projeto e as
+          regras previstas nos termos da plataforma.
+        </p>
       </div>
     </section>
   );

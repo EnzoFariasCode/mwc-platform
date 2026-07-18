@@ -35,14 +35,14 @@ export default async function PortalPage() {
                 <Briefcase className="w-8 h-8" />
               </div>
               <h2 className="text-2xl font-bold mb-3 font-futura uppercase">
-                MWC Projetos
+                Contratar serviços e projetos
               </h2>
               <p className="text-slate-400 font-light leading-relaxed mb-8">
-                Contrate desenvolvedores, designers e outros profissionais para
-                tirar suas ideias do papel.
+                Encontre profissionais ou publique uma necessidade para receber
+                e comparar propostas.
               </p>
               <div className="flex items-center gap-2 text-blue-400 font-semibold group-hover:gap-4 transition-all">
-                Acessar projetos <ArrowRight className="w-5 h-5" />
+                Buscar ou publicar <ArrowRight className="w-5 h-5" />
               </div>
             </div>
           </Link>
@@ -53,11 +53,11 @@ export default async function PortalPage() {
                 <Activity className="w-8 h-8" />
               </div>
               <h2 className="text-2xl font-bold mb-3 font-futura uppercase">
-                MWC Online
+                Agendar atendimento online
               </h2>
               <p className="text-slate-400 font-light leading-relaxed mb-8">
-                Encontre especialistas para consultorias, aulas e atendimentos
-                online.
+                Marque consultas, aulas e orientações com especialistas em dia
+                e horário definidos.
               </p>
               <div className="flex items-center gap-2 text-[#d73cbe] font-semibold group-hover:gap-4 transition-all">
                 Ir para agendamentos <ArrowRight className="w-5 h-5" />

@@ -27,12 +27,18 @@ async function getDashboardStats(userId: string) {
 export default async function ClienteDashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ converter?: string }>;
+  searchParams: Promise<{ converter?: string; novoProjeto?: string }>;
 }) {
   const session = await verifySession();
-  if (!session?.sub) redirect("/login");
+  const params = await searchParams;
+  if (!session?.sub) {
+    const callbackUrl = params.novoProjeto === "1"
+      ? "/dashboard/cliente?novoProjeto=1"
+      : "/dashboard/cliente";
+    redirect(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+  }
 
-  const { converter } = await searchParams;
+  const { converter, novoProjeto } = params;
 
   const userId = session.sub;
 
@@ -78,6 +84,7 @@ export default async function ClienteDashboardPage({
       isProfileIncomplete={isProfileIncomplete}
       user={userSafe}
       openProfessionalConversion={converter === "profissional"}
+      openNewProject={novoProjeto === "1"}
     />
   );
 }

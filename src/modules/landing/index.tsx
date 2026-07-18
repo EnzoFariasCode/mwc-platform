@@ -1,4 +1,5 @@
 import { Fluxo } from "./landingComponents/Fluxo";
+import ContractPathsSection from "./landingComponents/ContractPathsSection";
 import { HeroSection } from "./landingComponents/HeroSection";
 import HowToUse from "./landingComponents/HowToUse";
 import PayInfo from "./landingComponents/PayInfo";
@@ -14,6 +15,7 @@ async function LandingPage() {
     <div className="bg-slate-950 min-h-screen">
       <HeroSection />
       <ServicesSection />
+      <ContractPathsSection />
       <HowToUse />
       <Fluxo />
       <WorkerSection />

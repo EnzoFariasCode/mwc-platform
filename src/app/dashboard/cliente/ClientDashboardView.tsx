@@ -29,6 +29,7 @@ interface ClientDashboardViewProps {
   isProfileIncomplete: boolean;
   user: any; // User object containing { id, userType, ... }
   openProfessionalConversion?: boolean;
+  openNewProject?: boolean;
 }
 
 export default function ClientDashboardView({
@@ -36,9 +37,10 @@ export default function ClientDashboardView({
   isProfileIncomplete,
   user,
   openProfessionalConversion = false,
+  openNewProject = false,
 }: ClientDashboardViewProps) {
   // Modal States
-  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(openNewProject);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(
     openProfessionalConversion,
   );
