@@ -87,7 +87,7 @@ export function HealthHeader() {
             }
             className="hover:text-[#d73cbe] transition-colors"
           >
-            Meus Atendimentos
+            {isPro ? "Minha Agenda" : "Meus Atendimentos"}
           </Link>
           {isPro && (
             <>
@@ -212,7 +212,7 @@ export function HealthHeader() {
             className="flex items-center gap-2 px-5 py-2.5 bg-[#d73cbe]/10 text-[#d73cbe] rounded-xl hover:bg-[#d73cbe] hover:text-white transition-all font-medium border border-[#d73cbe]/20 hover:border-[#d73cbe] shadow-lg shadow-purple-900/10"
           >
             <User className="w-4 h-4" />
-            Area do Cliente
+            Entrar
           </Link>
         )}
       </div>
