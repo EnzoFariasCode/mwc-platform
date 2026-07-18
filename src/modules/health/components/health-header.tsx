@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { ProfileInitialsAvatar } from "@/modules/health/components/profile-initials-avatar";
 import {
@@ -18,19 +17,18 @@ import {
 
 type HealthHeaderUser = {
   userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN";
+  industry?: "TECH" | "HEALTH" | null;
   jobTitle?: string | null;
   id?: string;
 };
 
 export function HealthHeader() {
-  const pathname = usePathname();
   const { data: session, status } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const isAuthenticated = status === "authenticated";
   const isLoading = status === "loading";
-  const isHome = pathname === "/agendar-consulta";
 
   const sessionUser = (session?.user ?? {}) as HealthHeaderUser & {
     image?: string | null;
@@ -39,7 +37,9 @@ export function HealthHeader() {
   };
 
   const firstName = session?.user?.name?.split(" ")[0] || "Meu Perfil";
-  const isPro = sessionUser?.userType === "PROFESSIONAL";
+  const isOnlineProfessional =
+    sessionUser.userType === "PROFESSIONAL" &&
+    sessionUser.industry === "HEALTH";
 
   // Lógica Sênior: Fecha o menu ao clicar fora dele
   useEffect(() => {
@@ -73,23 +73,23 @@ export function HealthHeader() {
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
           <Link
             href="/"
-            className={
-              isHome ? "text-white" : "hover:text-[#d73cbe] transition-colors"
-            }
+            className="hover:text-[#d73cbe] transition-colors"
           >
-            Início
+            Página principal
           </Link>
           <Link
             href={
               isAuthenticated
-                ? "/agendar-consulta/historico"
+                ? isOnlineProfessional
+                  ? "/agendar-consulta/dashboard-profissional"
+                  : "/agendar-consulta/historico"
                 : "/login?callbackUrl=/agendar-consulta/historico"
             }
             className="hover:text-[#d73cbe] transition-colors"
           >
-            {isPro ? "Minha Agenda" : "Meus Atendimentos"}
+            {isOnlineProfessional ? "Minha Agenda" : "Meus Atendimentos"}
           </Link>
-          {isPro && (
+          {isOnlineProfessional && (
             <>
               <Link
                 href="/agendar-consulta/prontuarios"
@@ -127,7 +127,9 @@ export function HealthHeader() {
                   {firstName}
                 </span>
                 <span className="text-xs text-[#d73cbe] mt-1 font-medium uppercase tracking-wider">
-                  {isPro ? sessionUser?.jobTitle || "Profissional" : "Cliente"}
+                  {isOnlineProfessional
+                    ? sessionUser?.jobTitle || "Profissional"
+                    : "Cliente"}
                 </span>
               </div>
               <ChevronDown
@@ -152,7 +154,7 @@ export function HealthHeader() {
                   {/* Link: Dashboard de cada um */}
                   <Link
                     href={
-                      isPro
+                      isOnlineProfessional
                         ? "/agendar-consulta/dashboard-profissional"
                         : "/agendar-consulta/historico"
                     }
@@ -160,10 +162,12 @@ export function HealthHeader() {
                     className="flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
                   >
                     <LayoutDashboard className="w-4 h-4 text-[#d73cbe]" />
-                    <span>{isPro ? "Meu Painel" : "Meus Atendimentos"}</span>
+                    <span>
+                      {isOnlineProfessional ? "Meu Painel" : "Meus Atendimentos"}
+                    </span>
                   </Link>
 
-                  {isPro && (
+                  {isOnlineProfessional && (
                     <Link
                       href="/agendar-consulta/financeiro"
                       onClick={() => setIsOpen(false)}
@@ -177,7 +181,7 @@ export function HealthHeader() {
                   {/* Link: Ver Perfil ou Voltar ao Portal */}
                   <Link
                     href={
-                      isPro
+                      isOnlineProfessional
                         ? `/agendar-consulta/perfil/${sessionUser?.id || ""}`
                         : "/portal"
                     }
@@ -186,7 +190,9 @@ export function HealthHeader() {
                   >
                     <Settings className="w-4 h-4 text-[#d73cbe]" />
                     <span>
-                      {isPro ? "Ver Perfil Público" : "Acessar Portal"}
+                      {isOnlineProfessional
+                        ? "Ver Perfil Público"
+                        : "Acessar Portal"}
                     </span>
                     <ExternalLink className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100" />
                   </Link>
