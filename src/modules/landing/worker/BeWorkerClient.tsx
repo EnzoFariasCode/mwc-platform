@@ -20,6 +20,7 @@ import {
   UserRoundCheck,
   Video,
   Wallet,
+  Zap,
 } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -314,6 +315,7 @@ export default function BeWorkerClient({
               <ul className="mt-6 space-y-3 text-sm text-slate-300">
                 <li className="flex items-center gap-3"><CheckCircle2 className="h-4 w-4 text-violet-400" /> Projetos e propostas</li>
                 <li className="flex items-center gap-3"><CheckCircle2 className="h-4 w-4 text-violet-400" /> Chat e entregas centralizados</li>
+                <li className="flex items-center gap-3"><CheckCircle2 className="h-4 w-4 text-violet-400" /> Pagamento protegido antes do inicio</li>
                 <li className="flex items-center gap-3"><CheckCircle2 className="h-4 w-4 text-violet-400" /> Planos para ampliar sua atuacao</li>
               </ul>
               <Link
@@ -351,6 +353,73 @@ export default function BeWorkerClient({
                 {onlineCta.text} <ArrowRight className="h-4 w-4" />
               </Link>
             </article>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="pagamento-protegido"
+        className="border-b border-white/5 bg-[#07101f] py-16 lg:py-20"
+      >
+        <div className="worker-reveal-group mx-auto grid max-w-6xl items-center gap-10 px-5 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
+          <div className="worker-reveal opacity-0">
+            <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-emerald-400">
+              <ShieldCheck className="h-4 w-4" /> Pagamento protegido no Tech
+            </span>
+            <h2 className="mt-4 max-w-3xl font-futura text-2xl font-bold uppercase leading-tight text-white sm:text-3xl md:text-4xl">
+              Comece o projeto sabendo que o pagamento ja foi realizado
+            </h2>
+            <p className="mt-5 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">
+              Depois que sua proposta e aceita, o cliente paga pela plataforma
+              antes de o projeto entrar em execucao. O valor fica retido e
+              mediado pela MWC ate a aprovacao da entrega, conforme as regras
+              de cancelamento, disputa e chargeback.
+            </p>
+            <p className="mt-4 max-w-2xl border-l-2 border-emerald-400/60 pl-4 text-sm font-medium leading-relaxed text-emerald-100/90 sm:text-base">
+              Mais seguranca para trabalhar e menos risco de concluir um
+              projeto sem pagamento registrado.
+            </p>
+          </div>
+
+          <div className="worker-reveal space-y-3 opacity-0">
+            <div className="flex gap-4 rounded-lg border border-emerald-400/20 bg-emerald-400/[0.045] p-5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-emerald-400/10 text-emerald-400">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white">
+                  Valor registrado antes do trabalho
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                  O projeto so avanca para execucao depois da confirmacao do
+                  pagamento do cliente.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-violet-400/25 bg-violet-400/[0.055] p-5">
+              <div className="flex gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-violet-400/10 text-violet-300">
+                  <Zap className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">
+                    Ganhe mais visibilidade com os planos pagos
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                    Starter aparece antes do Gratuito. Advanced recebe
+                    prioridade maxima na busca de profissionais e nas
+                    propostas enviadas.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="#planos"
+                className="mt-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-violet-300 transition-colors hover:text-white"
+              >
+                Comparar planos <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
