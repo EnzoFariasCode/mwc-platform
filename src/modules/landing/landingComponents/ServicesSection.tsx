@@ -13,7 +13,7 @@ import encanador from "@/assets/images/landingPage/encanador.jpg";
 import diarista from "@/assets/images/landingPage/diarista.jpg";
 import pedreiro from "@/assets/images/landingPage/pedreiro.webp";
 import desenvolvedor from "@/assets/images/landingPage/sitecreator.webp";
-import videomaker from "@/assets/images/landingPage/videomaker.webp";
+import promotor from "@/assets/images/landingPage/promotor.jpg";
 
 // Registramos o Plugin
 gsap.registerPlugin(ScrollTrigger);
@@ -24,7 +24,7 @@ export const services = [
   { title: "Diarista", imgSrc: diarista },
   { title: "Pedreiro", imgSrc: pedreiro },
   { title: "Desenvolvedor Web", imgSrc: desenvolvedor },
-  { title: "Videomaker", imgSrc: videomaker },
+  { title: "Promotor", imgSrc: promotor },
 ];
 
 function ServicesSection() {
