@@ -10,7 +10,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 // Imports das imagens
 import eletricista from "@/assets/images/landingPage/eletricista.jpg";
 import encanador from "@/assets/images/landingPage/encanador.jpg";
-import designer from "@/assets/images/landingPage/logocreator.webp";
+import diarista from "@/assets/images/landingPage/diarista.jpg";
 import pedreiro from "@/assets/images/landingPage/pedreiro.webp";
 import desenvolvedor from "@/assets/images/landingPage/sitecreator.webp";
 import videomaker from "@/assets/images/landingPage/videomaker.webp";
@@ -21,7 +21,7 @@ gsap.registerPlugin(ScrollTrigger);
 export const services = [
   { title: "Eletricista", imgSrc: eletricista },
   { title: "Encanador", imgSrc: encanador },
-  { title: "Designer Gráfico", imgSrc: designer },
+  { title: "Diarista", imgSrc: diarista },
   { title: "Pedreiro", imgSrc: pedreiro },
   { title: "Desenvolvedor Web", imgSrc: desenvolvedor },
   { title: "Videomaker", imgSrc: videomaker },
@@ -69,7 +69,6 @@ function ServicesSection() {
           },
         );
       });
-
     },
     { scope: containerRef },
   );
