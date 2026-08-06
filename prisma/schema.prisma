@@ -463,23 +463,27 @@ model Deliverable {
 }
 
 model ProjectCheckoutHold {
-  id                    String                    @id @default(cuid())
-  projectId             String
-  proposalId            String
-  buyerId               String
-  stripeSessionId       String?                   @unique
-  stripePaymentIntentId String?
-  checkoutUrl           String?                   @db.Text
-  amount                Decimal
-  currency              String                    @default("brl")
-  status                ProjectCheckoutHoldStatus @default(PENDING)
-  expiresAt             DateTime
-  completedAt           DateTime?
-  canceledAt            DateTime?
-  failedAt              DateTime?
-  failureReason         String?                   @db.Text
-  createdAt             DateTime                  @default(now())
-  updatedAt             DateTime                  @updatedAt
+  id                     String                    @id @default(cuid())
+  projectId              String
+  proposalId             String
+  buyerId                String
+  stripeSessionId        String?                   @unique
+  stripePaymentIntentId  String?
+  checkoutUrl            String?                   @db.Text
+  amount                 Decimal
+  currency               String                    @default("brl")
+  status                 ProjectCheckoutHoldStatus @default(PENDING)
+  expiresAt              DateTime
+  completedAt            DateTime?
+  canceledAt             DateTime?
+  failedAt               DateTime?
+  failureReason          String?                   @db.Text
+  termsVersion           String?
+  termsAcceptedAt        DateTime?
+  termsAcceptedIp        String?
+  termsAcceptedUserAgent String?                   @db.Text
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
 
   @@index([projectId])
   @@index([proposalId])

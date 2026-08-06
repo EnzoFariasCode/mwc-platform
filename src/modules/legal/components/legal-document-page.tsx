@@ -13,12 +13,17 @@ interface LegalDocumentPageProps {
   description: string;
   version: string;
   sections: LegalSection[];
-  activeDocument: "general" | "tech" | "online" | "privacy";
+  activeDocument: "general" | "tech" | "tech-contract" | "online" | "privacy";
 }
 
 const documents = [
   { id: "general", label: "Termos Gerais", href: "/termos" },
   { id: "tech", label: "Termos Tech", href: "/termos/tech" },
+  {
+    id: "tech-contract",
+    label: "Contratacao Tech",
+    href: "/termos/tech/contratacao",
+  },
   { id: "online", label: "Termos Online", href: "/termos/online" },
   { id: "privacy", label: "Privacidade", href: "/privacidade" },
 ] as const;

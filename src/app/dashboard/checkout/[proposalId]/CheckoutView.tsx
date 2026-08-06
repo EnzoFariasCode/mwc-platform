@@ -21,6 +21,7 @@ import { createProjectCheckout } from "@/modules/stripe/actions/create-project-c
 import { cancelProjectPayment } from "@/modules/stripe/actions/cancel-project-payment";
 import { useSearchParams, useRouter } from "next/navigation";
 import type { CustomerPaymentMethodInfo } from "@/modules/stripe/lib/payment-methods";
+import { TECH_CONTRACT_TERMS } from "@/modules/legal/terms-versions";
 
 interface CheckoutViewProps {
   proposalId: string;
@@ -43,6 +44,7 @@ export default function CheckoutView({
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const canceled = searchParams.get("canceled") === "true";
   const platformFee = price * 0.1;
@@ -55,6 +57,11 @@ export default function CheckoutView({
   ];
 
   const handlePayment = async () => {
+    if (!termsAccepted) {
+      toast.error("Aceite os Termos de Contratacao Tech para continuar.");
+      return;
+    }
+
     setIsLoading(true);
     setIsRedirecting(true);
 
@@ -66,7 +73,7 @@ export default function CheckoutView({
 
     // 2. Após os 5 segundos, gera o link e redireciona
     try {
-      const result = await createProjectCheckout(proposalId);
+      const result = await createProjectCheckout(proposalId, termsAccepted);
 
       if (!result.success) {
         toast.error(result.error);
@@ -288,6 +295,29 @@ export default function CheckoutView({
                 </p>
               </div>
 
+              <label className="mb-5 flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-4 text-xs leading-relaxed text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(event) => setTermsAccepted(event.target.checked)}
+                  disabled={isLoading || isCanceling}
+                  className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-[#d73cbe] disabled:cursor-not-allowed"
+                />
+                <span>
+                  Li e aceito os{" "}
+                  <Link
+                    href={TECH_CONTRACT_TERMS.href}
+                    target="_blank"
+                    className="font-medium text-white underline"
+                  >
+                    {TECH_CONTRACT_TERMS.label}
+                  </Link>{" "}
+                  ({TECH_CONTRACT_TERMS.version}), incluindo as condicoes de
+                  pagamento, entrega, aprovacao, cancelamento, disputa,
+                  reembolso e liberacao do valor ao profissional.
+                </span>
+              </label>
+
               {isRedirecting ? (
                 <div className="w-full py-4 bg-slate-800 border border-slate-700 rounded-xl flex flex-col items-center justify-center gap-2 text-white animate-in zoom-in-95">
                   <Loader2 className="w-6 h-6 animate-spin text-[#d73cbe]" />
@@ -303,7 +333,10 @@ export default function CheckoutView({
                   <button
                     onClick={handlePayment}
                   disabled={
-                    isLoading || isCanceling || paymentMethods.length === 0
+                    isLoading ||
+                    isCanceling ||
+                    !termsAccepted ||
+                    paymentMethods.length === 0
                   }
                     className="w-full py-4 bg-green-500 hover:bg-green-400 text-black font-bold rounded-xl shadow-lg shadow-green-900/20 transition-all hover:-translate-y-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
                   >
@@ -338,7 +371,7 @@ export default function CheckoutView({
 
               <div className="mt-4 text-center">
                 <p className="text-[10px] text-slate-500">
-                  Ao confirmar, você concorda com os{" "}
+                  A contratacao tambem esta sujeita aos{" "}
                   <Link
                     href="/termos"
                     target="_blank"

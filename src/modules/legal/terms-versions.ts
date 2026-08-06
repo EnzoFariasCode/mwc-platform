@@ -1,5 +1,11 @@
 export const GENERAL_TERMS_VERSION = "general-v1.0";
 
+export const TECH_CONTRACT_TERMS = {
+  version: "tech-contract-v1.0",
+  label: "Termos de Contratacao de Projetos Tech",
+  href: "/termos/tech/contratacao",
+} as const;
+
 export const PROFESSIONAL_TERMS = {
   TECH: {
     version: "tech-professional-v1.0",

@@ -9,6 +9,8 @@ import { ProjectCheckoutHoldStatus } from "@prisma/client";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { getTechProjectLimitStatus } from "@/modules/subscriptions/tech-plan-limits";
 import { ONE_TIME_PAYMENT_METHODS } from "@/modules/stripe/lib/payment-methods";
+import { TECH_CONTRACT_TERMS } from "@/modules/legal/terms-versions";
+import { headers } from "next/headers";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
@@ -19,6 +21,7 @@ const CHECKOUT_WINDOW_MS = 10 * 60 * 1000;
 
 export async function createProjectCheckout(
   proposalId: string,
+  termsAccepted: boolean,
 ): Promise<ActionResponse<{ url: string }>> {
   const session = await getUserSession();
 
@@ -32,6 +35,21 @@ export async function createProjectCheckout(
       error: "Contas administrativas nao podem contratar projetos.",
     };
   }
+
+  if (termsAccepted !== true) {
+    return {
+      success: false,
+      error: "Aceite os Termos de Contratacao de Projetos Tech para continuar.",
+    };
+  }
+
+  const requestHeaders = await headers();
+  const acceptedIp =
+    requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    requestHeaders.get("x-real-ip") ||
+    undefined;
+  const acceptedUserAgent = requestHeaders.get("user-agent") || undefined;
+  const acceptedAt = new Date();
 
   const userLimitError = await consumeRateLimit({
     key: `finance:checkout:user:${session.id}`,
@@ -129,10 +147,19 @@ export async function createProjectCheckout(
       checkoutUrl: { not: null },
     },
     orderBy: { createdAt: "desc" },
-    select: { checkoutUrl: true },
+    select: { id: true, checkoutUrl: true },
   });
 
   if (activeHold?.checkoutUrl) {
+    await db.projectCheckoutHold.update({
+      where: { id: activeHold.id },
+      data: {
+        termsVersion: TECH_CONTRACT_TERMS.version,
+        termsAcceptedAt: acceptedAt,
+        termsAcceptedIp: acceptedIp,
+        termsAcceptedUserAgent: acceptedUserAgent,
+      },
+    });
     return { success: true, data: { url: activeHold.checkoutUrl } };
   }
 
@@ -158,6 +185,10 @@ export async function createProjectCheckout(
         amount: proposal.price,
         currency: "brl",
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        termsVersion: TECH_CONTRACT_TERMS.version,
+        termsAcceptedAt: acceptedAt,
+        termsAcceptedIp: acceptedIp,
+        termsAcceptedUserAgent: acceptedUserAgent,
       },
       select: { id: true },
     });
@@ -185,6 +216,7 @@ export async function createProjectCheckout(
           holdId: hold.id,
           proposalId: proposal.id,
           buyerId: session.id,
+          termsVersion: TECH_CONTRACT_TERMS.version,
           type: "project_payment",
         },
       },
@@ -192,6 +224,7 @@ export async function createProjectCheckout(
         holdId: hold.id,
         proposalId: proposal.id,
         buyerId: session.id,
+        termsVersion: TECH_CONTRACT_TERMS.version,
         type: "project_payment",
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/meus-projetos?success=true&session_id={CHECKOUT_SESSION_ID}`,
