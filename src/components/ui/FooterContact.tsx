@@ -140,6 +140,14 @@ function FooterContact() {
               </li>
               <li>
                 <Link
+                  href="/termos"
+                  className="text-slate-300 hover:text-[#d73cbe] transition-colors"
+                >
+                  Termos Gerais de Uso
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/#formas-pagamento"
                   className="text-slate-300 hover:text-[#d73cbe] transition-colors"
                 >
