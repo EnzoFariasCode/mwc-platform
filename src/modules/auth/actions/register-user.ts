@@ -10,6 +10,7 @@ import { validatePassword } from "@/modules/auth/lib/password";
 import { sendWelcomeEmail } from "@/modules/auth/services/welcome-email-service";
 import {
   GENERAL_TERMS_VERSION,
+  PRIVACY_POLICY_VERSION,
   getProfessionalTerms,
   type ProfessionalTermsIndustry,
 } from "@/modules/legal/terms-versions";
@@ -25,6 +26,7 @@ export async function registerUser(
   const birthDateRaw = formData.get("birthDate")?.toString();
   const isPro = formData.get("isPro") === "on";
   const acceptedGeneralTerms = formData.get("generalTermsAccepted") === "on";
+  const acknowledgedPrivacy = formData.get("privacyPolicyAccepted") === "on";
   const acceptedProfessionalTerms =
     formData.get("professionalTermsAccepted") === "on";
 
@@ -45,7 +47,14 @@ export async function registerUser(
   if (!acceptedGeneralTerms) {
     return {
       success: false,
-      error: "Aceite os Termos Gerais e a Politica de Privacidade.",
+      error: "Aceite os Termos Gerais para criar a conta.",
+    };
+  }
+
+  if (!acknowledgedPrivacy) {
+    return {
+      success: false,
+      error: "Confirme a leitura da Politica de Privacidade para criar a conta.",
     };
   }
 
@@ -90,7 +99,20 @@ export async function registerUser(
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const birthDate = birthDateRaw ? new Date(birthDateRaw) : null;
+    const birthDate = birthDateRaw ? new Date(`${birthDateRaw}T12:00:00`) : null;
+    if (!birthDate || Number.isNaN(birthDate.getTime())) {
+      return { success: false, error: "Informe uma data de nascimento valida." };
+    }
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const birthdayPassed =
+      today.getMonth() > birthDate.getMonth() ||
+      (today.getMonth() === birthDate.getMonth() &&
+        today.getDate() >= birthDate.getDate());
+    if (!birthdayPassed) age -= 1;
+    if (age < 18) {
+      return { success: false, error: "A plataforma e exclusiva para maiores de 18 anos." };
+    }
     const yearsOfExperience = experienceRaw ? parseInt(experienceRaw) : null;
 
     const acceptedIndustry = isPro
@@ -129,6 +151,7 @@ export async function registerUser(
           ipAddress,
           userAgent,
           generalTermsVersion: GENERAL_TERMS_VERSION,
+          privacyPolicyVersion: PRIVACY_POLICY_VERSION,
           industry: acceptedIndustry,
           sectorTermsVersion: sectorTerms?.version,
         },

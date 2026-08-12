@@ -6,6 +6,7 @@ import { NotificationDropdown } from "./NotificationDropdown";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getUserProfile } from "@/modules/users/actions/get-user-profile";
+import { hasFunctionalConsent } from "@/modules/cookies/cookie-consent";
 
 export default function DashboardHeader() {
   const { toggleMobileMenu, viewMode, setViewMode } = useDashboard();
@@ -64,13 +65,13 @@ export default function DashboardHeader() {
     // Lógica: Só vira PRO se for rota exclusiva E NÃO for visualização de perfil
     if (isExclusivePro && !isProfileView) {
       setViewMode("PROFESSIONAL");
-      localStorage.setItem("dashboardViewMode", "PROFESSIONAL");
+      if (hasFunctionalConsent()) localStorage.setItem("dashboardViewMode", "PROFESSIONAL");
     } else if (isExclusiveClient) {
       setViewMode("CLIENT");
-      localStorage.setItem("dashboardViewMode", "CLIENT");
+      if (hasFunctionalConsent()) localStorage.setItem("dashboardViewMode", "CLIENT");
     } else {
       // Rotas compartilhadas (Chat, Configurações, Perfil de Outro) -> Mantém o modo atual
-      const storedMode = localStorage.getItem("dashboardViewMode") as
+      const storedMode = (hasFunctionalConsent() ? localStorage.getItem("dashboardViewMode") : null) as
         | "CLIENT"
         | "PROFESSIONAL";
       if (storedMode) {
@@ -83,12 +84,12 @@ export default function DashboardHeader() {
 
   const handleSwitch = (targetType: "client" | "professional") => {
     if (targetType === "client") {
-      localStorage.setItem("dashboardViewMode", "CLIENT");
+      if (hasFunctionalConsent()) localStorage.setItem("dashboardViewMode", "CLIENT");
       setViewMode("CLIENT");
       router.push("/dashboard/cliente");
     } else {
       if (userRole === "PROFESSIONAL" || userRole === "ADMIN") {
-        localStorage.setItem("dashboardViewMode", "PROFESSIONAL");
+        if (hasFunctionalConsent()) localStorage.setItem("dashboardViewMode", "PROFESSIONAL");
         setViewMode("PROFESSIONAL");
         router.push("/dashboard/profissional");
       }

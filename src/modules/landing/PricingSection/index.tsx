@@ -14,6 +14,7 @@ import { createCheckoutSession } from "@/modules/stripe/actions/create-checkout-
 import { createPortalSession } from "@/modules/stripe/actions/create-portal-session";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type {
   TechPaidPlanId,
   TechPlanDisplayPrices,
@@ -85,6 +86,7 @@ export function PricingSection({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
   const [showIndustryModal, setShowIndustryModal] = useState(false);
+  const [subscriptionTermsAccepted, setSubscriptionTermsAccepted] = useState(false);
   const router = useRouter();
   const techCta = resolveBeWorkerCta(
     { isLoggedIn, userType, industry },
@@ -138,6 +140,7 @@ export function PricingSection({
     try {
       const result = await createCheckoutSession(
         planId as "starter" | "advanced",
+        subscriptionTermsAccepted,
       );
 
       if (!result.success) {
@@ -354,6 +357,12 @@ export function PricingSection({
               </button>
             </div>
           </div>
+          {isLoggedIn && userType === "PROFESSIONAL" && industry === "TECH" && userStatus !== "active" && (
+            <label className="mx-auto mt-8 flex max-w-3xl cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-4 text-left text-xs leading-relaxed text-slate-300">
+              <input type="checkbox" checked={subscriptionTermsAccepted} onChange={(event) => setSubscriptionTermsAccepted(event.target.checked)} className="mt-0.5 h-5 w-5 accent-[#d73cbe]" />
+              <span>Li e aceito as regras dos <Link href="/termos/tech" target="_blank" className="font-medium text-white underline">Termos Tech</Link> sobre preco, cobranca recorrente, renovacao automatica, alteracao de preco e cancelamento da assinatura.</span>
+            </label>
+          )}
         </div>
       )}
     </>

@@ -3,6 +3,7 @@ import { Poppins, Orbitron } from "next/font/google";
 import { Toaster } from "sonner"; // <--- 1. IMPORTANTE: Importar aqui
 import "./globals.css";
 import { AuthProvider } from "@/providers/AuthProvider";
+import { CookieConsentBanner } from "@/modules/cookies/components/cookie-consent-banner";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -37,6 +38,7 @@ export default function RootLayout({
         className={`${poppins.className} ${orbitron.variable} antialiased bg-slate-950 text-slate-50`}
       >
         <AuthProvider>{children}</AuthProvider>
+        <CookieConsentBanner />
 
         {/* 2. ADICIONE ISSO AQUI (Fora do children, mas dentro do body) */}
         <Toaster richColors theme="dark" position="top-center" closeButton />

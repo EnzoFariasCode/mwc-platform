@@ -281,6 +281,7 @@ model User {
   professionalTermsAcceptances ProfessionalTermsAcceptance[]
   termsAcceptances             TermsAcceptance[]
   whatsappConsentEvents        WhatsappConsentEvent[]
+  cookieConsentEvents          CookieConsentEvent[]
   withdrawalRequests           WithdrawalRequest[]
   clientRecordsAsPro           ClientRecord[]                @relation("ProfessionalRecords")
   clientRecordsAsPat           ClientRecord[]                @relation("PatientRecords")
@@ -1132,14 +1133,15 @@ model ProfessionalTermsAcceptance {
 }
 
 model TermsAcceptance {
-  id                  String    @id @default(cuid())
-  userId              String
-  acceptedAt          DateTime  @default(now())
-  ipAddress           String
-  userAgent           String?
-  generalTermsVersion String
-  industry            Industry?
-  sectorTermsVersion  String?
+  id                   String    @id @default(cuid())
+  userId               String
+  acceptedAt           DateTime  @default(now())
+  ipAddress            String
+  userAgent            String?
+  generalTermsVersion  String
+  privacyPolicyVersion String
+  industry             Industry?
+  sectorTermsVersion   String?
 
   user User @relation(fields: [userId], references: [id])
 
@@ -1159,6 +1161,26 @@ model WhatsappConsentEvent {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, createdAt])
+}
+
+model CookieConsentEvent {
+  id            String   @id @default(cuid())
+  consentId     String
+  userId        String?
+  policyVersion String
+  necessary     Boolean  @default(true)
+  functionality Boolean
+  analytics     Boolean
+  marketing     Boolean
+  action        String
+  ipAddress     String
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([consentId, createdAt])
   @@index([userId, createdAt])
 }
 

@@ -19,6 +19,7 @@ import { becomeProfessional } from "@/modules/users/actions/become-professional"
 import { BecomeProfessionalModal } from "@/modules/users/components/BecomeProfessionalModal";
 import { CompleteProfileModal } from "@/modules/users/components/CompleteProfileModal";
 import { toast } from "sonner";
+import { hasFunctionalConsent } from "@/modules/cookies/cookie-consent";
 
 interface ClientDashboardViewProps {
   stats: {
@@ -51,6 +52,7 @@ export default function ClientDashboardView({
 
   // Effect to handle Profile Modal opening logic
   useEffect(() => {
+    if (!hasFunctionalConsent()) return;
     const hasSeenModal = localStorage.getItem("profile_modal_seen");
 
     if (isProfileIncomplete && !hasSeenModal) {
@@ -61,7 +63,7 @@ export default function ClientDashboardView({
 
   const handleCloseProfileModal = () => {
     setIsProfileModalOpen(false);
-    localStorage.setItem("profile_modal_seen", "true");
+    if (hasFunctionalConsent()) localStorage.setItem("profile_modal_seen", "true");
   };
 
   const handleConfirmUpgrade = (data: {

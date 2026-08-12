@@ -19,7 +19,7 @@ const paymentTerms = [
   {
     title: "Liberacao do Valor",
     content:
-      "O valor sera liberado ao profissional apos a confirmacao de conclusao do atendimento, seja pelo profissional ou automaticamente pelo sistema apos 24 horas do horario agendado, desde que nao exista disputa ou revisao financeira pendente.",
+      "O valor sera liberado ao profissional apos a confirmacao de conclusao do atendimento, seja pelo profissional ou automaticamente pelo sistema 24 horas depois do horario final agendado, desde que nao exista disputa ou revisao financeira pendente.",
   },
   {
     title: "Seguranca de Pagamento",
@@ -29,7 +29,7 @@ const paymentTerms = [
   {
     title: "Cancelamento e Reembolso pelo Cliente",
     content:
-      "Cancelamento com mais de 24h de antecedencia: reembolso integral processado em ate 5 a 10 dias uteis no metodo de pagamento original. Cancelamento com menos de 24h de antecedencia: sem direito a reembolso. O valor sera repassado ao profissional como compensacao pela reserva do horario.",
+      "Cancelamento com mais de 24h de antecedencia: reembolso integral solicitado no metodo de pagamento original, com prazo usual de 5 a 10 dias uteis para o credito. Cancelamento com menos de 24h de antecedencia: o fluxo normal nao gera reembolso e o valor e repassado ao profissional pela reserva do horario, ressalvados os direitos obrigatorios do consumidor e a analise de circunstancias comprovadas.",
   },
   {
     title: "Nao Comparecimento do Cliente",

@@ -13,6 +13,7 @@ import {
   getBookableHealthProfessionalWhere,
   getHealthProfessionalBookingReadinessError,
 } from "@/modules/health/lib/health-professional-eligibility";
+import { ONLINE_PAYMENT_TERMS_VERSION } from "@/modules/legal/terms-versions";
 
 // [NOVO] ConfiguraÃ§Ãµes de negÃ³cio
 const HOLD_EXPIRATION_MINUTES = 15;
@@ -253,6 +254,10 @@ export async function createCheckoutSession(
       });
     }
 
+    if (paymentTermsInfo?.acceptedPaymentTerms !== true) {
+      throw new Error("Aceite os termos de pagamento do MWC Online para continuar.");
+    }
+
     // [TASK 1] Save payment terms acceptance before Stripe session
     let termsAcceptanceId: string | null = null;
     if (paymentTermsInfo?.acceptedPaymentTerms) {
@@ -261,7 +266,7 @@ export async function createCheckoutSession(
           userId: session.user.id,
           ipAddress,
           userAgent,
-          termsVersion: "v1.0",
+          termsVersion: ONLINE_PAYMENT_TERMS_VERSION,
         },
       });
       termsAcceptanceId = acceptance.id;

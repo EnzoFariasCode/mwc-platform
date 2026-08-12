@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Instagram, Linkedin, Mail, Phone, X } from "lucide-react";
+import { Instagram, Linkedin, Mail, X } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import gsap from "gsap";
@@ -9,6 +9,8 @@ import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import logoImg from "@/assets/images/landingPage/logo.png";
+import whatsappIcon from "@/assets/images/icons/whatsapp.png";
+import { COOKIE_CONSENT_EVENT } from "@/modules/cookies/cookie-consent";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -130,12 +132,10 @@ function FooterContact() {
               </li>
               <li>
                 <Link
-                  href="https://sites.google.com/view/mwc-politicasdosite/in%C3%ADcio"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="/privacidade"
                   className="text-slate-300 hover:text-[#d73cbe] transition-colors"
                 >
-                  Políticas do site
+                  Política de Privacidade
                 </Link>
               </li>
               <li>
@@ -145,6 +145,16 @@ function FooterContact() {
                 >
                   Termos Gerais de Uso
                 </Link>
+              </li>
+              <li>
+                <Link href="/cookies" className="text-slate-300 hover:text-[#d73cbe] transition-colors">
+                  Política de Cookies
+                </Link>
+              </li>
+              <li>
+                <button type="button" onClick={() => window.dispatchEvent(new Event(COOKIE_CONSENT_EVENT))} className="cursor-pointer text-left text-slate-300 hover:text-[#d73cbe] transition-colors">
+                  Gerenciar cookies
+                </button>
               </li>
               <li>
                 <Link
@@ -219,10 +229,19 @@ function FooterContact() {
               <Mail className="w-4 h-4" /> suporte@maximusworldclick.com
             </a>
             <a
-              href="tel:+551199999999"
+              href="https://wa.me/5511962129582"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center gap-2 hover:text-white transition-colors"
+              aria-label="Falar com a MWC pelo WhatsApp"
             >
-              <Phone className="w-4 h-4" /> +55 (11) 9999-9999
+              <Image
+                src={whatsappIcon}
+                alt=""
+                aria-hidden="true"
+                className="h-5 w-5 object-contain"
+              />
+              +55 (11) 96212-9582
             </a>
           </address>
 

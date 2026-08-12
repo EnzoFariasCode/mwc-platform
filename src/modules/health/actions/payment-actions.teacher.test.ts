@@ -42,7 +42,7 @@ const mocks = vi.hoisted(() => {
     },
     appointmentHold: { update: vi.fn() },
     paymentTermsAcceptance: {
-      create: vi.fn(),
+      create: vi.fn(async () => ({ id: "acceptance-1" })),
       update: vi.fn(),
       deleteMany: vi.fn(),
     },
@@ -130,6 +130,7 @@ describe("checkout de Professor", () => {
       "teacher-1",
       futureDate(),
       "09:00",
+      { acceptedPaymentTerms: true },
     );
 
     expect(result).toEqual({ url: "https://checkout.example/teacher" });

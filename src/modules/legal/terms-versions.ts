@@ -1,4 +1,8 @@
 export const GENERAL_TERMS_VERSION = "general-v1.0";
+export const PRIVACY_POLICY_VERSION = "privacy-v1.1";
+export const ONLINE_PAYMENT_TERMS_VERSION = "online-payment-v1.1";
+export const TECH_SUBSCRIPTION_TERMS_VERSION = "tech-subscription-v1.0";
+export const COOKIE_POLICY_VERSION = "cookies-v1.0";
 
 export const TECH_CONTRACT_TERMS = {
   version: "tech-contract-v1.1",
@@ -13,7 +17,7 @@ export const PROFESSIONAL_TERMS = {
     href: "/termos/tech",
   },
   HEALTH: {
-    version: "online-professional-v1.0",
+    version: "online-professional-v1.1",
     label: "Termos profissionais do MWC Online",
     href: "/termos/online",
   },

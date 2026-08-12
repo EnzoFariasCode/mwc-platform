@@ -9,6 +9,8 @@ import {
 } from "@/modules/subscriptions/tech-plan";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { SUBSCRIPTION_PAYMENT_METHODS } from "@/modules/stripe/lib/payment-methods";
+import { TECH_SUBSCRIPTION_TERMS_VERSION } from "@/modules/legal/terms-versions";
+import { headers } from "next/headers";
 
 type PaidPlanId = "starter" | "advanced";
 
@@ -35,6 +37,7 @@ async function findActiveCustomerSubscription(customerId: string) {
 
 export async function createCheckoutSession(
   planId: PaidPlanId,
+  termsAccepted: boolean,
 ): Promise<ActionResponse<{ url: string }>> {
   const session = await getUserSession();
 
@@ -47,6 +50,10 @@ export async function createCheckoutSession(
       success: false,
       error: "Acao restrita a profissionais de Tecnologia.",
     };
+  }
+
+  if (termsAccepted !== true) {
+    return { success: false, error: "Aceite as regras de preco, renovacao e cancelamento da assinatura." };
   }
 
   const user = await db.user.findUnique({
@@ -131,12 +138,14 @@ export async function createCheckoutSession(
       ],
       metadata: {
         userId: user.id,
+        termsVersion: TECH_SUBSCRIPTION_TERMS_VERSION,
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/profissional?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/beWorker`,
       subscription_data: {
         metadata: {
           userId: user.id,
+          termsVersion: TECH_SUBSCRIPTION_TERMS_VERSION,
         },
       },
     });
@@ -144,6 +153,18 @@ export async function createCheckoutSession(
     if (!checkoutSession.url) {
       throw new Error("Erro ao gerar URL do Stripe.");
     }
+
+    const requestHeaders = await headers();
+    const ipAddress = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || requestHeaders.get("x-real-ip") || "unknown";
+    await db.paymentTermsAcceptance.create({
+      data: {
+        userId: user.id,
+        stripeSessionId: checkoutSession.id,
+        ipAddress,
+        userAgent: requestHeaders.get("user-agent") || undefined,
+        termsVersion: TECH_SUBSCRIPTION_TERMS_VERSION,
+      },
+    });
 
     return { success: true, data: { url: checkoutSession.url } };
   } catch (error) {

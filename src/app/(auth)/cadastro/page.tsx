@@ -20,8 +20,10 @@ import { useState, Suspense } from "react";
 import { registerUser } from "@/modules/auth/actions/register-user";
 import { toast } from "sonner";
 import { signIn } from "next-auth/react";
+import { prepareGoogleRegistration } from "@/modules/auth/actions/prepare-google-registration";
 import {
   GENERAL_TERMS_VERSION,
+  PRIVACY_POLICY_VERSION,
   PROFESSIONAL_TERMS,
 } from "@/modules/legal/terms-versions";
 
@@ -63,12 +65,14 @@ function RegisterContent() {
     "" | "TECH" | "HEALTH"
   >(startsAsProfessional ? initialProfessionalSector : "");
   const [generalTermsAccepted, setGeneralTermsAccepted] = useState(false);
+  const [privacyPolicyAccepted, setPrivacyPolicyAccepted] = useState(false);
   const [professionalTermsAccepted, setProfessionalTermsAccepted] =
     useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordFocus, setPasswordFocus] = useState(false);
+  const [birthDate, setBirthDate] = useState("");
 
   const reqs = {
     length: password.length >= 8 && password.length <= 20,
@@ -202,6 +206,8 @@ function RegisterContent() {
               name="birthDate"
               type="date"
               required
+              value={birthDate}
+              onChange={(event) => setBirthDate(event.target.value)}
               style={{ colorScheme: "dark" }}
               className="w-full bg-input border border-border text-foreground rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground [&::-webkit-calendar-picker-indicator]:opacity-0 md:[&::-webkit-calendar-picker-indicator]:opacity-100"
             />
@@ -454,20 +460,38 @@ function RegisterContent() {
               Termos Gerais de Uso
             </Link>{" "}
             da plataforma ({GENERAL_TERMS_VERSION}), aplicaveis a conta,
-            seguranca, comunicacao e uso dos recursos, e com a{" "}
+            seguranca, comunicacao e uso dos recursos.
+          </label>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <div className="relative flex items-center">
+            <input
+              type="checkbox"
+              id="privacyPolicy"
+              name="privacyPolicyAccepted"
+              checked={privacyPolicyAccepted}
+              onChange={(event) => setPrivacyPolicyAccepted(event.target.checked)}
+              required
+              className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-border bg-input checked:border-primary checked:bg-primary transition-all"
+            />
+            <Check className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 text-primary-foreground opacity-0 peer-checked:opacity-100" />
+          </div>
+          <label htmlFor="privacyPolicy" className="text-xs text-muted-foreground cursor-pointer select-none leading-relaxed">
+            Confirmo que li a{" "}
             <Link
               href="/privacidade"
               className="text-foreground hover:underline"
             >
               Politica de Privacidade
-            </Link>
-            .
+            </Link>{" "}
+            ({PRIVACY_POLICY_VERSION}) e estou ciente de como meus dados serao tratados.
           </label>
         </div>
 
         <button
           type="submit"
-          disabled={isLoading || !isPasswordValid}
+          disabled={isLoading || !isPasswordValid || !generalTermsAccepted || !privacyPolicyAccepted || (isPro && !professionalTermsAccepted)}
           className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isLoading ? (
@@ -498,8 +522,18 @@ function RegisterContent() {
         <button
           type="button"
           disabled={isLoading || isSocialLoading}
-          onClick={() => {
+          onClick={async () => {
+            if (isPro) {
+              toast.error("Conclua o cadastro profissional com e-mail e senha para registrar os termos do setor.");
+              return;
+            }
             setIsSocialLoading(true);
+            const prepared = await prepareGoogleRegistration({ birthDate, generalTermsAccepted, privacyPolicyAccepted });
+            if (!prepared.success) {
+              toast.error(prepared.error);
+              setIsSocialLoading(false);
+              return;
+            }
             signIn("google", { callbackUrl });
           }}
           className="flex w-full cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all disabled:opacity-70 disabled:cursor-wait"

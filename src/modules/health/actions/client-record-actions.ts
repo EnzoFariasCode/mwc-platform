@@ -142,6 +142,22 @@ export async function getOrCreateClientRecord(
       };
     }
 
+    const appointment = await db.appointment.findFirst({
+      where: {
+        professionalId,
+        patientId,
+        status: { not: "PENDING_PAYMENT" },
+      },
+      select: { id: true },
+    });
+
+    if (!appointment) {
+      return {
+        success: false,
+        error: "Prontuario disponivel apenas para clientes com atendimento vinculado.",
+      };
+    }
+
     const specialty: HealthSpecialty = professional.onlineSpecialty;
 
     const record = await db.clientRecord.upsert({

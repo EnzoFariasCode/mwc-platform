@@ -23,6 +23,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import Logo from "@/assets/images/landingPage/logo.png";
 import { useDashboard } from "@/context/DashboardContext";
+import { hasFunctionalConsent } from "@/modules/cookies/cookie-consent";
 
 import { getUserProfile } from "@/modules/users/actions/get-user-profile";
 import { logoutUser } from "@/modules/auth/actions/logout-user";
@@ -196,7 +197,7 @@ export default function DashboardSidebar() {
       setViewMode("CLIENT");
     } else {
       // Rotas compartilhadas: lemos do storage
-      const storedMode = localStorage.getItem("dashboardViewMode") as
+      const storedMode = (hasFunctionalConsent() ? localStorage.getItem("dashboardViewMode") : null) as
         | "CLIENT"
         | "PROFESSIONAL";
       if (storedMode) {

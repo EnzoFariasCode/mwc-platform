@@ -17,6 +17,7 @@ import { createPortalSession } from "@/modules/stripe/actions/create-portal-sess
 import { requestTechSupport } from "@/modules/support/actions/request-tech-support";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type {
   TechPaidPlanId,
   TechPlanDisplayPrices,
@@ -89,6 +90,7 @@ export function UpgradeBanner({
   const [isSupportLoading, setIsSupportLoading] = useState(false);
   const [supportSubject, setSupportSubject] = useState("");
   const [supportMessage, setSupportMessage] = useState("");
+  const [subscriptionTermsAccepted, setSubscriptionTermsAccepted] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -103,6 +105,7 @@ export function UpgradeBanner({
     try {
       const result = await createCheckoutSession(
         planId as "starter" | "advanced",
+        subscriptionTermsAccepted,
       );
 
       if (!result.success) {
@@ -419,6 +422,11 @@ export function UpgradeBanner({
                   </div>
                 ))}
               </div>
+
+              <label className="mx-auto mt-7 flex max-w-3xl cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-4 text-left text-xs leading-relaxed text-slate-300">
+                <input type="checkbox" checked={subscriptionTermsAccepted} onChange={(event) => setSubscriptionTermsAccepted(event.target.checked)} className="mt-0.5 h-5 w-5 accent-[#d73cbe]" />
+                <span>Li e aceito as regras dos <Link href="/termos/tech" target="_blank" className="font-medium text-white underline">Termos Tech</Link> sobre preco, cobranca recorrente, renovacao automatica, alteracao de preco e cancelamento da assinatura.</span>
+              </label>
 
               <p className="text-center text-xs text-slate-500 mt-8">
                 Pagamento seguro processado pelo Stripe. Cancele a qualquer

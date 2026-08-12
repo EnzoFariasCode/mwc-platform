@@ -7,6 +7,8 @@ import { db } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getRateLimitKeys, rateLimit } from "@/lib/rate-limit";
 import { sendWelcomeEmail } from "@/modules/auth/services/welcome-email-service";
+import { cookies, headers } from "next/headers";
+import { GOOGLE_REGISTRATION_COOKIE, readGoogleRegistrationConsent } from "@/modules/auth/lib/google-registration-consent";
 
 const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
 const LOGIN_LIMIT_EMAIL = 5;
@@ -159,6 +161,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       const dbUser = await getAuthUserFields(user.id, user.email);
+
+      if (account?.provider === "google" && dbUser) {
+        const existingAcceptance = await db.termsAcceptance.findFirst({ where: { userId: dbUser.id }, select: { id: true } });
+        if (!existingAcceptance) {
+          const cookieStore = await cookies();
+          const consent = readGoogleRegistrationConsent(cookieStore.get(GOOGLE_REGISTRATION_COOKIE)?.value);
+          if (!consent) return "/cadastro?error=google_terms_required";
+          const requestHeaders = await headers();
+          const ipAddress = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || requestHeaders.get("x-real-ip") || "unknown";
+          await db.$transaction([
+            db.user.update({ where: { id: dbUser.id }, data: { birthDate: new Date(`${consent.birthDate}T12:00:00`) } }),
+            db.termsAcceptance.create({ data: { userId: dbUser.id, ipAddress, userAgent: requestHeaders.get("user-agent") || undefined, generalTermsVersion: consent.generalTermsVersion, privacyPolicyVersion: consent.privacyPolicyVersion } }),
+          ]);
+          cookieStore.delete(GOOGLE_REGISTRATION_COOKIE);
+        }
+      }
 
       if (dbUser?.isActive === false) {
         return "/login?error=account_suspended";
