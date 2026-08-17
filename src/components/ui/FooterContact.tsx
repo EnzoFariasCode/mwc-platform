@@ -96,7 +96,7 @@ function FooterContact() {
 
           <div className="flex gap-4 p-3 border border-white/10 rounded-xl bg-white/5 backdrop-blur-sm">
             <a
-              href="https://www.instagram.com/maxi.musworldclick/"
+              href="https://www.instagram.com/maximus_worldclick/"
               target="_blank"
               rel="noopener noreferrer"
               className="gsap-social-icon p-2 hover:bg-white/10 rounded-lg transition-colors group"
