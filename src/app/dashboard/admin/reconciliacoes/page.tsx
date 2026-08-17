@@ -5,6 +5,7 @@ import { db } from "@/lib/prisma";
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { ReconciliationActions } from "./ReconciliationActions";
 import { RescheduleReconciliationAction } from "./RescheduleReconciliationAction";
+import { MeetingReconciliationActions } from "./MeetingReconciliationActions";
 
 function stepLabel(status: string) {
   return status === "PENDING"
@@ -36,9 +37,38 @@ function ProcessState({ manual }: { manual: boolean }) {
 }
 
 export default async function AdminReconciliacoesPage() {
-  await requireAdminRole(["OWNER", "FINANCE", "SUPPORT"]);
+  const admin = await requireAdminRole(["OWNER", "FINANCE", "SUPPORT"]);
 
-  const [cancellations, reschedules] = await Promise.all([
+  const [meetings, cancellations, reschedules] = await Promise.all([
+    db.appointment.findMany({
+      where: { status: "MEETING_REQUIRES_ATTENTION" },
+      orderBy: { meetAttentionRequiredAt: "asc" },
+      select: {
+        id: true,
+        shortId: true,
+        date: true,
+        time: true,
+        price: true,
+        meetRetryCount: true,
+        meetLastError: true,
+        meetAttentionRequiredAt: true,
+        googleEventId: true,
+        patient: { select: { name: true } },
+        professional: { select: { name: true } },
+        meetingAttempts: {
+          orderBy: { createdAt: "desc" },
+          take: 3,
+          select: {
+            id: true,
+            operation: true,
+            outcome: true,
+            providerStatus: true,
+            errorMessage: true,
+            createdAt: true,
+          },
+        },
+      },
+    }),
     db.appointmentCancellationProcess.findMany({
       where: { status: { not: "COMPLETED" } },
       orderBy: [{ status: "asc" }, { updatedAt: "asc" }],
@@ -69,7 +99,10 @@ export default async function AdminReconciliacoesPage() {
     }),
   ]);
 
-  const hasProcesses = cancellations.length > 0 || reschedules.length > 0;
+  const hasProcesses =
+    meetings.length > 0 || cancellations.length > 0 || reschedules.length > 0;
+  const canManageMeetings =
+    admin.adminRole === "OWNER" || admin.adminRole === "SUPPORT";
 
   return (
     <PageContainer>
@@ -86,8 +119,8 @@ export default async function AdminReconciliacoesPage() {
             Reconciliacao MWC Online
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Acompanhe tentativas automaticas e trate somente cancelamentos ou
-            reagendamentos que exigem intervencao.
+            Acompanhe salas, cancelamentos e reagendamentos que exigem
+            intervencao. Falhas tecnicas na sala nao cancelam o pagamento.
           </p>
         </div>
       </section>
@@ -102,6 +135,90 @@ export default async function AdminReconciliacoesPage() {
         </section>
       ) : (
         <section className="space-y-8">
+          {meetings.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-white">
+                Salas de atendimento
+              </h2>
+              {meetings.map((appointment) => (
+                <article
+                  key={appointment.id}
+                  className="rounded-lg border border-amber-500/20 bg-slate-900/70 p-5"
+                >
+                  <div className="flex flex-col justify-between gap-4 lg:flex-row">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ProcessState manual />
+                        <h3 className="font-semibold text-white">
+                          Consulta {appointment.shortId}
+                        </h3>
+                      </div>
+                      <p className="mt-3 text-sm text-slate-300">
+                        {appointment.patient.name} para{" "}
+                        {appointment.professional.name}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {appointment.date.toLocaleDateString("pt-BR")} as{" "}
+                        {appointment.time} · {appointment.meetRetryCount} falhas
+                        tecnicas
+                      </p>
+                      {appointment.meetAttentionRequiredAt && (
+                        <p className="mt-1 text-xs text-slate-500">
+                          Em suporte desde{" "}
+                          {appointment.meetAttentionRequiredAt.toLocaleString(
+                            "pt-BR",
+                          )}
+                          {appointment.googleEventId
+                            ? ` · Evento ${appointment.googleEventId}`
+                            : " · Evento ainda nao criado"}
+                        </p>
+                      )}
+                    </div>
+                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-200">
+                      Pagamento preservado:{" "}
+                      {Number(appointment.price).toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </div>
+                  </div>
+
+                  {appointment.meetLastError && (
+                    <p className="mt-4 rounded-lg border border-red-500/15 bg-red-500/5 px-3 py-2 text-xs leading-5 text-red-200">
+                      {appointment.meetLastError}
+                    </p>
+                  )}
+
+                  {appointment.meetingAttempts.length > 0 && (
+                    <div className="mt-4 space-y-1 text-xs text-slate-500">
+                      {appointment.meetingAttempts.map((attempt) => (
+                        <p key={attempt.id}>
+                          {attempt.createdAt.toLocaleString("pt-BR")} ·{" "}
+                          {attempt.operation} ·{" "}
+                          {attempt.providerStatus || attempt.outcome}
+                          {attempt.errorMessage
+                            ? ` · ${attempt.errorMessage}`
+                            : ""}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
+                  {canManageMeetings ? (
+                    <MeetingReconciliationActions
+                      appointmentId={appointment.id}
+                    />
+                  ) : (
+                    <p className="mt-4 border-t border-white/10 pt-4 text-xs text-slate-500">
+                      A tratativa da sala requer perfil de suporte ou
+                      proprietario.
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+
           {cancellations.length > 0 && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-white">Cancelamentos</h2>

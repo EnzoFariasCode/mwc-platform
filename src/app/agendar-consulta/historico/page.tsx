@@ -11,6 +11,7 @@ import { HealthAppointmentReviewButton } from "@/modules/health/components/healt
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
+  AlertTriangle,
   Calendar,
   CheckCircle2,
   Clock,
@@ -52,6 +53,14 @@ function statusBadge(status: string) {
       label: "Preparando sala",
       className: "bg-blue-500/10 text-blue-300 border-blue-500/20",
       icon: Timer,
+    };
+  }
+
+  if (status === "MEETING_REQUIRES_ATTENTION") {
+    return {
+      label: "Sala em suporte",
+      className: "bg-amber-500/10 text-amber-300 border-amber-500/20",
+      icon: AlertTriangle,
     };
   }
 

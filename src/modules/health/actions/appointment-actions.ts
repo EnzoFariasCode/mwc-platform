@@ -1399,6 +1399,7 @@ export async function rescheduleHealthAppointment(
             "PENDING_PAYMENT",
             "PAID",
             "MEETING_PENDING",
+            "MEETING_REQUIRES_ATTENTION",
             "CONFIRMED",
             "CANCELLING",
             "RESCHEDULING",

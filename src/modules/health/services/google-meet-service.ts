@@ -13,12 +13,35 @@ interface MeetEventParams {
   startTime: Date;
   endTime: Date;
   attendees: string[];
+  eventId: string;
   requestId: string;
 }
 
-type GoogleMeetEventResult = {
-  meetLink: string;
-  googleEventId: string;
+export type GoogleMeetEventResult =
+  | {
+      status: "READY";
+      meetLink: string;
+      googleEventId: string;
+    }
+  | {
+      status: "PENDING";
+      googleEventId: string;
+    }
+  | {
+      status: "FAILED";
+      googleEventId?: string;
+      providerRequestId?: string;
+      failureKind:
+        | "CONFERENCE_CREATION_FAILED"
+        | "ACCESS_CONFIGURATION_FAILED"
+        | "INVALID_EVENT"
+        | "PROVIDER_ERROR";
+      error: string;
+    };
+
+type RequestMeetConferenceParams = {
+  eventId: string;
+  requestId: string;
 };
 
 interface UpdateMeetEventParams {
@@ -174,14 +197,150 @@ function externalErrorStatus(error: unknown) {
   return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : null;
 }
 
+type CalendarEventSnapshot = {
+  id?: string | null;
+  hangoutLink?: string | null;
+  conferenceData?: {
+    createRequest?: {
+      requestId?: string | null;
+      status?: { statusCode?: string | null } | null;
+    } | null;
+    entryPoints?: Array<{
+      entryPointType?: string | null;
+      uri?: string | null;
+    }>;
+  } | null;
+};
+
+function getVideoMeetLink(event: CalendarEventSnapshot) {
+  if (event.hangoutLink) return event.hangoutLink;
+
+  return (
+    event.conferenceData?.entryPoints?.find(
+      (entry) => entry.entryPointType === "video" && entry.uri,
+    )?.uri ?? null
+  );
+}
+
+async function resolveGoogleMeetEvent(
+  event: CalendarEventSnapshot,
+): Promise<GoogleMeetEventResult> {
+  if (!event.id) {
+    return {
+      status: "FAILED",
+      failureKind: "INVALID_EVENT",
+      error: "Google Calendar nao retornou o identificador do evento.",
+    };
+  }
+
+  const meetLink = getVideoMeetLink(event);
+
+  if (meetLink) {
+    const openAccessConfigured = await enforceOpenMeetAccess(meetLink);
+
+    if (!openAccessConfigured) {
+      return {
+        status: "FAILED",
+        googleEventId: event.id,
+        failureKind: "ACCESS_CONFIGURATION_FAILED",
+        error: "Nao foi possivel configurar o acesso da sala Google Meet.",
+      };
+    }
+
+    return {
+      status: "READY",
+      meetLink,
+      googleEventId: event.id,
+    };
+  }
+
+  const conferenceStatus =
+    event.conferenceData?.createRequest?.status?.statusCode;
+
+  if (conferenceStatus === "failure") {
+    return {
+      status: "FAILED",
+      googleEventId: event.id,
+      providerRequestId:
+        event.conferenceData?.createRequest?.requestId ?? undefined,
+      failureKind: "CONFERENCE_CREATION_FAILED",
+      error: "O Google Calendar informou falha ao criar a conferencia.",
+    };
+  }
+
+  return {
+    status: "PENDING",
+    googleEventId: event.id,
+  };
+}
+
+export async function getGoogleMeetEvent(
+  eventId: string,
+): Promise<GoogleMeetEventResult> {
+  try {
+    const calendar = getCalendarClient();
+    const event = await calendar.events.get({
+      calendarId: getCalendarId(),
+      eventId,
+    });
+
+    return resolveGoogleMeetEvent(event.data);
+  } catch (error) {
+    console.error("[Google Meet API] Erro ao consultar evento:", error);
+    return {
+      status: "FAILED",
+      googleEventId: eventId,
+      failureKind: "PROVIDER_ERROR",
+      error: "Falha ao consultar o evento no Google Calendar.",
+    };
+  }
+}
+
+export async function requestGoogleMeetConference({
+  eventId,
+  requestId,
+}: RequestMeetConferenceParams): Promise<GoogleMeetEventResult> {
+  try {
+    const calendar = getCalendarClient();
+    const event = await calendar.events.patch({
+      calendarId: getCalendarId(),
+      eventId,
+      conferenceDataVersion: 1,
+      sendUpdates: "all",
+      requestBody: {
+        conferenceData: {
+          createRequest: {
+            requestId,
+            conferenceSolutionKey: { type: "hangoutsMeet" },
+          },
+        },
+      },
+    });
+
+    return resolveGoogleMeetEvent(event.data);
+  } catch (error) {
+    console.error(
+      "[Google Meet API] Erro ao solicitar nova conferencia:",
+      error,
+    );
+    return {
+      status: "FAILED",
+      googleEventId: eventId,
+      failureKind: "PROVIDER_ERROR",
+      error: "Falha ao solicitar nova conferencia no evento existente.",
+    };
+  }
+}
+
 export async function createGoogleMeetEvent({
   summary,
   description,
   startTime,
   endTime,
   attendees,
+  eventId,
   requestId,
-}: MeetEventParams): Promise<GoogleMeetEventResult | null> {
+}: MeetEventParams): Promise<GoogleMeetEventResult> {
   try {
     const calendar = getCalendarClient();
     const event = await calendar.events.insert({
@@ -189,6 +348,7 @@ export async function createGoogleMeetEvent({
       conferenceDataVersion: 1,
       sendUpdates: "all",
       requestBody: {
+        id: eventId,
         summary,
         description,
         start: {
@@ -209,27 +369,18 @@ export async function createGoogleMeetEvent({
       },
     });
 
-    if (!event.data.hangoutLink || !event.data.id) {
-      return null;
-    }
-
-    const openAccessConfigured = await enforceOpenMeetAccess(
-      event.data.hangoutLink,
-    );
-
-    if (!openAccessConfigured) {
-      // Evita manter um evento sem uso quando a politica OPEN e obrigatoria.
-      await cancelGoogleMeetEventIdempotently(event.data.id);
-      return null;
-    }
-
-    return {
-      meetLink: event.data.hangoutLink,
-      googleEventId: event.data.id,
-    };
+    return resolveGoogleMeetEvent(event.data);
   } catch (error) {
+    if (externalErrorStatus(error) === 409) {
+      return getGoogleMeetEvent(eventId);
+    }
+
     console.error("[Google Meet API] Erro ao criar evento:", error);
-    return null;
+    return {
+      status: "FAILED",
+      failureKind: "PROVIDER_ERROR",
+      error: "Falha ao criar o evento no Google Calendar.",
+    };
   }
 }
 

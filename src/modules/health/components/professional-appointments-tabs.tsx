@@ -85,6 +85,14 @@ function statusBadge(status: string) {
     };
   }
 
+  if (status === "MEETING_REQUIRES_ATTENTION") {
+    return {
+      label: "Sala em suporte",
+      icon: AlertTriangle,
+      className: "bg-amber-500/10 text-amber-300 border-amber-500/20",
+    };
+  }
+
   if (status === "MEETING_FAILED") {
     return {
       label: "Reembolsada por falha",

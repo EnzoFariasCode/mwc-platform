@@ -13,7 +13,6 @@ export type FinalizeHealthAppointmentPaymentResult = {
   success: boolean;
   alreadyProcessed?: boolean;
   meetingPending?: boolean;
-  refunded?: boolean;
   appointmentId?: string;
   professionalId?: string;
   error?: string;
@@ -89,11 +88,21 @@ async function processPersistedAppointment({
     return {
       success: false,
       alreadyProcessed,
-      refunded: true,
+      appointmentId,
+      professionalId,
+      error: meeting.error || "Nao foi possivel processar a sala online.",
+    };
+  }
+
+  if (meeting.status === "REQUIRES_ATTENTION") {
+    return {
+      success: true,
+      alreadyProcessed,
+      meetingPending: true,
       appointmentId,
       professionalId,
       error:
-        "Nao foi possivel criar a sala online. O reembolso foi solicitado automaticamente.",
+        "Pagamento confirmado e protegido. Nossa equipe foi avisada para concluir a sala online.",
     };
   }
 
@@ -258,6 +267,7 @@ export async function finalizeHealthAppointmentPayment({
           status: "MEETING_PENDING",
           stripeSessionId: session.id,
           paymentConfirmedAt: new Date(),
+          meetNextAttemptAt: new Date(),
           price: grossAmount,
           acceptedPaymentTerms: true,
           paymentTermsAcceptedAt: new Date(),

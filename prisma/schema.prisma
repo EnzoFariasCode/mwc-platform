@@ -52,7 +52,8 @@ enum BookingStatus {
   PENDING_PAYMENT // Aguardando pagamento no Stripe
   PAID // Pago, aguardando confirmação final do profissional (se houver)
   MEETING_PENDING // Pago, aguardando criacao da sala online
-  MEETING_FAILED // Falha definitiva na sala; reembolso solicitado
+  MEETING_REQUIRES_ATTENTION // Pago e protegido; sala exige intervencao administrativa
+  MEETING_FAILED // Legado: falha definitiva tratada pelo fluxo anterior
   CONFIRMED // Confirmado e na agenda
   CANCELLING // Cancelamento e reembolso em processamento
   RESCHEDULING // Reagendamento em processamento
@@ -61,6 +62,29 @@ enum BookingStatus {
   DISPUTED // Em disputa pelo paciente
   REFUNDED // Reembolsado ao paciente
   NO_SHOW // Paciente não compareceu
+}
+
+enum AppointmentMeetingGenerationStatus {
+  NOT_STARTED
+  PENDING
+  READY
+  RETRY_SCHEDULED
+  REQUIRES_ATTENTION
+  FAILED
+}
+
+enum AppointmentMeetingOperation {
+  CREATE_EVENT
+  POLL_EVENT
+  RETRY_CONFERENCE
+  ADMIN_RETRY
+  MANUAL_LINK
+}
+
+enum AppointmentMeetingAttemptOutcome {
+  PENDING
+  READY
+  FAILED
 }
 
 enum AppointmentCancellationStatus {
@@ -558,17 +582,22 @@ model Appointment {
 
   meetLink                String?
   googleEventId           String?
+  meetRequestId           String?
+  meetGenerationStatus    AppointmentMeetingGenerationStatus @default(NOT_STARTED)
+  meetNextAttemptAt       DateTime?
   paymentConfirmedAt      DateTime?
-  meetRetryCount          Int       @default(0)
+  meetRetryCount          Int                                @default(0)
   meetProcessingStartedAt DateTime?
   meetLastAttemptAt       DateTime?
-  meetLastError           String?   @db.Text
+  meetLastError           String?                            @db.Text
+  meetAttentionRequiredAt DateTime?
+  meetAttentionAlertedAt  DateTime?
   meetingFailedAt         DateTime?
   meetingRefundId         String?
   price                   Decimal
-  notes                   String?   @db.Text
-  stripeSessionId         String?   @unique
-  disputeReason           String?   @db.Text
+  notes                   String?                            @db.Text
+  stripeSessionId         String?                            @unique
+  disputeReason           String?                            @db.Text
   disputeOpenedAt         DateTime?
 
   // Rastreamento de aceite dos termos de pagamento
@@ -592,12 +621,31 @@ model Appointment {
   transactions        Transaction[]
   cancellationProcess AppointmentCancellationProcess?
   rescheduleProcesses AppointmentRescheduleProcess[]
+  meetingAttempts     AppointmentMeetingAttempt[]
   healthReview        HealthAppointmentReview?
 
   // Ajuda a prevenir consultas duplicadas no mesmo horário
   @@index([patientId])
   @@index([professionalId])
   @@index([status, meetLastAttemptAt])
+  @@index([status, meetNextAttemptAt])
+  @@index([status, meetAttentionRequiredAt])
+}
+
+model AppointmentMeetingAttempt {
+  id             String                           @id @default(cuid())
+  appointmentId  String
+  appointment    Appointment                      @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  operation      AppointmentMeetingOperation
+  outcome        AppointmentMeetingAttemptOutcome
+  requestId      String?
+  googleEventId  String?
+  providerStatus String?
+  errorMessage   String?                          @db.Text
+  createdAt      DateTime                         @default(now())
+
+  @@index([appointmentId, createdAt])
+  @@index([outcome, createdAt])
 }
 
 model AppointmentRescheduleProcess {

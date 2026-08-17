@@ -1,4 +1,4 @@
-name: Recover pending Google Meet appointments
+name: Recover due Google Meet appointments
 
 on:
   schedule:
@@ -17,16 +17,40 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Process pending meetings
+      - name: Process due meetings
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
+          set -euo pipefail
+
           if [ -z "$CRON_SECRET" ]; then
             echo "CRON_SECRET is not configured in GitHub Actions."
             exit 1
           fi
 
-          curl --fail-with-body --silent --show-error \
+          response="$(curl --fail-with-body --silent --show-error \
             --retry 3 --retry-all-errors --max-time 240 \
             --header "Authorization: Bearer $CRON_SECRET" \
-            "https://www.maximusworldclick.com.br/api/cron/health-meeting-recovery"
+            "https://www.maximusworldclick.com.br/api/cron/health-meeting-recovery")"
+
+          echo "$response" | jq .
+          echo "$response" | jq -e '.success == true' > /dev/null
+
+          processed="$(echo "$response" | jq -r '.processed // 0')"
+          recovered="$(echo "$response" | jq -r '.recovered // 0')"
+          pending="$(echo "$response" | jq -r '.pending // 0')"
+          failed="$(echo "$response" | jq -r '.failed // 0')"
+          attention="$(echo "$response" | jq -r '.requiresAttention // 0')"
+
+          echo "::notice title=Google Meet recovery::processed=$processed recovered=$recovered pending=$pending failed=$failed requires_attention=$attention"
+
+          {
+            echo "## Google Meet recovery"
+            echo "| Metric | Count |"
+            echo "| --- | ---: |"
+            echo "| Processed | $processed |"
+            echo "| Recovered | $recovered |"
+            echo "| Pending at Google | $pending |"
+            echo "| Failed this run | $failed |"
+            echo "| Requires attention | $attention |"
+          } >> "$GITHUB_STEP_SUMMARY"

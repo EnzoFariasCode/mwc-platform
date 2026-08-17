@@ -56,7 +56,14 @@ export async function requestAppointmentCancellation({
     const transitioned = await tx.appointment.updateMany({
       where: {
         id: appointmentId,
-        status: { in: ["PAID", "MEETING_PENDING", "CONFIRMED"] },
+        status: {
+          in: [
+            "PAID",
+            "MEETING_PENDING",
+            "MEETING_REQUIRES_ATTENTION",
+            "CONFIRMED",
+          ],
+        },
       },
       data: { status: "CANCELLING" },
     });
