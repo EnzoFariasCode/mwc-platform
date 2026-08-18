@@ -2,13 +2,22 @@ import { auth } from "@/auth";
 import Link from "next/link";
 import { Briefcase, Activity, ArrowRight } from "lucide-react";
 import { redirect } from "next/navigation";
+import {
+  getAccountDashboardPath,
+  isHealthProfessional,
+  isTechProfessional,
+} from "@/modules/auth/lib/account-access";
 
 export default async function PortalPage() {
   const session = await auth();
 
   if (!session) redirect("/login");
-  if (session.user?.userType === "ADMIN" || session.user?.role === "ADMIN") {
-    redirect("/dashboard/admin");
+  if (
+    session.user?.userType === "ADMIN" ||
+    isTechProfessional(session.user) ||
+    isHealthProfessional(session.user)
+  ) {
+    redirect(getAccountDashboardPath(session.user));
   }
 
   const firstName = session.user?.name?.split(" ")[0];

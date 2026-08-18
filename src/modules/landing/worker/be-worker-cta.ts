@@ -14,10 +14,10 @@ export interface BeWorkerCta {
 }
 
 const destinations = {
-  admin: "/dashboard/admin",
+  admin: ACCOUNT_DESTINATIONS.admin,
   clientConversion: "/dashboard/cliente?converter=profissional",
-  techDashboard: "/dashboard/profissional",
-  onlineDashboard: "/agendar-consulta/dashboard-profissional",
+  techDashboard: ACCOUNT_DESTINATIONS.techProfessional,
+  onlineDashboard: ACCOUNT_DESTINATIONS.healthProfessional,
 } as const;
 
 export function resolveBeWorkerCta(
@@ -63,3 +63,4 @@ export function resolveBeWorkerCta(
     href: destinations.techDashboard,
   };
 }
+import { ACCOUNT_DESTINATIONS } from "@/modules/auth/lib/account-access";

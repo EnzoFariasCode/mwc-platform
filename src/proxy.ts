@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import {
+  canAccessProfessionalSectorRoute,
+  getAccountDashboardPath,
+  getPostLoginPath,
+  getRequiredProfessionalIndustry,
+} from "@/modules/auth/lib/account-access";
 
-// 🛡️ Blindagem de tipos para o usuário da sessão
-// Estendemos o tipo base para garantir que o TS reconheça nossas propriedades customizadas
 interface ExtendedAuthUser {
   id?: string;
   userType?: "CLIENT" | "PROFESSIONAL" | "ADMIN";
@@ -15,19 +19,18 @@ interface ExtendedAuthUser {
 
 export default auth((req) => {
   const path = req.nextUrl.pathname;
-
-  // 1. Definição de Rotas Críticas
-  const isAuthRoute = ["/login", "/cadastro", "/recuperarsenha"].includes(path);
-
-  // Proteção total: Dashboard antigo, Novo Portal e Área de Saúde
+  const isAuthRoute = ["/login", "/cadastro", "/recuperarsenha"].includes(
+    path,
+  );
   const isProtectedRoute =
     path.startsWith("/dashboard") ||
     path.startsWith("/portal") ||
-    path.startsWith("/agendar-consulta/dashboard-profissional") ||
-    path.startsWith("/agendar-consulta/historico");
+    path.startsWith("/checkout-saude") ||
+    path.startsWith("/agendar-consulta/historico") ||
+    path.startsWith("/agendar-consulta/meu-perfil") ||
+    getRequiredProfessionalIndustry(path) !== null;
 
-  // No Next-Auth v5, a sessão fica em req.auth
-  const isLoggedIn = !!req.auth;
+  const isLoggedIn = Boolean(req.auth);
   const user = req.auth?.user as ExtendedAuthUser | undefined;
 
   if (isLoggedIn && user?.isActive === false && !isAuthRoute) {
@@ -40,37 +43,30 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  // 2. Bloqueio de Segurança: Acesso Protegido sem Login
   if (isProtectedRoute && !isLoggedIn) {
-    return NextResponse.redirect(new URL("/login", req.nextUrl));
+    const loginUrl = new URL("/login", req.nextUrl);
+    loginUrl.searchParams.set("callbackUrl", `${path}${req.nextUrl.search}`);
+    return NextResponse.redirect(loginUrl);
   }
 
-  // 3. Regras de Negócio: Usuário Logado tentando acessar Login/Cadastro
+  // A navegacao e a digitacao direta da URL seguem a mesma regra de setor.
+  if (
+    isLoggedIn &&
+    user &&
+    !canAccessProfessionalSectorRoute(path, user)
+  ) {
+    return NextResponse.redirect(
+      new URL(getAccountDashboardPath(user), req.nextUrl),
+    );
+  }
+
   if (isAuthRoute && isLoggedIn && user) {
-    // Redirecionamento Inteligente baseado no Perfil e Indústria
-
-    // Profissional de Saúde
-    if (user.userType === "PROFESSIONAL" && user.industry === "HEALTH") {
-      return NextResponse.redirect(
-        new URL("/agendar-consulta/dashboard-profissional", req.nextUrl),
-      );
-    }
-
-    // Profissional de Tecnologia
-    if (user.userType === "PROFESSIONAL" && user.industry === "TECH") {
-      return NextResponse.redirect(
-        new URL("/dashboard/profissional", req.nextUrl),
-      );
-    }
-
-    // Fallback para Clientes/Pacientes ou outros -> Portal
-    return NextResponse.redirect(new URL("/portal", req.nextUrl));
+    return NextResponse.redirect(new URL(getPostLoginPath(user), req.nextUrl));
   }
 
   return NextResponse.next();
 });
 
-// ⚙️ Matcher: Define onde o Proxy deve atuar (Ignora arquivos estáticos e APIs)
 export const config = {
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };

@@ -39,6 +39,7 @@ type UserData = {
   displayName: string | null;
   email: string | null;
   userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
+  industry: "TECH" | "HEALTH";
   adminRole?: "OWNER" | "FINANCE" | "SUPPORT" | null;
   jobTitle?: string | null;
   avatarUrl?: string | null; // <--- Importante para a imagem
@@ -65,6 +66,10 @@ function UserMenu({ user }: { user: UserData | null }) {
   };
 
   const displayName = user?.displayName || user?.name || "Usuário";
+  const profileHref =
+    user?.userType === "PROFESSIONAL" && user.industry === "HEALTH"
+      ? "/agendar-consulta/meu-perfil"
+      : "/dashboard/perfil";
   const subTitle = user?.jobTitle
     ? user.jobTitle
     : user?.userType === "ADMIN"
@@ -85,7 +90,7 @@ function UserMenu({ user }: { user: UserData | null }) {
       {isOpen && (
         <div className="absolute bottom-full left-0 w-full mb-2 bg-slate-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 z-50">
           <div className="p-2 space-y-1">
-            <Link href="/dashboard/perfil">
+            <Link href={profileHref}>
               <button className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 rounded-lg text-sm text-slate-200 transition-colors text-left group cursor-pointer">
                 <User className="w-4 h-4 text-slate-400 group-hover:text-[#d73cbe]" />
                 Meu Perfil
@@ -155,7 +160,13 @@ export default function DashboardSidebar() {
         const result = await getUserProfile();
         if (result.success && result.data) {
           setUser(result.data as UserData);
-          if (result.data.userType === "CLIENT") setViewMode("CLIENT");
+          if (
+            result.data.userType === "CLIENT" ||
+            (result.data.userType === "PROFESSIONAL" &&
+              result.data.industry === "HEALTH")
+          ) {
+            setViewMode("CLIENT");
+          }
         }
       } catch (error) {
         console.error("Erro ao carregar usuário no sidebar", error);
@@ -291,13 +302,15 @@ export default function DashboardSidebar() {
   ];
 
   const isAdmin = user?.userType === "ADMIN";
+  const isTechProfessional =
+    user?.userType === "PROFESSIONAL" && user.industry === "TECH";
   const adminRole = user?.adminRole ?? "OWNER";
   const visibleAdminLinks = adminLinks.filter((item) =>
     canAccessAdminRoles(adminRole, item.roles),
   );
   const menuItems = isAdmin
     ? visibleAdminLinks
-    : viewMode === "CLIENT"
+    : viewMode === "CLIENT" || !isTechProfessional
       ? clientLinks
       : professionalLinks;
 

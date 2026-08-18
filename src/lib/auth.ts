@@ -17,10 +17,11 @@ async function isUserActive(userId: string) {
     Array<{
       isActive: boolean;
       adminRole: "OWNER" | "FINANCE" | "SUPPORT" | null;
-      userType: string;
+      userType: UserType;
+      industry: Industry;
     }>
   >`
-    SELECT "isActive", "adminRole", "userType"
+    SELECT "isActive", "adminRole", "userType", industry
     FROM "User"
     WHERE id = ${userId}
     LIMIT 1
@@ -40,7 +41,7 @@ export async function verifySession(): Promise<SessionPayload | null> {
   const user = await isUserActive(session.user.id);
   if (!user?.isActive) return null;
 
-  const userType = session.user.userType ?? user.userType;
+  const userType = user.userType;
   const adminRole = normalizeAdminRole({
     userType,
     adminRole: session.user.adminRole ?? user.adminRole,
@@ -49,7 +50,7 @@ export async function verifySession(): Promise<SessionPayload | null> {
   return {
     sub: session.user.id,
     role: session.user.role,
-    industry: session.user.industry,
+    industry: user.industry,
     userType,
     adminRole,
   };

@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getUserProfile } from "@/modules/users/actions/get-user-profile";
 import { hasFunctionalConsent } from "@/modules/cookies/cookie-consent";
+import { getAccountDashboardPath } from "@/modules/auth/lib/account-access";
 
 export default function DashboardHeader() {
   const { toggleMobileMenu, viewMode, setViewMode } = useDashboard();
@@ -16,13 +17,23 @@ export default function DashboardHeader() {
   const [userRole, setUserRole] = useState<
     "CLIENT" | "PROFESSIONAL" | "ADMIN" | null
   >(null);
+  const [userIndustry, setUserIndustry] = useState<
+    "TECH" | "HEALTH" | null
+  >(null);
   // 1. Carrega o Perfil
   useEffect(() => {
     async function checkRole() {
       const result = await getUserProfile();
       if (result.success && result.data) {
         setUserRole(result.data.userType);
-        if (result.data.userType === "CLIENT") setViewMode("CLIENT");
+        setUserIndustry(result.data.industry);
+        if (
+          result.data.userType === "CLIENT" ||
+          (result.data.userType === "PROFESSIONAL" &&
+            result.data.industry === "HEALTH")
+        ) {
+          setViewMode("CLIENT");
+        }
       }
     }
     checkRole();
@@ -55,6 +66,11 @@ export default function DashboardHeader() {
       return;
     }
 
+    if (userRole === "PROFESSIONAL" && userIndustry === "HEALTH") {
+      setViewMode("CLIENT");
+      return;
+    }
+
     const isExclusivePro = exclusiveProfessionalRoutes.some((r) =>
       pathname.startsWith(r),
     );
@@ -80,7 +96,7 @@ export default function DashboardHeader() {
         if (userRole === "PROFESSIONAL") setViewMode("PROFESSIONAL");
       }
     }
-  }, [pathname, setViewMode, userRole]);
+  }, [pathname, setViewMode, userIndustry, userRole]);
 
   const handleSwitch = (targetType: "client" | "professional") => {
     if (targetType === "client") {
@@ -89,9 +105,18 @@ export default function DashboardHeader() {
       router.push("/dashboard/cliente");
     } else {
       if (userRole === "PROFESSIONAL" || userRole === "ADMIN") {
-        if (hasFunctionalConsent()) localStorage.setItem("dashboardViewMode", "PROFESSIONAL");
-        setViewMode("PROFESSIONAL");
-        router.push("/dashboard/profissional");
+        const destination = getAccountDashboardPath({
+          userType: userRole,
+          industry: userIndustry,
+        });
+
+        if (userIndustry === "TECH") {
+          if (hasFunctionalConsent()) {
+            localStorage.setItem("dashboardViewMode", "PROFESSIONAL");
+          }
+          setViewMode("PROFESSIONAL");
+        }
+        router.push(destination);
       }
     }
   };

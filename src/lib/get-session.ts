@@ -10,9 +10,14 @@ import {
 
 async function isUserActive(userId: string) {
   const users = await db.$queryRaw<
-    Array<{ isActive: boolean; adminRole: AdminRole | null; userType: string }>
+    Array<{
+      isActive: boolean;
+      adminRole: AdminRole | null;
+      userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
+      industry: "TECH" | "HEALTH";
+    }>
   >`
-    SELECT "isActive", "adminRole", "userType"
+    SELECT "isActive", "adminRole", "userType", industry
     FROM "User"
     WHERE id = ${userId}
     LIMIT 1
@@ -42,7 +47,7 @@ export async function getUserSession() {
     id: session.user.id,
     role: session.user.role,
     userType,
-    industry: session.user.industry,
+    industry: user.industry,
     jobTitle: session.user.jobTitle,
     adminRole,
   };

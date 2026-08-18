@@ -3,6 +3,7 @@ import Image from "next/image";
 import Logo from "@/assets/images/landingPage/logo.png";
 import { getUserSession } from "@/lib/get-session";
 import { LayoutDashboard } from "lucide-react";
+import { getAccountDashboardPath } from "@/modules/auth/lib/account-access";
 
 function HeaderSvgButton({ text, href }: { text: string; href: string }) {
   return (
@@ -29,13 +30,10 @@ function HeaderSvgButton({ text, href }: { text: string; href: string }) {
 const StandardHeader = async () => {
   const session = await getUserSession();
 
-  // AJUSTE AQUI:
-  // Se for Profissional -> /dashboard/profissional
-  // Se for Cliente (qualquer outro) -> /dashboard/cliente (Visão Geral)
-  const dashboardLink =
-    session?.role === "PROFESSIONAL"
-      ? "/dashboard/profissional"
-      : "/dashboard/cliente";
+  // O setor cadastrado define um unico painel profissional.
+  const dashboardLink = session
+    ? getAccountDashboardPath(session)
+    : "/login";
 
   return (
     <header className="fixed top-0 w-full z-50 border-b border-white/10 backdrop-blur-md bg-slate-950/80 transition-all duration-300">

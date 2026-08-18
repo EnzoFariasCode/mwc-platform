@@ -7,6 +7,10 @@ import { useState, Suspense, useEffect, useRef } from "react";
 import { signIn, getSession, signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { WelcomeModal } from "./components/LoginModal";
+import {
+  getAuthorizedCallbackPath,
+  getSafeLocalCallbackPath,
+} from "@/modules/auth/lib/account-access";
 
 const SUSPENDED_ACCOUNT_MESSAGE =
   "Sua conta esta suspensa. Entre em contato com o suporte MWC para entender o motivo e solicitar revisao.";
@@ -66,7 +70,8 @@ function LoginContent() {
   const callbackUrl =
     action === "chat" && proId
       ? `/dashboard/chat?newChat=${proId}`
-      : "/dashboard";
+      : getSafeLocalCallbackPath(searchParams.get("callbackUrl")) ??
+        "/dashboard";
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -130,27 +135,7 @@ function LoginContent() {
 
     toast.success("Login realizado!");
 
-    if (searchParams.get("action") === "chat") {
-      window.location.href = callbackUrl;
-      return;
-    }
-
-    if (user?.userType === "ADMIN") {
-      window.location.href = "/dashboard/admin";
-      return;
-    }
-
-    if (user?.userType === "PROFESSIONAL" && user?.industry === "HEALTH") {
-      window.location.href = "/agendar-consulta/dashboard-profissional";
-      return;
-    }
-
-    if (user?.userType === "PROFESSIONAL" && user?.industry === "TECH") {
-      window.location.href = "/dashboard/profissional";
-      return;
-    }
-
-    window.location.href = "/portal";
+    window.location.href = getAuthorizedCallbackPath(callbackUrl, user ?? {});
   };
 
   return (

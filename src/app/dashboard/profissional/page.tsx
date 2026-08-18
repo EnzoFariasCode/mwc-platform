@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from "@/lib/prisma";
-import { verifySession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import Link from "next/link";
@@ -24,6 +23,7 @@ import {
 } from "@/modules/subscriptions/tech-plan";
 import { getTechPlanDisplayPrices } from "@/modules/subscriptions/tech-plan-pricing";
 import { getTechProjectLimitStatus } from "@/modules/subscriptions/tech-plan-limits";
+import { requireProfessionalSector } from "@/modules/auth/lib/require-professional-sector";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
@@ -40,13 +40,8 @@ export default async function ProfissionalDashboard({
   }>;
 }) {
   // 1. Autenticação
-  const session = await verifySession();
-
-  if (!session || !session.sub) {
-    redirect("/login");
-  }
-
-  const userId = session.sub as string;
+  const session = await requireProfessionalSector("TECH");
+  const userId = session.id;
 
   const params = searchParams ? await searchParams : undefined;
   const sessionId = params?.session_id;

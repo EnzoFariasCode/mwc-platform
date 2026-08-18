@@ -2,10 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 
 import Logo from "@/assets/images/landingPage/logo.png";
+import { getAccountDashboardPath } from "@/modules/auth/lib/account-access";
 
 const LandingHeader = () => {
+  const { data: session, status } = useSession();
+  const accountLink = session?.user
+    ? getAccountDashboardPath(session.user)
+    : "/login";
   const scrollToSection = (sectionId: string) => {
     const section = document.getElementById(sectionId);
     if (!section) return;
@@ -61,10 +67,10 @@ const LandingHeader = () => {
 
           <div className="flex items-center gap-2">
             <Link
-              href="/login"
+              href={accountLink}
               className="hidden items-center rounded-full border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-200 transition-all duration-300 hover:border-white/20 hover:bg-white/10 hover:text-white sm:inline-flex"
             >
-              Entrar
+              {status === "authenticated" ? "Dashboard" : "Entrar"}
             </Link>
 
             <Link

@@ -12,6 +12,7 @@ type PrivateUserProfile = {
   email: string | null;
   birthDate: Date | null;
   userType: UserType;
+  industry: "TECH" | "HEALTH";
   adminRole: "OWNER" | "FINANCE" | "SUPPORT" | null;
   bio: string | null;
   city: string | null;
@@ -48,6 +49,7 @@ export async function getUserProfile(): Promise<ActionResponse<PrivateUserProfil
         email: true,
         birthDate: true,
         userType: true,
+        industry: true,
         bio: true,
         city: true,
         state: true,
