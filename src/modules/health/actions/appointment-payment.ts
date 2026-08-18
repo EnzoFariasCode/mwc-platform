@@ -1,11 +1,10 @@
-"use server";
+import "server-only";
 
 import Stripe from "stripe";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { isValidTimeZone } from "@/modules/health/lib/appointment-completion-time";
 import { db } from "@/lib/prisma";
-import { processAppointmentMeeting } from "@/modules/health/services/appointment-meeting-recovery";
 
 const PLATFORM_FEE_PERCENT = 10;
 
@@ -63,66 +62,32 @@ function revalidateAppointmentPaths(professionalId: string) {
   revalidatePath(`/agendar-consulta/perfil/${professionalId}`);
 }
 
-async function processPersistedAppointment({
+function describePersistedAppointment({
   appointmentId,
   professionalId,
   alreadyProcessed,
+  status,
 }: {
   appointmentId: string;
   professionalId: string;
   alreadyProcessed: boolean;
-}): Promise<FinalizeHealthAppointmentPaymentResult> {
-  const meeting = await processAppointmentMeeting(appointmentId);
+  status: string;
+}): FinalizeHealthAppointmentPaymentResult {
   revalidateAppointmentPaths(professionalId);
-
-  if (meeting.status === "CONFIRMED") {
-    return {
-      success: true,
-      alreadyProcessed,
-      appointmentId,
-      professionalId,
-    };
-  }
-
-  if (meeting.status === "FAILED") {
-    return {
-      success: false,
-      alreadyProcessed,
-      appointmentId,
-      professionalId,
-      error: meeting.error || "Nao foi possivel processar a sala online.",
-    };
-  }
-
-  if (meeting.status === "REQUIRES_ATTENTION") {
-    return {
-      success: true,
-      alreadyProcessed,
-      meetingPending: true,
-      appointmentId,
-      professionalId,
-      error:
-        "Pagamento confirmado e protegido. Nossa equipe foi avisada para concluir a sala online.",
-    };
-  }
 
   return {
     success: true,
     alreadyProcessed,
-    meetingPending: true,
+    meetingPending: status !== "CONFIRMED",
     appointmentId,
     professionalId,
-    error:
-      "Pagamento confirmado. A sala online esta sendo preparada automaticamente.",
   };
 }
 
 export async function finalizeHealthAppointmentPayment({
   session,
-  expectedPatientId,
 }: {
   session: Stripe.Checkout.Session;
-  expectedPatientId?: string;
 }): Promise<FinalizeHealthAppointmentPaymentResult> {
   if (session.payment_status !== "paid") {
     return { success: false, error: "Pagamento ainda nao confirmado." };
@@ -145,13 +110,9 @@ export async function finalizeHealthAppointmentPayment({
     return { success: false, error: "Dados do agendamento invalidos." };
   }
 
-  if (expectedPatientId && expectedPatientId !== patientId) {
-    return { success: false, error: "Nao autorizado." };
-  }
-
   const alreadyProcessed = await db.appointment.findUnique({
     where: { stripeSessionId: session.id },
-    select: { id: true, professionalId: true },
+    select: { id: true, professionalId: true, status: true },
   });
 
   if (alreadyProcessed) {
@@ -161,10 +122,11 @@ export async function finalizeHealthAppointmentPayment({
       });
     }
 
-    return processPersistedAppointment({
+    return describePersistedAppointment({
       appointmentId: alreadyProcessed.id,
       professionalId: alreadyProcessed.professionalId,
       alreadyProcessed: true,
+      status: alreadyProcessed.status,
     });
   }
 
@@ -230,6 +192,7 @@ export async function finalizeHealthAppointmentPayment({
       patientId: true,
       professionalId: true,
       stripeSessionId: true,
+      status: true,
     },
   });
 
@@ -238,10 +201,11 @@ export async function finalizeHealthAppointmentPayment({
       existingSlot.stripeSessionId === session.id ||
       (!existingSlot.stripeSessionId && existingSlot.patientId === patientId)
     ) {
-      return processPersistedAppointment({
+      return describePersistedAppointment({
         appointmentId: existingSlot.id,
         professionalId: existingSlot.professionalId,
         alreadyProcessed: true,
+        status: existingSlot.status,
       });
     }
 
@@ -274,7 +238,7 @@ export async function finalizeHealthAppointmentPayment({
           paymentTermsIpAddress:
             session.metadata?.paymentTermsIpAddress || "unknown",
         },
-        select: { id: true, professionalId: true },
+        select: { id: true, professionalId: true, status: true },
       });
 
       if (holdId) {
@@ -308,10 +272,11 @@ export async function finalizeHealthAppointmentPayment({
       return createdAppointment;
     });
 
-    return processPersistedAppointment({
+    return describePersistedAppointment({
       appointmentId: appointment.id,
       professionalId: appointment.professionalId,
       alreadyProcessed: false,
+      status: appointment.status,
     });
   } catch (error) {
     if (
@@ -320,14 +285,15 @@ export async function finalizeHealthAppointmentPayment({
     ) {
       const persisted = await db.appointment.findUnique({
         where: { stripeSessionId: session.id },
-        select: { id: true, professionalId: true },
+        select: { id: true, professionalId: true, status: true },
       });
 
       if (persisted) {
-        return processPersistedAppointment({
+        return describePersistedAppointment({
           appointmentId: persisted.id,
           professionalId: persisted.professionalId,
           alreadyProcessed: true,
+          status: persisted.status,
         });
       }
 

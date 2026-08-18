@@ -11,6 +11,11 @@ import { sendAdminNotification } from "@/modules/admin/services/admin-notificati
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { getTechPlanTier } from "@/modules/subscriptions/tech-plan";
 import { refundUnavailableProjectPayment } from "@/modules/stripe/lib/refund-unavailable-project-payment";
+import {
+  claimStripeEvent,
+  markStripeEventFailed,
+  markStripeEventProcessed,
+} from "@/modules/stripe/services/stripe-event-log";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as Stripe.LatestApiVersion,
@@ -18,6 +23,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 const PLATFORM_FEE_PERCENT = 10;
+
+export const dynamic = "force-dynamic";
 
 function responseIsSuccess(response: NextResponse) {
   return response.status >= 200 && response.status < 300;
@@ -33,85 +40,6 @@ function projectProfessionalAmount(amount: Prisma.Decimal) {
     .mul(100 - PLATFORM_FEE_PERCENT)
     .div(100)
     .toDecimalPlaces(2);
-}
-
-async function claimStripeEvent(event: Stripe.Event) {
-  const existing = await db.stripeEventLog.findUnique({
-    where: { stripeEventId: event.id },
-    select: { id: true, status: true },
-  });
-
-  if (existing?.status === "PROCESSED") {
-    return false;
-  }
-
-  const now = new Date();
-
-  if (existing) {
-    await db.stripeEventLog.update({
-      where: { id: existing.id },
-      data: {
-        type: event.type,
-        status: "PROCESSING",
-        attempts: { increment: 1 },
-        lastError: null,
-        failedAt: null,
-        processingStartedAt: now,
-      },
-    });
-
-    return true;
-  }
-
-  try {
-    await db.stripeEventLog.create({
-      data: {
-        stripeEventId: event.id,
-        type: event.type,
-        status: "PROCESSING",
-        attempts: 1,
-        processingStartedAt: now,
-      },
-    });
-  } catch {
-    const current = await db.stripeEventLog.findUnique({
-      where: { stripeEventId: event.id },
-      select: { id: true, status: true },
-    });
-
-    if (current?.status === "PROCESSED") {
-      return false;
-    }
-
-    if (current) {
-      await db.stripeEventLog.update({
-        where: { id: current.id },
-        data: {
-          type: event.type,
-          status: "PROCESSING",
-          attempts: { increment: 1 },
-          lastError: null,
-          failedAt: null,
-          processingStartedAt: now,
-        },
-      });
-    }
-  }
-
-  return true;
-}
-
-async function markStripeEventProcessed(event: Stripe.Event) {
-  await db.stripeEventLog.update({
-    where: { stripeEventId: event.id },
-    data: {
-      type: event.type,
-      status: "PROCESSED",
-      lastError: null,
-      failedAt: null,
-      processedAt: new Date(),
-    },
-  });
 }
 
 async function syncTechSubscription(subscription: Stripe.Subscription) {
@@ -148,18 +76,6 @@ async function syncTechSubscription(subscription: Stripe.Subscription) {
         stripeSubscriptionStatus: subscription.status,
         stripePriceId: priceId,
       }),
-    },
-  });
-}
-
-async function markStripeEventFailed(event: Stripe.Event, error: string) {
-  await db.stripeEventLog.update({
-    where: { stripeEventId: event.id },
-    data: {
-      type: event.type,
-      status: "FAILED",
-      lastError: error.slice(0, 4000),
-      failedAt: new Date(),
     },
   });
 }
@@ -291,14 +207,10 @@ async function getCheckoutSessionIdFromPaymentIntent(paymentIntentId: string) {
   return sessions.data[0]?.id ?? null;
 }
 
-async function handleChargeRefunded(charge: Stripe.Charge) {
-  const paymentIntentId = getStripeId(charge.payment_intent);
-
-  if (!paymentIntentId) {
-    console.warn("[WEBHOOK_REFUND] No payment_intent on charge:", charge.id);
-    return new NextResponse(null, { status: 200 });
-  }
-
+async function reconcileRefundedHealthAppointment(
+  paymentIntentId: string,
+  refundId?: string,
+) {
   let checkoutSessionId: string | null = null;
 
   try {
@@ -312,7 +224,7 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
   if (!checkoutSessionId) {
     console.warn(
       "[WEBHOOK_REFUND] No checkout session found for charge:",
-      charge.id,
+      paymentIntentId,
     );
     return new NextResponse(null, { status: 200 });
   }
@@ -384,10 +296,119 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
     date: appt.date,
     time: appt.time,
     price: appt.price,
-    refundId: charge.refunds?.data[0]?.id,
+    refundId,
   });
 
   return new NextResponse(null, { status: 200 });
+}
+
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  if (!charge.refunded) {
+    console.log("[WEBHOOK_REFUND] Partial refund recorded:", charge.id);
+    return new NextResponse(null, { status: 200 });
+  }
+
+  const paymentIntentId = getStripeId(charge.payment_intent);
+  if (!paymentIntentId) {
+    console.warn("[WEBHOOK_REFUND] No payment_intent on charge:", charge.id);
+    return new NextResponse(null, { status: 200 });
+  }
+
+  return reconcileRefundedHealthAppointment(
+    paymentIntentId,
+    charge.refunds?.data[0]?.id,
+  );
+}
+
+async function handleRefundEvent(refund: Stripe.Refund) {
+  if (refund.status === "failed") {
+    const failureMessage = `Reembolso Stripe ${refund.id} falhou: ${refund.failure_reason || "motivo nao informado"}.`;
+    const processId = refund.metadata?.appointmentCancellationProcessId;
+    const cancellationProcess = await db.appointmentCancellationProcess.findFirst({
+      where: {
+        OR: [
+          processId ? { id: processId } : undefined,
+          { refundId: refund.id },
+        ].filter(Boolean) as Array<Record<string, unknown>>,
+      },
+      select: { id: true, appointmentId: true },
+    });
+
+    if (cancellationProcess) {
+      await db.appointmentCancellationProcess.update({
+        where: { id: cancellationProcess.id },
+        data: {
+          status: "RECONCILIATION_REQUIRED",
+          refundStatus: "PENDING",
+          refundLastError: failureMessage,
+          lastError: failureMessage,
+          processingStartedAt: null,
+          reconciliationRequiredAt: new Date(),
+        },
+      });
+    }
+
+    const admins = await db.user.findMany({
+      where: { userType: "ADMIN", isActive: true },
+      select: { id: true },
+    });
+    await Promise.allSettled([
+      ...admins.map((admin) =>
+        upsertNotification({
+          userId: admin.id,
+          type: "WARNING",
+          eventType: "STRIPE_REFUND_FAILED",
+          title: "Reembolso Stripe falhou",
+          message: failureMessage,
+          link: "/dashboard/admin/reconciliacoes",
+          entityType: "APPOINTMENT_CANCELLATION",
+          entityId: cancellationProcess?.id ?? refund.id,
+          metadata: {
+            refundId: refund.id,
+            appointmentId: cancellationProcess?.appointmentId ?? null,
+          },
+        }),
+      ),
+      sendAdminNotification({
+        subject: "MWC Admin - Reembolso Stripe falhou",
+        lines: [
+          `Reembolso: ${refund.id}`,
+          `PaymentIntent: ${getStripeId(refund.payment_intent) || "Nao informado"}`,
+          `Motivo: ${refund.failure_reason || "Nao informado"}`,
+        ],
+        actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/reconciliacoes`,
+      }),
+    ]);
+    return new NextResponse(null, { status: 200 });
+  }
+
+  if (refund.status !== "succeeded") {
+    console.log("[WEBHOOK_REFUND] Refund is not final yet:", {
+      refundId: refund.id,
+      status: refund.status,
+    });
+    return new NextResponse(null, { status: 200 });
+  }
+
+  let charge =
+    refund.charge && typeof refund.charge !== "string" ? refund.charge : null;
+  if (!charge && typeof refund.charge === "string") {
+    charge = await stripe.charges.retrieve(refund.charge);
+  }
+
+  if (charge && !charge.refunded) {
+    console.log("[WEBHOOK_REFUND] Partial refund succeeded:", refund.id);
+    return new NextResponse(null, { status: 200 });
+  }
+
+  const paymentIntentId =
+    getStripeId(refund.payment_intent) ?? getStripeId(charge?.payment_intent);
+  if (!paymentIntentId) {
+    console.warn("[WEBHOOK_REFUND] Refund has no payment_intent:", refund.id);
+    return new NextResponse(null, { status: 200 });
+  }
+
+  return reconcileRefundedHealthAppointment(paymentIntentId, refund.id);
 }
 
 async function handleDisputeCreated(dispute: Stripe.Dispute) {
@@ -1108,11 +1129,25 @@ export async function POST(req: Request) {
     return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 });
   }
 
-  const shouldProcess = await claimStripeEvent(event);
+  let claim;
+  try {
+    claim = await claimStripeEvent(event);
+  } catch (error) {
+    console.error("[WEBHOOK_EVENT_CLAIM_ERROR]", error);
+    return new NextResponse("Webhook event log unavailable", { status: 500 });
+  }
 
-  if (!shouldProcess) {
+  if (claim === "PROCESSED") {
     console.log(`[WEBHOOK] Skipping processed event: ${event.id}`);
     return new NextResponse(null, { status: 200 });
+  }
+
+  if (claim === "BUSY") {
+    console.warn(`[WEBHOOK] Event is already being processed: ${event.id}`);
+    return new NextResponse("Webhook event already processing", {
+      status: 409,
+      headers: { "Retry-After": "30" },
+    });
   }
 
   const handleProjectPayment = async (
@@ -1276,6 +1311,13 @@ export async function POST(req: Request) {
       case "charge.refunded": {
         const charge = event.data.object as Stripe.Charge;
         return await handleChargeRefunded(charge);
+      }
+
+      case "refund.created":
+      case "refund.updated":
+      case "refund.failed": {
+        const refund = event.data.object as Stripe.Refund;
+        return await handleRefundEvent(refund);
       }
 
       case "charge.dispute.created": {
