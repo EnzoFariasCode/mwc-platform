@@ -10,6 +10,7 @@ import {
   getHealthProfessionalIdentityError,
   isTeacherOnlineSpecialty,
 } from "../lib/health-professional-eligibility";
+import { normalizeOptionalPersonName } from "@/modules/users/lib/normalize-person-name";
 
 const ALLOWED_DURATIONS = [30, 50, 60, 90] as const;
 
@@ -150,7 +151,7 @@ export async function updateHealthProProfile(formData: FormData) {
       await tx.user.update({
         where: { id: session.user.id },
         data: {
-          displayName: data.displayName ?? null,
+          displayName: normalizeOptionalPersonName(data.displayName),
           bio: data.bio ?? null,
           jobTitle: isTeacher ? "Professor" : (data.jobTitle ?? null),
           documentReg: isTeacher ? null : professional.documentReg,

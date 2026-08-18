@@ -113,6 +113,7 @@ describe("onboarding do profissional Online", () => {
   it("salva Professor com materia e remove qualquer registro", async () => {
     const result = await updateHealthProProfile(
       profileForm({
+        displayName: "PROFISSIONAL TESTE",
         teachingSubject: "Matematica",
         documentRegType: "CRM",
         documentRegNumber: "12345",
@@ -124,6 +125,7 @@ describe("onboarding do profissional Online", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           jobTitle: "Professor",
+          displayName: "Profissional teste",
           teachingSubject: "Matematica",
           documentReg: null,
         }),

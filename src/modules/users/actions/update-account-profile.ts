@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { normalizePersonName } from "@/modules/users/lib/normalize-person-name";
 
 const WHATSAPP_CONSENT_VERSION = "whatsapp-v1.0";
 
@@ -91,7 +92,7 @@ export async function updateAccountProfile(formData: FormData) {
   }
 
   // 1. [BACK-END] Extraindo TODA a carga do formulario
-  const name = formData.get("name")?.toString().trim();
+  const name = normalizePersonName(formData.get("name")?.toString());
   const birthDate = formData.get("birthDate")?.toString();
   const gender = formData.get("gender")?.toString();
   const phone = formatPhoneNumber(formData.get("phone")?.toString());

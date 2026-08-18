@@ -8,6 +8,10 @@ import { ActionResponse } from "@/modules/users/types/user-types";
 import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { validatePassword } from "@/modules/auth/lib/password";
+import {
+  normalizeOptionalPersonName,
+  normalizePersonName,
+} from "@/modules/users/lib/normalize-person-name";
 const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -51,16 +55,17 @@ export async function updateProfile(
     const updateData: any = {};
 
     if (formData.has("name")) {
-      const name = formData.get("name") as string;
-      if (!name || name.trim() === "") {
+      const name = normalizePersonName(formData.get("name")?.toString());
+      if (!name) {
         return { success: false, error: "Nome é obrigatório." };
       }
       updateData.name = name;
     }
 
     if (formData.has("displayName")) {
-      const displayName = formData.get("displayName") as string;
-      updateData.displayName = displayName || null;
+      updateData.displayName = normalizeOptionalPersonName(
+        formData.get("displayName")?.toString(),
+      );
     }
 
     if (formData.has("birthDate")) {

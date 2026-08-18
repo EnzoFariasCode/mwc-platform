@@ -9,6 +9,7 @@ import { getRateLimitKeys, rateLimit } from "@/lib/rate-limit";
 import { sendWelcomeEmail } from "@/modules/auth/services/welcome-email-service";
 import { cookies, headers } from "next/headers";
 import { GOOGLE_REGISTRATION_COOKIE, readGoogleRegistrationConsent } from "@/modules/auth/lib/google-registration-consent";
+import { normalizePersonName } from "@/modules/users/lib/normalize-person-name";
 
 const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
 const LOGIN_LIMIT_EMAIL = 5;
@@ -90,7 +91,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = profile.email?.toString().toLowerCase() ?? "";
         return {
           id: profile.sub,
-          name: profile.name || email.split("@")[0] || "Usuario MWC",
+          name: normalizePersonName(
+            profile.name || email.split("@")[0] || "Usuario MWC",
+          ),
           email,
           image: profile.picture,
           emailVerified: profile.email_verified ? new Date() : null,

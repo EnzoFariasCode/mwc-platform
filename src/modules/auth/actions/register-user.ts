@@ -15,14 +15,20 @@ import {
   type ProfessionalTermsIndustry,
 } from "@/modules/legal/terms-versions";
 import { getOnlineSpecialtyByJobTitle } from "@/modules/health/lib/specialties";
+import {
+  normalizeOptionalPersonName,
+  normalizePersonName,
+} from "@/modules/users/lib/normalize-person-name";
 
 export async function registerUser(
   formData: FormData,
 ): Promise<ActionResponse> {
-  const name = formData.get("name")?.toString().trim();
+  const name = normalizePersonName(formData.get("name")?.toString());
   const email = formData.get("email")?.toString().trim().toLowerCase();
   const password = formData.get("password")?.toString();
-  const displayName = formData.get("displayName")?.toString().trim();
+  const displayName = normalizeOptionalPersonName(
+    formData.get("displayName")?.toString(),
+  );
   const birthDateRaw = formData.get("birthDate")?.toString();
   const isPro = formData.get("isPro") === "on";
   const acceptedGeneralTerms = formData.get("generalTermsAccepted") === "on";
@@ -135,7 +141,7 @@ export async function registerUser(
           name,
           email,
           password: hashedPassword,
-          displayName: displayName || name,
+          displayName: displayName ?? name,
           birthDate,
           userType: isPro ? UserType.PROFESSIONAL : UserType.CLIENT,
           industry,

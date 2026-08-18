@@ -50,9 +50,13 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { updateAccountProfile } from "./update-account-profile";
 
-function profileForm({ consent = false, phone = "11999999999" } = {}) {
+function profileForm({
+  consent = false,
+  phone = "11999999999",
+  name = "Usuario Teste",
+} = {}) {
   const formData = new FormData();
-  formData.set("name", "Usuario Teste");
+  formData.set("name", name);
   formData.set("phone", phone);
   if (consent) formData.set("whatsappConsent", "on");
   return formData;
@@ -77,6 +81,19 @@ describe("consentimento de WhatsApp no perfil", () => {
         userAgent: "MWC Test",
       }),
     });
+  });
+
+  it("normaliza o nome antes de persistir", async () => {
+    const result = await updateAccountProfile(
+      profileForm({ name: "  USUÁRIO   DA SILVA " }),
+    );
+
+    expect(result).toEqual({ success: true });
+    expect(mocks.tx.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ name: "Usuário da silva" }),
+      }),
+    );
   });
 
   it("registra revogacao quando um consentimento ativo e desmarcado", async () => {
