@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { sendEmail } from "@/modules/email/email-client";
 import { getAppointmentStartAt } from "@/modules/health/lib/appointment-completion-time";
+import { CANCELLABLE_HEALTH_APPOINTMENT_STATUSES } from "@/modules/health/lib/appointment-cancellation-policy";
 import {
   cancelGoogleMeetEventIdempotently,
   findGoogleMeetEventForCancellation,
@@ -57,12 +58,7 @@ export async function requestAppointmentCancellation({
       where: {
         id: appointmentId,
         status: {
-          in: [
-            "PAID",
-            "MEETING_PENDING",
-            "MEETING_REQUIRES_ATTENTION",
-            "CONFIRMED",
-          ],
+          in: [...CANCELLABLE_HEALTH_APPOINTMENT_STATUSES],
         },
       },
       data: { status: "CANCELLING" },

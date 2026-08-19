@@ -7,6 +7,7 @@ import {
   canAccessHealthMeeting,
   getAppointmentStartAt,
 } from "@/modules/health/lib/appointment-completion-time";
+import { canPatientRequestAppointmentCancellation } from "@/modules/health/lib/appointment-cancellation-policy";
 import { HealthAppointmentReviewButton } from "@/modules/health/components/health-appointment-review-button";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -15,7 +16,6 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  MoreVertical,
   Timer,
   Video,
   XCircle,
@@ -135,14 +135,14 @@ export default async function HistoricoConsultasPage() {
                 Boolean(professional.profileImageBytes);
               const badge = statusBadge(appointment.status);
               const BadgeIcon = badge.icon;
-              const canCancel =
-                !["CANCELLING", "RESCHEDULING", "CANCELED", "COMPLETED", "REFUNDED", "NO_SHOW", "DISPUTED", "MEETING_PENDING", "MEETING_FAILED"].includes(
-                  appointment.status,
-                ) && appointment.date > new Date();
               const scheduledAt = getAppointmentStartAt({
                 date: appointment.date,
                 time: appointment.time,
                 timeZone: appointment.timezonePro,
+              });
+              const canCancel = canPatientRequestAppointmentCancellation({
+                status: appointment.status,
+                scheduledAt,
               });
               const canDispute =
                 appointment.status === "CONFIRMED" &&
@@ -200,42 +200,36 @@ export default async function HistoricoConsultasPage() {
                       {badge.label}
                     </span>
 
-                    {canCancel ? (
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        {appointment.meetLink && canAccessMeeting && (
-                          <a
-                            href={appointment.meetLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex cursor-pointer items-center gap-2 px-5 py-2.5 bg-[#d73cbe] hover:bg-[#b02da0] text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-[#d73cbe]/20"
-                          >
-                            <Video className="w-4 h-4" />
-                            Entrar no Meet
-                          </a>
-                        )}
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {appointment.meetLink && canAccessMeeting && (
+                        <a
+                          href={appointment.meetLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex cursor-pointer items-center gap-2 px-5 py-2.5 bg-[#d73cbe] hover:bg-[#b02da0] text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-[#d73cbe]/20"
+                        >
+                          <Video className="w-4 h-4" />
+                          Entrar no Meet
+                        </a>
+                      )}
+                      {canCancel && (
                         <CancelAppointmentButton
                           appointmentId={appointment.id}
                         />
-                      </div>
-                    ) : appointment.status === "COMPLETED" ? (
-                      <HealthAppointmentReviewButton
-                        appointmentId={appointment.id}
-                        professionalName={professionalName}
-                        reviewed={Boolean(appointment.healthReview)}
-                      />
-                    ) : canDispute ? (
-                      <ReportAppointmentDisputeButton
-                        appointmentId={appointment.id}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        className="cursor-pointer p-2.5 rounded-xl bg-white/5 text-slate-500 hover:text-white transition-colors border border-white/5"
-                        aria-label="Mais opções"
-                      >
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
-                    )}
+                      )}
+                      {appointment.status === "COMPLETED" && (
+                        <HealthAppointmentReviewButton
+                          appointmentId={appointment.id}
+                          professionalName={professionalName}
+                          reviewed={Boolean(appointment.healthReview)}
+                        />
+                      )}
+                      {canDispute && (
+                        <ReportAppointmentDisputeButton
+                          appointmentId={appointment.id}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
               );

@@ -28,6 +28,8 @@ describe("getHealthPaymentStatus", () => {
 
     await expect(getHealthPaymentStatus("cs_1")).resolves.toEqual({
       state: "CONFIRMED",
+      meetingState: "READY",
+      message: "Pagamento e agendamento confirmados.",
     });
     expect(holdFindUnique).not.toHaveBeenCalled();
   });
@@ -39,7 +41,47 @@ describe("getHealthPaymentStatus", () => {
     await expect(getHealthPaymentStatus("cs_1")).resolves.toEqual({
       state: "PROCESSING",
       message:
-        "Pagamento recebido pela Stripe. Aguardando a confirmacao automatica do webhook.",
+        "A Stripe concluiu o checkout. Estamos aguardando a confirmacao automatica do webhook.",
+    });
+  });
+
+  it("confirms the appointment while the meeting room is still pending", async () => {
+    appointmentFindUnique.mockResolvedValueOnce({
+      patientId: "patient-1",
+      status: "MEETING_PENDING",
+    });
+
+    await expect(getHealthPaymentStatus("cs_1")).resolves.toEqual({
+      state: "CONFIRMED",
+      meetingState: "PROCESSING",
+      message:
+        "Agendamento confirmado. A sala online esta sendo preparada e aparecera no historico assim que estiver pronta.",
+    });
+    expect(holdFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("keeps the paid appointment positive when the room needs attention", async () => {
+    appointmentFindUnique.mockResolvedValueOnce({
+      patientId: "patient-1",
+      status: "MEETING_REQUIRES_ATTENTION",
+    });
+
+    await expect(getHealthPaymentStatus("cs_1")).resolves.toEqual({
+      state: "CONFIRMED",
+      meetingState: "REQUIRES_ATTENTION",
+      message:
+        "Agendamento confirmado. O pagamento esta protegido e nossa equipe esta concluindo a sala online.",
+    });
+  });
+
+  it("keeps polling when the redirect wins the race against the webhook", async () => {
+    appointmentFindUnique.mockResolvedValueOnce(null);
+    holdFindUnique.mockResolvedValueOnce(null);
+
+    await expect(getHealthPaymentStatus("cs_1")).resolves.toEqual({
+      state: "PROCESSING",
+      message:
+        "A Stripe concluiu o checkout. Estamos aguardando a confirmacao automatica do webhook.",
     });
   });
 

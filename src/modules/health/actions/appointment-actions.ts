@@ -18,6 +18,7 @@ import {
   getAppointmentCompletionAt,
   getAppointmentStartAt,
 } from "@/modules/health/lib/appointment-completion-time";
+import { isHealthAppointmentStatusCancellable } from "@/modules/health/lib/appointment-cancellation-policy";
 import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { requireAdminRole } from "@/lib/get-session";
@@ -379,7 +380,7 @@ export async function cancelPatientAppointment(
       throw new Error("Voce nao tem permissao para cancelar esta consulta.");
     }
 
-    if (terminalStatuses.includes(appointment.status as never)) {
+    if (!isHealthAppointmentStatusCancellable(appointment.status)) {
       throw new Error("Apenas consultas agendadas podem ser canceladas.");
     }
 
@@ -427,7 +428,7 @@ export async function cancelPatientAppointment(
 
         if (!freshAppointment) throw new Error("Consulta nao encontrada.");
 
-        if (terminalStatuses.includes(freshAppointment.status as never)) {
+        if (!isHealthAppointmentStatusCancellable(freshAppointment.status)) {
           throw new Error("Apenas consultas agendadas podem ser canceladas.");
         }
 

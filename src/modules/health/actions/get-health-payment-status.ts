@@ -4,7 +4,11 @@ import { verifySession } from "@/lib/auth";
 import { db } from "@/lib/prisma";
 
 export type HealthPaymentStatus =
-  | { state: "CONFIRMED" }
+  | {
+      state: "CONFIRMED";
+      meetingState: "READY" | "PROCESSING" | "REQUIRES_ATTENTION";
+      message: string;
+    }
   | { state: "PROCESSING"; message: string }
   | { state: "REQUIRES_ATTENTION"; message: string }
   | { state: "NOT_FOUND"; message: string };
@@ -33,21 +37,38 @@ export async function getHealthPaymentStatus(
     }
 
     if (appointment.status === "CONFIRMED") {
-      return { state: "CONFIRMED" };
+      return {
+        state: "CONFIRMED",
+        meetingState: "READY",
+        message: "Pagamento e agendamento confirmados.",
+      };
     }
 
     if (appointment.status === "MEETING_REQUIRES_ATTENTION") {
       return {
-        state: "REQUIRES_ATTENTION",
+        state: "CONFIRMED",
+        meetingState: "REQUIRES_ATTENTION",
         message:
-          "O pagamento esta protegido e nossa equipe esta concluindo a sala online.",
+          "Agendamento confirmado. O pagamento esta protegido e nossa equipe esta concluindo a sala online.",
+      };
+    }
+
+    if (
+      appointment.status === "MEETING_PENDING" ||
+      appointment.status === "PAID"
+    ) {
+      return {
+        state: "CONFIRMED",
+        meetingState: "PROCESSING",
+        message:
+          "Agendamento confirmado. A sala online esta sendo preparada e aparecera no historico assim que estiver pronta.",
       };
     }
 
     return {
-      state: "PROCESSING",
+      state: "REQUIRES_ATTENTION",
       message:
-        "O pagamento foi confirmado pelo webhook e a sala online esta sendo preparada.",
+        "O pagamento foi localizado, mas o agendamento possui uma atualizacao de status. Consulte seus atendimentos.",
     };
   }
 
@@ -56,17 +77,16 @@ export async function getHealthPaymentStatus(
     select: { patientId: true },
   });
 
-  if (!hold || hold.patientId !== userId) {
+  if (hold && hold.patientId !== userId) {
     return {
       state: "NOT_FOUND",
-      message:
-        "A confirmacao ainda nao foi recebida. Atualize esta pagina em alguns instantes.",
+      message: "Pagamento nao autorizado.",
     };
   }
 
   return {
     state: "PROCESSING",
     message:
-      "Pagamento recebido pela Stripe. Aguardando a confirmacao automatica do webhook.",
+      "A Stripe concluiu o checkout. Estamos aguardando a confirmacao automatica do webhook.",
   };
 }
