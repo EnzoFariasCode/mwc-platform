@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight, Flag, ShieldCheck } from "lucide-react";
 import { requireAdminUser } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
+import { AdminPagination } from "@/modules/admin/components/AdminPagination";
 
 const statusLabels = {
   OPEN: "Aberta",
@@ -22,12 +23,36 @@ const reasonLabels = {
   OTHER: "Outro",
 } as const;
 
-export default async function AdminChatReportsPage() {
+const PAGE_SIZE = 25;
+
+export default async function AdminChatReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   await requireAdminUser();
+  const params = await searchParams;
+  const requestedPage = Math.max(1, Number.parseInt(params.page || "1", 10) || 1);
+  const [totalItems, statusCounts, priorityCount] = await Promise.all([
+    db.chatReport.count(),
+    db.chatReport.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+    }),
+    db.chatReport.count({
+      where: {
+        isPriority: true,
+        status: { in: ["OPEN", "UNDER_REVIEW"] },
+      },
+    }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const page = Math.min(requestedPage, totalPages);
 
   const reports = await db.chatReport.findMany({
     orderBy: [{ isPriority: "desc" }, { createdAt: "desc" }],
-    take: 200,
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
     select: {
       id: true,
       reason: true,
@@ -42,14 +67,10 @@ export default async function AdminChatReportsPage() {
     },
   });
 
-  const openCount = reports.filter((report) => report.status === "OPEN").length;
-  const reviewCount = reports.filter(
-    (report) => report.status === "UNDER_REVIEW",
-  ).length;
-  const priorityCount = reports.filter(
-    (report) =>
-      report.isPriority && ["OPEN", "UNDER_REVIEW"].includes(report.status),
-  ).length;
+  const openCount =
+    statusCounts.find((item) => item.status === "OPEN")?._count._all ?? 0;
+  const reviewCount =
+    statusCounts.find((item) => item.status === "UNDER_REVIEW")?._count._all ?? 0;
 
   return (
     <PageContainer>
@@ -134,6 +155,11 @@ export default async function AdminChatReportsPage() {
               ))}
             </div>
           )}
+          <AdminPagination
+            page={page}
+            totalPages={totalPages}
+            pathname="/dashboard/admin/denuncias"
+          />
         </section>
       </div>
     </PageContainer>

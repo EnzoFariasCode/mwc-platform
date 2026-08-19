@@ -22,6 +22,29 @@ function textValue(formData: FormData, name: string) {
   return formData.get(name)?.toString().trim() || null;
 }
 
+async function sendProfessionalVerificationDecisionEmail({
+  email,
+  isApproval,
+  approvalMessage,
+  reason,
+}: {
+  email: string;
+  isApproval: boolean;
+  approvalMessage: string;
+  reason: string | null;
+}) {
+  return sendEmail({
+    to: email,
+    subject: isApproval
+      ? "MWC Online - verificacao aprovada"
+      : "MWC Online - atualizacao da verificacao",
+    text: isApproval
+      ? approvalMessage
+      : `A verificacao profissional recebeu uma atualizacao: ${reason}`,
+    logPrefix: "PROFESSIONAL_VERIFICATION_RESULT",
+  });
+}
+
 function isRegistryResult(value: string): value is ProfessionalRegistryCheckResult {
   return ["ACTIVE", "INACTIVE", "NOT_FOUND", "INCONCLUSIVE", "NOT_APPLICABLE"].includes(value);
 }
@@ -138,6 +161,8 @@ export async function decideProfessionalVerification(formData: FormData) {
         reviewerId: admin.id,
         reviewedAt: now,
         reviewReason: reason,
+        decisionNotifiedAt: null,
+        decisionEmailError: null,
         officialSourceUrl:
           rawDecision === "SUSPEND"
             ? verification.officialSourceUrl
@@ -200,21 +225,107 @@ export async function decideProfessionalVerification(formData: FormData) {
     return { error: "A verificacao foi alterada por outra operacao. Atualize a pagina." };
   }
 
-  await sendEmail({
-    to: verification.professional.email,
-    subject: isApproval
-      ? "MWC Online - verificacao aprovada"
-      : "MWC Online - atualizacao da verificacao",
-    text: isApproval
-      ? approvalMessage
-      : `A verificacao profissional recebeu uma atualizacao: ${reason}`,
-    logPrefix: "PROFESSIONAL_VERIFICATION_RESULT",
+  const emailResult = await sendProfessionalVerificationDecisionEmail({
+    email: verification.professional.email,
+    isApproval,
+    approvalMessage,
+    reason,
   });
+  await db.professionalVerification
+    .update({
+      where: { id: verification.id },
+      data: {
+        decisionEmailAttempts: { increment: 1 },
+        decisionNotifiedAt: emailResult.success ? new Date() : null,
+        decisionEmailError: emailResult.success
+          ? null
+          : emailResult.error || "Falha desconhecida ao enviar o e-mail.",
+      },
+    })
+    .catch((error) => {
+      console.error("[PROFESSIONAL_VERIFICATION_EMAIL_STATUS_ERROR]", error);
+    });
 
   revalidatePath(`/dashboard/admin/verificacoes/${verification.id}`);
   revalidatePath("/dashboard/admin/verificacoes");
   revalidatePath("/agendar-consulta/dashboard-profissional");
   revalidatePath(`/agendar-consulta/perfil/${verification.professional.id}`);
 
-  return { success: true };
+  return { success: true, emailDelivered: emailResult.success };
+}
+
+export async function retryProfessionalVerificationDecisionEmail(
+  verificationId: string,
+) {
+  const admin = await requireAdminRole(["OWNER", "SUPPORT"]);
+
+  if (!verificationId) return { error: "Verificacao invalida." };
+
+  const verification = await db.professionalVerification.findUnique({
+    where: { id: verificationId },
+    select: {
+      id: true,
+      status: true,
+      specialty: true,
+      reviewReason: true,
+      professional: { select: { email: true } },
+    },
+  });
+
+  if (
+    !verification ||
+    !["APPROVED", "CHANGES_REQUIRED", "REJECTED", "SUSPENDED"].includes(
+      verification.status,
+    )
+  ) {
+    return { error: "A verificacao ainda nao possui uma decisao comunicavel." };
+  }
+
+  const isApproval = verification.status === "APPROVED";
+  const operationalOnApproval = isOnlineSpecialtyOperational(
+    verification.specialty,
+  );
+  const approvalMessage = operationalOnApproval
+    ? "Sua verificacao foi aprovada e seu perfil esta liberado para novos atendimentos."
+    : "Sua verificacao foi aprovada. A categoria permanece temporariamente indisponivel para novos atendimentos.";
+  const emailResult = await sendProfessionalVerificationDecisionEmail({
+    email: verification.professional.email,
+    isApproval,
+    approvalMessage,
+    reason: verification.reviewReason,
+  });
+  const attemptedAt = new Date();
+
+  await db.$transaction(async (tx) => {
+    await tx.professionalVerification.update({
+      where: { id: verification.id },
+      data: {
+        decisionEmailAttempts: { increment: 1 },
+        decisionNotifiedAt: emailResult.success ? attemptedAt : null,
+        decisionEmailError: emailResult.success
+          ? null
+          : emailResult.error || "Falha desconhecida ao enviar o e-mail.",
+      },
+    });
+    await createAdminAuditLog(tx, {
+      actorId: admin.id,
+      action: "PROFESSIONAL_VERIFICATION_EMAIL_RETRY",
+      entityType: "PROFESSIONAL_VERIFICATION",
+      entityId: verification.id,
+      reason: emailResult.success
+        ? "Comunicacao da decisao reenviada por e-mail."
+        : "Falha ao reenviar a comunicacao da decisao.",
+      metadata: {
+        emailDelivered: emailResult.success,
+        attemptedAt: attemptedAt.toISOString(),
+        emailError: emailResult.error || null,
+      },
+    });
+  });
+
+  revalidatePath(`/dashboard/admin/verificacoes/${verification.id}`);
+
+  return emailResult.success
+    ? { success: true }
+    : { error: emailResult.error || "Nao foi possivel reenviar o e-mail." };
 }

@@ -7,20 +7,15 @@ import { ActionResponse } from "@/modules/users/types/user-types";
 import { createAdminAuditLog } from "./audit-log";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
+import { validateWithdrawalReceipt } from "@/modules/admin/lib/withdrawal-receipt";
+import { sendWithdrawalPaidEmail } from "@/modules/finance/services/withdrawal-email-service";
 
-const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 const RECEIPT_UPLOAD_LIMIT = 10;
 const RECEIPT_UPLOAD_WINDOW_MS = 10 * 60 * 1000;
-const ALLOWED_RECEIPT_TYPES = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
 
 export async function uploadWithdrawalReceipt(
   formData: FormData,
-): Promise<ActionResponse> {
+): Promise<ActionResponse<{ emailSent: boolean }>> {
   const admin = await requireAdminRole(["OWNER", "FINANCE"]);
 
   const rateLimitError = await consumeRateLimit({
@@ -34,110 +29,121 @@ export async function uploadWithdrawalReceipt(
     return { success: false, error: rateLimitError };
   }
 
-  const auditLogId = formData.get("auditLogId")?.toString();
-  const file = formData.get("receipt");
+  const withdrawalId = formData.get("withdrawalId")?.toString();
 
-  if (!auditLogId) {
-    return { success: false, error: "Registro de auditoria invalido." };
+  if (!withdrawalId) {
+    return { success: false, error: "Solicitacao de saque invalida." };
   }
 
-  if (!(file instanceof File) || file.size === 0) {
-    return { success: false, error: "Selecione um comprovante para anexar." };
-  }
-
-  if (file.size > MAX_RECEIPT_BYTES) {
-    return {
-      success: false,
-      error: "O comprovante deve ter no maximo 5 MB.",
-    };
-  }
-
-  if (!ALLOWED_RECEIPT_TYPES.has(file.type)) {
-    return {
-      success: false,
-      error: "Envie um PDF, JPG, PNG ou WEBP.",
-    };
-  }
+  const receiptResult = await validateWithdrawalReceipt(
+    formData.get("receipt"),
+  );
+  if (!receiptResult.success) return receiptResult;
 
   try {
-    const auditLogs = await db.$queryRaw<
-      Array<{ id: string; entityType: string; entityId: string }>
-    >`
-      SELECT "id", "entityType", "entityId"
-      FROM "AdminAuditLog"
-      WHERE "id" = ${auditLogId}
-      LIMIT 1
-    `;
-    const auditLog = auditLogs[0];
+    const receipt = receiptResult.receipt;
+    const withdrawal = await db.withdrawalRequest.findUnique({
+      where: { id: withdrawalId },
+      select: {
+        id: true,
+        status: true,
+        userId: true,
+        amount: true,
+        pixKey: true,
+        pixKeyType: true,
+        providerRef: true,
+        processedAt: true,
+        user: { select: { email: true, name: true, industry: true } },
+      },
+    });
 
-    if (!auditLog) {
-      return { success: false, error: "Registro de auditoria nao encontrado." };
-    }
-
-    if (auditLog.entityType !== "WITHDRAWAL_REQUEST") {
+    if (
+      !withdrawal ||
+      withdrawal.status !== "COMPLETED" ||
+      !withdrawal.providerRef ||
+      !withdrawal.processedAt
+    ) {
       return {
         success: false,
-        error: "Comprovante PIX permitido apenas para saques.",
+        error: "O comprovante so pode ser anexado a um saque pago.",
       };
     }
 
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const receiptUrl = `/api/admin/audit-receipts/${auditLog.id}`;
-
     await db.$transaction(async (tx) => {
-      await tx.$executeRaw`
-        UPDATE "AdminAuditLog"
-        SET
-          "receiptUrl" = ${receiptUrl},
-          "receiptFileBytes" = ${bytes},
-          "receiptFileType" = ${file.type},
-          "receiptFileName" = ${file.name}
-        WHERE "id" = ${auditLog.id}
-      `;
-
-      await createAdminAuditLog(tx, {
+      return createAdminAuditLog(tx, {
         actorId: admin.id,
         action: "PIX_WITHDRAWAL_RECEIPT_ATTACHED",
         entityType: "WITHDRAWAL_REQUEST",
-        entityId: auditLog.entityId,
+        entityId: withdrawal.id,
         reason: "Comprovante PIX anexado pela tesouraria.",
-        receiptUrl,
+        receiptFile: {
+          bytes: receipt.bytes,
+          type: receipt.contentType,
+          name: receipt.fileName,
+        },
         metadata: {
-          originalAuditLogId: auditLog.id,
-          receiptFileName: file.name,
-          receiptFileType: file.type,
-          receiptFileSize: file.size,
+          receiptFileName: receipt.fileName,
+          receiptFileType: receipt.contentType,
+          receiptFileSize: receipt.bytes.length,
         },
       });
     });
 
-    const withdrawal = await db.withdrawalRequest.findUnique({
-      where: { id: auditLog.entityId },
-      select: { userId: true },
+    const emailResult = await sendWithdrawalPaidEmail({
+      email: withdrawal.user.email,
+      name: withdrawal.user.name,
+      amount: withdrawal.amount,
+      pixKey: withdrawal.pixKey,
+      pixKeyType: withdrawal.pixKeyType,
+      providerRef: withdrawal.providerRef,
+      processedAt: withdrawal.processedAt,
+      receipt,
     });
 
-    if (withdrawal) {
-      await upsertNotification({
-        userId: withdrawal.userId,
-        actorId: admin.id,
-        type: "SUCCESS",
-        eventType: "WITHDRAWAL_RECEIPT_ATTACHED",
-        title: "Comprovante anexado",
-        message: "A tesouraria anexou o comprovante do seu saque PIX.",
-        link: "/dashboard/financeiro",
-        entityType: "WITHDRAWAL_REQUEST",
-        entityId: auditLog.entityId,
-        metadata: {
-          receiptUrl,
-          receiptFileName: file.name,
+    await db.withdrawalRequest
+      .updateMany({
+        where: { id: withdrawal.id, status: "COMPLETED" },
+        data: {
+          receiptEmailAttempts: { increment: 1 },
+          receiptEmailSentAt: emailResult.success ? new Date() : null,
+          receiptEmailFailureReason: emailResult.success
+            ? null
+            : emailResult.error ||
+              "Falha desconhecida ao enviar o comprovante.",
         },
+      })
+      .catch((error) => {
+        console.error("[WITHDRAWAL_EMAIL_STATUS_UPDATE_ERROR]", error);
       });
-    }
+
+    await upsertNotification({
+      userId: withdrawal.userId,
+      actorId: admin.id,
+      type: "SUCCESS",
+      eventType: "WITHDRAWAL_RECEIPT_ATTACHED",
+      title: "Comprovante do saque",
+      message: emailResult.success
+        ? "A tesouraria enviou o comprovante do seu saque PIX por e-mail."
+        : "A tesouraria anexou o comprovante do seu saque PIX.",
+      link:
+        withdrawal.user.industry === "HEALTH"
+          ? "/agendar-consulta/financeiro"
+          : "/dashboard/financeiro",
+      entityType: "WITHDRAWAL_REQUEST",
+      entityId: withdrawal.id,
+      metadata: {
+        receiptFileName: receipt.fileName,
+        emailSent: emailResult.success,
+      },
+    }).catch((error) => {
+      console.error("[WITHDRAWAL_RECEIPT_NOTIFICATION_ERROR]", error);
+    });
 
     revalidatePath("/dashboard/admin/financeiro");
-    revalidatePath(`/dashboard/admin/disputas`);
+    revalidatePath("/dashboard/financeiro");
+    revalidatePath("/agendar-consulta/financeiro");
 
-    return { success: true };
+    return { success: true, data: { emailSent: emailResult.success } };
   } catch (error) {
     console.error("[UPLOAD_WITHDRAWAL_RECEIPT_ERROR]", error);
     return {

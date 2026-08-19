@@ -13,10 +13,12 @@ export function ReconciliationActions({
   processId,
   meetPending,
   refundPending,
+  canAttachRefund,
 }: {
   processId: string;
   meetPending: boolean;
   refundPending: boolean;
+  canAttachRefund: boolean;
 }) {
   const [refundId, setRefundId] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -60,7 +62,7 @@ export function ReconciliationActions({
         )}
       </div>
 
-      {refundPending && (
+      {refundPending && canAttachRefund && (
         <div className="flex flex-col gap-2 sm:flex-row">
           <input
             value={refundId}

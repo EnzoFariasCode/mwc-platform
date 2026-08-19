@@ -1,12 +1,13 @@
-import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
+import { getUserSession } from "@/lib/get-session";
+import { canAccessAdminRoles } from "@/modules/admin/lib/admin-permissions";
 import { NextResponse } from "next/server";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: RouteContext) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const session = await getUserSession();
+  if (!session) {
     return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
   }
 
@@ -28,19 +29,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
     );
   }
 
-  const isOwner = document.verification.professionalId === session.user.id;
-  let isAuthorizedAdmin = false;
-
-  if (session.user.userType === "ADMIN") {
-    const admin = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { isActive: true, adminRole: true },
-    });
-    isAuthorizedAdmin = Boolean(
-      admin?.isActive &&
-        (!admin.adminRole || ["OWNER", "SUPPORT"].includes(admin.adminRole)),
-    );
-  }
+  const isOwner = document.verification.professionalId === session.id;
+  const isAuthorizedAdmin =
+    session.userType === "ADMIN" &&
+    canAccessAdminRoles(session.adminRole, ["OWNER", "SUPPORT"]);
 
   if (!isOwner && !isAuthorizedAdmin) {
     return NextResponse.json({ error: "Acesso negado." }, { status: 403 });

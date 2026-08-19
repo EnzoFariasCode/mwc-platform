@@ -51,6 +51,41 @@ describe("sendEmail", () => {
     });
   });
 
+  it("encaminha anexos para a Resend", async () => {
+    resendSendMock.mockResolvedValue({
+      data: { id: "email_with_attachment" },
+      error: null,
+    });
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const { sendEmail } = await loadEmailClient();
+    const content = Buffer.from("receipt");
+
+    await sendEmail({
+      to: "profissional@example.com",
+      subject: "Saque pago",
+      text: "Comprovante anexado.",
+      attachments: [
+        {
+          content,
+          filename: "comprovante.pdf",
+          contentType: "application/pdf",
+        },
+      ],
+    });
+
+    expect(resendSendMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachments: [
+          {
+            content,
+            filename: "comprovante.pdf",
+            content_type: "application/pdf",
+          },
+        ],
+      }),
+    );
+  });
+
   it("propaga erros retornados pela API da Resend", async () => {
     resendSendMock.mockResolvedValue({
       data: null,

@@ -7,8 +7,10 @@ import Link from "next/link";
 import {
   CheckCircle2,
   CircleDollarSign,
+  Copy,
   Landmark,
   Loader2,
+  Mail,
   Search,
   XCircle,
 } from "lucide-react";
@@ -17,7 +19,7 @@ import { formatCurrencyBR, formatDateTimeBR } from "@/lib/formatters";
 import { approveWithdrawal } from "@/modules/admin/actions/approve-withdrawal";
 import { rejectWithdrawal } from "@/modules/admin/actions/reject-withdrawal";
 import { uploadWithdrawalReceipt } from "@/modules/admin/actions/upload-withdrawal-receipt";
-import { startWithdrawalProcessing } from "@/modules/admin/actions/start-withdrawal-processing";
+import { resendWithdrawalReceiptEmail } from "@/modules/admin/actions/resend-withdrawal-receipt-email";
 
 type WithdrawalStatusFilter =
   | "ALL"
@@ -40,6 +42,9 @@ export type AdminWithdrawalItem = {
   failedAt: string | null;
   failureReason: string | null;
   providerRef: string | null;
+  receiptEmailSentAt: string | null;
+  receiptEmailAttempts: number;
+  receiptEmailFailureReason: string | null;
   transactionId: string;
   auditLog: {
     id: string;
@@ -61,8 +66,8 @@ export type AdminWithdrawalItem = {
 };
 
 const statusLabels: Record<string, string> = {
-  PENDING: "Pendente",
-  PROCESSING: "Processando",
+  PENDING: "Aguardando pagamento",
+  PROCESSING: "Pagamento em conferencia",
   COMPLETED: "Transferido",
   FAILED: "Falhou",
   CANCELED: "Cancelado",
@@ -122,26 +127,17 @@ export default function AdminFinanceiroView({
 }) {
   const router = useRouter();
   const [approvingId, setApprovingId] = useState<string | null>(null);
-  const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const [uploadingAuditId, setUploadingAuditId] = useState<string | null>(null);
+  const [uploadingWithdrawalId, setUploadingWithdrawalId] = useState<
+    string | null
+  >(null);
+  const [emailingId, setEmailingId] = useState<string | null>(null);
+  const [copiedWithdrawalId, setCopiedWithdrawalId] = useState<string | null>(
+    null,
+  );
   const [withdrawalReasons, setWithdrawalReasons] = useState<
     Record<string, string>
   >({});
-
-  async function handleStartProcessing(withdrawalId: string) {
-    setProcessingId(withdrawalId);
-    const result = await startWithdrawalProcessing(withdrawalId);
-
-    if (result.success) {
-      toast.success("Processamento iniciado.");
-      router.refresh();
-    } else {
-      toast.error(result.error || "Nao foi possivel iniciar o processamento.");
-    }
-
-    setProcessingId(null);
-  }
 
   async function handleApprove(
     event: FormEvent<HTMLFormElement>,
@@ -153,7 +149,13 @@ export default function AdminFinanceiroView({
     const result = await approveWithdrawal(formData);
 
     if (result.success) {
-      toast.success("Saque concluido com comprovante.");
+      if (result.data?.emailSent) {
+        toast.success("Pagamento confirmado e comprovante enviado por e-mail.");
+      } else {
+        toast.warning(
+          "Pagamento confirmado, mas o e-mail falhou. Use Reenviar comprovante.",
+        );
+      }
       router.refresh();
     } else {
       toast.error(result.error || "Nao foi possivel aprovar o saque.");
@@ -200,22 +202,53 @@ export default function AdminFinanceiroView({
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const auditLogId = formData.get("auditLogId")?.toString() ?? null;
+    const withdrawalId = formData.get("withdrawalId")?.toString() ?? null;
 
-    if (!auditLogId) return;
+    if (!withdrawalId) return;
 
-    setUploadingAuditId(auditLogId);
+    setUploadingWithdrawalId(withdrawalId);
     const result = await uploadWithdrawalReceipt(formData);
 
     if (result.success) {
-      toast.success("Comprovante anexado.");
+      if (result.data?.emailSent) {
+        toast.success("Comprovante anexado e enviado por e-mail.");
+      } else {
+        toast.warning(
+          "Comprovante anexado, mas o e-mail falhou. Tente reenviar.",
+        );
+      }
       form.reset();
       router.refresh();
     } else {
       toast.error(result.error || "Nao foi possivel anexar o comprovante.");
     }
 
-    setUploadingAuditId(null);
+    setUploadingWithdrawalId(null);
+  }
+
+  async function handleResendReceiptEmail(withdrawalId: string) {
+    setEmailingId(withdrawalId);
+    const result = await resendWithdrawalReceiptEmail(withdrawalId);
+
+    if (result.success) {
+      toast.success("Comprovante reenviado por e-mail.");
+      router.refresh();
+    } else {
+      toast.error(result.error || "Nao foi possivel reenviar o comprovante.");
+    }
+
+    setEmailingId(null);
+  }
+
+  async function handleCopyPixKey(withdrawalId: string, pixKey: string) {
+    try {
+      await navigator.clipboard.writeText(pixKey);
+      setCopiedWithdrawalId(withdrawalId);
+      toast.success("Chave Pix copiada.");
+      window.setTimeout(() => setCopiedWithdrawalId(null), 2_000);
+    } catch {
+      toast.error("Nao foi possivel copiar a chave Pix.");
+    }
   }
 
   const filters: Array<{ value: WithdrawalStatusFilter; label: string }> = [
@@ -249,8 +282,9 @@ export default function AdminFinanceiroView({
             Saques PIX
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            Confira solicitacoes pendentes e consulte o historico de
-            transferencias PIX.
+            Confira os dados, realize o Pix e marque como pago anexando o
+            comprovante. A plataforma enviara o arquivo ao profissional por
+            e-mail.
           </p>
         </div>
 
@@ -389,9 +423,29 @@ export default function AdminFinanceiroView({
                       </div>
                     </td>
                     <td className="max-w-[260px] px-5 py-4">
-                      <p className="truncate font-mono text-slate-200">
-                        {withdrawal.pixKey}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p
+                          className="break-all font-mono text-slate-200"
+                          title={withdrawal.pixKey}
+                        >
+                          {withdrawal.pixKey}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleCopyPixKey(withdrawal.id, withdrawal.pixKey)
+                          }
+                          className="shrink-0 rounded-lg border border-white/10 bg-slate-950 p-2 text-slate-400 transition-colors hover:border-emerald-500/30 hover:text-emerald-300"
+                          aria-label="Copiar chave Pix"
+                          title="Copiar chave Pix"
+                        >
+                          {copiedWithdrawalId === withdrawal.id ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </div>
                     </td>
                     <td className="px-5 py-4">
                       <span className="rounded-full border border-white/10 bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-300">
@@ -438,14 +492,52 @@ export default function AdminFinanceiroView({
                               "Motivo nao informado"}
                           </p>
                           {withdrawal.auditLog.receiptUrl ? (
-                            <a
-                              href={withdrawal.auditLog.receiptUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-xs font-bold text-emerald-300 hover:text-emerald-200"
-                            >
-                              Ver comprovante
-                            </a>
+                            <div className="mt-2 space-y-2">
+                              <a
+                                href={withdrawal.auditLog.receiptUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs font-bold text-emerald-300 hover:text-emerald-200"
+                              >
+                                Ver comprovante
+                              </a>
+                              {withdrawal.status === "COMPLETED" && (
+                                <>
+                                  {withdrawal.receiptEmailSentAt ? (
+                                    <p className="flex items-center gap-1.5 text-xs text-emerald-300">
+                                      <Mail className="h-3.5 w-3.5" />
+                                      Enviado em {formatDate(
+                                        withdrawal.receiptEmailSentAt,
+                                      )}
+                                    </p>
+                                  ) : (
+                                    <p className="text-xs text-amber-300">
+                                      Comprovante ainda não enviado por e-mail.
+                                    </p>
+                                  )}
+                                  {withdrawal.receiptEmailFailureReason && (
+                                    <p className="text-xs text-red-300">
+                                      Falha no e-mail: {withdrawal.receiptEmailFailureReason}
+                                    </p>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleResendReceiptEmail(withdrawal.id)
+                                    }
+                                    disabled={emailingId === withdrawal.id}
+                                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1.5 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black disabled:cursor-wait disabled:opacity-60"
+                                  >
+                                    {emailingId === withdrawal.id ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Mail className="h-3.5 w-3.5" />
+                                    )}
+                                    Reenviar por e-mail
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           ) : withdrawal.status === "COMPLETED" ? (
                             <form
                               onSubmit={handleReceiptUpload}
@@ -453,8 +545,8 @@ export default function AdminFinanceiroView({
                             >
                               <input
                                 type="hidden"
-                                name="auditLogId"
-                                value={withdrawal.auditLog.id}
+                                name="withdrawalId"
+                                value={withdrawal.id}
                               />
                               <input
                                 name="receipt"
@@ -466,17 +558,47 @@ export default function AdminFinanceiroView({
                               <button
                                 type="submit"
                                 disabled={
-                                  uploadingAuditId === withdrawal.auditLog.id
+                                  uploadingWithdrawalId === withdrawal.id
                                 }
                                 className="inline-flex items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1.5 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black disabled:cursor-wait disabled:opacity-60"
                               >
-                                {uploadingAuditId === withdrawal.auditLog.id
+                                {uploadingWithdrawalId === withdrawal.id
                                   ? "Anexando..."
                                   : "Anexar comprovante"}
                               </button>
                             </form>
                           ) : null}
                         </div>
+                      ) : withdrawal.status === "COMPLETED" ? (
+                        <form
+                          onSubmit={handleReceiptUpload}
+                          className="flex max-w-[240px] flex-col gap-2"
+                        >
+                          <p className="text-xs text-amber-300">
+                            Pagamento antigo sem comprovante armazenado.
+                          </p>
+                          <input
+                            type="hidden"
+                            name="withdrawalId"
+                            value={withdrawal.id}
+                          />
+                          <input
+                            name="receipt"
+                            type="file"
+                            accept="application/pdf,image/png,image/jpeg,image/webp"
+                            required
+                            className="block w-full text-xs text-slate-400 file:mr-2 file:rounded-lg file:border-0 file:bg-slate-800 file:px-2 file:py-1 file:text-xs file:font-bold file:text-slate-200 hover:file:bg-slate-700"
+                          />
+                          <button
+                            type="submit"
+                            disabled={uploadingWithdrawalId === withdrawal.id}
+                            className="inline-flex items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1.5 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black disabled:cursor-wait disabled:opacity-60"
+                          >
+                            {uploadingWithdrawalId === withdrawal.id
+                              ? "Anexando..."
+                              : "Anexar e enviar"}
+                          </button>
+                        </form>
                       ) : (
                         <span className="text-xs text-slate-600">
                           Sem log formal
@@ -488,43 +610,44 @@ export default function AdminFinanceiroView({
                         withdrawal.status,
                       ) ? (
                         <div className="ml-auto flex max-w-[260px] flex-col gap-2">
-                          {withdrawal.status === "PENDING" ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleStartProcessing(withdrawal.id)
-                              }
-                              disabled={processingId === withdrawal.id}
-                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-500 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-blue-400 disabled:cursor-wait disabled:opacity-60"
-                            >
-                              {processingId === withdrawal.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Landmark className="h-4 w-4" />
-                              )}
-                              Iniciar processamento
-                            </button>
-                          ) : (
-                            <form
-                              onSubmit={(event) =>
-                                handleApprove(event, withdrawal.id)
-                              }
-                              className="space-y-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-left"
-                            >
-                              <input
-                                type="hidden"
-                                name="withdrawalId"
-                                value={withdrawal.id}
-                              />
+                          <form
+                            onSubmit={(event) =>
+                              handleApprove(event, withdrawal.id)
+                            }
+                            className="space-y-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-left"
+                          >
+                            <input
+                              type="hidden"
+                              name="withdrawalId"
+                              value={withdrawal.id}
+                            />
+                            <div>
+                              <p className="text-xs font-bold text-emerald-300">
+                                Depois de realizar o Pix
+                              </p>
+                              <p className="mt-1 text-[11px] leading-4 text-slate-400">
+                                Informe a identificacao, anexe o comprovante e
+                                marque o saque como pago.
+                              </p>
+                            </div>
+                            <label className="block">
+                              <span className="mb-1 block text-[11px] font-bold text-slate-300">
+                                ID/E2E da transferencia
+                              </span>
                               <input
                                 name="providerRef"
                                 type="text"
                                 required
                                 minLength={5}
                                 maxLength={120}
-                                placeholder="ID da operacao"
+                                placeholder="Ex.: E123..."
                                 className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-xs text-white outline-none focus:border-emerald-400"
                               />
+                            </label>
+                            <label className="block">
+                              <span className="mb-1 block text-[11px] font-bold text-slate-300">
+                                Comprovante
+                              </span>
                               <input
                                 name="receipt"
                                 type="file"
@@ -532,20 +655,31 @@ export default function AdminFinanceiroView({
                                 accept="application/pdf,image/png,image/jpeg,image/webp"
                                 className="block w-full text-xs text-slate-400 file:mr-2 file:rounded-lg file:border-0 file:bg-slate-800 file:px-2 file:py-1 file:text-xs file:font-bold file:text-slate-200"
                               />
-                              <button
-                                type="submit"
-                                disabled={approvingId === withdrawal.id}
-                                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-black hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60"
-                              >
-                                {approvingId === withdrawal.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <CheckCircle2 className="h-4 w-4" />
-                                )}
-                                Confirmar pagamento
-                              </button>
-                            </form>
-                          )}
+                            </label>
+                            <label className="flex items-start gap-2 rounded-lg border border-white/10 bg-slate-950/70 p-2 text-[11px] leading-4 text-slate-300">
+                              <input
+                                type="checkbox"
+                                name="paymentConfirmed"
+                                value="true"
+                                required
+                                className="mt-0.5 h-3.5 w-3.5 accent-emerald-500"
+                              />
+                              Confirmo que o Pix ja foi realizado para esta
+                              chave e neste valor.
+                            </label>
+                            <button
+                              type="submit"
+                              disabled={approvingId === withdrawal.id}
+                              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-black hover:bg-emerald-400 disabled:cursor-wait disabled:opacity-60"
+                            >
+                              {approvingId === withdrawal.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-4 w-4" />
+                              )}
+                              Marcar como pago
+                            </button>
+                          </form>
                           <textarea
                             value={withdrawalReasons[withdrawal.id] ?? ""}
                             onChange={(event) =>

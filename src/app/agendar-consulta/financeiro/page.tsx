@@ -35,12 +35,22 @@ function statusText(status: string) {
     return <span className="text-yellow-400">Pendente</span>;
   }
   if (normalized === "PROCESSING") {
-    return <span className="text-blue-400">Processando</span>;
+    return <span className="text-blue-400">Em conferencia</span>;
   }
   if (normalized === "FAILED") {
     return <span className="text-red-400">Falhou</span>;
   }
   return <span className="text-slate-400">{status}</span>;
+}
+
+function withdrawalStatusText(status: string) {
+  if (status === "PENDING") {
+    return <span className="text-yellow-400">Aguardando pagamento</span>;
+  }
+  if (status === "PROCESSING") {
+    return <span className="text-blue-400">Pagamento em conferencia</span>;
+  }
+  return statusText(status);
 }
 
 export default async function HealthFinanceiroPage() {
@@ -366,7 +376,7 @@ export default async function HealthFinanceiroPage() {
                         Solicitado em {new Date(withdrawal.requestedAt).toLocaleDateString(
                           "pt-BR",
                         )}{" "}
-                        • {statusText(withdrawal.status)}
+                        • {withdrawalStatusText(withdrawal.status)}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
                         Prazo: {new Date(withdrawal.dueAt).toLocaleDateString("pt-BR")}
@@ -374,6 +384,14 @@ export default async function HealthFinanceiroPage() {
                           ? ` • Pago em ${new Date(withdrawal.processedAt).toLocaleDateString("pt-BR")}`
                           : ""}
                       </p>
+                      {withdrawal.receiptEmailSentAt && (
+                        <p className="mt-1 text-xs text-emerald-400">
+                          Comprovante enviado por e-mail em{" "}
+                          {new Date(
+                            withdrawal.receiptEmailSentAt,
+                          ).toLocaleDateString("pt-BR")}
+                        </p>
+                      )}
                       {withdrawal.failureReason && (
                         <p className="mt-1 text-xs text-red-300">
                           Motivo: {withdrawal.failureReason}

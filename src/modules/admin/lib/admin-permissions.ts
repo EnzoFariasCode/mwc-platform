@@ -29,7 +29,7 @@ export function normalizeAdminRole({
   adminRole?: AdminRole | null;
 }) {
   if (userType !== "ADMIN") return null;
-  return adminRole ?? "OWNER";
+  return adminRole ?? null;
 }
 
 export function canAccessAdminRoles(

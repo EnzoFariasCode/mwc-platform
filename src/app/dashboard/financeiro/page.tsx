@@ -29,15 +29,19 @@ function StatusText({ status }: { status: string }) {
   const s = status.toUpperCase();
   if (s === "COMPLETED")
     return <span className="text-green-500">Concluído</span>;
-  if (s === "PENDING" || s === "PROCESSING")
-    return <span className="text-yellow-500">Em processamento</span>;
+  if (s === "PENDING")
+    return <span className="text-yellow-500">Pendente</span>;
+  if (s === "PROCESSING")
+    return <span className="text-blue-400">Em conferência</span>;
   if (s === "FAILED") return <span className="text-red-500">Falhou</span>;
   return <span className="text-muted-foreground">{status}</span>;
 }
 
 function WithdrawalStatusText({ status }: { status: string }) {
-  if (status === "PENDING") return <span className="text-yellow-500">Pendente</span>;
-  if (status === "PROCESSING") return <span className="text-blue-400">Processando</span>;
+  if (status === "PENDING")
+    return <span className="text-yellow-500">Aguardando pagamento</span>;
+  if (status === "PROCESSING")
+    return <span className="text-blue-400">Pagamento em conferência</span>;
   if (status === "COMPLETED") return <span className="text-green-500">Pago</span>;
   if (status === "FAILED") return <span className="text-red-500">Falhou</span>;
   return <span className="text-muted-foreground">Cancelado</span>;
@@ -327,6 +331,14 @@ export default async function FinanceiroPage() {
                           ? ` • Pago em ${withdrawal.processedAt.toLocaleDateString("pt-BR")}`
                           : ""}
                       </p>
+                      {withdrawal.receiptEmailSentAt && (
+                        <p className="mt-1 text-xs text-green-500">
+                          Comprovante enviado por e-mail em{" "}
+                          {withdrawal.receiptEmailSentAt.toLocaleDateString(
+                            "pt-BR",
+                          )}
+                        </p>
+                      )}
                       {withdrawal.failureReason && (
                         <p className="mt-1 text-xs text-red-400">
                           Motivo: {withdrawal.failureReason}

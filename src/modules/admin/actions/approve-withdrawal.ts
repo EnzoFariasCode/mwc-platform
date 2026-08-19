@@ -11,24 +11,23 @@ import {
   claimWithdrawalTransition,
   transitionWithdrawalTransaction,
 } from "@/modules/admin/services/withdrawal-state-transition";
+import { validateWithdrawalReceipt } from "@/modules/admin/lib/withdrawal-receipt";
+import { sendWithdrawalPaidEmail } from "@/modules/finance/services/withdrawal-email-service";
+import { Prisma } from "@prisma/client";
 
 const ADMIN_WITHDRAWAL_DECISION_LIMIT = 30;
 const ADMIN_WITHDRAWAL_DECISION_WINDOW_MS = 10 * 60 * 1000;
-const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
-const ALLOWED_RECEIPT_TYPES = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
-
 export async function approveWithdrawal(
   formData: FormData,
-): Promise<ActionResponse> {
+): Promise<ActionResponse<{ emailSent: boolean }>> {
   const admin = await requireAdminRole(["OWNER", "FINANCE"]);
   const withdrawalId = formData.get("withdrawalId")?.toString().trim();
-  const providerRef = formData.get("providerRef")?.toString().trim();
-  const receipt = formData.get("receipt");
+  const providerRef = formData
+    .get("providerRef")
+    ?.toString()
+    .trim()
+    .replace(/\s+/g, " ");
+  const paymentConfirmed = formData.get("paymentConfirmed") === "true";
 
   if (!withdrawalId) {
     return { success: false, error: "Solicitacao de saque invalida." };
@@ -39,15 +38,17 @@ export async function approveWithdrawal(
       error: "Informe a identificacao da operacao realizada.",
     };
   }
-  if (!(receipt instanceof File) || receipt.size === 0) {
-    return { success: false, error: "Anexe o comprovante da transferencia." };
+  if (!paymentConfirmed) {
+    return {
+      success: false,
+      error: "Confirme que o Pix ja foi realizado antes de marcar como pago.",
+    };
   }
-  if (receipt.size > MAX_RECEIPT_BYTES) {
-    return { success: false, error: "O comprovante deve ter no maximo 5 MB." };
-  }
-  if (!ALLOWED_RECEIPT_TYPES.has(receipt.type)) {
-    return { success: false, error: "Envie um PDF, JPG, PNG ou WEBP." };
-  }
+
+  const receiptResult = await validateWithdrawalReceipt(
+    formData.get("receipt"),
+  );
+  if (!receiptResult.success) return receiptResult;
 
   const rateLimitError = await consumeRateLimit({
     key: `admin:withdrawal-decision:user:${admin.id}`,
@@ -58,7 +59,7 @@ export async function approveWithdrawal(
   if (rateLimitError) return { success: false, error: rateLimitError };
 
   try {
-    const receiptBytes = Buffer.from(await receipt.arrayBuffer());
+    const receipt = receiptResult.receipt;
     const processedAt = new Date();
     const approved = await db.$transaction(async (tx) => {
       const withdrawal = await tx.withdrawalRequest.findUnique({
@@ -72,19 +73,37 @@ export async function approveWithdrawal(
           pixKeyType: true,
           userId: true,
           dueAt: true,
+          user: {
+            select: { email: true, name: true, industry: true },
+          },
         },
       });
 
       if (!withdrawal) throw new Error("Solicitacao de saque nao encontrada.");
-      if (withdrawal.status !== "PROCESSING") {
+      if (
+        withdrawal.status !== "PENDING" &&
+        withdrawal.status !== "PROCESSING"
+      ) {
+        throw new Error("Esta solicitacao de saque ja foi processada.");
+      }
+
+      const duplicateOperation = await tx.withdrawalRequest.findFirst({
+        where: {
+          id: { not: withdrawal.id },
+          providerRef,
+          status: "COMPLETED",
+        },
+        select: { id: true },
+      });
+      if (duplicateOperation) {
         throw new Error(
-          "Inicie o processamento antes de concluir a transferencia.",
+          "Esta identificacao de operacao ja foi usada em outro saque.",
         );
       }
 
       await claimWithdrawalTransition(tx, {
         withdrawalId: withdrawal.id,
-        expectedStatuses: ["PROCESSING"],
+        expectedStatuses: ["PENDING", "PROCESSING"],
         nextStatus: "COMPLETED",
         data: {
           providerRef,
@@ -95,20 +114,20 @@ export async function approveWithdrawal(
       });
       await transitionWithdrawalTransaction(tx, {
         transactionId: withdrawal.transactionId,
-        expectedStatuses: ["PROCESSING"],
+        expectedStatuses: ["PENDING", "PROCESSING"],
         nextStatus: "COMPLETED",
       });
 
-      const audit = await createAdminAuditLog(tx, {
+      await createAdminAuditLog(tx, {
         actorId: admin.id,
         action: "PIX_WITHDRAWAL_MARK_COMPLETED",
         entityType: "WITHDRAWAL_REQUEST",
         entityId: withdrawal.id,
         reason: `Transferencia manual concluida. Operacao: ${providerRef}.`,
         receiptFile: {
-          bytes: receiptBytes,
-          type: receipt.type,
-          name: receipt.name,
+          bytes: receipt.bytes,
+          type: receipt.contentType,
+          name: receipt.fileName,
         },
         metadata: {
           amount: withdrawal.amount.toNumber(),
@@ -127,10 +146,44 @@ export async function approveWithdrawal(
         id: withdrawal.id,
         userId: withdrawal.userId,
         amount: withdrawal.amount,
-        receiptUrl: audit.receiptUrl,
         providerRef,
+        email: withdrawal.user.email,
+        name: withdrawal.user.name,
+        industry: withdrawal.user.industry,
+        pixKey: withdrawal.pixKey,
+        pixKeyType: withdrawal.pixKeyType,
+        processedAt,
       };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
+
+    const emailResult = await sendWithdrawalPaidEmail({
+      email: approved.email,
+      name: approved.name,
+      amount: approved.amount,
+      pixKey: approved.pixKey,
+      pixKeyType: approved.pixKeyType,
+      providerRef: approved.providerRef,
+      processedAt: approved.processedAt,
+      receipt,
+    });
+
+    await db.withdrawalRequest
+      .updateMany({
+        where: { id: approved.id, status: "COMPLETED" },
+        data: {
+          receiptEmailAttempts: { increment: 1 },
+          receiptEmailSentAt: emailResult.success ? new Date() : null,
+          receiptEmailFailureReason: emailResult.success
+            ? null
+            : emailResult.error ||
+              "Falha desconhecida ao enviar o comprovante.",
+        },
+      })
+      .catch((error) => {
+        console.error("[WITHDRAWAL_EMAIL_STATUS_UPDATE_ERROR]", error);
+      });
 
     await upsertNotification({
       userId: approved.userId,
@@ -139,20 +192,25 @@ export async function approveWithdrawal(
       eventType: "WITHDRAWAL_COMPLETED",
       title: "Saque pago",
       message: `Seu saque foi pago. Identificacao da operacao: ${approved.providerRef}.`,
-      link: "/dashboard/financeiro",
+      link:
+        approved.industry === "HEALTH"
+          ? "/agendar-consulta/financeiro"
+          : "/dashboard/financeiro",
       entityType: "WITHDRAWAL_REQUEST",
       entityId: approved.id,
       metadata: {
         amount: approved.amount.toNumber(),
         providerRef: approved.providerRef,
-        receiptUrl: approved.receiptUrl,
+        receiptEmailSent: emailResult.success,
       },
+    }).catch((error) => {
+      console.error("[WITHDRAWAL_COMPLETED_NOTIFICATION_ERROR]", error);
     });
 
     revalidatePath("/dashboard/admin/financeiro");
     revalidatePath("/dashboard/financeiro");
     revalidatePath("/agendar-consulta/financeiro");
-    return { success: true };
+    return { success: true, data: { emailSent: emailResult.success } };
   } catch (error) {
     console.error("[APPROVE_WITHDRAWAL_ERROR]", error);
     return {

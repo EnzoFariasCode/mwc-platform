@@ -267,6 +267,10 @@ export default async function AdminReconciliacoesPage() {
                         processId={process.id}
                         meetPending={process.meetStatus === "PENDING"}
                         refundPending={process.refundStatus === "PENDING"}
+                        canAttachRefund={
+                          admin.adminRole === "OWNER" ||
+                          admin.adminRole === "FINANCE"
+                        }
                       />
                     )}
                   </article>

@@ -3,6 +3,9 @@ import { requireAdminRole } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { Prisma, ProjectStatus } from "@prisma/client";
 import AdminDisputesView, { AdminDisputeItem } from "./AdminDisputesView";
+import { AdminPagination } from "@/modules/admin/components/AdminPagination";
+
+const PAGE_SIZE = 25;
 
 type TechDisputeRecord = {
   id: string;
@@ -13,6 +16,7 @@ type TechDisputeRecord = {
   disputeOpenedAt: Date | null;
   disputeResolvedAt: Date | null;
   disputeResolution: string | null;
+  disputeDecisionClaim: string | null;
   updatedAt: Date;
   deliverables: Array<{
     description: string | null;
@@ -28,28 +32,55 @@ type TechDisputeRecord = {
   } | null;
 };
 
-export default async function AdminDisputasPage() {
+function normalizedDecisionClaim(
+  value: string | null,
+): AdminDisputeItem["decisionClaim"] {
+  if (value === "REFUND_CLIENT" || value === "REFUND_PATIENT") {
+    return "REFUND";
+  }
+  if (value === "RELEASE_TO_PROFESSIONAL") return "RELEASE";
+  return null;
+}
+
+export default async function AdminDisputasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   await requireAdminRole(["OWNER", "SUPPORT"]);
+  const params = await searchParams;
+  const requestedPage = Math.max(1, Number.parseInt(params.page || "1", 10) || 1);
+  const techWhere: Prisma.ProjectWhereInput = {
+    OR: [
+      { status: "DISPUTE" },
+      { disputeOpenedAt: { not: null } },
+      {
+        deliverables: {
+          some: { description: { startsWith: "DISPUTE_" } },
+        },
+      },
+    ],
+  };
+  const healthWhere: Prisma.AppointmentWhereInput = {
+    OR: [
+      { status: "DISPUTED" },
+      { notes: { contains: "DISPUTE_RESOLVED" } },
+    ],
+  };
+  const [techCount, healthCount] = await Promise.all([
+    db.project.count({ where: techWhere }),
+    db.appointment.count({ where: healthWhere }),
+  ]);
+  const totalItems = techCount + healthCount;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const page = Math.min(requestedPage, totalPages);
+  const fetchLimit = page * PAGE_SIZE;
 
   const [techProjects, healthAppointments] = await Promise.all([
     db.project.findMany({
-      where: {
-        OR: [
-          { status: "DISPUTE" },
-          { disputeOpenedAt: { not: null } },
-          {
-            deliverables: {
-              some: {
-                description: {
-                  startsWith: "DISPUTE_",
-                },
-              },
-            },
-          },
-        ],
-      },
+      where: techWhere,
       orderBy: { updatedAt: "desc" },
-      take: 100,
+      take: fetchLimit,
       select: {
         id: true,
         title: true,
@@ -59,6 +90,7 @@ export default async function AdminDisputasPage() {
         disputeOpenedAt: true,
         disputeResolvedAt: true,
         disputeResolution: true,
+        disputeDecisionClaim: true,
         updatedAt: true,
         deliverables: {
           where: {
@@ -89,14 +121,9 @@ export default async function AdminDisputasPage() {
       } as Prisma.ProjectSelect,
     }) as Promise<TechDisputeRecord[]>,
     db.appointment.findMany({
-      where: {
-        OR: [
-          { status: "DISPUTED" },
-          { notes: { contains: "DISPUTE_RESOLVED" } },
-        ],
-      },
+      where: healthWhere,
       orderBy: { updatedAt: "desc" },
-      take: 100,
+      take: fetchLimit,
       select: {
         id: true,
         date: true,
@@ -105,6 +132,7 @@ export default async function AdminDisputasPage() {
         status: true,
         disputeReason: true,
         disputeOpenedAt: true,
+        disputeDecisionClaim: true,
         notes: true,
         updatedAt: true,
         patient: {
@@ -123,7 +151,7 @@ export default async function AdminDisputasPage() {
     }),
   ]);
 
-  const disputes: AdminDisputeItem[] = [
+  const allDisputes: AdminDisputeItem[] = [
     ...techProjects.map((project) => {
       const opened = project.deliverables.find((item) =>
         item.description?.startsWith("DISPUTE_OPENED"),
@@ -157,6 +185,7 @@ export default async function AdminDisputasPage() {
           ) ||
           project.disputeResolution,
         resolution,
+        decisionClaim: normalizedDecisionClaim(project.disputeDecisionClaim),
         isOpen: project.status === "DISPUTE",
         openedAt:
           opened?.createdAt.toISOString() ??
@@ -199,6 +228,9 @@ export default async function AdminDisputasPage() {
         reason: appointment.disputeReason,
         resolutionReason,
         resolution,
+        decisionClaim: normalizedDecisionClaim(
+          appointment.disputeDecisionClaim,
+        ),
         isOpen: appointment.status === "DISPUTED",
         openedAt: appointment.disputeOpenedAt?.toISOString() ?? null,
         resolvedAt: resolution ? appointment.updatedAt.toISOString() : null,
@@ -213,10 +245,16 @@ export default async function AdminDisputasPage() {
   ].sort((a, b) => {
     return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   });
+  const disputes = allDisputes.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <PageContainer>
       <AdminDisputesView disputes={disputes} />
+      <AdminPagination
+        page={page}
+        totalPages={totalPages}
+        pathname="/dashboard/admin/disputas"
+      />
     </PageContainer>
   );
 }

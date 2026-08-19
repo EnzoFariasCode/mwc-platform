@@ -20,6 +20,7 @@ import {
   Store,
   ShieldCheck,
   Flag,
+  AlertTriangle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Logo from "@/assets/images/landingPage/logo.png";
@@ -306,12 +307,18 @@ export default function DashboardSidebar() {
       href: "/dashboard/admin/financeiro",
       roles: ["OWNER", "FINANCE"],
     },
+    {
+      icon: AlertTriangle,
+      label: "Reconciliação Online",
+      href: "/dashboard/admin/reconciliacoes",
+      roles: ["OWNER", "FINANCE", "SUPPORT"],
+    },
   ];
 
   const isAdmin = user?.userType === "ADMIN";
   const isTechProfessional =
     user?.userType === "PROFESSIONAL" && user.industry === "TECH";
-  const adminRole = user?.adminRole ?? "OWNER";
+  const adminRole = user?.adminRole ?? null;
   const visibleAdminLinks = adminLinks.filter((item) =>
     canAccessAdminRoles(adminRole, item.roles),
   );

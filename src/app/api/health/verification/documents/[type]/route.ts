@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
-import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
+import { getUserSession } from "@/lib/get-session";
 import {
   canProfessionalEditVerification,
   expectedCouncilForSpecialty,
@@ -27,12 +27,12 @@ function isDocumentType(
 }
 
 export async function POST(request: Request, { params }: RouteContext) {
-  const session = await auth();
+  const session = await getUserSession();
 
   if (
-    !session?.user?.id ||
-    session.user.userType !== "PROFESSIONAL" ||
-    session.user.industry !== "HEALTH"
+    !session ||
+    session.userType !== "PROFESSIONAL" ||
+    session.industry !== "HEALTH"
   ) {
     return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
   }
@@ -46,7 +46,7 @@ export async function POST(request: Request, { params }: RouteContext) {
   }
 
   const professional = await db.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: session.id },
     select: {
       onlineSpecialty: true,
       professionalVerification: {
@@ -108,7 +108,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     if (!verificationId) {
       const created = await tx.professionalVerification.create({
         data: {
-          professionalId: session.user.id,
+          professionalId: session.id,
           specialty: professional.onlineSpecialty!,
           council: expectedCouncilForSpecialty(professional.onlineSpecialty!),
         },

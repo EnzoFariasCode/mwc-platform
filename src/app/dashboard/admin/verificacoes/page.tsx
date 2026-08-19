@@ -7,14 +7,33 @@ import {
   specialtyVerificationLabel,
   verificationStatusLabel,
 } from "@/modules/health/lib/professional-verification-policy";
+import { AdminPagination } from "@/modules/admin/components/AdminPagination";
 
-export default async function AdminVerificationsPage() {
+const PAGE_SIZE = 25;
+
+export default async function AdminVerificationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   await requireAdminRole(["OWNER", "SUPPORT"]);
+  const params = await searchParams;
+  const requestedPage = Math.max(1, Number.parseInt(params.page || "1", 10) || 1);
+  const where = { status: { not: "DRAFT" as const } };
+  const [totalItems, pending] = await Promise.all([
+    db.professionalVerification.count({ where }),
+    db.professionalVerification.count({
+      where: { status: { in: ["PENDING", "UNDER_REVIEW"] } },
+    }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const page = Math.min(requestedPage, totalPages);
 
   const verifications = await db.professionalVerification.findMany({
-    where: { status: { not: "DRAFT" } },
+    where,
     orderBy: [{ submittedAt: "desc" }, { updatedAt: "desc" }],
-    take: 100,
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
     select: {
       id: true,
       status: true,
@@ -27,10 +46,6 @@ export default async function AdminVerificationsPage() {
       _count: { select: { documents: true } },
     },
   });
-
-  const pending = verifications.filter((item) =>
-    ["PENDING", "UNDER_REVIEW"].includes(item.status),
-  ).length;
 
   return (
     <PageContainer>
@@ -92,6 +107,11 @@ export default async function AdminVerificationsPage() {
             </table>
           </div>
           {verifications.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Nenhuma verificacao enviada.</p>}
+          <AdminPagination
+            page={page}
+            totalPages={totalPages}
+            pathname="/dashboard/admin/verificacoes"
+          />
         </section>
       </div>
     </PageContainer>

@@ -125,6 +125,7 @@ export async function requestTechSupport({
   );
 
   await sendAdminNotification({
+    roles: ["OWNER", "SUPPORT"],
     subject: `Suporte tecnico Tech - ${safeSubject}`,
     lines: [
       `Profissional: ${user.name || "Sem nome"}`,
@@ -136,6 +137,13 @@ export async function requestTechSupport({
       safeMessage,
     ],
     actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ""}/dashboard/admin/usuarios`,
+    notification: {
+      eventType: "ADMIN_TECH_SUPPORT_REQUESTED",
+      entityType: "TECH_SUPPORT_REQUEST",
+      entityId: supportId,
+      title: "Novo pedido de suporte Tech",
+      message: safeSubject,
+    },
   });
 
   return { success: true };

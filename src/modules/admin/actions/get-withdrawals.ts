@@ -91,6 +91,9 @@ export async function getAdminWithdrawals(query: AdminWithdrawalQuery = {}) {
       failedAt: true,
       failureReason: true,
       providerRef: true,
+      receiptEmailSentAt: true,
+      receiptEmailAttempts: true,
+      receiptEmailFailureReason: true,
       transactionId: true,
       user: {
         select: {
@@ -135,7 +138,10 @@ export async function getAdminWithdrawals(query: AdminWithdrawalQuery = {}) {
           INNER JOIN "User" actor ON actor."id" = audit."actorId"
           WHERE audit."entityType" = 'WITHDRAWAL_REQUEST'
             AND audit."entityId" IN (${Prisma.join(withdrawalIds)})
-          ORDER BY audit."entityId", audit."createdAt" DESC
+          ORDER BY
+            audit."entityId",
+            (audit."receiptUrl" IS NOT NULL) DESC,
+            audit."createdAt" DESC
         `
       : [];
   const auditByWithdrawalId = new Map(

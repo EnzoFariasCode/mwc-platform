@@ -44,7 +44,7 @@ export async function verifySession(): Promise<SessionPayload | null> {
   const userType = user.userType;
   const adminRole = normalizeAdminRole({
     userType,
-    adminRole: session.user.adminRole ?? user.adminRole,
+    adminRole: user.adminRole,
   });
 
   return {

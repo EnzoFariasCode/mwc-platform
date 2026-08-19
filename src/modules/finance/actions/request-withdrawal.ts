@@ -180,7 +180,10 @@ export async function requestWithdrawal(
       eventType: "WITHDRAWAL_REQUESTED",
       title: "Saque solicitado",
       message: `Saque de ${withdrawal.amount.toNumber().toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} para ${withdrawal.pixKeyType} - ${withdrawal.pixKey} registrado. Pagamento manual estimado ate ${dueAt.toLocaleDateString("pt-BR")}.`,
-      link: "/dashboard/financeiro",
+      link:
+        session.industry === "HEALTH"
+          ? "/agendar-consulta/financeiro"
+          : "/dashboard/financeiro",
       entityType: "WITHDRAWAL_REQUEST",
       entityId: withdrawal.id,
       metadata: {
@@ -191,6 +194,7 @@ export async function requestWithdrawal(
       },
     });
     await sendAdminNotification({
+      roles: ["OWNER", "FINANCE"],
       subject: "MWC Admin - Novo saque PIX pendente",
       lines: [
         "Um profissional solicitou saque PIX.",
@@ -204,6 +208,13 @@ export async function requestWithdrawal(
         `Prazo: ${withdrawal.dueAt.toLocaleDateString("pt-BR")}`,
       ],
       actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/financeiro`,
+      notification: {
+        eventType: "ADMIN_WITHDRAWAL_REQUESTED",
+        entityType: "WITHDRAWAL_REQUEST",
+        entityId: withdrawal.id,
+        title: "Novo saque PIX pendente",
+        message: `Saque de ${withdrawal.amount.toNumber().toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} aguardando pagamento manual.`,
+      },
     });
 
     return {

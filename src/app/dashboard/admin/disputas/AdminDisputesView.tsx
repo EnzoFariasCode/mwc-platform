@@ -25,6 +25,7 @@ export type AdminDisputeItem = {
   reason: string | null;
   resolutionReason: string | null;
   resolution: "REFUND" | "RELEASE" | null;
+  decisionClaim: "REFUND" | "RELEASE" | null;
   isOpen: boolean;
   openedAt: string | null;
   resolvedAt: string | null;
@@ -370,6 +371,12 @@ export default function AdminDisputesView({
                 <span>Atualizada: {formatDate(dispute.updatedAt)}</span>
               </div>
 
+              {dispute.isOpen && dispute.decisionClaim && (
+                <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+                  Decisao protegida em processamento: {dispute.decisionClaim === "REFUND" ? "reembolso" : "liberacao ao profissional"}. A decisao oposta permanece bloqueada.
+                </div>
+              )}
+
               {dispute.isOpen ? (
                 <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <Link
@@ -380,23 +387,25 @@ export default function AdminDisputesView({
                   </Link>
                   <button
                     type="button"
+                    disabled={dispute.decisionClaim === "RELEASE"}
                     onClick={() =>
                       setPendingDecision({ dispute, decision: "REFUND" })
                     }
-                    className="flex items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-300 transition-colors hover:bg-red-500 hover:text-white"
+                    className="flex items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-300 transition-colors hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <CreditCard className="h-4 w-4" />
-                    Reembolsar
+                    {dispute.decisionClaim === "REFUND" ? "Retomar reembolso" : "Reembolsar"}
                   </button>
                   <button
                     type="button"
+                    disabled={dispute.decisionClaim === "REFUND"}
                     onClick={() =>
                       setPendingDecision({ dispute, decision: "RELEASE" })
                     }
-                    className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black"
+                    className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-black disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <CheckCircle2 className="h-4 w-4" />
-                    Liberar ao profissional
+                    {dispute.decisionClaim === "RELEASE" ? "Retomar liberacao" : "Liberar ao profissional"}
                   </button>
                 </div>
               ) : (

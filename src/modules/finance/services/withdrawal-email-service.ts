@@ -1,5 +1,8 @@
 import { sendEmail } from "@/modules/email/email-client";
-import { withdrawalRequestedEmail } from "@/modules/email/templates/finance-emails";
+import {
+  withdrawalPaidEmail,
+  withdrawalRequestedEmail,
+} from "@/modules/email/templates/finance-emails";
 
 function formatCurrency(value: unknown) {
   const numericValue = Number(value);
@@ -39,5 +42,53 @@ export async function sendWithdrawalRequestedEmail({
     to: email,
     ...template,
     logPrefix: "WITHDRAWAL_EMAIL",
+  });
+}
+
+export async function sendWithdrawalPaidEmail({
+  email,
+  name,
+  amount,
+  pixKey,
+  pixKeyType,
+  providerRef,
+  processedAt,
+  receipt,
+}: {
+  email: string | null;
+  name: string | null;
+  amount: unknown;
+  pixKey: string;
+  pixKeyType: string;
+  providerRef: string;
+  processedAt: Date;
+  receipt: {
+    bytes: Buffer;
+    contentType: string;
+    fileName: string;
+  };
+}) {
+  const template = withdrawalPaidEmail({
+    name,
+    amount: formatCurrency(amount),
+    pixKey,
+    pixKeyType,
+    providerRef,
+    processedAt: processedAt.toLocaleString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+    }),
+  });
+
+  return sendEmail({
+    to: email,
+    ...template,
+    attachments: [
+      {
+        content: receipt.bytes,
+        filename: receipt.fileName,
+        contentType: receipt.contentType,
+      },
+    ],
+    logPrefix: "WITHDRAWAL_PAID_EMAIL",
   });
 }

@@ -114,6 +114,7 @@ async function notifyAdmins({
       }),
     ),
     sendAdminNotification({
+      roles: ["OWNER", "SUPPORT"],
       subject: `MWC Online - ${title}`,
       lines: [message, `Agendamento: ${appointmentId}`],
       actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/reconciliacoes`,

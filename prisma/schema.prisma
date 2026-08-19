@@ -377,27 +377,30 @@ model User {
 }
 
 model ProfessionalVerification {
-  id                  String                           @id @default(uuid())
-  professionalId      String                           @unique
-  specialty           HealthSpecialty
-  status              ProfessionalVerificationStatus   @default(DRAFT)
-  council             ProfessionalCouncil
-  registrationNumber  String?
-  registrationRegion  String?
-  qualificationTitle  String?
-  officialSourceUrl   String?
-  officialCheckResult ProfessionalRegistryCheckResult?
-  officialCheckedAt   DateTime?
-  submittedAt         DateTime?
-  reviewedAt          DateTime?
-  reviewerId          String?
-  reviewReason        String?                          @db.Text
-  verifiedAt          DateTime?
-  expiresAt           DateTime?
-  privacyAcceptedAt   DateTime?
-  privacyTermsVersion String?
-  createdAt           DateTime                         @default(now())
-  updatedAt           DateTime                         @updatedAt
+  id                    String                           @id @default(uuid())
+  professionalId        String                           @unique
+  specialty             HealthSpecialty
+  status                ProfessionalVerificationStatus   @default(DRAFT)
+  council               ProfessionalCouncil
+  registrationNumber    String?
+  registrationRegion    String?
+  qualificationTitle    String?
+  officialSourceUrl     String?
+  officialCheckResult   ProfessionalRegistryCheckResult?
+  officialCheckedAt     DateTime?
+  submittedAt           DateTime?
+  reviewedAt            DateTime?
+  reviewerId            String?
+  reviewReason          String?                          @db.Text
+  decisionNotifiedAt    DateTime?
+  decisionEmailError    String?                          @db.Text
+  decisionEmailAttempts Int                              @default(0)
+  verifiedAt            DateTime?
+  expiresAt             DateTime?
+  privacyAcceptedAt     DateTime?
+  privacyTermsVersion   String?
+  createdAt             DateTime                         @default(now())
+  updatedAt             DateTime                         @updatedAt
 
   professional User                               @relation("ProfessionalVerificationOwner", fields: [professionalId], references: [id], onDelete: Cascade)
   reviewer     User?                              @relation("ProfessionalVerificationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
@@ -458,6 +461,9 @@ model Project {
   disputeOpenedAt          DateTime?
   disputeResolvedAt        DateTime?
   disputeResolution        String?   @db.Text
+  disputeDecisionClaim     String?
+  disputeDecisionClaimedAt DateTime?
+  disputeDecisionClaimedBy String?
   deliveredAt              DateTime?
   reviewDeadlineAt         DateTime?
   reviewReminder3dSentAt   DateTime?
@@ -485,6 +491,7 @@ model Project {
   @@index([status])
   @@index([status, reviewDeadlineAt])
   @@index([stripePaymentIntentId])
+  @@index([disputeDecisionClaim])
 }
 
 model ProjectResourceDirectory {
@@ -622,25 +629,28 @@ model Appointment {
   timezoneClient  String        @default("America/Sao_Paulo")
   status          BookingStatus @default(PENDING_PAYMENT)
 
-  meetLink                String?
-  googleEventId           String?
-  meetRequestId           String?
-  meetGenerationStatus    AppointmentMeetingGenerationStatus @default(NOT_STARTED)
-  meetNextAttemptAt       DateTime?
-  paymentConfirmedAt      DateTime?
-  meetRetryCount          Int                                @default(0)
-  meetProcessingStartedAt DateTime?
-  meetLastAttemptAt       DateTime?
-  meetLastError           String?                            @db.Text
-  meetAttentionRequiredAt DateTime?
-  meetAttentionAlertedAt  DateTime?
-  meetingFailedAt         DateTime?
-  meetingRefundId         String?
-  price                   Decimal
-  notes                   String?                            @db.Text
-  stripeSessionId         String?                            @unique
-  disputeReason           String?                            @db.Text
-  disputeOpenedAt         DateTime?
+  meetLink                 String?
+  googleEventId            String?
+  meetRequestId            String?
+  meetGenerationStatus     AppointmentMeetingGenerationStatus @default(NOT_STARTED)
+  meetNextAttemptAt        DateTime?
+  paymentConfirmedAt       DateTime?
+  meetRetryCount           Int                                @default(0)
+  meetProcessingStartedAt  DateTime?
+  meetLastAttemptAt        DateTime?
+  meetLastError            String?                            @db.Text
+  meetAttentionRequiredAt  DateTime?
+  meetAttentionAlertedAt   DateTime?
+  meetingFailedAt          DateTime?
+  meetingRefundId          String?
+  price                    Decimal
+  notes                    String?                            @db.Text
+  stripeSessionId          String?                            @unique
+  disputeReason            String?                            @db.Text
+  disputeOpenedAt          DateTime?
+  disputeDecisionClaim     String?
+  disputeDecisionClaimedAt DateTime?
+  disputeDecisionClaimedBy String?
 
   // Rastreamento de aceite dos termos de pagamento
   acceptedPaymentTerms   Boolean   @default(false)
@@ -672,6 +682,7 @@ model Appointment {
   @@index([status, meetLastAttemptAt])
   @@index([status, meetNextAttemptAt])
   @@index([status, meetAttentionRequiredAt])
+  @@index([disputeDecisionClaim])
 }
 
 model AppointmentMeetingAttempt {
@@ -965,24 +976,27 @@ model Transaction {
 }
 
 model WithdrawalRequest {
-  id                String           @id @default(cuid())
-  userId            String
-  transactionId     String           @unique
-  amount            Decimal
-  pixKey            String
-  pixKeyType        String
-  status            WithdrawalStatus @default(PENDING)
-  provider          String           @default("MANUAL_PIX")
-  providerRef       String?
-  requestedAt       DateTime         @default(now())
-  dueAt             DateTime
-  processedAt       DateTime?
-  failedAt          DateTime?
-  failureReason     String?          @db.Text
-  dueSoonNotifiedAt DateTime?
-  overdueNotifiedAt DateTime?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  id                        String           @id @default(cuid())
+  userId                    String
+  transactionId             String           @unique
+  amount                    Decimal
+  pixKey                    String
+  pixKeyType                String
+  status                    WithdrawalStatus @default(PENDING)
+  provider                  String           @default("MANUAL_PIX")
+  providerRef               String?
+  requestedAt               DateTime         @default(now())
+  dueAt                     DateTime
+  processedAt               DateTime?
+  failedAt                  DateTime?
+  failureReason             String?          @db.Text
+  receiptEmailSentAt        DateTime?
+  receiptEmailAttempts      Int              @default(0)
+  receiptEmailFailureReason String?          @db.Text
+  dueSoonNotifiedAt         DateTime?
+  overdueNotifiedAt         DateTime?
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 

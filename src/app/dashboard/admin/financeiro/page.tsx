@@ -35,6 +35,10 @@ export default async function AdminFinanceiroPage({ searchParams }: PageProps) {
       failedAt: withdrawal.failedAt?.toISOString() ?? null,
       failureReason: withdrawal.failureReason,
       providerRef: withdrawal.providerRef,
+      receiptEmailSentAt:
+        withdrawal.receiptEmailSentAt?.toISOString() ?? null,
+      receiptEmailAttempts: withdrawal.receiptEmailAttempts,
+      receiptEmailFailureReason: withdrawal.receiptEmailFailureReason,
       transactionId: withdrawal.transactionId,
       auditLog: withdrawal.auditLog
         ? {

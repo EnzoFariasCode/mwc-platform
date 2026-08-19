@@ -8,13 +8,13 @@ import {
 } from "../admin-permissions";
 
 describe("admin permissions", () => {
-  it("treats legacy ADMIN users without adminRole as OWNER", () => {
+  it("denies ADMIN users without an explicit adminRole", () => {
     expect(
       normalizeAdminRole({
         userType: "ADMIN",
         adminRole: null,
       }),
-    ).toBe("OWNER");
+    ).toBeNull();
   });
 
   it("does not assign adminRole to non-admin users", () => {

@@ -1,6 +1,7 @@
 "use server";
 
 import { verifySession } from "@/lib/auth";
+import { getAdminAccess } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
@@ -52,21 +53,60 @@ function projectProfessionalAmount(amount: Prisma.Decimal) {
 }
 
 async function requireAdmin() {
-  const session = await verifySession();
+  const access = await getAdminAccess(["OWNER", "SUPPORT"]);
 
-  if (!session?.sub) {
+  if (access.status === "UNAUTHENTICATED") {
     return { error: "Nao autorizado." };
   }
 
-  if (session.role !== "ADMIN" && session.userType !== "ADMIN") {
+  if (access.status === "FORBIDDEN") {
     return { error: "Acao restrita a administradores." };
   }
 
-  if (session.adminRole !== "OWNER" && session.adminRole !== "SUPPORT") {
-    return { error: "Acao restrita ao suporte administrativo." };
-  }
+  return {
+    session: {
+      sub: access.session.id,
+      adminRole: access.session.adminRole,
+    },
+  };
+}
 
-  return { session };
+async function claimTechDisputeDecision({
+  projectId,
+  decision,
+  adminId,
+}: {
+  projectId: string;
+  decision: DisputeDecision;
+  adminId: string;
+}) {
+  const claimed = await db.project.updateMany({
+    where: {
+      id: projectId,
+      status: ProjectStatus.DISPUTE,
+      disputeDecisionClaim: null,
+    },
+    data: {
+      disputeDecisionClaim: decision,
+      disputeDecisionClaimedAt: new Date(),
+      disputeDecisionClaimedBy: adminId,
+    },
+  });
+
+  if (claimed.count === 1) return;
+
+  const current = await db.project.findUnique({
+    where: { id: projectId },
+    select: { status: true, disputeDecisionClaim: true },
+  });
+  if (!current || current.status !== ProjectStatus.DISPUTE) {
+    throw new Error("A disputa ja foi resolvida por outra operacao.");
+  }
+  if (current.disputeDecisionClaim !== decision) {
+    throw new Error(
+      "Esta disputa ja possui outra decisao em processamento. Atualize a pagina.",
+    );
+  }
 }
 
 export async function withdrawProposal(
@@ -442,6 +482,7 @@ export async function cancelTechProject(
     techProjectPaths(project.id, project.professionalId);
 
     await sendAdminNotification({
+      roles: ["OWNER", "SUPPORT"],
       subject: "MWC Admin - Projeto Tech cancelado",
       lines: [
         isPaidCancellation
@@ -709,6 +750,7 @@ export async function openTechProjectDispute(
     }
 
     await sendAdminNotification({
+      roles: ["OWNER", "SUPPORT"],
       subject: "MWC Admin - Disputa Tech aberta",
       lines: [
         "Uma disputa Tech foi aberta e precisa de acompanhamento.",
@@ -717,6 +759,13 @@ export async function openTechProjectDispute(
         `Motivo: ${normalizedReason}`,
       ],
       actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
+      notification: {
+        eventType: "ADMIN_TECH_DISPUTE_OPENED",
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        title: "Disputa Tech aberta",
+        message: "Uma disputa de projeto Tech precisa de mediacao.",
+      },
     });
 
     return { success: true };
@@ -806,51 +855,20 @@ export async function resolveTechProjectDispute({
       };
     }
 
-    let refundId: string | undefined;
-
-    if (decision === "REFUND_CLIENT") {
-      const paymentTransaction = await db.transaction.findFirst({
-        where: {
-          projectId: project.id,
-          userId: project.ownerId,
-          type: "DEBIT",
-          status: "COMPLETED",
-        },
-        orderBy: { createdAt: "desc" },
-        select: { description: true },
-      });
-      const stripeSessionId = paymentTransaction?.description.match(
-        /Stripe:\s*(cs_[^\s]+)/,
-      )?.[1];
-
-      if (!stripeSessionId) {
-        return {
-          success: false,
-          error: "Projeto sem referencia Stripe para reembolso.",
-        };
-      }
-
-      const checkoutSession =
-        await stripe.checkout.sessions.retrieve(stripeSessionId);
-      const paymentIntent = checkoutSession.payment_intent;
-      const paymentIntentId =
-        typeof paymentIntent === "string" ? paymentIntent : paymentIntent?.id;
-
-      if (!paymentIntentId) {
-        return {
-          success: false,
-          error: "Pagamento Stripe nao encontrado para reembolso.",
-        };
-      }
-
-      const refund = await stripe.refunds.create(
-        { payment_intent: paymentIntentId },
-        { idempotencyKey: `tech-project-dispute-refund-${project.id}` },
-      );
-      refundId = refund.id;
-    }
+    await claimTechDisputeDecision({
+      projectId: project.id,
+      decision,
+      adminId: admin.session.sub,
+    });
 
     await db.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT "id"
+        FROM "Project"
+        WHERE "id" = ${project.id}
+        FOR UPDATE
+      `;
+
       const freshProject = await tx.project.findUnique({
         where: { id: project.id },
         select: {
@@ -860,6 +878,7 @@ export async function resolveTechProjectDispute({
           professionalId: true,
           agreedPrice: true,
           status: true,
+          disputeDecisionClaim: true,
         },
       });
 
@@ -868,12 +887,51 @@ export async function resolveTechProjectDispute({
       if (freshProject.status !== ProjectStatus.DISPUTE) {
         throw new Error("Apenas projetos em disputa podem ser resolvidos.");
       }
+      if (freshProject.disputeDecisionClaim !== decision) {
+        throw new Error("A decisao da disputa foi alterada por outra operacao.");
+      }
 
       if (!freshProject.professionalId || !freshProject.agreedPrice) {
         throw new Error("Projeto sem profissional ou valor acordado.");
       }
 
       if (decision === "REFUND_CLIENT") {
+        const paymentTransaction = await tx.transaction.findFirst({
+          where: {
+            projectId: freshProject.id,
+            userId: freshProject.ownerId,
+            type: "DEBIT",
+            status: "COMPLETED",
+          },
+          orderBy: { createdAt: "desc" },
+          select: { description: true },
+        });
+        const stripeSessionId = paymentTransaction?.description.match(
+          /Stripe:\s*(cs_[^\s]+)/,
+        )?.[1];
+
+        if (!stripeSessionId) {
+          throw new Error("Projeto sem referencia Stripe para reembolso.");
+        }
+
+        const checkoutSession =
+          await stripe.checkout.sessions.retrieve(stripeSessionId);
+        const paymentIntent = checkoutSession.payment_intent;
+        const paymentIntentId =
+          typeof paymentIntent === "string"
+            ? paymentIntent
+            : paymentIntent?.id;
+
+        if (!paymentIntentId) {
+          throw new Error("Pagamento Stripe nao encontrado para reembolso.");
+        }
+
+        const refund = await stripe.refunds.create(
+          { payment_intent: paymentIntentId },
+          { idempotencyKey: `tech-project-dispute-refund-${freshProject.id}` },
+        );
+        const refundId = refund.id;
+
         await tx.project.update({
           where: { id: freshProject.id },
           data: {
@@ -991,11 +1049,16 @@ export async function resolveTechProjectDispute({
           platformFeePercent: PLATFORM_FEE_PERCENT,
         },
       });
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5_000,
+      timeout: 30_000,
     });
 
     techProjectPaths(project.id, project.professionalId);
 
     await sendAdminNotification({
+      roles: ["OWNER", "SUPPORT"],
       subject: "MWC Admin - Disputa Tech resolvida",
       lines: [
         "Uma disputa Tech foi resolvida pelo painel admin.",
@@ -1049,6 +1112,12 @@ export async function resolveTechProjectDispute({
     return { success: true };
   } catch (error) {
     console.error("[RESOLVE_TECH_PROJECT_DISPUTE_ERROR]", error);
-    return { success: false, error: "Erro ao resolver disputa." };
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Erro ao resolver disputa.",
+    };
   }
 }

@@ -95,6 +95,7 @@ export async function processWithdrawalDeadlineAlerts() {
         }),
       ),
       sendAdminNotification({
+        roles: ["OWNER", "FINANCE"],
         subject: "MWC Admin - Saque fora do prazo",
         lines: [
           `Saque: ${withdrawal.id}`,

@@ -224,6 +224,44 @@ async function refundStripeCheckoutSession(
   );
 }
 
+async function claimHealthDisputeDecision({
+  appointmentId,
+  decision,
+  adminId,
+}: {
+  appointmentId: string;
+  decision: "REFUND_PATIENT" | "RELEASE_TO_PROFESSIONAL";
+  adminId: string;
+}) {
+  const claimed = await db.appointment.updateMany({
+    where: {
+      id: appointmentId,
+      status: "DISPUTED",
+      disputeDecisionClaim: null,
+    },
+    data: {
+      disputeDecisionClaim: decision,
+      disputeDecisionClaimedAt: new Date(),
+      disputeDecisionClaimedBy: adminId,
+    },
+  });
+
+  if (claimed.count === 1) return;
+
+  const current = await db.appointment.findUnique({
+    where: { id: appointmentId },
+    select: { status: true, disputeDecisionClaim: true },
+  });
+  if (!current || current.status !== "DISPUTED") {
+    throw new Error("A disputa ja foi resolvida por outra operacao.");
+  }
+  if (current.disputeDecisionClaim !== decision) {
+    throw new Error(
+      "Esta disputa ja possui outra decisao em processamento. Atualize a pagina.",
+    );
+  }
+}
+
 function revalidateHealthAppointmentPaths(professionalId?: string) {
   revalidatePath("/agendar-consulta/historico");
   revalidatePath("/agendar-consulta/dashboard-profissional");
@@ -694,6 +732,7 @@ export async function reportHealthAppointmentDispute(
     revalidateHealthAppointmentPaths(result.professionalId);
 
     await sendAdminNotification({
+      roles: ["OWNER", "SUPPORT"],
       subject: "MWC Admin - Disputa Health aberta",
       lines: [
         "Uma disputa de consulta online foi aberta e precisa de mediacao.",
@@ -703,6 +742,13 @@ export async function reportHealthAppointmentDispute(
         `Motivo: ${normalizedReason}`,
       ],
       actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/health/${appointment.id}`,
+      notification: {
+        eventType: "ADMIN_HEALTH_DISPUTE_OPENED",
+        entityType: "HEALTH_APPOINTMENT",
+        entityId: appointment.id,
+        title: "Disputa Online aberta",
+        message: "Uma disputa de consulta online precisa de mediacao.",
+      },
     });
 
     return { success: true };
@@ -780,21 +826,22 @@ export async function resolveHealthAppointmentDispute({
       throw new Error("Decisao de disputa invalida.");
     }
 
+    await claimHealthDisputeDecision({
+      appointmentId: appointment.id,
+      decision,
+      adminId: admin.id,
+    });
+
     let refundId: string | undefined;
 
-    if (decision === "REFUND_PATIENT") {
-      if (!appointment.stripeSessionId) {
-        throw new Error("Consulta sem referencia de pagamento Stripe.");
-      }
-
-      const refund = await refundStripeCheckoutSession(
-        appointment.stripeSessionId,
-        `health-appointment-admin-dispute-refund-${appointment.id}`,
-      );
-      refundId = refund.id;
-    }
-
     await db.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT "id"
+        FROM "Appointment"
+        WHERE "id" = ${appointment.id}
+        FOR UPDATE
+      `;
+
       const freshAppointment = await tx.appointment.findUnique({
         where: { id: appointment.id },
         select: {
@@ -803,6 +850,7 @@ export async function resolveHealthAppointmentDispute({
           professionalId: true,
           stripeSessionId: true,
           notes: true,
+          disputeDecisionClaim: true,
         },
       });
 
@@ -811,10 +859,23 @@ export async function resolveHealthAppointmentDispute({
       if (freshAppointment.status !== "DISPUTED") {
         throw new Error("Apenas consultas em disputa podem ser resolvidas.");
       }
+      if (freshAppointment.disputeDecisionClaim !== decision) {
+        throw new Error("A decisao da disputa foi alterada por outra operacao.");
+      }
 
       const resolvedAt = new Date().toLocaleString("pt-BR");
 
       if (decision === "REFUND_PATIENT") {
+        if (!freshAppointment.stripeSessionId) {
+          throw new Error("Consulta sem referencia de pagamento Stripe.");
+        }
+
+        const refund = await refundStripeCheckoutSession(
+          freshAppointment.stripeSessionId,
+          `health-appointment-admin-dispute-refund-${freshAppointment.id}`,
+        );
+        refundId = refund.id;
+
         const canceledTransaction = await cancelDisputedAppointmentEscrow(
           tx,
           freshAppointment,
@@ -884,6 +945,10 @@ export async function resolveHealthAppointmentDispute({
           transactionId: releasedTransaction.id,
         },
       });
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: 5_000,
+      timeout: 30_000,
     });
 
     revalidateHealthAppointmentPaths(appointment.professionalId);
@@ -909,6 +974,7 @@ export async function resolveHealthAppointmentDispute({
     }
 
     await sendAdminNotification({
+      roles: ["OWNER", "SUPPORT"],
       subject: "MWC Admin - Disputa Health resolvida",
       lines: [
         "Uma disputa de consulta online foi resolvida pelo painel admin.",

@@ -87,7 +87,14 @@ export default async function AdminVerificationDetailPage({ params }: { params: 
 
         {verification.reviewReason && <section className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-5"><h2 className="font-bold text-amber-300">Ultima decisao</h2><p className="mt-2 text-sm text-amber-100/80">{verification.reviewReason}</p>{verification.reviewer && <p className="mt-2 text-xs text-amber-200/50">Por {verification.reviewer.name} ({verification.reviewer.email})</p>}</section>}
 
-        <AdminVerificationActions verificationId={verification.id} status={verification.status} isTeacher={isTeacher} sourceUrl={sourceUrl} />
+        <AdminVerificationActions
+          verificationId={verification.id}
+          status={verification.status}
+          isTeacher={isTeacher}
+          sourceUrl={sourceUrl}
+          decisionNotifiedAt={verification.decisionNotifiedAt?.toISOString() || null}
+          decisionEmailError={verification.decisionEmailError}
+        />
       </div>
     </PageContainer>
   );

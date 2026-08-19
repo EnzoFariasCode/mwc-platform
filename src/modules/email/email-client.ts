@@ -7,6 +7,11 @@ type SendEmailInput = {
   subject: string;
   text: string;
   html?: string;
+  attachments?: Array<{
+    content: Buffer | string;
+    filename: string;
+    contentType?: string;
+  }>;
   logPrefix?: string;
   failWhenMissingConfig?: boolean;
 };
@@ -26,6 +31,7 @@ export async function sendEmail({
   subject,
   text,
   html,
+  attachments,
   logPrefix = "EMAIL",
   failWhenMissingConfig = false,
 }: SendEmailInput): Promise<SendEmailResult> {
@@ -60,6 +66,17 @@ export async function sendEmail({
       subject,
       text,
       ...(html ? { html } : {}),
+      ...(attachments?.length
+        ? {
+            attachments: attachments.map((attachment) => ({
+              content: attachment.content,
+              filename: attachment.filename,
+              ...(attachment.contentType
+                ? { content_type: attachment.contentType }
+                : {}),
+            })),
+          }
+        : {}),
     });
 
     if (error) {

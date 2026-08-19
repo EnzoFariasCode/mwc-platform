@@ -72,6 +72,7 @@ export async function rejectWithdrawal(
           pixKey: true,
           pixKeyType: true,
           userId: true,
+          user: { select: { industry: true } },
         },
       });
 
@@ -138,6 +139,7 @@ export async function rejectWithdrawal(
         id: withdrawal.id,
         userId: withdrawal.userId,
         amount: withdrawal.amount,
+        industry: withdrawal.user.industry,
       };
     });
 
@@ -152,7 +154,10 @@ export async function rejectWithdrawal(
         decision === "FAILED"
           ? `Seu saque falhou e o valor voltou para sua carteira. Motivo: ${normalizedReason}`
           : `Seu saque foi cancelado e o valor voltou para sua carteira. Motivo: ${normalizedReason}`,
-      link: "/dashboard/financeiro",
+      link:
+        processed.industry === "HEALTH"
+          ? "/agendar-consulta/financeiro"
+          : "/dashboard/financeiro",
       entityType: "WITHDRAWAL_REQUEST",
       entityId: processed.id,
       metadata: {

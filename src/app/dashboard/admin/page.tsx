@@ -7,12 +7,14 @@ import {
   ShieldCheck,
   Users,
   Wallet,
+  Webhook,
 } from "lucide-react";
 import { ProjectStatus, WithdrawalStatus } from "@prisma/client";
 
 import { requireAdminUser } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
+import { canAccessAdminRoles } from "@/modules/admin/lib/admin-permissions";
 
 async function getAdminOverview() {
   const [
@@ -21,20 +23,28 @@ async function getAdminOverview() {
     professionals,
     openProjects,
     disputedProjects,
+    disputedAppointments,
     pendingWithdrawals,
+    meetingAttentionRequired,
     pendingCancellationReconciliations,
     pendingRescheduleReconciliations,
     pendingProfessionalVerifications,
     openChatReports,
+    failedStripeEvents,
+    latestStripeEvent,
   ] = await Promise.all([
     db.user.count(),
     db.user.count({ where: { isActive: true } }),
     db.user.count({ where: { userType: "PROFESSIONAL" } }),
     db.project.count({ where: { status: ProjectStatus.OPEN } }),
     db.project.count({ where: { status: ProjectStatus.DISPUTE } }),
+    db.appointment.count({ where: { status: "DISPUTED" } }),
     db.withdrawalRequest.count({
-      where: { status: WithdrawalStatus.PENDING },
+      where: {
+        status: { in: [WithdrawalStatus.PENDING, WithdrawalStatus.PROCESSING] },
+      },
     }),
+    db.appointment.count({ where: { status: "MEETING_REQUIRES_ATTENTION" } }),
     db.appointmentCancellationProcess.count({
       where: { status: "RECONCILIATION_REQUIRED" },
     }),
@@ -47,6 +57,11 @@ async function getAdminOverview() {
     db.chatReport.count({
       where: { status: { in: ["OPEN", "UNDER_REVIEW"] } },
     }),
+    db.stripeEventLog.count({ where: { status: "FAILED" } }),
+    db.stripeEventLog.findFirst({
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true, status: true, type: true },
+    }),
   ]);
 
   return {
@@ -55,11 +70,15 @@ async function getAdminOverview() {
     professionals,
     openProjects,
     disputedProjects,
+    disputedAppointments,
     pendingWithdrawals,
+    meetingAttentionRequired,
     pendingCancellationReconciliations,
     pendingRescheduleReconciliations,
     pendingProfessionalVerifications,
     openChatReports,
+    failedStripeEvents,
+    latestStripeEvent,
   };
 }
 
@@ -98,6 +117,14 @@ export default async function AdminDashboardPage() {
       detail: "Chat do Marketplace Tech",
       icon: Flag,
     },
+    {
+      label: "Webhook Stripe",
+      value: overview.failedStripeEvents,
+      detail: overview.latestStripeEvent
+        ? `Ultimo: ${overview.latestStripeEvent.type} (${overview.latestStripeEvent.status})`
+        : "Nenhum evento recebido",
+      icon: Webhook,
+    },
   ];
 
   const shortcuts = [
@@ -106,42 +133,46 @@ export default async function AdminDashboardPage() {
       description: "Gerencie clientes, profissionais e contas administrativas.",
       href: "/dashboard/admin/usuarios",
       icon: Users,
+      roles: ["OWNER", "SUPPORT"] as const,
     },
-    ...(admin.adminRole !== "FINANCE"
-      ? [
-          {
-            title: "Verificacoes",
-            description: `${overview.pendingProfessionalVerifications} profissional(is) aguardam analise.`,
-            href: "/dashboard/admin/verificacoes",
-            icon: ShieldCheck,
-          },
-        ]
-      : []),
+    {
+      title: "Verificacoes",
+      description: `${overview.pendingProfessionalVerifications} profissional(is) aguardam analise.`,
+      href: "/dashboard/admin/verificacoes",
+      icon: ShieldCheck,
+      roles: ["OWNER", "SUPPORT"] as const,
+    },
     {
       title: "Mediacao",
-      description: `${overview.disputedProjects} projeto(s) em disputa agora.`,
+      description: `${overview.disputedProjects + overview.disputedAppointments} caso(s) em disputa agora.`,
       href: "/dashboard/admin/disputas",
       icon: AlertTriangle,
+      roles: ["OWNER", "SUPPORT"] as const,
     },
     {
       title: "Denuncias do chat",
       description: `${overview.openChatReports} caso(s) aguardam conclusao administrativa.`,
       href: "/dashboard/admin/denuncias",
       icon: Flag,
+      roles: ["OWNER", "FINANCE", "SUPPORT"] as const,
     },
     {
       title: "Tesouraria",
       description: "Analise solicitacoes de saque e registre comprovantes.",
       href: "/dashboard/admin/financeiro",
       icon: Wallet,
+      roles: ["OWNER", "FINANCE"] as const,
     },
     {
       title: "Reconciliação Online",
-      description: `${overview.pendingCancellationReconciliations + overview.pendingRescheduleReconciliations} operação(ões) exigem ação manual.`,
+      description: `${overview.meetingAttentionRequired + overview.pendingCancellationReconciliations + overview.pendingRescheduleReconciliations} operação(ões) exigem ação manual.`,
       href: "/dashboard/admin/reconciliacoes",
       icon: AlertTriangle,
+      roles: ["OWNER", "FINANCE", "SUPPORT"] as const,
     },
-  ];
+  ].filter((item) =>
+    canAccessAdminRoles(admin.adminRole, [...item.roles]),
+  );
 
   return (
     <PageContainer>
