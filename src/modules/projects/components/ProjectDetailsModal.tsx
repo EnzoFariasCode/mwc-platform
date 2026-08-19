@@ -22,6 +22,7 @@ import {
   CheckCircle,
   Briefcase,
   Copy,
+  ExternalLink,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -508,9 +509,16 @@ export function ProjectDetailsModal({
                                 {proposal.professional.name.charAt(0)}
                               </div>
                               <div>
-                                <p className="font-bold text-white text-base">
+                                <Link
+                                  href={`/dashboard/profissional/${proposal.professional.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="group/profile inline-flex items-center gap-1.5 rounded-sm font-bold text-white text-base underline-offset-4 transition-colors hover:text-[#d73cbe] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d73cbe]"
+                                  aria-label={`Ver perfil de ${proposal.professional.name}`}
+                                >
                                   {proposal.professional.name}
-                                </p>
+                                  <ExternalLink className="h-3.5 w-3.5 text-slate-500 transition-colors group-hover/profile:text-[#d73cbe]" />
+                                </Link>
                                 <div className="flex items-center gap-1.5 text-xs bg-slate-800/50 px-2 py-0.5 rounded-md w-fit mt-1">
                                   <Star className="w-3 h-3 text-yellow-500 fill-current" />
                                   <span className="text-yellow-500 font-bold">
