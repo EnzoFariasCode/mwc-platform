@@ -118,7 +118,12 @@ export function HealthHeader() {
             >
               <ProfileInitialsAvatar
                 name={sessionUser.name || firstName}
-                src={sessionUser.image}
+                src={
+                  sessionUser.id
+                    ? `/api/images/user/${sessionUser.id}`
+                    : sessionUser.image
+                }
+                alt={`Foto de perfil de ${sessionUser.name || firstName}`}
                 className="relative w-10 h-10 rounded-full bg-[#1e293b] border border-white/10 group-hover:border-[#d73cbe]/50 overflow-hidden transition-colors"
                 textClassName="text-xs"
               />
