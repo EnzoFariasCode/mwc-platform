@@ -80,7 +80,7 @@ export const healthSpecialties: HealthSpecialty[] = [
     name: "Professor",
     description: "Aulas online para diferentes materias, niveis e objetivos.",
     image:
-      "https://images.unsplash.com/photo-1577412647305-991150c7d163?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1758685733926-00cba008215b?auto=format&fit=crop&w=600&q=80",
     color:
       "group-hover:border-blue-500/50 group-hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]",
     accentText: "text-blue-400",
@@ -102,7 +102,7 @@ export const healthSpecialties: HealthSpecialty[] = [
     name: "Advocacia",
     description: "Consultoria juridica online, contratos, duvidas e mediacao.",
     image:
-      "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1676181739678-47d76dc38a87?auto=format&fit=crop&w=600&q=80",
     color:
       "group-hover:border-amber-500/50 group-hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]",
     accentText: "text-amber-400",
