@@ -61,6 +61,9 @@ export default async function MeusProjetosPage({
         orderBy: { createdAt: "desc" },
         take: 1,
       },
+      resourceDirectory: {
+        select: { url: true, updatedAt: true },
+      },
     },
   });
 

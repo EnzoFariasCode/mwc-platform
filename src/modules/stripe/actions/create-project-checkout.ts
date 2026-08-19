@@ -11,6 +11,7 @@ import { getTechProjectLimitStatus } from "@/modules/subscriptions/tech-plan-lim
 import { ONE_TIME_PAYMENT_METHODS } from "@/modules/stripe/lib/payment-methods";
 import { TECH_CONTRACT_TERMS } from "@/modules/legal/terms-versions";
 import { headers } from "next/headers";
+import { validateProjectResourceDirectoryUrl } from "@/modules/projects/lib/project-resource-directory";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-01-28.clover" as any,
@@ -22,6 +23,7 @@ const CHECKOUT_WINDOW_MS = 10 * 60 * 1000;
 export async function createProjectCheckout(
   proposalId: string,
   termsAccepted: boolean,
+  resourceDirectoryUrl: string,
 ): Promise<ActionResponse<{ url: string }>> {
   const session = await getUserSession();
 
@@ -29,10 +31,10 @@ export async function createProjectCheckout(
     return { success: false, error: "Nao autorizado. Faca login novamente." };
   }
 
-  if (session.userType === "ADMIN") {
+  if (session.userType !== "CLIENT" || session.industry !== "TECH") {
     return {
       success: false,
-      error: "Contas administrativas nao podem contratar projetos.",
+      error: "Apenas clientes do Marketplace Tech podem contratar projetos.",
     };
   }
 
@@ -42,6 +44,11 @@ export async function createProjectCheckout(
       error: "Aceite os Termos de Contratacao de Projetos Tech para continuar.",
     };
   }
+
+  const resourceDirectoryResult = validateProjectResourceDirectoryUrl(
+    resourceDirectoryUrl,
+  );
+  if (!resourceDirectoryResult.success) return resourceDirectoryResult;
 
   const requestHeaders = await headers();
   const acceptedIp =
@@ -120,6 +127,19 @@ export async function createProjectCheckout(
         "Este profissional atingiu o limite de trabalhos simultaneos do plano atual.",
     };
   }
+
+  await db.projectResourceDirectory.upsert({
+    where: { projectId: proposal.projectId },
+    create: {
+      projectId: proposal.projectId,
+      submittedById: session.id,
+      url: resourceDirectoryResult.value,
+    },
+    update: {
+      submittedById: session.id,
+      url: resourceDirectoryResult.value,
+    },
+  });
 
   const now = new Date();
 

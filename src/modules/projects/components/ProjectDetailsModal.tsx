@@ -23,6 +23,7 @@ import {
   Briefcase,
   Copy,
   ExternalLink,
+  FolderKey,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -45,6 +46,7 @@ interface ProjectDetailsModalProps {
   project: any;
   allowProposal?: boolean;
   isOwner?: boolean;
+  canViewPrivateResources?: boolean;
 }
 
 export function ProjectDetailsModal({
@@ -53,6 +55,7 @@ export function ProjectDetailsModal({
   project,
   allowProposal = false,
   isOwner = false,
+  canViewPrivateResources = false,
 }: ProjectDetailsModalProps) {
   const router = useRouter();
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
@@ -137,6 +140,21 @@ export function ProjectDetailsModal({
   const deadline = project.deadline || "Não informado";
   const category = project.category || "Geral";
   const tags = project.tags || [];
+  const legacyResourceLinks = Array.isArray(project.attachments)
+    ? project.attachments.filter(
+        (value: unknown): value is string =>
+          typeof value === "string" && value.trim().length > 0,
+      )
+    : [];
+  const projectResourceLinks = Array.from(
+    new Set(
+      [project.resourceDirectory?.url, ...legacyResourceLinks].filter(
+        (value): value is string => typeof value === "string" && Boolean(value),
+      ),
+    ),
+  );
+  const canDisplayPrivateResources =
+    canViewPrivateResources && projectResourceLinks.length > 0;
 
   // ========================================================
   // LÓGICA DE DADOS REAIS: Pega a última entrega do banco
@@ -606,6 +624,41 @@ export function ProjectDetailsModal({
                 {project.description}
               </p>
             </div>
+
+            {canDisplayPrivateResources && (
+              <div className="rounded-2xl border border-[#d73cbe]/20 bg-[#d73cbe]/5 p-5">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-[#d73cbe]/15 p-2.5 text-[#d73cbe]">
+                    <FolderKey className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white">
+                      Arquivos e dependencias do projeto
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Conteudo privado, disponivel somente para as partes do
+                      projeto.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-2">
+                  {projectResourceLinks.map((url) => (
+                    <a
+                      key={url}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/70 p-3 text-sm text-slate-200 transition-colors hover:border-[#d73cbe]/40 hover:text-white"
+                    >
+                      <span className="min-w-0 truncate font-mono text-xs">
+                        {url}
+                      </span>
+                      <ExternalLink className="h-4 w-4 shrink-0 text-[#d73cbe]" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-2">

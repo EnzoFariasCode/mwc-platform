@@ -5,8 +5,6 @@ import {
   Upload,
   Clock,
   Plus,
-  Link as LinkIcon,
-  Trash2,
   Loader2,
   AlertCircle,
   CheckCircle2,
@@ -49,10 +47,6 @@ export function NewProjectModal({
 
   const [tags, setTags] = useState<string[]>([]);
   const [currentTag, setCurrentTag] = useState("");
-
-  // --- NOVOS ESTADOS PARA ANEXOS ---
-  const [attachments, setAttachments] = useState<string[]>([]);
-  const [currentLink, setCurrentLink] = useState("");
 
   useGSAP(() => {
     if (isOpen) {
@@ -99,34 +93,6 @@ export function NewProjectModal({
       : compactValue;
 
     return Number(normalizedValue);
-  };
-
-  const isValidHttpUrl = (value: string) => {
-    try {
-      const url = new URL(value);
-      return url.protocol === "https:" || url.protocol === "http:";
-    } catch {
-      return false;
-    }
-  };
-
-  const handleAddLink = () => {
-    const link = currentLink.trim();
-
-    if (link) {
-      if (!isValidHttpUrl(link)) {
-        setFormError("Informe um link valido, com http:// ou https://.");
-        return;
-      }
-
-      setAttachments([...attachments, link]);
-      setCurrentLink("");
-      setFormError("");
-    }
-  };
-
-  const handleRemoveLink = (index: number) => {
-    setAttachments(attachments.filter((_, i) => i !== index));
   };
 
   const handleClose = () => {
@@ -195,7 +161,6 @@ export function NewProjectModal({
         budgetType,
         budgetValue: numericBudgetValue,
         deadline: normalizedDeadline,
-        attachments, // Envia os links
       });
 
       if (response.success) {
@@ -207,8 +172,6 @@ export function NewProjectModal({
         setDeadline("Urgente (em até 24h)");
         setTags([]);
         setCurrentTag("");
-        setAttachments([]);
-        setCurrentLink("");
         setFormError("");
         setIsCreated(true);
       } else {
@@ -379,66 +342,14 @@ export function NewProjectModal({
                 {description.trim().length}/{PROJECT_DESCRIPTION_MAX}
               </span>
             </div>
-          </div>
-
-          {/* 4. Anexos / Links */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">
-              Anexos / Links de Referência
-            </label>
-            <div className="space-y-3">
-              {/* Input para adicionar link */}
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={currentLink}
-                    onChange={(e) => setCurrentLink(e.target.value)}
-                    placeholder="Cole aqui o link do Google Drive, Figma, Dropbox..."
-                    className="w-full bg-white border border-slate-200 rounded-xl p-3 pl-10 text-sm text-slate-800 focus:border-[#d73cbe] focus:ring-1 focus:ring-[#d73cbe] outline-none"
-                  />
-                </div>
-                <button
-                  onClick={handleAddLink}
-                  type="button"
-                  className="px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-700 transition-colors"
-                >
-                  Adicionar
-                </button>
-              </div>
-
-              {/* Lista de links adicionados */}
-              {attachments.length > 0 && (
-                <div className="bg-white border border-slate-200 rounded-xl p-2 space-y-1">
-                  {attachments.map((link, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg group"
-                    >
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        <div className="p-1.5 bg-blue-50 text-blue-500 rounded-md shrink-0">
-                          <LinkIcon className="w-3 h-3" />
-                        </div>
-                        <span className="text-xs text-slate-600 truncate">
-                          {link}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveLink(idx)}
-                        className="text-slate-400 hover:text-red-500 p-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {attachments.length === 0 && (
-                <p className="text-xs text-slate-400 ml-1">
-                  Adicione links para arquivos grandes ou referências visuais.
-                </p>
-              )}
+            <div className="mt-3 flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-xs text-blue-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                Não inclua links privados nesta descrição. A pasta com os
+                arquivos e dependências será solicitada somente quando você
+                aceitar uma proposta e ficará visível apenas para as partes do
+                projeto.
+              </p>
             </div>
           </div>
 

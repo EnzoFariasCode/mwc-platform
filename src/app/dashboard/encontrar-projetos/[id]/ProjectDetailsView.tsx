@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
@@ -12,7 +11,6 @@ import {
   Flag,
   Send,
   Calendar,
-  ExternalLink,
   CheckCircle, // <--- Importante: Ícone novo
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -34,7 +32,6 @@ interface ProjectDetailsProps {
     budgetLabel: string;
     deadline: string;
     createdAt: Date;
-    attachments: any;
     status: string;
     budgetValue?: number;
     owner: {
@@ -147,32 +144,6 @@ export default function ProjectDetailsView({
                   {project.description}
                 </p>
               </div>
-              {Array.isArray(project.attachments) &&
-                project.attachments.length > 0 && (
-                  <div className="mt-8 pt-8 border-t border-white/5">
-                    <h4 className="text-sm font-bold text-white mb-4">
-                      Anexos do Cliente
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {project.attachments.map((link: any, idx: number) => (
-                        <a
-                          key={idx}
-                          href={link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 p-3 bg-slate-950/50 border border-slate-700 rounded-xl hover:border-[#d73cbe]/50 transition-all group"
-                        >
-                          <div className="p-2 bg-slate-900 rounded-lg text-slate-400 group-hover:text-[#d73cbe]">
-                            <ExternalLink size={16} />
-                          </div>
-                          <span className="text-sm text-white truncate font-mono underline decoration-slate-700">
-                            {link}
-                          </span>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
             </div>
           </div>
 

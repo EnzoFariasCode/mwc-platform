@@ -48,6 +48,9 @@ export default async function ProjetosAtivosPage() {
         where: { authorId: userId },
         select: { id: true },
       },
+      resourceDirectory: {
+        select: { url: true, updatedAt: true },
+      },
     },
   });
 

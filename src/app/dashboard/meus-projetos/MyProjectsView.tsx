@@ -501,6 +501,7 @@ export default function MyProjectsView({
           onClose={() => setIsDetailsModalOpen(false)}
           project={selectedProject}
           isOwner={true}
+          canViewPrivateResources={true}
         />
 
         {/* Modal de Exclusão */}

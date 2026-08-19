@@ -336,10 +336,11 @@ model User {
   legalActivitiesWritten       LegalCaseActivity[]           @relation("ProfessionalLegalActivities")
 
   // --- Relacionamentos Tech ---
-  projectsOwned    Project[]     @relation("ClientProjects")
-  projectsAssigned Project[]     @relation("ProProjects")
-  proposals        Proposal[]    @relation("ProfessionalProposals")
-  deliverables     Deliverable[] @relation("UserDeliverables")
+  projectsOwned              Project[]                  @relation("ClientProjects")
+  projectsAssigned           Project[]                  @relation("ProProjects")
+  proposals                  Proposal[]                 @relation("ProfessionalProposals")
+  deliverables               Deliverable[]              @relation("UserDeliverables")
+  projectResourceDirectories ProjectResourceDirectory[] @relation("ProjectResourceDirectorySubmitter")
 
   // --- Relacionamentos Health (Atualizados) ---
   patientAppointments Appointment[]              @relation("PatientAppointments")
@@ -476,13 +477,27 @@ model Project {
 
   bidsCount Int @default(0)
 
-  proposals    Proposal[]
-  deliverables Deliverable[]
-  reviews      Review[]
+  proposals         Proposal[]
+  deliverables      Deliverable[]
+  reviews           Review[]
+  resourceDirectory ProjectResourceDirectory?
 
   @@index([status])
   @@index([status, reviewDeadlineAt])
   @@index([stripePaymentIntentId])
+}
+
+model ProjectResourceDirectory {
+  id            String   @id @default(cuid())
+  projectId     String   @unique
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  submittedById String
+  submittedBy   User     @relation("ProjectResourceDirectorySubmitter", fields: [submittedById], references: [id], onDelete: Restrict)
+  url           String   @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([submittedById])
 }
 
 model Proposal {

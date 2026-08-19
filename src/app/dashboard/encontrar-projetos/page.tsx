@@ -23,6 +23,8 @@ export default async function EncontrarProjetosPage() {
 
   const safeProjects = projects.map((project) => ({
     ...project,
+    // Links legados sao privados e nunca devem chegar ao navegador publico.
+    attachments: [],
     budgetValue: project.budgetValue.toNumber(),
   }));
 

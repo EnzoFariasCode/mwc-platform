@@ -14,7 +14,6 @@ interface CreateProjectData {
   budgetType: "fixed" | "hourly";
   budgetValue: number;
   deadline: string;
-  attachments: string[];
 }
 
 const PROJECT_TITLE_MIN = 8;
@@ -24,8 +23,6 @@ const PROJECT_DESCRIPTION_MAX = 5000;
 const PROJECT_FIELD_MAX = 80;
 const PROJECT_TAG_MAX = 30;
 const PROJECT_TAG_LIMIT = 8;
-const PROJECT_ATTACHMENT_LIMIT = 5;
-const PROJECT_ATTACHMENT_MAX = 500;
 const PROJECT_BUDGET_MIN = 1;
 const PROJECT_BUDGET_MAX = 1_000_000;
 
@@ -49,15 +46,6 @@ function normalizeStringList(
     .filter(Boolean)
     .slice(0, limit)
     .map((value) => value.slice(0, maxLength));
-}
-
-function isHttpUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:";
-  } catch {
-    return false;
-  }
 }
 
 export async function createProject(
@@ -91,11 +79,6 @@ export async function createProject(
       PROJECT_TAG_LIMIT,
       PROJECT_TAG_MAX,
     );
-    const attachments = normalizeStringList(
-      data.attachments,
-      PROJECT_ATTACHMENT_LIMIT,
-      PROJECT_ATTACHMENT_MAX,
-    );
 
     if (title.length < PROJECT_TITLE_MIN || title.length > PROJECT_TITLE_MAX) {
       return { success: false, error: "Informe um titulo valido." };
@@ -127,10 +110,6 @@ export async function createProject(
       return { success: false, error: "Informe um orcamento valido." };
     }
 
-    if (attachments.some((attachment) => !isHttpUrl(attachment))) {
-      return { success: false, error: "Informe links de anexo validos." };
-    }
-
     const prefix = "R$ ";
     const suffix = budgetType === "hourly" ? "/h" : "";
     const budgetLabel = `${prefix}${budgetValue.toLocaleString("pt-BR", {
@@ -149,7 +128,7 @@ export async function createProject(
         deadline,
         ownerId: userId, // Usa o ID seguro
         status: "OPEN",
-        attachments,
+        attachments: [],
       },
     });
 

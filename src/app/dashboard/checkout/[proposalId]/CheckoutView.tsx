@@ -13,6 +13,8 @@ import {
   ExternalLink,
   Loader2,
   Clock,
+  FolderKey,
+  Link2,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -22,6 +24,10 @@ import { cancelProjectPayment } from "@/modules/stripe/actions/cancel-project-pa
 import { useSearchParams, useRouter } from "next/navigation";
 import type { CustomerPaymentMethodInfo } from "@/modules/stripe/lib/payment-methods";
 import { TECH_CONTRACT_TERMS } from "@/modules/legal/terms-versions";
+import {
+  PROJECT_RESOURCE_DIRECTORY_URL_MAX_LENGTH,
+  validateProjectResourceDirectoryUrl,
+} from "@/modules/projects/lib/project-resource-directory";
 
 interface CheckoutViewProps {
   proposalId: string;
@@ -29,6 +35,7 @@ interface CheckoutViewProps {
   professionalName: string;
   price: number;
   paymentMethods: readonly CustomerPaymentMethodInfo[];
+  initialResourceDirectoryUrl: string;
 }
 
 export default function CheckoutView({
@@ -37,6 +44,7 @@ export default function CheckoutView({
   professionalName,
   price,
   paymentMethods,
+  initialResourceDirectoryUrl,
 }: CheckoutViewProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -45,6 +53,9 @@ export default function CheckoutView({
   const [countdown, setCountdown] = useState(5);
   const [isCanceling, setIsCanceling] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [resourceDirectoryUrl, setResourceDirectoryUrl] = useState(
+    initialResourceDirectoryUrl,
+  );
 
   const canceled = searchParams.get("canceled") === "true";
   const platformFee = price * 0.1;
@@ -62,6 +73,14 @@ export default function CheckoutView({
       return;
     }
 
+    const resourceDirectoryResult = validateProjectResourceDirectoryUrl(
+      resourceDirectoryUrl,
+    );
+    if (!resourceDirectoryResult.success) {
+      toast.error(resourceDirectoryResult.error);
+      return;
+    }
+
     setIsLoading(true);
     setIsRedirecting(true);
 
@@ -73,7 +92,11 @@ export default function CheckoutView({
 
     // 2. Após os 5 segundos, gera o link e redireciona
     try {
-      const result = await createProjectCheckout(proposalId, termsAccepted);
+      const result = await createProjectCheckout(
+        proposalId,
+        termsAccepted,
+        resourceDirectoryResult.value,
+      );
 
       if (!result.success) {
         toast.error(result.error);
@@ -173,6 +196,49 @@ export default function CheckoutView({
                   ao profissional.
                 </p>
               </div>
+            </div>
+
+            {/* Diretório privado do projeto */}
+            <div className="rounded-2xl border border-[#d73cbe]/25 bg-[#d73cbe]/5 p-6">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-[#d73cbe]/15 p-3 text-[#d73cbe]">
+                  <FolderKey className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-bold text-white">
+                    Arquivos e dependencias do projeto
+                  </h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-400">
+                    Informe a pasta do Google Drive, Dropbox, OneDrive ou outro
+                    repositorio seguro. O link sera privado e ficará visivel
+                    somente para voce e para o profissional contratado.
+                  </p>
+                </div>
+              </div>
+              <label className="mt-5 block">
+                <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-400">
+                  Link da pasta <span className="text-red-400">*</span>
+                </span>
+                <div className="relative">
+                  <Link2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="url"
+                    value={resourceDirectoryUrl}
+                    onChange={(event) =>
+                      setResourceDirectoryUrl(event.target.value)
+                    }
+                    disabled={isLoading || isCanceling}
+                    required
+                    maxLength={PROJECT_RESOURCE_DIRECTORY_URL_MAX_LENGTH}
+                    placeholder="https://drive.google.com/drive/folders/..."
+                    className="h-12 w-full rounded-xl border border-white/10 bg-slate-950 pl-10 pr-4 text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-[#d73cbe] disabled:opacity-60"
+                  />
+                </div>
+                <p className="mt-2 text-xs text-amber-200/70">
+                  Confirme no servico escolhido que o profissional terá
+                  permissao para abrir a pasta.
+                </p>
+              </label>
             </div>
 
             {/* Informações sobre a Stripe */}
@@ -336,6 +402,7 @@ export default function CheckoutView({
                     isLoading ||
                     isCanceling ||
                     !termsAccepted ||
+                    !resourceDirectoryUrl.trim() ||
                     paymentMethods.length === 0
                   }
                     className="w-full py-4 bg-green-500 hover:bg-green-400 text-black font-bold rounded-xl shadow-lg shadow-green-900/20 transition-all hover:-translate-y-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"

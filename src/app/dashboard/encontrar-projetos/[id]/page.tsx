@@ -52,6 +52,8 @@ export default async function ProjectPage({
   // 3. Passa tudo para a View
   const safeProject = {
     ...project,
+    // Links legados sao privados e ficam disponiveis apenas apos contratacao.
+    attachments: [],
     budgetValue: project.budgetValue.toNumber(),
     agreedPrice: project.agreedPrice ? project.agreedPrice.toNumber() : null,
   };

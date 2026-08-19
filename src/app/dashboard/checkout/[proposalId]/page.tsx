@@ -23,7 +23,12 @@ export default async function CheckoutPage({
     where: { id: proposalId },
     include: {
       project: {
-        select: { title: true, ownerId: true, status: true },
+        select: {
+          title: true,
+          ownerId: true,
+          status: true,
+          resourceDirectory: { select: { url: true } },
+        },
       },
       professional: {
         select: { name: true },
@@ -35,7 +40,11 @@ export default async function CheckoutPage({
     notFound();
   }
 
-  if (session.userType === "ADMIN" || proposal.project.ownerId !== userId) {
+  if (
+    session.userType !== "CLIENT" ||
+    session.industry !== "TECH" ||
+    proposal.project.ownerId !== userId
+  ) {
     notFound();
   }
 
@@ -56,6 +65,9 @@ export default async function CheckoutPage({
       professionalName={proposal.professional.name || "Profissional MWC"}
       price={Number(proposal.price)} // Converte Decimal para Number
       paymentMethods={paymentMethods}
+      initialResourceDirectoryUrl={
+        proposal.project.resourceDirectory?.url ?? ""
+      }
     />
   );
 }

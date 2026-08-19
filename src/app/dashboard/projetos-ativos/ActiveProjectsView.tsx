@@ -238,6 +238,7 @@ export default function ActiveProjectsView({
           project={selectedProject}
           allowProposal={false}
           isOwner={false}
+          canViewPrivateResources={true}
         />
 
         {/* Modal de Entrega */}
