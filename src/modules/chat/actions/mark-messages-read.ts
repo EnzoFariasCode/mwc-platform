@@ -5,6 +5,7 @@ import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { markEntityNotificationsRead } from "@/modules/notifications/services/notification-service";
+import { findChatBlockBetween } from "@/modules/chat/lib/chat-moderation";
 
 export async function markMessagesAsRead(
   targetUserId: string
@@ -20,6 +21,10 @@ export async function markMessagesAsRead(
         success: false,
         error: "Ação restrita ao Marketplace Tech.",
       };
+    }
+
+    if (await findChatBlockBetween(myId, targetUserId)) {
+      return { success: false, error: "Esta conversa esta bloqueada." };
     }
 
     // Busca a conversa

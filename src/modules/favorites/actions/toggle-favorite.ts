@@ -14,10 +14,27 @@ export async function toggleFavorite(
 
     if (!userId) return { success: false, error: "Não autorizado" };
 
-    if (session?.userType === "ADMIN") {
+    if (session?.userType !== "CLIENT" || session?.industry !== "TECH") {
       return {
         success: false,
-        error: "Contas administrativas nao podem favoritar profissionais.",
+        error: "Apenas clientes do Marketplace Tech podem favoritar profissionais.",
+      };
+    }
+
+    const block = await db.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: userId, blockedUserId: professionalId },
+          { blockerId: professionalId, blockedUserId: userId },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (block) {
+      return {
+        success: false,
+        error: "Nao e possivel favoritar uma conta bloqueada.",
       };
     }
 

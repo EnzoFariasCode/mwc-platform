@@ -14,6 +14,7 @@ import {
   Trash2,
   X,
   Briefcase, // Icone para o projeto
+  Flag,
 } from "lucide-react";
 
 import { getMyConversations } from "@/modules/chat/actions/get-my-conversations";
@@ -23,6 +24,7 @@ import { startConversation } from "@/modules/chat/actions/start-conversation";
 import { toggleFavorite } from "@/modules/favorites/actions/toggle-favorite";
 import { markMessagesAsRead } from "@/modules/chat/actions/mark-messages-read";
 import { deleteConversation } from "@/modules/chat/actions/delete-conversation";
+import { ChatReportModal } from "@/modules/chat/components/ChatReportModal";
 // NOVAS ACTIONS:
 import {
   getProjectContext,
@@ -64,6 +66,7 @@ function ChatPageInner() {
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   // Estados de Busca Local
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -175,6 +178,11 @@ function ChatPageInner() {
               }),
             );
 
+            setActiveChatData({
+              ...result.data.otherUser,
+              conversationId: result.data.conversationId,
+            });
+
             setMessages((prev) => {
               if (prev.length !== formattedMessages.length) {
                 markMessagesAsRead(activeChatId);
@@ -182,6 +190,16 @@ function ChatPageInner() {
               }
               return prev;
             });
+          } else if (
+            !result.success &&
+            result.error?.toLowerCase().includes("bloqueada")
+          ) {
+            setActiveChatId(null);
+            setActiveChatData(null);
+            setMessages([]);
+            setProjectContext(null);
+            await loadConversations();
+            toast.info("Esta conversa foi bloqueada e removida da sua lista.");
           }
         } catch (error) {
           console.error("Silent reload error:", error);
@@ -251,6 +269,15 @@ function ChatPageInner() {
         // Tenta buscar mensagens
         const result = await getConversationMessages(activeChatId!);
 
+        if (!result.success) {
+          setActiveChatId(null);
+          setActiveChatData(null);
+          setMessages([]);
+          setProjectContext(null);
+          toast.error(result.error || "Nao foi possivel abrir a conversa.");
+          return;
+        }
+
         if (result.success && result.data && result.data.otherUser) {
           // CENÁRIO 1: Já existe conversa
           const formattedMessages: Message[] = result.data.messages.map(
@@ -263,7 +290,10 @@ function ChatPageInner() {
           );
 
           setMessages(formattedMessages);
-          setActiveChatData(result.data.otherUser); // Define os dados do usuário
+          setActiveChatData({
+            ...result.data.otherUser,
+            conversationId: result.data.conversationId,
+          }); // Define os dados do usuário
           await markMessagesAsRead(activeChatId!);
         } else {
           // CENÁRIO 2: Chat Novo ou Retorno Nulo (Bug do Spinner)
@@ -277,6 +307,8 @@ function ChatPageInner() {
               name: basicUser.data.name,
               jobTitle: basicUser.data.jobTitle,
               isFavorite: false, // Default
+              canFavorite: basicUser.data.canFavorite,
+              conversationId: null,
             });
           } else {
             setActiveChatData({ name: "Usuário", isFavorite: false });
@@ -367,12 +399,30 @@ function ChatPageInner() {
   };
 
   const handleToggleFavorite = async () => {
-    if (!activeChatId) return;
+    if (!activeChatId || !activeChatData?.canFavorite) return;
+    const previousValue = Boolean(activeChatData.isFavorite);
     setActiveChatData((prev: any) => ({
       ...prev,
       isFavorite: !prev.isFavorite,
     }));
-    await toggleFavorite(activeChatId);
+    const result = await toggleFavorite(activeChatId);
+    if (!result.success) {
+      setActiveChatData((prev: any) => ({
+        ...prev,
+        isFavorite: previousValue,
+      }));
+      toast.error(result.error || "Nao foi possivel atualizar o favorito.");
+    }
+  };
+
+  const handleReported = () => {
+    setIsReportOpen(false);
+    setActiveChatId(null);
+    setActiveChatData(null);
+    setMessages([]);
+    setProjectContext(null);
+    loadConversations();
+    toast.success("Denuncia registrada. A comunicacao foi bloqueada.");
   };
 
   const handleDeleteConversation = async (
@@ -542,25 +592,41 @@ function ChatPageInner() {
                   </div>
                 </div>
 
-                <div className="flex gap-3 text-gray-400 items-center">
-                  <button
-                    onClick={handleToggleFavorite}
-                    disabled={!activeChatData}
+                <div className="flex gap-2 text-gray-400 items-center">
+                  {activeChatData?.canFavorite && (
+                    <button
+                      onClick={handleToggleFavorite}
+                      disabled={!activeChatData}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-xs font-bold cursor-pointer ${
                       activeChatData?.isFavorite
                         ? "bg-[#d73cbe]/10 border-[#d73cbe] text-[#d73cbe]"
                         : "bg-transparent border-white/10 text-slate-400 hover:bg-white/5 hover:text-white"
                     }`}
-                  >
-                    <Heart
+                    >
+                      <Heart
                       size={16}
                       className={`transition-colors ${
                         activeChatData?.isFavorite ? "fill-[#d73cbe]" : ""
                       }`}
-                    />
-                    <span className="hidden sm:inline">
-                      {activeChatData?.isFavorite ? "Favoritado" : "Favoritar"}
-                    </span>
+                      />
+                      <span className="hidden sm:inline">
+                        {activeChatData?.isFavorite ? "Favoritado" : "Favoritar"}
+                      </span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsReportOpen(true)}
+                    disabled={!activeChatData?.conversationId}
+                    title={
+                      activeChatData?.conversationId
+                        ? "Denunciar comportamento"
+                        : "Envie uma mensagem para iniciar a conversa"
+                    }
+                    className="flex items-center gap-2 rounded-lg border border-red-500/25 bg-red-500/5 px-3 py-1.5 text-xs font-bold text-red-300 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Flag size={16} />
+                    <span className="hidden sm:inline">Denunciar</span>
                   </button>
                 </div>
               </div>
@@ -703,6 +769,14 @@ function ChatPageInner() {
           </>
         )}
       </section>
+      <ChatReportModal
+        open={isReportOpen}
+        conversationId={activeChatData?.conversationId || null}
+        reportedUserId={activeChatId}
+        reportedUserName={activeChatData?.name || "este usuario"}
+        onClose={() => setIsReportOpen(false)}
+        onReported={handleReported}
+      />
     </div>
   );
 }

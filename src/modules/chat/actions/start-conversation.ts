@@ -6,6 +6,7 @@ import { verifySession } from "@/lib/auth";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { db } from "@/lib/prisma";
 import { canExchangeTechMessages } from "@/modules/chat/lib/chat-safety";
+import { findChatBlockBetween } from "@/modules/chat/lib/chat-moderation";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { ActionResponse } from "@/modules/users/types/user-types";
 
@@ -48,7 +49,7 @@ export async function startConversation(
 
     if (!starterId) return { success: false, error: "Nao autorizado." };
 
-    if (session?.userType === "ADMIN") {
+    if (session?.userType === "ADMIN" || session?.industry !== "TECH") {
       return {
         success: false,
         error: "Acao restrita ao Marketplace Tech.",
@@ -57,6 +58,14 @@ export async function startConversation(
 
     if (!receiverId || receiverId === starterId) {
       return { success: false, error: "Destinatario invalido." };
+    }
+
+    const block = await findChatBlockBetween(starterId, receiverId);
+    if (block) {
+      return {
+        success: false,
+        error: "A comunicacao entre estas contas esta bloqueada.",
+      };
     }
 
     const receiver = await db.user.findUnique({

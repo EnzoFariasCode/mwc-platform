@@ -15,6 +15,7 @@ import {
   normalizeMessageContent,
 } from "@/modules/chat/lib/chat-safety";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
+import { findChatBlockBetween } from "@/modules/chat/lib/chat-moderation";
 
 const CHAT_USER_LIMIT = 30;
 const CHAT_PAIR_LIMIT = 12;
@@ -118,7 +119,7 @@ export async function sendMessage(
 
     if (!senderId) return { success: false, error: "Nao autorizado." };
 
-    if (session?.userType === "ADMIN") {
+    if (session?.userType === "ADMIN" || session?.industry !== "TECH") {
       return {
         success: false,
         error: "Acao restrita ao Marketplace Tech.",
@@ -131,6 +132,14 @@ export async function sendMessage(
 
     if (!normalizedContent) {
       return { success: false, error: "Mensagem vazia." };
+    }
+
+    const block = await findChatBlockBetween(senderId, receiverId);
+    if (block) {
+      return {
+        success: false,
+        error: "A comunicacao entre estas contas esta bloqueada.",
+      };
     }
 
     if (isMessageTooLong(normalizedContent)) {

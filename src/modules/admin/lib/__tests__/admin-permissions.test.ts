@@ -73,6 +73,14 @@ describe("admin permissions", () => {
     ).toEqual(["OWNER", "FINANCE", "SUPPORT"]);
   });
 
+  it("keeps chat report audit available to every ADMIN role", () => {
+    expect(allowedAdminRolesForAuditEntity("CHAT_REPORT")).toEqual([
+      "OWNER",
+      "FINANCE",
+      "SUPPORT",
+    ]);
+  });
+
   it("denies unknown audit entity types", () => {
     expect(allowedAdminRolesForAuditEntity("UNKNOWN_ENTITY")).toEqual([]);
   });

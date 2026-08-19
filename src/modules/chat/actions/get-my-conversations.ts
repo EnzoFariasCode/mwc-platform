@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { getBlockedCounterpartIds } from "@/modules/chat/lib/chat-moderation";
 
 type ConversationSummary = {
   id: string;
@@ -30,6 +31,7 @@ export async function getMyConversations(): Promise<
     };
   }
 
+  const blockedUserIds = await getBlockedCounterpartIds(userId);
   const conversations = await db.conversation.findMany({
     where: {
       AND: [
@@ -43,14 +45,20 @@ export async function getMyConversations(): Promise<
             deletedByIds: { has: userId },
           },
         },
+        ...(blockedUserIds.length > 0
+          ? [
+              { participantAId: { notIn: blockedUserIds } },
+              { participantBId: { notIn: blockedUserIds } },
+            ]
+          : []),
       ],
     },
     include: {
       participantA: {
-        select: { id: true, name: true, displayName: true, jobTitle: true },
+        select: { id: true, name: true, displayName: true, jobTitle: true, image: true },
       },
       participantB: {
-        select: { id: true, name: true, displayName: true, jobTitle: true },
+        select: { id: true, name: true, displayName: true, jobTitle: true, image: true },
       },
       // Pega apenas a última msg para preview
       messages: {
@@ -87,7 +95,7 @@ export async function getMyConversations(): Promise<
       jobTitle: otherUser.jobTitle,
       lastMessage: lastMsgContent,
       lastMessageTime: lastMsgTime,
-      avatar: null,
+      avatar: otherUser.image,
       unreadCount: myUnreadCount,
     };
   });

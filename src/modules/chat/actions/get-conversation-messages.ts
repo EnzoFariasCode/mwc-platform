@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { findChatBlockBetween } from "@/modules/chat/lib/chat-moderation";
 
 type ConversationMessages = {
   conversationId: string;
@@ -17,6 +18,7 @@ type ConversationMessages = {
     name: string;
     jobTitle: string | null;
     isFavorite: boolean;
+    canFavorite: boolean;
   };
 };
 
@@ -36,6 +38,14 @@ export async function getConversationMessages(
       };
     }
 
+    if (session?.industry !== "TECH") {
+      return { success: false, error: "Acao restrita ao Marketplace Tech." };
+    }
+
+    if (await findChatBlockBetween(myId, targetUserId)) {
+      return { success: false, error: "Esta conversa esta bloqueada." };
+    }
+
     // Busca conversa onde EU e o ALVO estamos
     const conversation = await db.conversation.findFirst({
       where: {
@@ -50,31 +60,49 @@ export async function getConversationMessages(
         },
         // Trazemos os dados dos dois para saber quem é quem
         participantA: {
-          select: { id: true, name: true, displayName: true, jobTitle: true },
+          select: {
+            id: true,
+            name: true,
+            displayName: true,
+            jobTitle: true,
+            userType: true,
+            industry: true,
+          },
         },
         participantB: {
-          select: { id: true, name: true, displayName: true, jobTitle: true },
+          select: {
+            id: true,
+            name: true,
+            displayName: true,
+            jobTitle: true,
+            userType: true,
+            industry: true,
+          },
         },
       },
     });
 
     if (!conversation) return { success: true, data: null };
 
-    // Verifica favorito
-    const isFavorite = await db.favorite.findUnique({
-      where: {
-        clientId_professionalId: {
-          clientId: myId,
-          professionalId: targetUserId,
-        },
-      },
-    });
-
     // Identifica quem é o "Outro Usuário"
     const otherUser =
       conversation.participantAId === myId
         ? conversation.participantB
         : conversation.participantA;
+    const canFavorite =
+      session.userType === "CLIENT" &&
+      otherUser.userType === "PROFESSIONAL" &&
+      otherUser.industry === "TECH";
+    const isFavorite = canFavorite
+      ? await db.favorite.findUnique({
+          where: {
+            clientId_professionalId: {
+              clientId: myId,
+              professionalId: otherUser.id,
+            },
+          },
+        })
+      : null;
 
     const data: ConversationMessages = {
       conversationId: conversation.id,
@@ -91,6 +119,7 @@ export async function getConversationMessages(
         name: otherUser.displayName || otherUser.name || "Usuário",
         jobTitle: otherUser.jobTitle,
         isFavorite: !!isFavorite,
+        canFavorite,
       },
     };
 

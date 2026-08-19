@@ -7,7 +7,8 @@ export type AdminAuditEntityType =
   | "USER_ACCOUNT"
   | "APPOINTMENT_CANCELLATION"
   | "APPOINTMENT_RESCHEDULE"
-  | "PROFESSIONAL_VERIFICATION";
+  | "PROFESSIONAL_VERIFICATION"
+  | "CHAT_REPORT";
 
 const adminAuditRolesByEntity = {
   TECH_PROJECT: ["OWNER", "SUPPORT"],
@@ -17,6 +18,7 @@ const adminAuditRolesByEntity = {
   APPOINTMENT_CANCELLATION: ["OWNER", "FINANCE", "SUPPORT"],
   APPOINTMENT_RESCHEDULE: ["OWNER", "FINANCE", "SUPPORT"],
   PROFESSIONAL_VERIFICATION: ["OWNER", "SUPPORT"],
+  CHAT_REPORT: ["OWNER", "FINANCE", "SUPPORT"],
 } satisfies Record<AdminAuditEntityType, AdminRole[]>;
 
 export function normalizeAdminRole({

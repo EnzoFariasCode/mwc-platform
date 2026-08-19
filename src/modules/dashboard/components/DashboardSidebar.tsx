@@ -19,6 +19,7 @@ import {
   Heart,
   Store,
   ShieldCheck,
+  Flag,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Logo from "@/assets/images/landingPage/logo.png";
@@ -292,6 +293,12 @@ export default function DashboardSidebar() {
       label: "Mediação",
       href: "/dashboard/admin/disputas",
       roles: ["OWNER", "SUPPORT"],
+    },
+    {
+      icon: Flag,
+      label: "Denuncias",
+      href: "/dashboard/admin/denuncias",
+      roles: ["OWNER", "FINANCE", "SUPPORT"],
     },
     {
       icon: Wallet,

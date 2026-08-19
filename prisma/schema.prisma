@@ -30,6 +30,28 @@ enum Industry {
   HEALTH // Psicólogos, Nutricionistas, Personal Trainers
 }
 
+enum ChatReportReason {
+  HARASSMENT
+  FRAUD
+  SPAM
+  EXTERNAL_PAYMENT
+  INAPPROPRIATE_CONTENT
+  THREAT
+  OTHER
+}
+
+enum ChatReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum ChatReportResolution {
+  WARNING
+  NO_PENALTY
+}
+
 enum ProjectStatus {
   OPEN // Aberto para receber propostas
   WAITING_PAYMENT // Cliente aceitou proposta, aguardando pagamento (Escrow)
@@ -330,6 +352,11 @@ model User {
   conversationsAsA         Conversation[]             @relation("ParticipantA")
   conversationsAsB         Conversation[]             @relation("ParticipantB")
   sentMessages             Message[]                  @relation("SentMessages")
+  chatReportsMade          ChatReport[]               @relation("ChatReportReporter")
+  chatReportsReceived      ChatReport[]               @relation("ChatReportReportedUser")
+  chatReportsReviewed      ChatReport[]               @relation("ChatReportReviewer")
+  chatBlocksCreated        UserBlock[]                @relation("ChatBlocker")
+  chatBlocksReceived       UserBlock[]                @relation("ChatBlockedUser")
   favorites                Favorite[]                 @relation("UserFavorites")
   favoritedBy              Favorite[]                 @relation("FavoritedBy")
   reviewsWritten           Review[]                   @relation("ReviewsAuthored")
@@ -1028,21 +1055,72 @@ model HealthAppointmentReview {
 }
 
 model Conversation {
-  id              String    @id @default(uuid())
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  lastMessageTime DateTime  @default(now())
+  id              String       @id @default(uuid())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  lastMessageTime DateTime     @default(now())
   lastMessage     String?
   participantAId  String
-  participantA    User      @relation("ParticipantA", fields: [participantAId], references: [id])
+  participantA    User         @relation("ParticipantA", fields: [participantAId], references: [id])
   participantBId  String
-  participantB    User      @relation("ParticipantB", fields: [participantBId], references: [id])
-  unreadCountA    Int       @default(0)
-  unreadCountB    Int       @default(0)
-  deletedByIds    String[]  @default([])
+  participantB    User         @relation("ParticipantB", fields: [participantBId], references: [id])
+  unreadCountA    Int          @default(0)
+  unreadCountB    Int          @default(0)
+  deletedByIds    String[]     @default([])
   messages        Message[]
+  reports         ChatReport[]
+  blocks          UserBlock[]
 
   @@unique([participantAId, participantBId])
+}
+
+model ChatReport {
+  id                 String                @id @default(uuid())
+  conversationId     String
+  conversation       Conversation          @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  reporterId         String
+  reporter           User                  @relation("ChatReportReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  reportedUserId     String
+  reportedUser       User                  @relation("ChatReportReportedUser", fields: [reportedUserId], references: [id], onDelete: Restrict)
+  reason             ChatReportReason
+  description        String                @db.Text
+  status             ChatReportStatus      @default(OPEN)
+  resolution         ChatReportResolution?
+  resolutionReason   String?               @db.Text
+  reportedThroughAt  DateTime
+  contextSnapshot    Json                  @default("{}")
+  isPriority         Boolean               @default(false)
+  reviewerId         String?
+  reviewer           User?                 @relation("ChatReportReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewedAt         DateTime?
+  resolvedAt         DateTime?
+  decisionNotifiedAt DateTime?
+  decisionEmailError String?               @db.Text
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  createdBlock       UserBlock?
+
+  @@index([status, createdAt])
+  @@index([reporterId, createdAt])
+  @@index([reportedUserId, status])
+  @@index([conversationId, reportedThroughAt])
+}
+
+model UserBlock {
+  id             String        @id @default(uuid())
+  blockerId      String
+  blocker        User          @relation("ChatBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedUserId  String
+  blockedUser    User          @relation("ChatBlockedUser", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  sourceReportId String?       @unique
+  sourceReport   ChatReport?   @relation(fields: [sourceReportId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+
+  @@unique([blockerId, blockedUserId])
+  @@index([blockedUserId, blockerId])
+  @@index([conversationId])
 }
 
 model Message {

@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { findChatBlockBetween } from "@/modules/chat/lib/chat-moderation";
 
 async function hasConversation(aId: string, bId: string) {
   const convo = await db.conversation.findFirst({
@@ -58,7 +59,7 @@ export async function getProjectContext(
 
     const isAdminUser = session?.role === "ADMIN" || session?.userType === "ADMIN";
 
-    if (isAdminUser) {
+    if (isAdminUser || session?.industry !== "TECH") {
       return {
         success: false,
         error: "Ação restrita ao Marketplace Tech.",
@@ -115,7 +116,12 @@ export async function getProjectContext(
 export async function getBasicUserInfo(
   userId: string
 ): Promise<
-  ActionResponse<{ name: string | null; jobTitle: string | null; id: string } | null>
+  ActionResponse<{
+    name: string | null;
+    jobTitle: string | null;
+    id: string;
+    canFavorite: boolean;
+  } | null>
 > {
   try {
     const session = await verifySession();
@@ -136,6 +142,14 @@ export async function getBasicUserInfo(
 
     if (!userId) {
       return { success: false, error: "Usuario invalido." };
+    }
+
+    if (session?.industry !== "TECH") {
+      return { success: false, error: "Acao restrita ao Marketplace Tech." };
+    }
+
+    if (await findChatBlockBetween(myId, userId)) {
+      return { success: false, error: "Esta conversa esta bloqueada." };
     }
 
     const user = await db.user.findUnique({
@@ -173,7 +187,15 @@ export async function getBasicUserInfo(
 
     return {
       success: true,
-      data: { name: user.name, jobTitle: user.jobTitle, id: user.id },
+      data: {
+        name: user.name,
+        jobTitle: user.jobTitle,
+        id: user.id,
+        canFavorite:
+          session.userType === "CLIENT" &&
+          user.userType === "PROFESSIONAL" &&
+          user.industry === "TECH",
+      },
     };
   } catch {
     return { success: false, error: "Erro interno." };

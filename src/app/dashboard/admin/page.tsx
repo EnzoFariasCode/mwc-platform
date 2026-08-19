@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Briefcase,
+  Flag,
   ShieldCheck,
   Users,
   Wallet,
@@ -24,6 +25,7 @@ async function getAdminOverview() {
     pendingCancellationReconciliations,
     pendingRescheduleReconciliations,
     pendingProfessionalVerifications,
+    openChatReports,
   ] = await Promise.all([
     db.user.count(),
     db.user.count({ where: { isActive: true } }),
@@ -42,6 +44,9 @@ async function getAdminOverview() {
     db.professionalVerification.count({
       where: { status: { in: ["PENDING", "UNDER_REVIEW"] } },
     }),
+    db.chatReport.count({
+      where: { status: { in: ["OPEN", "UNDER_REVIEW"] } },
+    }),
   ]);
 
   return {
@@ -54,6 +59,7 @@ async function getAdminOverview() {
     pendingCancellationReconciliations,
     pendingRescheduleReconciliations,
     pendingProfessionalVerifications,
+    openChatReports,
   };
 }
 
@@ -86,6 +92,12 @@ export default async function AdminDashboardPage() {
       detail: "Aguardando tesouraria",
       icon: Wallet,
     },
+    {
+      label: "Denuncias abertas",
+      value: overview.openChatReports,
+      detail: "Chat do Marketplace Tech",
+      icon: Flag,
+    },
   ];
 
   const shortcuts = [
@@ -110,6 +122,12 @@ export default async function AdminDashboardPage() {
       description: `${overview.disputedProjects} projeto(s) em disputa agora.`,
       href: "/dashboard/admin/disputas",
       icon: AlertTriangle,
+    },
+    {
+      title: "Denuncias do chat",
+      description: `${overview.openChatReports} caso(s) aguardam conclusao administrativa.`,
+      href: "/dashboard/admin/denuncias",
+      icon: Flag,
     },
     {
       title: "Tesouraria",
