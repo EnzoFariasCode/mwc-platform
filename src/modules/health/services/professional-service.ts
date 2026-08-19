@@ -3,10 +3,7 @@
 import { db } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { getRateLimitKeys } from "@/lib/rate-limit";
-import {
-  getBookableHealthProfessionalWhere,
-  getHealthProfessionalBookingReadinessError,
-} from "@/modules/health/lib/health-professional-eligibility";
+import { getBookableHealthProfessionalWhere } from "@/modules/health/lib/health-professional-eligibility";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -81,10 +78,7 @@ export async function getHealthProfessionalById(id: string) {
     },
   });
 
-  if (
-    !professional ||
-    getHealthProfessionalBookingReadinessError(professional)
-  ) {
+  if (!professional) {
     return null;
   }
 

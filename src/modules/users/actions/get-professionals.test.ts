@@ -10,8 +10,8 @@ const mocks = vi.hoisted(() => {
         {
           id: "teacher-1",
           name: "Professor Teste",
-          displayName: null,
-          bio: null,
+          displayName: "Professor Teste",
+          bio: "Professor de matematica.",
           rating: 0,
           ratingCount: 0,
           jobTitle: "Professor",
@@ -21,11 +21,18 @@ const mocks = vi.hoisted(() => {
           consultationFee,
           industry: "HEALTH",
           image: null,
+          birthDate: new Date("1990-01-01"),
+          phone: "(11) 99999-9999",
           sessionDuration: 50,
-          approach: null,
+          approach: "Aulas praticas.",
           city: null,
           state: null,
-          profileImageBytes: null,
+          profileImageBytes: new Uint8Array([1]),
+          professionalVerification: {
+            specialty: "TEACHER",
+            status: "APPROVED",
+            expiresAt: null,
+          },
           timezone: "America/Sao_Paulo",
           availabilities: hasAvailability
             ? [
@@ -92,14 +99,14 @@ describe("busca de professores", () => {
     expect(result.data?.[0]).toEqual({
       id: "teacher-1",
       name: "Professor Teste",
-      bio: null,
+      bio: "Professor de matematica.",
       rating: 0,
       jobTitle: "Professor",
       onlineSpecialty: "TEACHER",
       teachingSubject: "Matematica",
       sessionDuration: 50,
       consultationFee: 100,
-      hasProfileImage: false,
+      hasProfileImage: true,
     });
     expect(result.data?.[0]).not.toHaveProperty("documentReg");
     expect(result.data?.[0]).not.toHaveProperty("image");

@@ -27,6 +27,10 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
         name: true,
         displayName: true,
         bio: true,
+        approach: true,
+        birthDate: true,
+        phone: true,
+        image: true,
         rating: true,
         jobTitle: true,
         onlineSpecialty: true,
@@ -36,6 +40,9 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
         sessionDuration: true,
         profileImageBytes: true,
         timezone: true,
+        professionalVerification: {
+          select: { specialty: true, status: true, expiresAt: true },
+        },
         availabilities: {
           where: { isActive: true },
           select: {
@@ -49,7 +56,9 @@ export async function getProfessionalsBySpecialty(specialtyId: string) {
     });
 
     const validProfessionals = professionals
-      .filter((pro) => !getHealthProfessionalBookingReadinessError(pro))
+      .filter((professional) =>
+        !getHealthProfessionalBookingReadinessError(professional),
+      )
       .map((professional) => {
         const publicName =
           professional.displayName?.trim() || professional.name.trim();

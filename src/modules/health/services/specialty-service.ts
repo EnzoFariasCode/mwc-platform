@@ -1,9 +1,6 @@
 import { db } from "@/lib/prisma";
 import { healthSpecialties } from "@/modules/health/lib/specialties";
-import {
-  getBookableHealthProfessionalWhere,
-  getHealthProfessionalBookingReadinessError,
-} from "@/modules/health/lib/health-professional-eligibility";
+import { getBookableHealthProfessionalWhere } from "@/modules/health/lib/health-professional-eligibility";
 
 export async function getHealthSpecialtyCards() {
   const candidates = await db.user.findMany({
@@ -30,10 +27,7 @@ export async function getHealthSpecialtyCards() {
 
   const counts = new Map<string, number>();
   for (const professional of candidates) {
-    if (
-      professional.onlineSpecialty &&
-      !getHealthProfessionalBookingReadinessError(professional)
-    ) {
+    if (professional.onlineSpecialty) {
       counts.set(
         professional.onlineSpecialty,
         (counts.get(professional.onlineSpecialty) ?? 0) + 1,

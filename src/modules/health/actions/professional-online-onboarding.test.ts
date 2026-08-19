@@ -190,10 +190,10 @@ describe("onboarding do profissional Online", () => {
     expect(mocks.db.$transaction).toHaveBeenCalledOnce();
   });
 
-  it("bloqueia agenda de Professor sem materia no backend", async () => {
+  it("permite preparar a agenda antes da aprovacao dos documentos", async () => {
     const result = await updateHealthSchedule(schedule);
 
-    expect(result.error).toContain("materia");
-    expect(mocks.db.$transaction).not.toHaveBeenCalled();
+    expect(result).toEqual({ success: true });
+    expect(mocks.db.$transaction).toHaveBeenCalledOnce();
   });
 });

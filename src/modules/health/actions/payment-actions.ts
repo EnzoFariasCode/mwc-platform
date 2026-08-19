@@ -71,6 +71,13 @@ export async function createCheckoutSession(
       select: {
         id: true,
         name: true,
+        displayName: true,
+        bio: true,
+        approach: true,
+        birthDate: true,
+        phone: true,
+        image: true,
+        profileImageBytes: true,
         consultationFee: true,
         sessionDuration: true,
         timezone: true,
@@ -78,6 +85,9 @@ export async function createCheckoutSession(
         teachingSubject: true,
         documentReg: true,
         jobTitle: true,
+        professionalVerification: {
+          select: { specialty: true, status: true, expiresAt: true },
+        },
         availabilities: {
           where: { isActive: true },
           select: {

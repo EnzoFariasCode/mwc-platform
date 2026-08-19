@@ -79,13 +79,16 @@ export default async function ProHealthDashboard({
     professional,
   );
   const missingApproach = !professional.approach;
-  const profileCompletion = getHealthProfileCompletion(professional);
   const verificationApproved = isProfessionalVerificationApproved(
     professional.professionalVerification,
   );
   const specialtyOperational = isOnlineSpecialtyOperational(
     professional.onlineSpecialty,
   );
+  const profileCompletion = getHealthProfileCompletion({
+    ...professional,
+    specialtyOperational,
+  });
   const bookingReadinessError =
     getHealthProfessionalBookingReadinessError(professional);
   const publicProfileAvailable =
@@ -118,8 +121,6 @@ export default async function ProHealthDashboard({
             ========================================= */}
         <DashboardModalsController
           professional={professional}
-          missingProfessionalIdentity={missingProfessionalIdentity}
-          verificationApproved={verificationApproved}
           specialtyOperational={specialtyOperational}
           profileCompletion={profileCompletion}
         />
@@ -307,11 +308,7 @@ export default async function ProHealthDashboard({
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-400">Disponibilidade</span>
                   <ScheduleConfigLink
-                    disabled={
-                      missingProfessionalIdentity ||
-                      !verificationApproved ||
-                      !specialtyOperational
-                    }
+                    disabled={!specialtyOperational}
                   />
                 </div>
               </div>

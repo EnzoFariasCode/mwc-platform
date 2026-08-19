@@ -58,4 +58,34 @@ describe("progresso do perfil Online", () => {
       expect.arrayContaining(["identity", "schedule", "phone"]),
     );
   });
+
+  it("nao usa endereco opcional no percentual de ativacao", () => {
+    const completion = getHealthProfileCompletion({
+      ...completeProfile,
+      cep: null,
+      address: null,
+      addressNumber: null,
+      neighborhood: null,
+      city: null,
+      state: null,
+    });
+
+    expect(completion.percent).toBe(100);
+    expect(completion.missingItems).toEqual([]);
+    expect(completion.optionalItems.find((item) => item.key === "address")?.done).toBe(false);
+  });
+
+  it("mantem a publicacao bloqueada enquanto os documentos estao em analise", () => {
+    const completion = getHealthProfileCompletion({
+      ...completeProfile,
+      documentReg: null,
+      professionalVerification: { status: "UNDER_REVIEW", expiresAt: null },
+    });
+
+    expect(completion.steps.find((step) => step.key === "verification")?.status).toBe(
+      "UNDER_REVIEW",
+    );
+    expect(completion.publicationComplete).toBe(false);
+    expect(completion.nextStep?.key).toBe("verification");
+  });
 });

@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/prisma";
-import {
-  getBookableHealthProfessionalWhere,
-  getHealthProfessionalBookingReadinessError,
-} from "@/modules/health/lib/health-professional-eligibility";
+import { getBookableHealthProfessionalWhere } from "@/modules/health/lib/health-professional-eligibility";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -45,10 +42,7 @@ export async function GET(
     },
   });
 
-  if (
-    !professional?.profileImageBytes ||
-    getHealthProfessionalBookingReadinessError(professional)
-  ) {
+  if (!professional?.profileImageBytes) {
     return new NextResponse(null, { status: 404 });
   }
 

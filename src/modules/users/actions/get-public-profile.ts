@@ -61,7 +61,11 @@ export async function getPublicProfile(
         name: true,
         displayName: true,
         profileImageBytes: true,
+        image: true,
         bio: true,
+        approach: true,
+        birthDate: true,
+        phone: true,
         city: true,
         state: true,
         userType: true,
@@ -89,6 +93,9 @@ export async function getPublicProfile(
         sessionDuration: true,
         consultationFee: true,
         timezone: true,
+        professionalVerification: {
+          select: { specialty: true, status: true, expiresAt: true },
+        },
         // -------------------------------------------------------------------
         reviewsReceived: {
           where: {
@@ -133,6 +140,10 @@ export async function getPublicProfile(
     // Removemos os campos de validação da resposta e extraímos o rawReviews
     const {
       profileImageBytes: _profileImageBytes,
+      image: _image,
+      approach: _approach,
+      birthDate: _birthDate,
+      phone: _phone,
       hourlyRate: _hourlyRate,
       documentReg: _doc,
       onlineSpecialty: _onlineSpecialty,
@@ -141,11 +152,16 @@ export async function getPublicProfile(
       sessionDuration: _sd,
       consultationFee: _cf,
       timezone: _timezone,
+      professionalVerification: _professionalVerification,
       reviewsReceived: rawReviews, // Extraímos as avaliações com tipagem imperfeita
       ...rest
     } = professional;
 
     void _profileImageBytes;
+    void _image;
+    void _approach;
+    void _birthDate;
+    void _phone;
     void _hourlyRate;
     void _doc;
     void _onlineSpecialty;
@@ -154,6 +170,7 @@ export async function getPublicProfile(
     void _sd;
     void _cf;
     void _timezone;
+    void _professionalVerification;
 
     // --- 🛠️ CORREÇÃO DE TIPAGEM PARA O TYPESCRIPT ---
     // Mapeamos o array e garantimos ao TS que o comment é string (já filtramos no banco)

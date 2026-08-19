@@ -4,6 +4,13 @@ const mocks = vi.hoisted(() => {
   let professional = {
     id: "teacher-1",
     name: "Professor Teste",
+    displayName: "Professor Teste",
+    bio: "Professor de fisica.",
+    approach: "Aulas praticas.",
+    birthDate: new Date("1990-01-01"),
+    phone: "(11) 99999-9999",
+    image: null as string | null,
+    profileImageBytes: new Uint8Array([1]),
     consultationFee: 100,
     sessionDuration: 50,
     timezone: "America/Sao_Paulo",
@@ -11,6 +18,11 @@ const mocks = vi.hoisted(() => {
     teachingSubject: "Fisica" as string | null,
     documentReg: null as string | null,
     jobTitle: "Professor",
+    professionalVerification: {
+      specialty: "TEACHER",
+      status: "APPROVED",
+      expiresAt: null,
+    },
     availabilities: [
       {
         dayOfWeek: 1,
@@ -70,6 +82,13 @@ const mocks = vi.hoisted(() => {
       professional = {
         id: "teacher-1",
         name: "Professor Teste",
+        displayName: "Professor Teste",
+        bio: "Professor de fisica.",
+        approach: "Aulas praticas.",
+        birthDate: new Date("1990-01-01"),
+        phone: "(11) 99999-9999",
+        image: null,
+        profileImageBytes: new Uint8Array([1]),
         consultationFee: 100,
         sessionDuration: 50,
         timezone: "America/Sao_Paulo",
@@ -77,6 +96,11 @@ const mocks = vi.hoisted(() => {
         teachingSubject: "Fisica",
         documentReg: null,
         jobTitle: "Professor",
+        professionalVerification: {
+          specialty: "TEACHER",
+          status: "APPROVED",
+          expiresAt: null,
+        },
         availabilities: [
           {
             dayOfWeek: 1,
@@ -93,6 +117,9 @@ const mocks = vi.hoisted(() => {
     },
     removeAvailability() {
       professional.availabilities = [];
+    },
+    setVerificationStatus(value: string) {
+      professional.professionalVerification.status = value;
     },
   };
 });
@@ -157,6 +184,20 @@ describe("checkout de Professor", () => {
       "teacher-1",
       futureDate(),
       "09:00",
+    );
+
+    expect(result.error).toContain("indisponivel");
+    expect(mocks.stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("rejeita checkout enquanto os documentos ainda nao foram aprovados", async () => {
+    mocks.setVerificationStatus("UNDER_REVIEW");
+
+    const result = await createCheckoutSession(
+      "teacher-1",
+      futureDate(),
+      "09:00",
+      { acceptedPaymentTerms: true },
     );
 
     expect(result.error).toContain("indisponivel");

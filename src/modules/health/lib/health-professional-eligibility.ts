@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { isValidTimeZone } from "./appointment-completion-time";
+import { isProfessionalVerificationApproved } from "./professional-verification-policy";
 
 const HH_MM_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -33,6 +34,14 @@ type ProfessionalAvailabilityInput = {
 };
 
 type BookableHealthProfessionalInput = ProfessionalIdentityInput & {
+  displayName?: string | null;
+  bio?: string | null;
+  approach?: string | null;
+  birthDate?: Date | string | null;
+  phone?: string | null;
+  hasProfileImage?: boolean;
+  profileImageBytes?: Uint8Array | null;
+  image?: string | null;
   jobTitle: string | null | undefined;
   consultationFee: unknown;
   sessionDuration: number | null | undefined;
@@ -40,6 +49,8 @@ type BookableHealthProfessionalInput = ProfessionalIdentityInput & {
   availabilities: ProfessionalAvailabilityInput[] | null | undefined;
   professionalVerification?: {
     specialty?: string | null;
+    status?: string | null;
+    expiresAt?: Date | string | null;
   } | null;
 };
 
@@ -52,10 +63,7 @@ export function getEligibleHealthProfessionalWhere(
     userType: "PROFESSIONAL",
     industry: "HEALTH",
     isActive: true,
-    onlineSpecialty: { not: null },
-    ...(lawyersEnabled
-      ? {}
-      : { AND: [{ onlineSpecialty: { not: "LAWYER" } }] }),
+    onlineSpecialty: lawyersEnabled ? { not: null } : { notIn: ["LAWYER"] },
     professionalVerification: {
       is: {
         status: "APPROVED",
@@ -85,6 +93,11 @@ export function getBookableHealthProfessionalWhere(
 ): Prisma.UserWhereInput {
   return {
     ...getEligibleHealthProfessionalWhere(now),
+    displayName: { not: "" },
+    bio: { not: "" },
+    approach: { not: "" },
+    birthDate: { not: null },
+    phone: { not: "" },
     jobTitle: { not: null },
     consultationFee: { gte: 1 },
     sessionDuration: { gt: 0 },
@@ -96,6 +109,14 @@ export function getBookableHealthProfessionalWhere(
         endTime: { not: "" },
       },
     },
+    AND: [
+      {
+        OR: [
+          { profileImageBytes: { not: null } },
+          { image: { not: "" } },
+        ],
+      },
+    ],
   };
 }
 
@@ -119,6 +140,14 @@ export function hasValidBookableAvailability(
 export function getHealthProfessionalBookingReadinessError(
   professional: BookableHealthProfessionalInput,
 ) {
+  if (
+    !isProfessionalVerificationApproved(
+      professional.professionalVerification,
+    )
+  ) {
+    return "A verificacao profissional precisa estar aprovada.";
+  }
+
   const verificationSpecialty =
     professional.professionalVerification?.specialty;
   if (
@@ -130,6 +159,36 @@ export function getHealthProfessionalBookingReadinessError(
 
   const identityError = getHealthProfessionalIdentityError(professional);
   if (identityError) return identityError;
+
+  if (!professional.displayName?.trim()) {
+    return "Informe seu nome de exibicao.";
+  }
+
+  if (!professional.bio?.trim()) {
+    return "Preencha sua biografia profissional.";
+  }
+
+  if (!professional.approach?.trim()) {
+    return professional.onlineSpecialty === "TEACHER"
+      ? "Informe sua metodologia de ensino."
+      : "Informe sua abordagem profissional.";
+  }
+
+  if (!professional.birthDate) {
+    return "Informe sua data de nascimento.";
+  }
+
+  if (!professional.phone?.trim()) {
+    return "Informe seu telefone de contato.";
+  }
+
+  if (
+    !professional.hasProfileImage &&
+    !professional.profileImageBytes &&
+    !professional.image?.trim()
+  ) {
+    return "Adicione uma foto de perfil.";
+  }
 
   if (!professional.jobTitle?.trim()) {
     return "Informe seu titulo profissional.";

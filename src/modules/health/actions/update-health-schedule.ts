@@ -4,11 +4,7 @@ import { db } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import {
-  hasValidHealthProfessionalIdentity,
-  isOnlineSpecialtyOperational,
-} from "../lib/health-professional-eligibility";
-import { isProfessionalVerificationApproved } from "../lib/professional-verification-policy";
+import { isOnlineSpecialtyOperational } from "../lib/health-professional-eligibility";
 
 // ─── Schema Zod ───────────────────────────────────────────────────────────────
 
@@ -86,29 +82,12 @@ export async function updateHealthSchedule(scheduleData: WeeklyAvailability) {
       where: { id: proId },
       select: {
         onlineSpecialty: true,
-        documentReg: true,
-        teachingSubject: true,
-        professionalVerification: { select: { status: true, expiresAt: true } },
       },
     });
 
-    if (!professional || !hasValidHealthProfessionalIdentity(professional)) {
+    if (!professional?.onlineSpecialty) {
       return {
-        error:
-          professional?.onlineSpecialty === "TEACHER"
-            ? "Informe sua materia ou area de ensino antes de configurar a agenda."
-            : "Informe seu registro profissional antes de configurar a agenda.",
-      };
-    }
-
-    if (
-      !isProfessionalVerificationApproved(
-        professional.professionalVerification,
-      )
-    ) {
-      return {
-        error:
-          "Sua verificacao profissional precisa ser aprovada antes de configurar a agenda.",
+        error: "Informe sua categoria profissional antes de configurar a agenda.",
       };
     }
 

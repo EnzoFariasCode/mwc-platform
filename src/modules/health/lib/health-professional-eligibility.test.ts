@@ -6,6 +6,12 @@ import {
 } from "./health-professional-eligibility";
 
 const readyTeacher = {
+  displayName: "Professora Maria",
+  bio: "Aulas particulares de matematica.",
+  approach: "Explicacao pratica e exercicios.",
+  birthDate: new Date("1990-01-01"),
+  phone: "(11) 99999-9999",
+  hasProfileImage: true,
   onlineSpecialty: "TEACHER",
   teachingSubject: "Matematica",
   documentReg: null,
@@ -21,7 +27,11 @@ const readyTeacher = {
       isActive: true,
     },
   ],
-  professionalVerification: { specialty: "TEACHER" },
+  professionalVerification: {
+    specialty: "TEACHER",
+    status: "APPROVED",
+    expiresAt: null,
+  },
 };
 
 describe("identidade profissional do MWC Online", () => {
@@ -78,6 +88,21 @@ describe("prontidao para agendamento do MWC Online", () => {
     ["duracao", { sessionDuration: 0 }],
     ["timezone", { timezone: "Fuso/Invalido" }],
     ["agenda", { availabilities: [] }],
+    ["nome de exibicao", { displayName: " " }],
+    ["biografia", { bio: " " }],
+    ["abordagem", { approach: null }],
+    ["data de nascimento", { birthDate: null }],
+    ["telefone", { phone: " " }],
+    ["foto", { hasProfileImage: false }],
+    [
+      "documentos pendentes",
+      {
+        professionalVerification: {
+          specialty: "TEACHER",
+          status: "UNDER_REVIEW",
+        },
+      },
+    ],
     [
       "categoria da verificacao",
       { professionalVerification: { specialty: "PSYCHOLOGIST" } },
