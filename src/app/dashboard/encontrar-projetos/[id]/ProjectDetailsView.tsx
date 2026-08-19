@@ -9,7 +9,6 @@ import {
   Clock,
   Briefcase,
   Star,
-  Share2,
   Flag,
   Send,
   Calendar,
@@ -289,11 +288,8 @@ export default function ProjectDetailsView({
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer border border-slate-700">
-                <Share2 className="w-4 h-4" /> Compartilhar
-              </button>
-              <button className="flex-1 py-3 bg-slate-800 hover:bg-red-900/20 hover:text-red-400 text-slate-300 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer border border-slate-700 hover:border-red-900/30">
+            <div>
+              <button className="w-full py-3 bg-slate-800 hover:bg-red-900/20 hover:text-red-400 text-slate-300 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer border border-slate-700 hover:border-red-900/30">
                 <Flag className="w-4 h-4" /> Denunciar
               </button>
             </div>
