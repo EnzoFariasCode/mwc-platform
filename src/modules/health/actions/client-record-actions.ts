@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
 import { HealthSpecialty, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { CLIENT_RECORD_ELIGIBLE_APPOINTMENT_STATUSES } from "@/modules/health/lib/client-record-access-policy";
 // =========================================================
 // TYPES
 // =========================================================
@@ -141,21 +142,30 @@ export async function getOrCreateClientRecord(
         error: "Categoria profissional do MWC Online nao configurada.",
       };
     }
-
-    const appointment = await db.appointment.findFirst({
+    const existingRecord = await db.clientRecord.findUnique({
       where: {
-        professionalId,
-        patientId,
-        status: { not: "PENDING_PAYMENT" },
+        professionalId_patientId: { professionalId, patientId },
       },
       select: { id: true },
     });
 
-    if (!appointment) {
-      return {
-        success: false,
-        error: "Prontuario disponivel apenas para clientes com atendimento vinculado.",
-      };
+    if (!existingRecord) {
+      const appointment = await db.appointment.findFirst({
+        where: {
+          professionalId,
+          patientId,
+          status: { in: [...CLIENT_RECORD_ELIGIBLE_APPOINTMENT_STATUSES] },
+        },
+        select: { id: true },
+      });
+
+      if (!appointment) {
+        return {
+          success: false,
+          error:
+            "Registro disponivel apenas para clientes com atendimento pago ou realizado.",
+        };
+      }
     }
 
     const specialty: HealthSpecialty = professional.onlineSpecialty;
@@ -631,6 +641,10 @@ export type ClientRecordSummary = {
   totalLegalCases: number;
   lastLegalActivityDate: Date | null;
   updatedAt: Date;
+  recordStarted: boolean;
+  appointmentDate: Date | null;
+  appointmentTime: string | null;
+  appointmentStatus: string | null;
 };
 
 export async function listProfessionalClientRecords(): Promise<{
@@ -649,44 +663,95 @@ export async function listProfessionalClientRecords(): Promise<{
       return { success: false, error: "Nao autorizado." };
     }
 
-    const records = await db.clientRecord.findMany({
-      where: { professionalId: session.user.id },
-      orderBy: { updatedAt: "desc" },
-      select: {
-        id: true,
-        patientId: true,
-        patientName: true,
-        patientEmail: true,
-        patientCity: true,
-        specialty: true,
-        chiefComplaint: true,
-        updatedAt: true,
-        sessionNotes: {
-          orderBy: { sessionDate: "desc" },
-          take: 1,
-          select: { sessionDate: true },
+    const appointmentWhere = {
+      professionalId: session.user.id,
+      status: { in: [...CLIENT_RECORD_ELIGIBLE_APPOINTMENT_STATUSES] },
+    } satisfies Prisma.AppointmentWhereInput;
+
+    const [records, professional, eligiblePatients] = await Promise.all([
+      db.clientRecord.findMany({
+        where: { professionalId: session.user.id },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          patientId: true,
+          patientName: true,
+          patientEmail: true,
+          patientCity: true,
+          specialty: true,
+          chiefComplaint: true,
+          updatedAt: true,
+          sessionNotes: {
+            orderBy: { sessionDate: "desc" },
+            take: 1,
+            select: { sessionDate: true },
+          },
+          legalCases: {
+            orderBy: { updatedAt: "desc" },
+            take: 1,
+            select: {
+              updatedAt: true,
+              activities: {
+                orderBy: { activityDate: "desc" },
+                take: 1,
+                select: { activityDate: true },
+              },
+            },
+          },
+          _count: {
+            select: { sessionNotes: true, legalCases: true },
+          },
         },
-        legalCases: {
-          orderBy: { updatedAt: "desc" },
-          take: 1,
-          select: {
-            updatedAt: true,
-            activities: {
-              orderBy: { activityDate: "desc" },
-              take: 1,
-              select: { activityDate: true },
+      }),
+      db.user.findUnique({
+        where: { id: session.user.id },
+        select: { onlineSpecialty: true },
+      }),
+      db.user.findMany({
+        where: {
+          patientAppointments: { some: appointmentWhere },
+        },
+        select: {
+          id: true,
+          name: true,
+          displayName: true,
+          email: true,
+          city: true,
+          patientAppointments: {
+            where: appointmentWhere,
+            orderBy: [{ date: "desc" }, { time: "desc" }],
+            take: 1,
+            select: {
+              date: true,
+              time: true,
+              status: true,
+              createdAt: true,
             },
           },
         },
-        _count: {
-          select: { sessionNotes: true, legalCases: true },
-        },
-      },
-    });
+      }),
+    ]);
 
-    return {
-      success: true,
-      records: records.map((record) => ({
+    if (!professional?.onlineSpecialty) {
+      return {
+        success: false,
+        error: "Categoria profissional do MWC Online nao configurada.",
+      };
+    }
+    const professionalSpecialty = professional.onlineSpecialty;
+
+    const patientById = new Map(
+      eligiblePatients.map((patient) => [patient.id, patient]),
+    );
+    const existingPatientIds = new Set(
+      records.map((record) => record.patientId),
+    );
+
+    const startedRecords: ClientRecordSummary[] = records.map((record) => {
+      const appointment = patientById.get(record.patientId)
+        ?.patientAppointments[0];
+
+      return {
         id: record.id,
         patientId: record.patientId,
         patientName: record.patientName,
@@ -702,7 +767,43 @@ export async function listProfessionalClientRecords(): Promise<{
           record.legalCases[0]?.updatedAt ??
           null,
         updatedAt: record.updatedAt,
-      })),
+        recordStarted: true,
+        appointmentDate: appointment?.date ?? null,
+        appointmentTime: appointment?.time ?? null,
+        appointmentStatus: appointment?.status ?? null,
+      };
+    });
+
+    const pendingRecords: ClientRecordSummary[] = eligiblePatients
+      .filter((patient) => !existingPatientIds.has(patient.id))
+      .map((patient) => {
+        const appointment = patient.patientAppointments[0];
+
+        return {
+          id: `scheduled:${patient.id}`,
+          patientId: patient.id,
+          patientName: patient.displayName || patient.name,
+          patientEmail: patient.email,
+          patientCity: patient.city,
+          specialty: professionalSpecialty,
+          chiefComplaint: null,
+          totalNotes: 0,
+          lastSessionDate: null,
+          totalLegalCases: 0,
+          lastLegalActivityDate: null,
+          updatedAt: appointment?.createdAt ?? new Date(0),
+          recordStarted: false,
+          appointmentDate: appointment?.date ?? null,
+          appointmentTime: appointment?.time ?? null,
+          appointmentStatus: appointment?.status ?? null,
+        };
+      });
+
+    return {
+      success: true,
+      records: [...startedRecords, ...pendingRecords].sort(
+        (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
+      ),
     };
   } catch (error) {
     console.error("[LIST_PROFESSIONAL_CLIENT_RECORDS]", error);

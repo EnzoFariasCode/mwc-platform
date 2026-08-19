@@ -1,5 +1,4 @@
 import { auth } from "@/auth";
-import { db } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText } from "lucide-react";
@@ -32,18 +31,6 @@ export default async function ProntuarioPage({ params }: Props) {
     session.user.userType !== "PROFESSIONAL" ||
     session.user.industry !== "HEALTH"
   ) {
-    redirect("/agendar-consulta/dashboard-profissional");
-  }
-
-  const hasPatientRelationship = await db.appointment.findFirst({
-    where: {
-      professionalId: session.user.id,
-      patientId,
-    },
-    select: { id: true },
-  });
-
-  if (!hasPatientRelationship) {
     redirect("/agendar-consulta/dashboard-profissional");
   }
 

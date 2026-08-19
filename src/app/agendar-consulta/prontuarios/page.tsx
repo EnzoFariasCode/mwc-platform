@@ -26,6 +26,7 @@ export default async function ProntuariosPage() {
     ...record,
     lastSessionDate: record.lastSessionDate?.toISOString() ?? null,
     lastLegalActivityDate: record.lastLegalActivityDate?.toISOString() ?? null,
+    appointmentDate: record.appointmentDate?.toISOString() ?? null,
     updatedAt: record.updatedAt.toISOString(),
   }));
 
@@ -56,8 +57,8 @@ export default async function ProntuariosPage() {
           <p className="text-sm text-slate-500">
             {records.length}{" "}
             {records.length === 1
-              ? "cliente registrado"
-              : "clientes registrados"}
+              ? "paciente vinculado"
+              : "pacientes vinculados"}
           </p>
         </div>
 
@@ -70,8 +71,8 @@ export default async function ProntuariosPage() {
               Nenhum registro de atendimento ainda.
             </p>
             <p className="mt-2 max-w-sm text-sm text-slate-600">
-              Os registros sao criados automaticamente quando voce acessa o
-              botao Registro dentro de um atendimento agendado.
+              Pacientes com consultas pagas aparecerao aqui automaticamente.
+              O registro sera iniciado quando voce abrir o paciente.
             </p>
           </div>
         )}

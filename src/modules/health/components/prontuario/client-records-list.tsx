@@ -25,6 +25,10 @@ export type ClientRecordListItem = {
   totalLegalCases: number;
   lastLegalActivityDate: string | null;
   updatedAt: string;
+  recordStarted: boolean;
+  appointmentDate: string | null;
+  appointmentTime: string | null;
+  appointmentStatus: string | null;
 };
 
 type Props = {
@@ -73,6 +77,10 @@ function activityDate(record: ClientRecordListItem) {
     : record.lastSessionDate;
 }
 
+function directoryDate(record: ClientRecordListItem) {
+  return activityDate(record) ?? record.appointmentDate ?? record.updatedAt;
+}
+
 export function ClientRecordsList({ records }: Props) {
   const [search, setSearch] = useState("");
   const [filterDate, setFilterDate] = useState("");
@@ -83,7 +91,7 @@ export function ClientRecordsList({ records }: Props) {
 
     return records
       .filter((record) => {
-        const recordDate = dateOnly(activityDate(record) ?? record.updatedAt);
+        const recordDate = dateOnly(directoryDate(record));
         const matchesDate = filterDate ? recordDate === filterDate : true;
 
         const matchesSearch = term
@@ -101,8 +109,8 @@ export function ClientRecordsList({ records }: Props) {
         return matchesDate && matchesSearch;
       })
       .sort((a, b) => {
-        const dateA = new Date(activityDate(a) ?? a.updatedAt).getTime();
-        const dateB = new Date(activityDate(b) ?? b.updatedAt).getTime();
+        const dateA = new Date(directoryDate(a)).getTime();
+        const dateB = new Date(directoryDate(b)).getTime();
         return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
       });
   }, [filterDate, records, search, sortOrder]);
@@ -239,17 +247,27 @@ export function ClientRecordsList({ records }: Props) {
 
                   <div className="flex items-center gap-1.5 text-xs text-slate-400">
                     <NotebookPen className="h-3.5 w-3.5 text-slate-600" />
-                    {totalEntries} {entryLabel(isLawyerRecord, totalEntries)}
+                    {record.recordStarted
+                      ? `${totalEntries} ${entryLabel(isLawyerRecord, totalEntries)}`
+                      : "Ainda nao iniciado"}
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs text-slate-400">
                     <CalendarClock className="h-3.5 w-3.5 text-slate-600" />
-                    {lastActivityDate ? formatDate(lastActivityDate) : "Sem data"}
+                    {lastActivityDate
+                      ? formatDate(lastActivityDate)
+                      : record.appointmentDate
+                        ? `Consulta em ${formatDate(record.appointmentDate)}${
+                            record.appointmentTime
+                              ? ` as ${record.appointmentTime}`
+                              : ""
+                          }`
+                        : "Sem atividade"}
                   </div>
 
                   <div className="flex justify-start md:justify-end">
                     <span className="inline-flex cursor-pointer items-center rounded-xl border border-[#d73cbe]/20 bg-[#d73cbe]/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#d73cbe] transition-colors group-hover:bg-[#d73cbe] group-hover:text-white">
-                      Abrir
+                      {record.recordStarted ? "Abrir" : "Iniciar"}
                     </span>
                   </div>
                 </Link>

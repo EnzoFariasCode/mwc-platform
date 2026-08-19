@@ -20,6 +20,7 @@ import {
   canAccessHealthMeeting,
   canCompleteHealthAppointment,
 } from "@/modules/health/lib/appointment-completion-time";
+import { canStartClientRecordFromAppointment } from "@/modules/health/lib/client-record-access-policy";
 
 type ProfessionalAppointment = {
   id: string;
@@ -296,8 +297,9 @@ export function ProfessionalAppointmentsTabs({
                         Entrar na sala de atendimento
                       </a>
                     )}
-                    {(appointment.status === "CONFIRMED" ||
-                      appointment.status === "COMPLETED") && (
+                    {canStartClientRecordFromAppointment(
+                      appointment.status,
+                    ) && (
                       <Link
                         href={`/agendar-consulta/prontuario/${appointment.patientId}`}
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d73cbe]/20 bg-[#d73cbe]/10 px-4 py-2.5 text-xs font-bold text-[#d73cbe] transition-all hover:bg-[#d73cbe]/20 md:justify-end"
