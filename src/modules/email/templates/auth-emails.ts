@@ -1,7 +1,7 @@
 import { actionButton, baseEmail, paragraph } from "./base-email";
 
 export function resetPasswordEmail(code: string) {
-  const subject = "MWC Online - Codigo de recuperacao de senha";
+  const subject = "Maximus World Click - Codigo de recuperacao de senha";
   const text = [
     "Recebemos uma solicitacao para redefinir sua senha.",
     "",
@@ -12,8 +12,9 @@ export function resetPasswordEmail(code: string) {
   ].join("\n");
 
   const html = baseEmail({
+    brandName: "Maximus World Click",
     title: "Recuperacao de senha",
-    preview: "Use o codigo para redefinir sua senha na MWC Online.",
+    preview: "Use o codigo para redefinir sua senha na Maximus World Click.",
     children: [
       paragraph("Recebemos uma solicitacao para redefinir sua senha."),
       `<div style="margin:18px 0 22px;padding:18px;border-radius:14px;background:#020617;border:1px solid #1e293b;text-align:center;color:#ffffff;font-size:30px;font-weight:800;letter-spacing:.18em;">${code}</div>`,

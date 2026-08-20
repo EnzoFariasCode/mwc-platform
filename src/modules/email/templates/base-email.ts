@@ -50,10 +50,12 @@ export function baseEmail({
   title,
   preview,
   children,
+  brandName = "MWC Online",
 }: {
   title: string;
   preview?: string;
   children: string;
+  brandName?: string;
 }) {
   return `
     <!doctype html>
@@ -68,12 +70,12 @@ export function baseEmail({
         <div style="padding:32px 16px;">
           <div style="max-width:600px;margin:0 auto;border:1px solid ${borderColor};border-radius:18px;background:${cardBackground};padding:32px;">
             <div style="margin-bottom:24px;">
-              <div style="color:${brandColor};font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">MWC Online</div>
+              <div style="color:${brandColor};font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">${escapeHtml(brandName)}</div>
               <h1 style="margin:8px 0 0;color:#ffffff;font-size:24px;line-height:1.25;">${escapeHtml(title)}</h1>
             </div>
             ${children}
             <p style="margin:28px 0 0;color:#64748b;font-size:12px;line-height:1.5;">
-              Esta mensagem foi enviada automaticamente pela MWC Online. Se voce nao reconhece esta atividade, ignore este e-mail ou entre em contato com o suporte.
+              Esta mensagem foi enviada automaticamente pela ${escapeHtml(brandName)}. Se voce nao reconhece esta atividade, ignore este e-mail ou entre em contato com o suporte.
             </p>
           </div>
         </div>

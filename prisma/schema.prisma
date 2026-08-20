@@ -24,6 +24,22 @@ enum AdminRole {
   SUPPORT
 }
 
+enum EmailOutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  DELIVERED
+  FAILED
+  REQUIRES_ATTENTION
+  CANCELED
+}
+
+enum EmailDeliveryAttemptOutcome {
+  PROCESSING
+  SENT
+  FAILED
+}
+
 // Diferencia os "mundos" dentro da plataforma
 enum Industry {
   TECH // Desenvolvedores, Designers, Freelancers (Padrão atual)
@@ -368,6 +384,7 @@ model User {
   sessions                 Session[]
   adminAuditLogs           AdminAuditLog[]            @relation("AdminAuditActor")
   notifications            Notification[]             @relation("UserNotifications")
+  emailOutboxEntries       EmailOutbox[]              @relation("EmailOutboxRecipient")
   professionalVerification ProfessionalVerification?  @relation("ProfessionalVerificationOwner")
   verificationReviews      ProfessionalVerification[] @relation("ProfessionalVerificationReviewer")
 
@@ -1272,6 +1289,66 @@ model StripeEventLog {
 
   @@index([stripeEventId])
   @@index([status])
+}
+
+model EmailOutbox {
+  id                     String            @id @default(cuid())
+  idempotencyKey         String            @unique @db.VarChar(255)
+  eventType              String            @db.VarChar(100)
+  templateKey            String            @db.VarChar(100)
+  templateVersion        Int               @default(1)
+  recipientUserId        String?
+  recipientEmail         String            @db.VarChar(320)
+  recipientName          String?           @db.VarChar(160)
+  entityType             String?           @db.VarChar(100)
+  entityId               String?           @db.VarChar(191)
+  payload                Json              @default("{}")
+  priority               Int               @default(100)
+  status                 EmailOutboxStatus @default(PENDING)
+  attemptCount           Int               @default(0)
+  maxAttempts            Int               @default(5)
+  nextAttemptAt          DateTime          @default(now())
+  processingStartedAt    DateTime?
+  providerMessageId      String?           @unique @db.VarChar(191)
+  lastProviderStatusCode Int?
+  lastErrorCode          String?           @db.VarChar(100)
+  lastErrorMessage       String?           @db.Text
+  sentAt                 DateTime?
+  deliveredAt            DateTime?
+  failedAt               DateTime?
+  requiresAttentionAt    DateTime?
+  canceledAt             DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  recipient User?                  @relation("EmailOutboxRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  attempts  EmailDeliveryAttempt[]
+
+  @@index([status, nextAttemptAt, priority])
+  @@index([status, processingStartedAt])
+  @@index([eventType, createdAt])
+  @@index([entityType, entityId])
+  @@index([recipientUserId, createdAt])
+}
+
+model EmailDeliveryAttempt {
+  id                 String                      @id @default(cuid())
+  emailOutboxId      String
+  attemptNumber      Int
+  outcome            EmailDeliveryAttemptOutcome @default(PROCESSING)
+  providerMessageId  String?                     @db.VarChar(191)
+  providerStatusCode Int?
+  errorCode          String?                     @db.VarChar(100)
+  errorMessage       String?                     @db.Text
+  startedAt          DateTime                    @default(now())
+  finishedAt         DateTime?
+  createdAt          DateTime                    @default(now())
+
+  emailOutbox EmailOutbox @relation(fields: [emailOutboxId], references: [id], onDelete: Cascade)
+
+  @@unique([emailOutboxId, attemptNumber])
+  @@index([outcome, createdAt])
+  @@index([providerMessageId])
 }
 
 model ProfessionalTermsAcceptance {
