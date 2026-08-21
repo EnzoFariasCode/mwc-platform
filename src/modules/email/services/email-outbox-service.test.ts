@@ -16,6 +16,8 @@ import {
   EmailOutboxValidationError,
   enqueueTransactionalEmail,
   markEmailOutboxAttemptFailed,
+  markEmailOutboxAttemptRequiresAttention,
+  listDueEmailOutboxIds,
   normalizeEmailOutboxPayload,
   recoverStaleEmailOutboxClaims,
   type EmailOutboxDatabaseClient,
@@ -313,7 +315,14 @@ describe("email outbox", () => {
       processingLeaseMs: 30 * 60 * 1000,
     });
 
-    expect(result).toEqual({ inspected: 2, recovered: 1, requiresAttention: 1 });
+    expect(result).toEqual({
+      inspected: 2,
+      recovered: 1,
+      requiresAttention: 1,
+      requiresAttentionEntries: [
+        { id: "email_2", eventType: exhausted.eventType },
+      ],
+    });
     expect(client.emailOutbox.updateMany).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -368,6 +377,65 @@ describe("email outbox", () => {
         data: expect.objectContaining({
           outcome: EmailDeliveryAttemptOutcome.FAILED,
           errorCode: "PROVIDER_UNAVAILABLE",
+        }),
+      }),
+    );
+  });
+
+  it("lista somente os ids vencidos na ordem operacional", async () => {
+    const client = makeClient();
+    vi.mocked(client.emailOutbox.findMany).mockResolvedValue([
+      { id: "email_priority" },
+      { id: "email_oldest" },
+    ] as never);
+
+    const result = await listDueEmailOutboxIds(client, { now, limit: 25 });
+
+    expect(result).toEqual(["email_priority", "email_oldest"]);
+    expect(client.emailOutbox.findMany).toHaveBeenCalledWith({
+      where: {
+        status: { in: [EmailOutboxStatus.PENDING, EmailOutboxStatus.FAILED] },
+        nextAttemptAt: { lte: now },
+      },
+      select: { id: true },
+      orderBy: [
+        { priority: "asc" },
+        { nextAttemptAt: "asc" },
+        { createdAt: "asc" },
+      ],
+      take: 25,
+    });
+  });
+
+  it("registra atencao imediata para falha permanente", async () => {
+    const client = makeClient();
+    vi.mocked(client.emailOutbox.updateMany).mockResolvedValue({ count: 1 });
+    vi.mocked(client.emailDeliveryAttempt.updateMany).mockResolvedValue({
+      count: 1,
+    });
+
+    const result = await markEmailOutboxAttemptRequiresAttention(client, {
+      outboxId: "email_1",
+      attemptNumber: 1,
+      errorCode: "EMAIL_TEMPLATE_NOT_FOUND",
+      errorMessage: "Template nao registrado.",
+      failedAt: now,
+    });
+
+    expect(result).toBe(true);
+    expect(client.emailOutbox.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: EmailOutboxStatus.REQUIRES_ATTENTION,
+          requiresAttentionAt: now,
+        }),
+      }),
+    );
+    expect(client.emailDeliveryAttempt.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          outcome: EmailDeliveryAttemptOutcome.FAILED,
+          errorCode: "EMAIL_TEMPLATE_NOT_FOUND",
         }),
       }),
     );

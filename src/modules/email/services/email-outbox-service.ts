@@ -71,8 +71,11 @@ export type EmailOutboxClaimResult =
         | "NOT_FOUND"
         | "NOT_DUE"
         | "BUSY"
-        | "FINALIZED"
-        | "REQUIRES_ATTENTION";
+        | "FINALIZED";
+    }
+  | {
+      status: "REQUIRES_ATTENTION";
+      outbox: Pick<EmailOutbox, "id" | "eventType">;
     };
 
 type ClaimEmailOutboxOptions = {
@@ -419,6 +422,32 @@ export function queueTransactionalEmail(input: EnqueueTransactionalEmailInput) {
   return enqueueTransactionalEmail(db, input);
 }
 
+export async function listDueEmailOutboxIds(
+  client: EmailOutboxDatabaseClient,
+  options: { now?: Date; limit?: number } = {},
+) {
+  const now = options.now ?? new Date();
+  if (Number.isNaN(now.getTime())) {
+    throw new EmailOutboxValidationError("Data de busca da outbox invalida.");
+  }
+  const limit = assertInteger(options.limit ?? 25, "limit", 1, 100);
+  const entries = await client.emailOutbox.findMany({
+    where: {
+      status: { in: [EmailOutboxStatus.PENDING, EmailOutboxStatus.FAILED] },
+      nextAttemptAt: { lte: now },
+    },
+    select: { id: true },
+    orderBy: [
+      { priority: "asc" },
+      { nextAttemptAt: "asc" },
+      { createdAt: "asc" },
+    ],
+    take: limit,
+  });
+
+  return entries.map((entry) => entry.id);
+}
+
 function isFinalStatus(status: EmailOutboxStatus) {
   const finalStatuses: ReadonlySet<EmailOutboxStatus> = new Set([
     EmailOutboxStatus.SENT,
@@ -507,7 +536,10 @@ export async function claimEmailOutbox(
         },
       });
     }
-    return { status: "REQUIRES_ATTENTION" };
+    return {
+      status: "REQUIRES_ATTENTION",
+      outbox: { id: current.id, eventType: current.eventType },
+    };
   }
 
   if (current.status === EmailOutboxStatus.PROCESSING) {
@@ -724,6 +756,60 @@ export async function markEmailOutboxAttemptFailed(
   return true;
 }
 
+export async function markEmailOutboxAttemptRequiresAttention(
+  client: EmailOutboxDatabaseClient,
+  input: {
+    outboxId: string;
+    attemptNumber: number;
+    errorCode: string;
+    errorMessage: string;
+    providerStatusCode?: number | null;
+    failedAt?: Date;
+  },
+) {
+  const failedAt = input.failedAt ?? new Date();
+  const errorCode = assertString(input.errorCode, "errorCode", 100);
+  const errorMessage = assertString(
+    input.errorMessage,
+    "errorMessage",
+    MAX_ERROR_MESSAGE_LENGTH,
+  );
+  const updated = await client.emailOutbox.updateMany({
+    where: {
+      id: input.outboxId,
+      status: EmailOutboxStatus.PROCESSING,
+      attemptCount: input.attemptNumber,
+    },
+    data: {
+      status: EmailOutboxStatus.REQUIRES_ATTENTION,
+      processingStartedAt: null,
+      lastProviderStatusCode: input.providerStatusCode ?? null,
+      lastErrorCode: errorCode,
+      lastErrorMessage: errorMessage,
+      failedAt,
+      requiresAttentionAt: failedAt,
+    },
+  });
+
+  if (updated.count !== 1) return false;
+
+  await client.emailDeliveryAttempt.updateMany({
+    where: {
+      emailOutboxId: input.outboxId,
+      attemptNumber: input.attemptNumber,
+      outcome: EmailDeliveryAttemptOutcome.PROCESSING,
+    },
+    data: {
+      outcome: EmailDeliveryAttemptOutcome.FAILED,
+      providerStatusCode: input.providerStatusCode ?? null,
+      errorCode,
+      errorMessage,
+      finishedAt: failedAt,
+    },
+  });
+  return true;
+}
+
 export async function recoverStaleEmailOutboxClaims(
   client: EmailOutboxDatabaseClient,
   options: RecoverStaleEmailOutboxOptions = {},
@@ -749,6 +835,9 @@ export async function recoverStaleEmailOutboxClaims(
 
   let recovered = 0;
   let requiresAttention = 0;
+  const requiresAttentionEntries: Array<
+    Pick<EmailOutbox, "id" | "eventType">
+  > = [];
 
   for (const entry of staleEntries) {
     const exhausted = entry.attemptCount >= entry.maxAttempts;
@@ -793,13 +882,16 @@ export async function recoverStaleEmailOutboxClaims(
       },
     });
 
-    if (exhausted) requiresAttention += 1;
-    else recovered += 1;
+    if (exhausted) {
+      requiresAttention += 1;
+      requiresAttentionEntries.push({ id: entry.id, eventType: entry.eventType });
+    } else recovered += 1;
   }
 
   return {
     inspected: staleEntries.length,
     recovered,
     requiresAttention,
+    requiresAttentionEntries,
   };
 }

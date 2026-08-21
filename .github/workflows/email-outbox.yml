@@ -1,0 +1,58 @@
+name: Process transactional email outbox
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: email-outbox
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Process due transactional emails
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET is not configured in GitHub Actions."
+            exit 1
+          fi
+
+          response="$(curl --fail-with-body --silent --show-error \
+            --retry 3 --retry-all-errors --max-time 90 \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "https://www.maximusworldclick.com.br/api/cron/email-outbox")"
+
+          echo "$response" | jq .
+          echo "$response" | jq -e '.success == true' > /dev/null
+
+          inspected="$(echo "$response" | jq -r '.inspected // 0')"
+          claimed="$(echo "$response" | jq -r '.claimed // 0')"
+          sent="$(echo "$response" | jq -r '.sent // 0')"
+          retry_scheduled="$(echo "$response" | jq -r '.retryScheduled // 0')"
+          attention="$(echo "$response" | jq -r '.requiresAttention // 0')"
+          infrastructure_errors="$(echo "$response" | jq -r '.infrastructureErrors // 0')"
+
+          echo "::notice title=Email outbox::inspected=$inspected claimed=$claimed sent=$sent retry_scheduled=$retry_scheduled requires_attention=$attention infrastructure_errors=$infrastructure_errors"
+
+          {
+            echo "## Transactional email outbox"
+            echo "| Metric | Count |"
+            echo "| --- | ---: |"
+            echo "| Inspected | $inspected |"
+            echo "| Claimed | $claimed |"
+            echo "| Sent | $sent |"
+            echo "| Retry scheduled | $retry_scheduled |"
+            echo "| Requires attention | $attention |"
+            echo "| Infrastructure errors | $infrastructure_errors |"
+          } >> "$GITHUB_STEP_SUMMARY"
