@@ -6,11 +6,13 @@ import { Prisma } from "@prisma/client";
 import { getUserSession } from "@/lib/get-session";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
-import { sendWithdrawalRequestedEmail } from "@/modules/finance/services/withdrawal-email-service";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
-import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { calculateWithdrawalDueAt } from "@/modules/finance/lib/withdrawal-deadline";
+import {
+  enqueueAdminNotificationEmails,
+  enqueueWithdrawalRequestedEmail,
+} from "@/modules/email/services/admin-finance-email-service";
 
 const MIN_WITHDRAWAL_AMOUNT = new Prisma.Decimal(0.01);
 const PIX_KEY_TYPES = ["CPF", "CNPJ", "EMAIL", "PHONE", "EVP"] as const;
@@ -105,7 +107,12 @@ export async function requestWithdrawal(
     const withdrawal = await db.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { id: session.id },
-        select: { walletBalance: true, email: true, name: true },
+        select: {
+          walletBalance: true,
+          email: true,
+          name: true,
+          displayName: true,
+        },
       });
 
       if (!user) {
@@ -156,6 +163,70 @@ export async function requestWithdrawal(
         throw new Error("Saldo disponivel insuficiente para este saque.");
       }
 
+      const formattedAmount = amount.toNumber().toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      });
+      const actionPath =
+        session.industry === "HEALTH"
+          ? "/agendar-consulta/financeiro"
+          : "/dashboard/financeiro";
+
+      await enqueueWithdrawalRequestedEmail(tx, {
+        withdrawalId: withdrawalRequest.id,
+        recipient: {
+          id: session.id,
+          email: user.email,
+          name: user.name,
+          displayName: user.displayName,
+        },
+        amount: formattedAmount,
+        pixKey,
+        pixKeyType,
+        dueAt: dueAt.toLocaleDateString("pt-BR"),
+        actionPath,
+      });
+      await upsertNotification({
+        userId: session.id,
+        type: "INFO",
+        eventType: "WITHDRAWAL_REQUESTED",
+        title: "Saque solicitado",
+        message: `Saque de ${formattedAmount} para ${pixKeyType} - ${pixKey} registrado. Pagamento manual estimado ate ${dueAt.toLocaleDateString("pt-BR")}.`,
+        link: actionPath,
+        entityType: "WITHDRAWAL_REQUEST",
+        entityId: withdrawalRequest.id,
+        metadata: {
+          amount: amount.toNumber(),
+          pixKey,
+          pixKeyType,
+          dueAt: dueAt.toISOString(),
+        },
+      }, tx);
+      await enqueueAdminNotificationEmails(tx, {
+        eventType: "ADMIN_WITHDRAWAL_REQUESTED",
+        entityType: "WITHDRAWAL_REQUEST",
+        entityId: withdrawalRequest.id,
+        roles: ["OWNER", "FINANCE"],
+        title: "Novo saque PIX pendente",
+        summary: `Saque de ${formattedAmount} aguardando pagamento manual.`,
+        lines: [
+          "Um profissional solicitou saque PIX.",
+          "Confira os dados bancarios no painel antes de realizar a transferencia.",
+        ],
+        details: [
+          { label: "Profissional", value: user.name || "Nao informado" },
+          { label: "E-mail", value: user.email },
+          { label: "Valor", value: formattedAmount },
+          { label: "Chave PIX", value: `${pixKeyType} - ${pixKey}` },
+          { label: "Prazo", value: dueAt.toLocaleDateString("pt-BR") },
+        ],
+        actionPath: "/dashboard/admin/financeiro",
+        notification: {
+          title: "Novo saque PIX pendente",
+          message: `Saque de ${formattedAmount} aguardando pagamento manual.`,
+        },
+      });
+
       return {
         id: withdrawalRequest.id,
         email: user.email,
@@ -172,50 +243,6 @@ export async function requestWithdrawal(
 
     revalidatePath("/dashboard/financeiro");
     revalidatePath("/agendar-consulta/financeiro");
-
-    await sendWithdrawalRequestedEmail(withdrawal);
-    await upsertNotification({
-      userId: session.id,
-      type: "INFO",
-      eventType: "WITHDRAWAL_REQUESTED",
-      title: "Saque solicitado",
-      message: `Saque de ${withdrawal.amount.toNumber().toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} para ${withdrawal.pixKeyType} - ${withdrawal.pixKey} registrado. Pagamento manual estimado ate ${dueAt.toLocaleDateString("pt-BR")}.`,
-      link:
-        session.industry === "HEALTH"
-          ? "/agendar-consulta/financeiro"
-          : "/dashboard/financeiro",
-      entityType: "WITHDRAWAL_REQUEST",
-      entityId: withdrawal.id,
-      metadata: {
-        amount: withdrawal.amount.toNumber(),
-        pixKey: withdrawal.pixKey,
-        pixKeyType: withdrawal.pixKeyType,
-        dueAt: withdrawal.dueAt.toISOString(),
-      },
-    });
-    await sendAdminNotification({
-      roles: ["OWNER", "FINANCE"],
-      subject: "MWC Admin - Novo saque PIX pendente",
-      lines: [
-        "Um profissional solicitou saque PIX.",
-        `Profissional: ${withdrawal.name || "Nao informado"}`,
-        `Email: ${withdrawal.email || "Nao informado"}`,
-        `Valor: ${withdrawal.amount.toNumber().toLocaleString("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        })}`,
-        `Chave PIX: ${withdrawal.pixKeyType} - ${withdrawal.pixKey}`,
-        `Prazo: ${withdrawal.dueAt.toLocaleDateString("pt-BR")}`,
-      ],
-      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/financeiro`,
-      notification: {
-        eventType: "ADMIN_WITHDRAWAL_REQUESTED",
-        entityType: "WITHDRAWAL_REQUEST",
-        entityId: withdrawal.id,
-        title: "Novo saque PIX pendente",
-        message: `Saque de ${withdrawal.amount.toNumber().toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} aguardando pagamento manual.`,
-      },
-    });
 
     return {
       success: true,

@@ -149,13 +149,11 @@ export default function AdminFinanceiroView({
     const result = await approveWithdrawal(formData);
 
     if (result.success) {
-      if (result.data?.emailSent) {
-        toast.success("Pagamento confirmado e comprovante enviado por e-mail.");
-      } else {
-        toast.warning(
-          "Pagamento confirmado, mas o e-mail falhou. Use Reenviar comprovante.",
-        );
-      }
+      toast.success(
+        result.data?.emailQueued
+          ? "Pagamento confirmado e comprovante registrado para envio."
+          : "Pagamento confirmado.",
+      );
       router.refresh();
     } else {
       toast.error(result.error || "Nao foi possivel aprovar o saque.");
@@ -210,13 +208,11 @@ export default function AdminFinanceiroView({
     const result = await uploadWithdrawalReceipt(formData);
 
     if (result.success) {
-      if (result.data?.emailSent) {
-        toast.success("Comprovante anexado e enviado por e-mail.");
-      } else {
-        toast.warning(
-          "Comprovante anexado, mas o e-mail falhou. Tente reenviar.",
-        );
-      }
+      toast.success(
+        result.data?.emailQueued
+          ? "Comprovante anexado e registrado para envio."
+          : "Comprovante anexado.",
+      );
       form.reset();
       router.refresh();
     } else {
@@ -231,7 +227,7 @@ export default function AdminFinanceiroView({
     const result = await resendWithdrawalReceiptEmail(withdrawalId);
 
     if (result.success) {
-      toast.success("Comprovante reenviado por e-mail.");
+      toast.success("Reenvio do comprovante registrado.");
       router.refresh();
     } else {
       toast.error(result.error || "Nao foi possivel reenviar o comprovante.");

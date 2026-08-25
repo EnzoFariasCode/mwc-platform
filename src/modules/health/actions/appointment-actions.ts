@@ -6,9 +6,8 @@ import { stripe } from "@/lib/stripe";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import {
-  sendAppointmentCompletedEmail,
-  sendCancellationEmail,
-  sendRefundProcessedEmail,
+  enqueueAppointmentCompletedEmail,
+  enqueueCancellationEmails,
 } from "@/modules/health/services/transactional-email-service";
 import {
   generateDaySlots,
@@ -23,7 +22,7 @@ import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { requireAdminRole } from "@/lib/get-session";
 import { validateAdminDecisionReason } from "@/modules/admin/lib/admin-decision-reason";
-import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
+import { enqueueAdminNotificationEmails } from "@/modules/email/services/admin-finance-email-service";
 import {
   cancelGoogleMeetEvent,
   findGoogleMeetEventId,
@@ -497,21 +496,25 @@ export async function cancelPatientAppointment(
           where: { id: freshAppointment.id },
           data: { status: "CANCELED", notes },
         });
+        await enqueueCancellationEmails(tx, {
+          appointmentId: appointment.id,
+          cancellationEventId: `late:${appointment.id}`,
+          patient: { id: appointment.patientId, ...appointment.patient },
+          professional: {
+            id: appointment.professionalId,
+            ...appointment.professional,
+          },
+          date: appointment.date,
+          time: appointment.time,
+          price: appointment.price,
+          reason: normalizedReason || undefined,
+          canceledBy: "patient",
+          refundRequested: false,
+          lateCancelFeeApplied: true,
+        });
       });
 
       revalidateHealthAppointmentPaths(appointment.professionalId);
-
-      await sendCancellationEmail({
-        patient: appointment.patient,
-        professional: appointment.professional,
-        date: appointment.date,
-        time: appointment.time,
-        price: appointment.price,
-        reason: normalizedReason,
-        canceledBy: "patient",
-        refundRequested: false,
-        lateCancelFeeApplied: true,
-      });
 
       return { success: true };
     }
@@ -579,6 +582,7 @@ export async function cancelProfessionalAppointment(
         timezonePro: true,
         price: true,
         status: true,
+        patientId: true,
         professionalId: true,
         stripeSessionId: true,
         meetLink: true,
@@ -726,30 +730,43 @@ export async function reportHealthAppointmentDispute(
         },
       });
 
+      await enqueueAdminNotificationEmails(tx, {
+        eventType: "ADMIN_HEALTH_DISPUTE_OPENED",
+        entityType: "HEALTH_APPOINTMENT",
+        entityId: freshAppointment.id,
+        templateKey: "admin.dispute.alert",
+        roles: ["OWNER", "SUPPORT"],
+        title: "Disputa Health aberta",
+        summary: "Uma disputa de consulta online precisa de mediacao.",
+        lines: [
+          "Uma disputa de consulta online foi aberta e precisa de acompanhamento.",
+          "O valor permanece protegido durante a mediacao.",
+        ],
+        details: [
+          { label: "Consulta", value: freshAppointment.id },
+          {
+            label: "Paciente",
+            value: appointment.patient.name || appointment.patient.email,
+          },
+          {
+            label: "Profissional",
+            value:
+              appointment.professional.name || appointment.professional.email,
+          },
+          { label: "Motivo", value: normalizedReason },
+        ],
+        actionPath: `/dashboard/admin/disputas/health/${freshAppointment.id}`,
+        actorId: session.user.id,
+        notification: {
+          title: "Disputa Online aberta",
+          message: "Uma disputa de consulta online precisa de mediacao.",
+        },
+      });
+
       return { professionalId: freshAppointment.professionalId };
     });
 
     revalidateHealthAppointmentPaths(result.professionalId);
-
-    await sendAdminNotification({
-      roles: ["OWNER", "SUPPORT"],
-      subject: "MWC Admin - Disputa Health aberta",
-      lines: [
-        "Uma disputa de consulta online foi aberta e precisa de mediacao.",
-        `Consulta: ${appointment.id}`,
-        `Paciente: ${appointment.patient.name || "Nao informado"} (${appointment.patient.email || "sem email"})`,
-        `Profissional: ${appointment.professional.name || "Nao informado"} (${appointment.professional.email || "sem email"})`,
-        `Motivo: ${normalizedReason}`,
-      ],
-      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/health/${appointment.id}`,
-      notification: {
-        eventType: "ADMIN_HEALTH_DISPUTE_OPENED",
-        entityType: "HEALTH_APPOINTMENT",
-        entityId: appointment.id,
-        title: "Disputa Online aberta",
-        message: "Uma disputa de consulta online precisa de mediacao.",
-      },
-    });
 
     return { success: true };
   } catch (error) {
@@ -804,6 +821,7 @@ export async function resolveHealthAppointmentDispute({
         time: true,
         price: true,
         status: true,
+        patientId: true,
         professionalId: true,
         stripeSessionId: true,
         disputeReason: true,
@@ -910,6 +928,26 @@ export async function resolveHealthAppointmentDispute({
           },
         });
 
+        await enqueueAdminNotificationEmails(tx, {
+          eventType: "ADMIN_HEALTH_DISPUTE_RESOLVED_REFUND_PATIENT",
+          entityType: "HEALTH_APPOINTMENT",
+          entityId: freshAppointment.id,
+          templateKey: "admin.dispute.alert",
+          roles: ["OWNER", "SUPPORT"],
+          title: "Disputa Health resolvida",
+          summary: "A disputa foi resolvida com reembolso ao paciente.",
+          lines: [
+            "Uma disputa de consulta online foi resolvida pelo painel administrativo.",
+            "A decisao financeira foi registrada e o reembolso aguarda a confirmacao oficial da Stripe.",
+          ],
+          details: [
+            { label: "Consulta", value: freshAppointment.id },
+            { label: "Decisao", value: decision },
+            { label: "Motivo", value: normalizedReason },
+          ],
+          actionPath: `/dashboard/admin/disputas/health/${freshAppointment.id}`,
+        });
+
         return;
       }
 
@@ -945,6 +983,37 @@ export async function resolveHealthAppointmentDispute({
           transactionId: releasedTransaction.id,
         },
       });
+
+      await enqueueAppointmentCompletedEmail(tx, {
+        appointmentId: appointment.id,
+        patient: { id: appointment.patientId, ...appointment.patient },
+        professional: {
+          id: appointment.professionalId,
+          ...appointment.professional,
+        },
+        date: appointment.date,
+        time: appointment.time,
+        price: appointment.price,
+      });
+      await enqueueAdminNotificationEmails(tx, {
+        eventType: "ADMIN_HEALTH_DISPUTE_RESOLVED_RELEASE_PROFESSIONAL",
+        entityType: "HEALTH_APPOINTMENT",
+        entityId: freshAppointment.id,
+        templateKey: "admin.dispute.alert",
+        roles: ["OWNER", "SUPPORT"],
+        title: "Disputa Health resolvida",
+        summary: "A disputa foi resolvida com liberacao ao profissional.",
+        lines: [
+          "Uma disputa de consulta online foi resolvida pelo painel administrativo.",
+          "A decisao e a liberacao financeira foram registradas.",
+        ],
+        details: [
+          { label: "Consulta", value: freshAppointment.id },
+          { label: "Decisao", value: decision },
+          { label: "Motivo", value: normalizedReason },
+        ],
+        actionPath: `/dashboard/admin/disputas/health/${freshAppointment.id}`,
+      });
     }, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       maxWait: 5_000,
@@ -952,38 +1021,6 @@ export async function resolveHealthAppointmentDispute({
     });
 
     revalidateHealthAppointmentPaths(appointment.professionalId);
-
-    if (decision === "REFUND_PATIENT") {
-      await sendRefundProcessedEmail({
-        patient: appointment.patient,
-        professional: appointment.professional,
-        date: appointment.date,
-        time: appointment.time,
-        price: appointment.price,
-        reason: normalizedReason || appointment.disputeReason || undefined,
-        refundId,
-      });
-    } else {
-      await sendAppointmentCompletedEmail({
-        patient: appointment.patient,
-        professional: appointment.professional,
-        date: appointment.date,
-        time: appointment.time,
-        price: appointment.price,
-      });
-    }
-
-    await sendAdminNotification({
-      roles: ["OWNER", "SUPPORT"],
-      subject: "MWC Admin - Disputa Health resolvida",
-      lines: [
-        "Uma disputa de consulta online foi resolvida pelo painel admin.",
-        `Consulta: ${appointment.id}`,
-        `Decisao: ${decision}`,
-        `Motivo: ${normalizedReason || "Nao informado"}`,
-      ],
-      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/health/${appointment.id}`,
-    });
 
     return { success: true };
   } catch (error) {
@@ -1016,7 +1053,7 @@ export async function completeHealthAppointment(appointmentId: string) {
   }
 
   try {
-    const completedAppointment = await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       const appointment = await tx.appointment.findUnique({
         where: { id: appointmentId },
         select: {
@@ -1027,6 +1064,7 @@ export async function completeHealthAppointment(appointmentId: string) {
           timezonePro: true,
           price: true,
           status: true,
+          patientId: true,
           professionalId: true,
           stripeSessionId: true,
           patient: { select: { name: true, email: true } },
@@ -1080,18 +1118,22 @@ export async function completeHealthAppointment(appointmentId: string) {
 
       await releaseAppointmentEscrow(tx, appointment);
 
+      await enqueueAppointmentCompletedEmail(tx, {
+        appointmentId: appointment.id,
+        patient: { id: appointment.patientId, ...appointment.patient },
+        professional: {
+          id: appointment.professionalId,
+          ...appointment.professional,
+        },
+        date: appointment.date,
+        time: appointment.time,
+        price: appointment.price,
+      });
+
       return appointment;
     });
 
     revalidateHealthAppointmentPaths(session.user.id);
-
-    await sendAppointmentCompletedEmail({
-      patient: completedAppointment.patient,
-      professional: completedAppointment.professional,
-      date: completedAppointment.date,
-      time: completedAppointment.time,
-      price: completedAppointment.price,
-    });
 
     return { success: true };
   } catch (error) {
@@ -1234,6 +1276,7 @@ export async function autoCompleteHealthAppointments() {
       durationMinutes: true,
       timezonePro: true,
       price: true,
+      patientId: true,
       professionalId: true,
       stripeSessionId: true,
       patient: { select: { name: true, email: true } },
@@ -1283,18 +1326,23 @@ export async function autoCompleteHealthAppointments() {
           stripeSessionId: appointment.stripeSessionId,
         });
 
+        await enqueueAppointmentCompletedEmail(tx, {
+          appointmentId: appointment.id,
+          patient: { id: appointment.patientId, ...appointment.patient },
+          professional: {
+            id: appointment.professionalId,
+            ...appointment.professional,
+          },
+          date: appointment.date,
+          time: appointment.time,
+          price: appointment.price,
+        });
+
         return true;
       });
 
       if (didComplete) {
         completed += 1;
-        await sendAppointmentCompletedEmail({
-          patient: appointment.patient,
-          professional: appointment.professional,
-          date: appointment.date,
-          time: appointment.time,
-          price: appointment.price,
-        });
       }
     } catch (error) {
       failed.push({

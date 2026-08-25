@@ -14,11 +14,11 @@ import {
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
-import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { canCancelPaidTechProject } from "@/modules/projects/lib/tech-project-cancellation";
 import { validateAdminDecisionReason } from "@/modules/admin/lib/admin-decision-reason";
 import { enqueueTechEmail } from "@/modules/email/services/tech-email-service";
+import { enqueueAdminNotificationEmails } from "@/modules/email/services/admin-finance-email-service";
 
 const PLATFORM_FEE_PERCENT = 10;
 const ADMIN_DISPUTE_DECISION_LIMIT = 20;
@@ -687,24 +687,42 @@ export async function cancelTechProject(
           actionPath: "/dashboard/meus-projetos",
         },
       });
+
+      await enqueueAdminNotificationEmails(tx, {
+        roles: ["OWNER", "SUPPORT"],
+        eventType: "ADMIN_TECH_PROJECT_CANCELED",
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        title: "Projeto Tech cancelado",
+        summary: isPaidCancellation
+          ? "Um projeto Tech foi cancelado dentro do prazo e teve o estorno solicitado."
+          : "Um projeto Tech foi cancelado antes da confirmacao do pagamento.",
+        lines: [
+          isPaidCancellation
+            ? "A Stripe recebeu a solicitacao de estorno para o metodo de pagamento original."
+            : "Nenhum pagamento foi capturado para este projeto.",
+        ],
+        details: [
+          { label: "Projeto", value: project.id },
+          { label: "Cancelado por", value: userId },
+          { label: "Motivo", value: normalizedReason },
+          { label: "Estorno Stripe", value: refundId || "Nao aplicavel" },
+        ],
+        actionPath: "/dashboard/admin",
+        actorId: userId,
+        notification: {
+          type: "WARNING",
+          title: "Projeto Tech cancelado",
+          message: `O projeto ${project.title} foi cancelado.`,
+          metadata: {
+            refundId,
+            paidCancellation: isPaidCancellation,
+          },
+        },
+      });
     });
 
     techProjectPaths(project.id, project.professionalId);
-
-    await sendAdminNotification({
-      roles: ["OWNER", "SUPPORT"],
-      subject: "MWC Admin - Projeto Tech cancelado",
-      lines: [
-        isPaidCancellation
-          ? "Um projeto Tech foi cancelado dentro do prazo de 12 horas e estornado ao cartao."
-          : "Um projeto Tech foi cancelado antes do pagamento.",
-        `Projeto: ${project.id}`,
-        `Cancelado por: ${userId}`,
-        `Motivo: ${normalizedReason}`,
-        `Estorno Stripe: ${refundId || "Nao aplicavel"}`,
-      ],
-      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/financeiro`,
-    });
 
     return { success: true };
   } catch (error) {
@@ -994,28 +1012,33 @@ export async function openTechProjectDispute(
           },
         });
       }
-    });
-
-    techProjectPaths(project.id, project.professionalId);
-
-    await sendAdminNotification({
-      roles: ["OWNER", "SUPPORT"],
-      subject: "MWC Admin - Disputa Tech aberta",
-      lines: [
-        "Uma disputa Tech foi aberta e precisa de acompanhamento.",
-        `Projeto: ${project.id}`,
-        `Aberta por: ${userId}`,
-        `Motivo: ${normalizedReason}`,
-      ],
-      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
-      notification: {
+      await enqueueAdminNotificationEmails(tx, {
         eventType: "ADMIN_TECH_DISPUTE_OPENED",
         entityType: "TECH_PROJECT",
         entityId: project.id,
+        templateKey: "admin.dispute.alert",
+        roles: ["OWNER", "SUPPORT"],
         title: "Disputa Tech aberta",
-        message: "Uma disputa de projeto Tech precisa de mediacao.",
-      },
+        summary: "Uma disputa de projeto Tech precisa de mediacao.",
+        lines: [
+          "Uma disputa Tech foi aberta e precisa de acompanhamento.",
+          "O pagamento permanece protegido durante a mediacao.",
+        ],
+        details: [
+          { label: "Projeto", value: project.id },
+          { label: "Aberta por", value: userId },
+          { label: "Motivo", value: normalizedReason },
+        ],
+        actionPath: `/dashboard/admin/disputas/tech/${project.id}`,
+        actorId: userId,
+        notification: {
+          title: "Disputa Tech aberta",
+          message: "Uma disputa de projeto Tech precisa de mediacao.",
+        },
+      });
     });
+
+    techProjectPaths(project.id, project.professionalId);
 
     return { success: true };
   } catch (error) {
@@ -1250,6 +1273,25 @@ export async function resolveTechProjectDispute({
           decision,
           reason: normalizedReason || "Nao informado",
         });
+        await enqueueAdminNotificationEmails(tx, {
+          eventType: "ADMIN_TECH_DISPUTE_RESOLVED_REFUND_CLIENT",
+          entityType: "TECH_PROJECT",
+          entityId: freshProject.id,
+          templateKey: "admin.dispute.alert",
+          roles: ["OWNER", "SUPPORT"],
+          title: "Disputa Tech resolvida",
+          summary: "A disputa foi resolvida com reembolso ao cliente.",
+          lines: [
+            "Uma disputa Tech foi resolvida pelo painel administrativo.",
+            "A decisao e o registro financeiro foram persistidos.",
+          ],
+          details: [
+            { label: "Projeto", value: freshProject.id },
+            { label: "Decisao", value: decision },
+            { label: "Motivo", value: normalizedReason },
+          ],
+          actionPath: `/dashboard/admin/disputas/tech/${freshProject.id}`,
+        });
 
         return;
       }
@@ -1332,6 +1374,25 @@ export async function resolveTechProjectDispute({
         decision,
         reason: normalizedReason || "Nao informado",
       });
+      await enqueueAdminNotificationEmails(tx, {
+        eventType: "ADMIN_TECH_DISPUTE_RESOLVED_RELEASE_PROFESSIONAL",
+        entityType: "TECH_PROJECT",
+        entityId: freshProject.id,
+        templateKey: "admin.dispute.alert",
+        roles: ["OWNER", "SUPPORT"],
+        title: "Disputa Tech resolvida",
+        summary: "A disputa foi resolvida com liberacao ao profissional.",
+        lines: [
+          "Uma disputa Tech foi resolvida pelo painel administrativo.",
+          "A decisao e o registro financeiro foram persistidos.",
+        ],
+        details: [
+          { label: "Projeto", value: freshProject.id },
+          { label: "Decisao", value: decision },
+          { label: "Motivo", value: normalizedReason },
+        ],
+        actionPath: `/dashboard/admin/disputas/tech/${freshProject.id}`,
+      });
     }, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       maxWait: 5_000,
@@ -1339,18 +1400,6 @@ export async function resolveTechProjectDispute({
     });
 
     techProjectPaths(project.id, project.professionalId);
-
-    await sendAdminNotification({
-      roles: ["OWNER", "SUPPORT"],
-      subject: "MWC Admin - Disputa Tech resolvida",
-      lines: [
-        "Uma disputa Tech foi resolvida pelo painel admin.",
-        `Projeto: ${project.id}`,
-        `Decisao: ${decision}`,
-        `Motivo: ${normalizedReason || "Nao informado"}`,
-      ],
-      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
-    });
 
     return { success: true };
   } catch (error) {

@@ -5,9 +5,9 @@ import { requireAdminRole } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
 import { createAdminAuditLog } from "@/modules/admin/actions/audit-log";
-import { sendWithdrawalPaidEmail } from "@/modules/finance/services/withdrawal-email-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import type { ActionResponse } from "@/modules/users/types/user-types";
+import { enqueueWithdrawalPaidEmail } from "@/modules/email/services/admin-finance-email-service";
 
 const RECEIPT_EMAIL_LIMIT = 10;
 const RECEIPT_EMAIL_WINDOW_MS = 10 * 60 * 1000;
@@ -59,12 +59,10 @@ export async function resendWithdrawalReceiptEmail(
 
     const receipts = await db.$queryRaw<
       Array<{
-        receiptFileBytes: Buffer;
-        receiptFileType: string;
-        receiptFileName: string;
+        id: string;
       }>
     >`
-      SELECT "receiptFileBytes", "receiptFileType", "receiptFileName"
+      SELECT "id"
       FROM "AdminAuditLog"
       WHERE "entityType" = 'WITHDRAWAL_REQUEST'
         AND "entityId" = ${withdrawal.id}
@@ -83,77 +81,59 @@ export async function resendWithdrawalReceiptEmail(
       };
     }
 
-    const emailResult = await sendWithdrawalPaidEmail({
-      email: withdrawal.user.email,
-      name: withdrawal.user.name,
-      amount: withdrawal.amount,
-      pixKey: withdrawal.pixKey,
-      pixKeyType: withdrawal.pixKeyType,
-      providerRef: withdrawal.providerRef,
-      processedAt: withdrawal.processedAt,
-      receipt: {
-        bytes: Buffer.from(storedReceipt.receiptFileBytes),
-        contentType: storedReceipt.receiptFileType,
-        fileName: storedReceipt.receiptFileName,
-      },
-    });
     const attemptedAt = new Date();
 
     await db.$transaction(async (tx) => {
-      await tx.withdrawalRequest.updateMany({
-        where: { id: withdrawal.id, status: "COMPLETED" },
-        data: {
-          receiptEmailAttempts: { increment: 1 },
-          ...(emailResult.success
-            ? {
-                receiptEmailSentAt: attemptedAt,
-                receiptEmailFailureReason: null,
-              }
-            : {
-                receiptEmailFailureReason:
-                  emailResult.error ||
-                  "Falha desconhecida ao reenviar o comprovante.",
-              }),
-        },
-      });
-
-      await createAdminAuditLog(tx, {
+      const retryAudit = await createAdminAuditLog(tx, {
         actorId: admin.id,
         action: "PIX_WITHDRAWAL_RECEIPT_EMAIL_RETRIED",
         entityType: "WITHDRAWAL_REQUEST",
         entityId: withdrawal.id,
-        reason: emailResult.success
-          ? "Comprovante PIX reenviado por e-mail."
-          : "Falha ao reenviar o comprovante PIX por e-mail.",
+        reason: "Reenvio do comprovante PIX registrado na outbox.",
         metadata: {
-          emailSent: emailResult.success,
+          emailQueued: true,
           attemptedAt: attemptedAt.toISOString(),
-          emailError: emailResult.error || null,
+          sourceReceiptAuditLogId: storedReceipt.id,
         },
       });
-    });
-
-    if (!emailResult.success) {
-      return {
-        success: false,
-        error: emailResult.error || "Nao foi possivel reenviar o comprovante.",
-      };
-    }
-
-    await upsertNotification({
-      userId: withdrawal.userId,
-      actorId: admin.id,
-      type: "SUCCESS",
-      eventType: "WITHDRAWAL_RECEIPT_EMAIL_RESENT",
-      title: "Comprovante reenviado",
-      message: "O comprovante do seu saque PIX foi reenviado por e-mail.",
-      link:
+      const actionPath =
         withdrawal.user.industry === "HEALTH"
           ? "/agendar-consulta/financeiro"
-          : "/dashboard/financeiro",
-      entityType: "WITHDRAWAL_REQUEST",
-      entityId: withdrawal.id,
-      metadata: { sentAt: attemptedAt.toISOString() },
+          : "/dashboard/financeiro";
+      await enqueueWithdrawalPaidEmail(tx, {
+        idempotencyKey: `FINANCE_WITHDRAWAL_RECEIPT_RESEND:${retryAudit.id}:${withdrawal.userId}`,
+        eventType: "FINANCE_WITHDRAWAL_RECEIPT_RESENT",
+        withdrawalId: withdrawal.id,
+        recipient: {
+          id: withdrawal.userId,
+          email: withdrawal.user.email,
+          name: withdrawal.user.name,
+        },
+        amount: withdrawal.amount.toNumber().toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        }),
+        pixKey: withdrawal.pixKey,
+        pixKeyType: withdrawal.pixKeyType,
+        providerRef: withdrawal.providerRef!,
+        processedAt: withdrawal.processedAt!.toLocaleString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+        }),
+        receiptAuditLogId: storedReceipt.id,
+        actionPath,
+      });
+      await upsertNotification({
+        userId: withdrawal.userId,
+        actorId: admin.id,
+        type: "INFO",
+        eventType: "WITHDRAWAL_RECEIPT_EMAIL_RESENT",
+        title: "Reenvio do comprovante",
+        message: "O reenvio do comprovante do seu saque PIX foi registrado.",
+        link: actionPath,
+        entityType: "WITHDRAWAL_REQUEST",
+        entityId: withdrawal.id,
+        metadata: { queuedAt: attemptedAt.toISOString() },
+      }, tx);
     });
 
     revalidatePath("/dashboard/admin/financeiro");

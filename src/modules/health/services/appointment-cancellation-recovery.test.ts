@@ -134,8 +134,8 @@ const googleCancel = vi.hoisted(() => vi.fn());
 const refundCreate = vi.hoisted(() => vi.fn());
 const refundList = vi.hoisted(() => vi.fn());
 const checkoutRetrieve = vi.hoisted(() => vi.fn());
-const sendEmail = vi.hoisted(() => vi.fn(async () => ({ success: true })));
 const upsertNotification = vi.hoisted(() => vi.fn());
+const enqueueHealthOperationalAttentionEmail = vi.hoisted(() => vi.fn());
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/modules/health/lib/appointment-completion-time", () => ({
@@ -152,12 +152,12 @@ vi.mock("@/lib/stripe", () => ({
     },
   },
 }));
-vi.mock("@/modules/email/email-client", () => ({ sendEmail }));
 vi.mock("@/modules/notifications/services/notification-service", () => ({
   upsertNotification,
 }));
 vi.mock("@/modules/health/services/transactional-email-service", () => ({
-  sendCancellationEmail: vi.fn(),
+  enqueueCancellationEmails: vi.fn(),
+  enqueueHealthOperationalAttentionEmail,
 }));
 vi.mock("@/modules/health/services/google-meet-service", () => ({
   cancelGoogleMeetEventIdempotently: googleCancel,
@@ -213,8 +213,11 @@ describe("appointment cancellation recovery", () => {
     expect(mocks.process().status).toBe("RECONCILIATION_REQUIRED");
     expect(mocks.process().attemptCount).toBe(3);
     expect(upsertNotification).toHaveBeenCalled();
-    expect(sendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: ["admin@example.com"] }),
+    expect(enqueueHealthOperationalAttentionEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        recipient: expect.objectContaining({ email: "admin@example.com" }),
+      }),
     );
   });
 });

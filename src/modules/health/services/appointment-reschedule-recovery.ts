@@ -1,13 +1,15 @@
 import "server-only";
 
 import { db } from "@/lib/prisma";
-import { sendEmail } from "@/modules/email/email-client";
 import { getAppointmentStartAt } from "@/modules/health/lib/appointment-completion-time";
 import {
   findGoogleMeetEventForCancellation,
   updateGoogleMeetEvent,
 } from "@/modules/health/services/google-meet-service";
-import { sendRescheduleEmail } from "@/modules/health/services/transactional-email-service";
+import {
+  enqueueHealthOperationalAttentionEmail,
+  enqueueRescheduleEmail,
+} from "@/modules/health/services/transactional-email-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 
 const MAX_ATTEMPTS = 3;
@@ -385,32 +387,32 @@ async function processDatabaseStep(processId: string) {
 }
 
 async function notifyCompletion(processId: string) {
-  const process = await db.appointmentRescheduleProcess.findUnique({
-    where: { id: processId },
-    select: {
-      completionNotifiedAt: true,
-      previousDate: true,
-      previousTime: true,
-      newDate: true,
-      newTime: true,
-      appointment: {
-        select: {
-          id: true,
-          price: true,
-          meetLink: true,
-          patientId: true,
-          professionalId: true,
-          patient: { select: { name: true, email: true } },
-          professional: { select: { name: true, email: true } },
+  await db.$transaction(async (tx) => {
+    const process = await tx.appointmentRescheduleProcess.findUnique({
+      where: { id: processId },
+      select: {
+        id: true,
+        completionNotifiedAt: true,
+        previousDate: true,
+        previousTime: true,
+        newDate: true,
+        newTime: true,
+        appointment: {
+          select: {
+            id: true,
+            price: true,
+            patientId: true,
+            professionalId: true,
+            patient: { select: { name: true, email: true } },
+            professional: { select: { name: true, email: true } },
+          },
         },
       },
-    },
-  });
+    });
 
-  if (!process || process.completionNotifiedAt) return;
+    if (!process || process.completionNotifiedAt) return;
 
-  await Promise.all([
-    upsertNotification({
+    await upsertNotification({
       userId: process.appointment.patientId,
       type: "INFO",
       eventType: "HEALTH_APPOINTMENT_RESCHEDULED",
@@ -419,8 +421,8 @@ async function notifyCompletion(processId: string) {
       link: "/agendar-consulta/historico",
       entityType: "APPOINTMENT",
       entityId: process.appointment.id,
-    }),
-    upsertNotification({
+    }, tx);
+    await upsertNotification({
       userId: process.appointment.professionalId,
       type: "SUCCESS",
       eventType: "HEALTH_APPOINTMENT_RESCHEDULED",
@@ -429,55 +431,53 @@ async function notifyCompletion(processId: string) {
       link: "/agendar-consulta/dashboard-profissional",
       entityType: "APPOINTMENT",
       entityId: process.appointment.id,
-    }),
-    sendRescheduleEmail({
-      patient: process.appointment.patient,
-      professional: process.appointment.professional,
+    }, tx);
+    await enqueueRescheduleEmail(tx, {
+      appointmentId: process.appointment.id,
+      rescheduleProcessId: process.id,
+      patient: {
+        id: process.appointment.patientId,
+        ...process.appointment.patient,
+      },
+      professional: {
+        id: process.appointment.professionalId,
+        ...process.appointment.professional,
+      },
       previousDate: process.previousDate,
       previousTime: process.previousTime,
       date: process.newDate,
       time: process.newTime,
       price: process.appointment.price,
-      meetLink: process.appointment.meetLink,
-    }),
-  ]);
-
-  await db.appointmentRescheduleProcess.updateMany({
-    where: { id: processId, completionNotifiedAt: null },
-    data: { completionNotifiedAt: new Date() },
+    });
+    await tx.appointmentRescheduleProcess.updateMany({
+      where: { id: processId, completionNotifiedAt: null },
+      data: { completionNotifiedAt: new Date() },
+    });
   });
 }
 
 async function notifyReconciliation(processId: string) {
-  const process = await db.appointmentRescheduleProcess.findUnique({
-    where: { id: processId },
-    select: {
-      id: true,
-      appointmentId: true,
-      calendarStatus: true,
-      databaseStatus: true,
-      lastError: true,
-      reconciliationAlertedAt: true,
-    },
-  });
+  await db.$transaction(async (tx) => {
+    const process = await tx.appointmentRescheduleProcess.findUnique({
+      where: { id: processId },
+      select: {
+        id: true,
+        appointmentId: true,
+        calendarStatus: true,
+        databaseStatus: true,
+        reconciliationAlertedAt: true,
+      },
+    });
+    if (!process || process.reconciliationAlertedAt) return;
 
-  if (!process || process.reconciliationAlertedAt) return;
+    const admins = await tx.user.findMany({
+      where: { userType: "ADMIN", isActive: true },
+      select: { id: true, email: true, name: true, displayName: true },
+    });
+    const message = `O reagendamento exige reconciliacao manual. Calendar: ${process.calendarStatus}; banco: ${process.databaseStatus}.`;
 
-  const admins = await db.user.findMany({
-    where: { userType: "ADMIN", isActive: true },
-    select: { id: true, email: true },
-  });
-  const message = `Reagendamento ${process.id} exige reconciliacao. Calendar: ${process.calendarStatus}; banco: ${process.databaseStatus}. Erro: ${process.lastError || "nao informado"}`;
-
-  console.error("[HEALTH_RESCHEDULE_RECONCILIATION_REQUIRED]", {
-    processId,
-    appointmentId: process.appointmentId,
-    message,
-  });
-
-  await Promise.all([
-    ...admins.map((admin) =>
-      upsertNotification({
+    for (const admin of admins) {
+      await upsertNotification({
         userId: admin.id,
         type: "WARNING",
         eventType: "HEALTH_RESCHEDULE_RECONCILIATION_REQUIRED",
@@ -486,19 +486,22 @@ async function notifyReconciliation(processId: string) {
         link: "/dashboard/admin/reconciliacoes",
         entityType: "APPOINTMENT_RESCHEDULE",
         entityId: process.id,
-      }),
-    ),
-    sendEmail({
-      to: admins.map((admin) => admin.email),
-      subject: "MWC Online - Reagendamento exige reconciliacao",
-      text: `${message}\nAgendamento: ${process.appointmentId}`,
-      logPrefix: "HEALTH_RESCHEDULE_RECONCILIATION",
-    }),
-  ]);
+      }, tx);
+      await enqueueHealthOperationalAttentionEmail(tx, {
+        eventType: "HEALTH_RESCHEDULE_RECONCILIATION_REQUIRED",
+        entityType: "APPOINTMENT_RESCHEDULE",
+        entityId: process.id,
+        appointmentId: process.appointmentId,
+        title: "Reagendamento exige reconciliacao",
+        summary: message,
+        recipient: admin,
+      });
+    }
 
-  await db.appointmentRescheduleProcess.updateMany({
-    where: { id: processId, reconciliationAlertedAt: null },
-    data: { reconciliationAlertedAt: new Date() },
+    await tx.appointmentRescheduleProcess.updateMany({
+      where: { id: processId, reconciliationAlertedAt: null },
+      data: { reconciliationAlertedAt: new Date() },
+    });
   });
 }
 

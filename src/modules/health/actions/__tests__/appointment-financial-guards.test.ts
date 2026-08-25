@@ -109,9 +109,6 @@ vi.mock("@/lib/get-session", () => ({
 vi.mock("@/modules/admin/actions/audit-log", () => ({
   createAdminAuditLog: vi.fn(),
 }));
-vi.mock("@/modules/admin/services/admin-notification-service", () => ({
-  sendAdminNotification: vi.fn(),
-}));
 vi.mock("@/modules/health/services/google-meet-service", () => ({
   cancelGoogleMeetEvent: vi.fn(),
   findGoogleMeetEventId: vi.fn(),
@@ -129,10 +126,15 @@ vi.mock("@/modules/health/services/appointment-reschedule-recovery", () => ({
   requestAppointmentReschedule: vi.fn(),
 }));
 vi.mock("@/modules/health/services/transactional-email-service", () => ({
-  sendAppointmentCompletedEmail: vi.fn(),
-  sendCancellationEmail: vi.fn(),
-  sendRefundProcessedEmail: vi.fn(),
-  sendRescheduleEmail: vi.fn(),
+  enqueueAppointmentCompletedEmail: vi.fn(),
+  enqueueCancellationEmails: vi.fn(),
+  enqueueHealthOperationalAttentionEmail: vi.fn(),
+  enqueuePaymentConfirmedEmails: vi.fn(),
+  enqueueRefundProcessedEmail: vi.fn(),
+  enqueueRescheduleEmail: vi.fn(),
+}));
+vi.mock("@/modules/email/services/admin-finance-email-service", () => ({
+  enqueueAdminNotificationEmails: vi.fn(),
 }));
 
 import {

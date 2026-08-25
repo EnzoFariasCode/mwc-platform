@@ -9,9 +9,9 @@ import {
   requestGoogleMeetConference,
 } from "@/modules/health/services/google-meet-service";
 import {
-  sendPaymentConfirmedEmail,
+  enqueueHealthOperationalAttentionEmail,
+  enqueuePaymentConfirmedEmails,
 } from "@/modules/health/services/transactional-email-service";
-import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { getAppointmentStartAt } from "@/modules/health/lib/appointment-completion-time";
 
@@ -93,16 +93,16 @@ async function notifyAdmins({
 }) {
   const admins = await db.user.findMany({
     where: { userType: "ADMIN", isActive: true },
-    select: { id: true },
+    select: { id: true, email: true, name: true, displayName: true },
   });
 
   if (admins.length === 0) {
     throw new Error("Nenhum administrador ativo para receber o alerta.");
   }
 
-  const results = await Promise.allSettled([
-    ...admins.map((admin) =>
-      upsertNotification({
+  await db.$transaction(async (tx) => {
+    for (const admin of admins) {
+      await upsertNotification({
         userId: admin.id,
         type: "WARNING",
         eventType,
@@ -111,22 +111,18 @@ async function notifyAdmins({
         link: "/dashboard/admin/reconciliacoes",
         entityType: "APPOINTMENT",
         entityId: appointmentId,
-      }),
-    ),
-    sendAdminNotification({
-      roles: ["OWNER", "SUPPORT"],
-      subject: `MWC Online - ${title}`,
-      lines: [message, `Agendamento: ${appointmentId}`],
-      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/reconciliacoes`,
-    }),
-  ]);
-
-  const failures = results.filter((result) => result.status === "rejected");
-  if (failures.length > 0) {
-    throw new Error(
-      `Nao foi possivel entregar ${failures.length} alerta(s) administrativo(s).`,
-    );
-  }
+      }, tx);
+      await enqueueHealthOperationalAttentionEmail(tx, {
+        eventType,
+        entityType: "APPOINTMENT",
+        entityId: appointmentId,
+        appointmentId,
+        title,
+        summary: message,
+        recipient: admin,
+      });
+    }
+  });
 }
 
 async function sendMeetingAttentionNotifications(appointment: {
@@ -135,9 +131,6 @@ async function sendMeetingAttentionNotifications(appointment: {
   professionalId: string;
   meetLastError: string | null;
 }) {
-  const technicalDetail = appointment.meetLastError
-    ? ` Ultimo erro: ${appointment.meetLastError}`
-    : "";
   const results = await Promise.allSettled([
     upsertNotification({
       userId: appointment.patientId,
@@ -164,7 +157,8 @@ async function sendMeetingAttentionNotifications(appointment: {
     notifyAdmins({
       appointmentId: appointment.id,
       title: "Sala online requer intervencao",
-      message: `A consulta atingiu o limite de tentativas tecnicas sem ser cancelada ou reembolsada.${technicalDetail}`,
+      message:
+        "A consulta atingiu o limite de tentativas tecnicas sem ser cancelada ou reembolsada.",
       eventType: "HEALTH_MEETING_REQUIRES_ATTENTION",
     }),
   ]);
@@ -541,7 +535,7 @@ export async function processAppointmentMeeting(
       throw new Error(meetEvent.error);
     }
 
-    const confirmed = await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       const updated = await tx.appointment.updateMany({
         where: {
           id: appointment.id,
@@ -569,22 +563,18 @@ export async function processAppointmentMeeting(
           googleEventId: meetEvent.googleEventId,
           providerStatus: "success",
         });
-      }
-
-      return updated;
-    });
-
-    if (confirmed.count === 1) {
-      const notificationResults = await Promise.allSettled([
-        sendPaymentConfirmedEmail({
-          patient: appointment.patient,
-          professional: appointment.professional,
+        await enqueuePaymentConfirmedEmails(tx, {
+          appointmentId: appointment.id,
+          patient: { id: appointment.patientId, ...appointment.patient },
+          professional: {
+            id: appointment.professionalId,
+            ...appointment.professional,
+          },
           date: appointment.date,
           time: appointment.time,
           price: appointment.price,
-          meetLink: meetEvent.meetLink,
-        }),
-        upsertNotification({
+        });
+        await upsertNotification({
           userId: appointment.patientId,
           type: "SUCCESS",
           eventType: "HEALTH_MEETING_READY",
@@ -593,8 +583,8 @@ export async function processAppointmentMeeting(
           link: "/agendar-consulta/historico",
           entityType: "APPOINTMENT",
           entityId: appointment.id,
-        }),
-        upsertNotification({
+        }, tx);
+        await upsertNotification({
           userId: appointment.professionalId,
           type: "SUCCESS",
           eventType: "HEALTH_MEETING_READY",
@@ -603,18 +593,11 @@ export async function processAppointmentMeeting(
           link: "/agendar-consulta/dashboard-profissional",
           entityType: "APPOINTMENT",
           entityId: appointment.id,
-        }),
-      ]);
-
-      for (const notificationResult of notificationResults) {
-        if (notificationResult.status === "rejected") {
-          console.error(
-            "[HEALTH_MEETING_CONFIRMATION_NOTIFICATION_ERROR]",
-            notificationResult.reason,
-          );
-        }
+        }, tx);
       }
-    }
+
+      return updated;
+    });
 
     return { status: "CONFIRMED", appointmentId: appointment.id };
   } catch (error) {
@@ -801,6 +784,37 @@ export async function registerManualAppointmentMeetingLink(
         googleEventId: appointment.googleEventId,
         providerStatus: "ADMIN_PROVIDED",
       });
+      await enqueuePaymentConfirmedEmails(tx, {
+        appointmentId: appointment.id,
+        patient: { id: appointment.patientId, ...appointment.patient },
+        professional: {
+          id: appointment.professionalId,
+          ...appointment.professional,
+        },
+        date: appointment.date,
+        time: appointment.time,
+        price: appointment.price,
+      });
+      await upsertNotification({
+        userId: appointment.patientId,
+        type: "SUCCESS",
+        eventType: "HEALTH_MEETING_READY",
+        title: "Consulta confirmada",
+        message: "A sala online foi preparada e ja esta disponivel no seu historico.",
+        link: "/agendar-consulta/historico",
+        entityType: "APPOINTMENT",
+        entityId: appointment.id,
+      }, tx);
+      await upsertNotification({
+        userId: appointment.professionalId,
+        type: "SUCCESS",
+        eventType: "HEALTH_MEETING_READY",
+        title: "Consulta confirmada",
+        message: "A sala online foi preparada e esta disponivel na sua agenda.",
+        link: "/agendar-consulta/dashboard-profissional",
+        entityType: "APPOINTMENT",
+        entityId: appointment.id,
+      }, tx);
     }
 
     return updated;
@@ -808,43 +822,6 @@ export async function registerManualAppointmentMeetingLink(
 
   if (confirmed.count !== 1) {
     throw new Error("A consulta ja foi tratada ou nao aceita um link manual.");
-  }
-
-  const notificationResults = await Promise.allSettled([
-    sendPaymentConfirmedEmail({
-      patient: appointment.patient,
-      professional: appointment.professional,
-      date: appointment.date,
-      time: appointment.time,
-      price: appointment.price,
-      meetLink,
-    }),
-    upsertNotification({
-      userId: appointment.patientId,
-      type: "SUCCESS",
-      eventType: "HEALTH_MEETING_READY",
-      title: "Consulta confirmada",
-      message: "A sala online foi preparada e ja esta disponivel no seu historico.",
-      link: "/agendar-consulta/historico",
-      entityType: "APPOINTMENT",
-      entityId: appointment.id,
-    }),
-    upsertNotification({
-      userId: appointment.professionalId,
-      type: "SUCCESS",
-      eventType: "HEALTH_MEETING_READY",
-      title: "Consulta confirmada",
-      message: "A sala online foi preparada e esta disponivel na sua agenda.",
-      link: "/agendar-consulta/dashboard-profissional",
-      entityType: "APPOINTMENT",
-      entityId: appointment.id,
-    }),
-  ]);
-
-  for (const result of notificationResults) {
-    if (result.status === "rejected") {
-      console.error("[HEALTH_MEETING_MANUAL_NOTIFICATION_ERROR]", result.reason);
-    }
   }
 
   return { status: "CONFIRMED", appointmentId: appointment.id };

@@ -1,9 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const processEmailOutbox = vi.hoisted(() => vi.fn());
+const operations = vi.hoisted(() => ({
+  cleanup: vi.fn(),
+  started: vi.fn(),
+  succeeded: vi.fn(),
+  failed: vi.fn(),
+}));
 
 vi.mock("@/modules/email/services/email-outbox-processor", () => ({
   processEmailOutbox,
+}));
+vi.mock("@/modules/email/services/email-operations-service", () => ({
+  cleanupEmailWebhookEventLogs: operations.cleanup,
+  markEmailOutboxCronStarted: operations.started,
+  markEmailOutboxCronSucceeded: operations.succeeded,
+  markEmailOutboxCronFailed: operations.failed,
 }));
 
 import { GET } from "./route";
@@ -27,6 +39,14 @@ describe("email outbox cron", () => {
     vi.stubEnv("CRON_SECRET", "cron-test-secret");
     processEmailOutbox.mockReset();
     processEmailOutbox.mockResolvedValue(metrics);
+    operations.cleanup.mockReset();
+    operations.cleanup.mockResolvedValue(0);
+    operations.started.mockReset();
+    operations.started.mockResolvedValue(undefined);
+    operations.succeeded.mockReset();
+    operations.succeeded.mockResolvedValue(undefined);
+    operations.failed.mockReset();
+    operations.failed.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -69,8 +89,35 @@ describe("email outbox cron", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toEqual(
-      expect.objectContaining({ success: true, sent: 1, inspected: 1 }),
+      expect.objectContaining({
+        success: true,
+        sent: 1,
+        inspected: 1,
+        purgedWebhookEvents: 0,
+      }),
+    );
+    expect(operations.started).toHaveBeenCalledOnce();
+    expect(operations.succeeded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metrics: expect.objectContaining({ sent: 1, purgedWebhookEvents: 0 }),
+      }),
     );
     expect(JSON.stringify(body)).not.toContain("example.com");
+  });
+
+  it("registra a falha operacional do processador", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    processEmailOutbox.mockRejectedValue(new Error("temporary failure"));
+
+    const response = await GET(
+      new Request("https://example.com/api/cron/email-outbox", {
+        headers: { Authorization: "Bearer cron-test-secret" },
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(operations.failed).toHaveBeenCalledWith(
+      expect.objectContaining({ error: expect.any(Error) }),
+    );
   });
 });

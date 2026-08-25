@@ -52,15 +52,13 @@ export default function AdminChatReportActions({
       toast.error(result.error || "Nao foi possivel concluir a analise.");
       return;
     }
-    if (result.data?.emailDelivered) {
-      toast.success(
-        decision === "WARNING"
-          ? "Advertencia emitida e e-mails enviados."
-          : "Denuncia encerrada e e-mails enviados.",
-      );
-    } else {
-      toast.warning("Decisao salva, mas o envio de e-mail precisa ser repetido.");
-    }
+    toast.success(
+      result.data?.emailQueued
+        ? decision === "WARNING"
+          ? "Advertencia emitida e comunicacoes registradas."
+          : "Denuncia encerrada e comunicacoes registradas."
+        : "Decisao administrativa salva.",
+    );
     setDecision(null);
     setReason("");
     router.refresh();
@@ -74,12 +72,11 @@ export default function AdminChatReportActions({
       toast.error(result.error || "Nao foi possivel reenviar os e-mails.");
       return;
     }
-    if (!result.data?.emailDelivered) {
-      toast.error("O servico de e-mail ainda nao confirmou a entrega.");
-      router.refresh();
-      return;
-    }
-    toast.success("E-mails reenviados com sucesso.");
+    toast.success(
+      result.data?.emailQueued
+        ? "Reenvio dos e-mails registrado."
+        : "Solicitacao processada.",
+    );
     router.refresh();
   }
 

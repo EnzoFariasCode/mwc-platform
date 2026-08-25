@@ -12,14 +12,14 @@ import {
   transitionWithdrawalTransaction,
 } from "@/modules/admin/services/withdrawal-state-transition";
 import { validateWithdrawalReceipt } from "@/modules/admin/lib/withdrawal-receipt";
-import { sendWithdrawalPaidEmail } from "@/modules/finance/services/withdrawal-email-service";
 import { Prisma } from "@prisma/client";
+import { enqueueWithdrawalPaidEmail } from "@/modules/email/services/admin-finance-email-service";
 
 const ADMIN_WITHDRAWAL_DECISION_LIMIT = 30;
 const ADMIN_WITHDRAWAL_DECISION_WINDOW_MS = 10 * 60 * 1000;
 export async function approveWithdrawal(
   formData: FormData,
-): Promise<ActionResponse<{ emailSent: boolean }>> {
+): Promise<ActionResponse<{ emailQueued: boolean }>> {
   const admin = await requireAdminRole(["OWNER", "FINANCE"]);
   const withdrawalId = formData.get("withdrawalId")?.toString().trim();
   const providerRef = formData
@@ -61,7 +61,7 @@ export async function approveWithdrawal(
   try {
     const receipt = receiptResult.receipt;
     const processedAt = new Date();
-    const approved = await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       const withdrawal = await tx.withdrawalRequest.findUnique({
         where: { id: withdrawalId },
         select: {
@@ -118,7 +118,7 @@ export async function approveWithdrawal(
         nextStatus: "COMPLETED",
       });
 
-      await createAdminAuditLog(tx, {
+      const receiptAudit = await createAdminAuditLog(tx, {
         actorId: admin.id,
         action: "PIX_WITHDRAWAL_MARK_COMPLETED",
         entityType: "WITHDRAWAL_REQUEST",
@@ -142,75 +142,56 @@ export async function approveWithdrawal(
         },
       });
 
-      return {
-        id: withdrawal.id,
-        userId: withdrawal.userId,
-        amount: withdrawal.amount,
-        providerRef,
-        email: withdrawal.user.email,
-        name: withdrawal.user.name,
-        industry: withdrawal.user.industry,
+      const actionPath =
+        withdrawal.user.industry === "HEALTH"
+          ? "/agendar-consulta/financeiro"
+          : "/dashboard/financeiro";
+      await enqueueWithdrawalPaidEmail(tx, {
+        idempotencyKey: `FINANCE_WITHDRAWAL_PAID:${withdrawal.id}:${withdrawal.userId}`,
+        withdrawalId: withdrawal.id,
+        recipient: {
+          id: withdrawal.userId,
+          email: withdrawal.user.email,
+          name: withdrawal.user.name,
+        },
+        amount: withdrawal.amount.toNumber().toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        }),
         pixKey: withdrawal.pixKey,
         pixKeyType: withdrawal.pixKeyType,
-        processedAt,
-      };
+        providerRef,
+        processedAt: processedAt.toLocaleString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+        }),
+        receiptAuditLogId: receiptAudit.id,
+        actionPath,
+      });
+      await upsertNotification({
+        userId: withdrawal.userId,
+        actorId: admin.id,
+        type: "SUCCESS",
+        eventType: "WITHDRAWAL_COMPLETED",
+        title: "Saque pago",
+        message: `Seu saque foi pago. Identificacao da operacao: ${providerRef}. O comprovante foi registrado para envio por e-mail.`,
+        link: actionPath,
+        entityType: "WITHDRAWAL_REQUEST",
+        entityId: withdrawal.id,
+        metadata: {
+          amount: withdrawal.amount.toNumber(),
+          providerRef,
+          receiptEmailQueued: true,
+        },
+      }, tx);
+
     }, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    });
-
-    const emailResult = await sendWithdrawalPaidEmail({
-      email: approved.email,
-      name: approved.name,
-      amount: approved.amount,
-      pixKey: approved.pixKey,
-      pixKeyType: approved.pixKeyType,
-      providerRef: approved.providerRef,
-      processedAt: approved.processedAt,
-      receipt,
-    });
-
-    await db.withdrawalRequest
-      .updateMany({
-        where: { id: approved.id, status: "COMPLETED" },
-        data: {
-          receiptEmailAttempts: { increment: 1 },
-          receiptEmailSentAt: emailResult.success ? new Date() : null,
-          receiptEmailFailureReason: emailResult.success
-            ? null
-            : emailResult.error ||
-              "Falha desconhecida ao enviar o comprovante.",
-        },
-      })
-      .catch((error) => {
-        console.error("[WITHDRAWAL_EMAIL_STATUS_UPDATE_ERROR]", error);
-      });
-
-    await upsertNotification({
-      userId: approved.userId,
-      actorId: admin.id,
-      type: "SUCCESS",
-      eventType: "WITHDRAWAL_COMPLETED",
-      title: "Saque pago",
-      message: `Seu saque foi pago. Identificacao da operacao: ${approved.providerRef}.`,
-      link:
-        approved.industry === "HEALTH"
-          ? "/agendar-consulta/financeiro"
-          : "/dashboard/financeiro",
-      entityType: "WITHDRAWAL_REQUEST",
-      entityId: approved.id,
-      metadata: {
-        amount: approved.amount.toNumber(),
-        providerRef: approved.providerRef,
-        receiptEmailSent: emailResult.success,
-      },
-    }).catch((error) => {
-      console.error("[WITHDRAWAL_COMPLETED_NOTIFICATION_ERROR]", error);
     });
 
     revalidatePath("/dashboard/admin/financeiro");
     revalidatePath("/dashboard/financeiro");
     revalidatePath("/agendar-consulta/financeiro");
-    return { success: true, data: { emailSent: emailResult.success } };
+    return { success: true, data: { emailQueued: true } };
   } catch (error) {
     console.error("[APPROVE_WITHDRAWAL_ERROR]", error);
     return {

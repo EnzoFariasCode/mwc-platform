@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Briefcase,
   Flag,
+  MailWarning,
   ShieldCheck,
   Users,
   Wallet,
@@ -31,6 +32,7 @@ async function getAdminOverview() {
     pendingProfessionalVerifications,
     openChatReports,
     failedStripeEvents,
+    emailAttentionRequired,
     latestStripeEvent,
   ] = await Promise.all([
     db.user.count(),
@@ -58,6 +60,7 @@ async function getAdminOverview() {
       where: { status: { in: ["OPEN", "UNDER_REVIEW"] } },
     }),
     db.stripeEventLog.count({ where: { status: "FAILED" } }),
+    db.emailOutbox.count({ where: { status: "REQUIRES_ATTENTION" } }),
     db.stripeEventLog.findFirst({
       orderBy: { createdAt: "desc" },
       select: { createdAt: true, status: true, type: true },
@@ -78,6 +81,7 @@ async function getAdminOverview() {
     pendingProfessionalVerifications,
     openChatReports,
     failedStripeEvents,
+    emailAttentionRequired,
     latestStripeEvent,
   };
 }
@@ -125,6 +129,12 @@ export default async function AdminDashboardPage() {
         : "Nenhum evento recebido",
       icon: Webhook,
     },
+    {
+      label: "E-mails com falha",
+      value: overview.emailAttentionRequired,
+      detail: "Exigem analise administrativa",
+      icon: MailWarning,
+    },
   ];
 
   const shortcuts = [
@@ -168,6 +178,13 @@ export default async function AdminDashboardPage() {
       description: `${overview.meetingAttentionRequired + overview.pendingCancellationReconciliations + overview.pendingRescheduleReconciliations} operação(ões) exigem ação manual.`,
       href: "/dashboard/admin/reconciliacoes",
       icon: AlertTriangle,
+      roles: ["OWNER", "FINANCE", "SUPPORT"] as const,
+    },
+    {
+      title: "Operacao de e-mails",
+      description: `${overview.emailAttentionRequired} envio(s) exigem atencao administrativa.`,
+      href: "/dashboard/admin/emails",
+      icon: MailWarning,
       roles: ["OWNER", "FINANCE", "SUPPORT"] as const,
     },
   ].filter((item) =>

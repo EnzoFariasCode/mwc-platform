@@ -1,4 +1,27 @@
+import type { Prisma } from "@prisma/client";
+import { z } from "zod";
+
 import { actionButton, baseEmail, paragraph } from "./base-email";
+
+const welcomeEmailPayloadSchema = z
+  .object({
+    name: z.string().trim().min(1).max(160).nullable(),
+    userType: z.enum(["CLIENT", "PROFESSIONAL", "ADMIN"]),
+    industry: z.enum(["TECH", "HEALTH"]),
+  })
+  .strict();
+
+export const AUTH_EMAIL_TEMPLATE_KEYS = ["auth.welcome"] as const;
+
+function appUrl() {
+  const configured =
+    process.env.NEXT_PUBLIC_APP_URL || "https://www.maximusworldclick.com.br";
+  try {
+    return new URL(configured).origin;
+  } catch {
+    return "https://www.maximusworldclick.com.br";
+  }
+}
 
 export function resetPasswordEmail(code: string) {
   const subject = "Maximus World Click - Codigo de recuperacao de senha";
@@ -44,7 +67,7 @@ export function welcomeEmail({
       ? `${appUrl}/agendar-consulta/dashboard-profissional`
       : `${appUrl}/dashboard/profissional`
     : `${appUrl}/dashboard/cliente`;
-  const subject = "MWC Online - Bem-vindo a plataforma";
+  const subject = "Maximus World Click - Bem-vindo a plataforma";
   const greeting = `Ola, ${name || "usuario"}.`;
   const nextStep = isProfessional
     ? "Complete seu perfil profissional para aparecer nas buscas e receber oportunidades."
@@ -53,22 +76,28 @@ export function welcomeEmail({
   const text = [
     greeting,
     "",
-    "Sua conta na MWC Online foi criada com sucesso.",
+    "Sua conta na Maximus World Click foi criada com sucesso.",
     nextStep,
     "",
     `Acessar painel: ${dashboardUrl}`,
   ].join("\n");
 
   const html = baseEmail({
-    title: "Bem-vindo a MWC Online",
+    brandName: "Maximus World Click",
+    title: "Bem-vindo a Maximus World Click",
     preview: "Sua conta foi criada com sucesso.",
     children: [
       paragraph(greeting),
-      paragraph("Sua conta na MWC Online foi criada com sucesso."),
+      paragraph("Sua conta na Maximus World Click foi criada com sucesso."),
       paragraph(nextStep),
       actionButton("Acessar meu painel", dashboardUrl),
     ].join(""),
   });
 
   return { subject, text, html };
+}
+
+export function renderAuthTransactionalEmail(payload: Prisma.JsonValue) {
+  const data = welcomeEmailPayloadSchema.parse(payload);
+  return welcomeEmail({ ...data, appUrl: appUrl() });
 }

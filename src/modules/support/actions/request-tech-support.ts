@@ -4,8 +4,7 @@ import { randomUUID } from "crypto";
 import { getUserSession } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/action-rate-limit";
-import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
-import { upsertNotification } from "@/modules/notifications/services/notification-service";
+import { enqueueAdminNotificationEmails } from "@/modules/email/services/admin-finance-email-service";
 import {
   getTechPlanId,
   isActiveTechSubscription,
@@ -95,23 +94,28 @@ export async function requestTechSupport({
   const supportId = randomUUID();
   const planId = getTechPlanId(user);
   const planLabel = TECH_PLAN_LIMITS[planId].label;
-  const admins = await db.user.findMany({
-    where: { userType: "ADMIN", isActive: true },
-    select: { id: true },
-  });
-
-  await Promise.all(
-    admins.map((admin) =>
-      upsertNotification({
-        userId: admin.id,
-        actorId: user.id,
+  await db.$transaction(async (tx) => {
+    await enqueueAdminNotificationEmails(tx, {
+      roles: ["OWNER", "SUPPORT"],
+      eventType: "ADMIN_TECH_SUPPORT_REQUESTED",
+      entityType: "TECH_SUPPORT_REQUEST",
+      entityId: supportId,
+      title: `Suporte tecnico Tech - ${safeSubject}`,
+      summary: `${user.name || user.email || "Profissional"} solicitou suporte prioritario.`,
+      lines: [safeMessage],
+      details: [
+        { label: "Profissional", value: user.name || "Sem nome" },
+        { label: "Email", value: user.email || "Sem email" },
+        { label: "Plano", value: planLabel },
+        { label: "ID do pedido", value: supportId },
+      ],
+      actionPath: "/dashboard/admin/usuarios",
+      actionLabel: "Abrir usuarios",
+      actorId: user.id,
+      notification: {
         type: "INFO",
-        eventType: "TECH_SUPPORT_REQUESTED",
-        title: "Novo suporte tecnico Tech",
-        message: `${user.name || user.email || "Profissional"} solicitou suporte: ${safeSubject}`,
-        link: "/dashboard/admin/usuarios",
-        entityType: "TECH_SUPPORT",
-        entityId: supportId,
+        title: "Novo pedido de suporte Tech",
+        message: safeSubject,
         metadata: {
           supportId,
           plan: planLabel,
@@ -120,30 +124,8 @@ export async function requestTechSupport({
           professionalId: user.id,
           professionalEmail: user.email,
         },
-      }),
-    ),
-  );
-
-  await sendAdminNotification({
-    roles: ["OWNER", "SUPPORT"],
-    subject: `Suporte tecnico Tech - ${safeSubject}`,
-    lines: [
-      `Profissional: ${user.name || "Sem nome"}`,
-      `Email: ${user.email || "Sem email"}`,
-      `Plano: ${planLabel}`,
-      `ID do pedido: ${supportId}`,
-      "",
-      "Mensagem:",
-      safeMessage,
-    ],
-    actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || ""}/dashboard/admin/usuarios`,
-    notification: {
-      eventType: "ADMIN_TECH_SUPPORT_REQUESTED",
-      entityType: "TECH_SUPPORT_REQUEST",
-      entityId: supportId,
-      title: "Novo pedido de suporte Tech",
-      message: safeSubject,
-    },
+      },
+    });
   });
 
   return { success: true };

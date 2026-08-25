@@ -20,6 +20,11 @@ import {
   recoverStaleEmailOutboxClaims,
 } from "./email-outbox-service";
 import { shouldDeliverTechEmailOutbox } from "./tech-email-service";
+import {
+  EmailOutboxAttachmentError,
+  resolveEmailOutboxAttachments,
+} from "./email-outbox-attachment-service";
+import { recordDomainEmailRequiresAttention } from "./email-outbox-domain-status";
 
 const DEFAULT_BATCH_SIZE = 25;
 const DEFAULT_CONCURRENCY = 5;
@@ -113,7 +118,8 @@ function templateFailure(error: unknown) {
 }
 
 async function notifyAttentionSafely(
-  email: Pick<EmailOutbox, "id" | "eventType">,
+  email: Pick<EmailOutbox, "id" | "eventType"> &
+    Partial<Pick<EmailOutbox, "entityType">>,
 ) {
   await notifyAdminsAboutEmailOutboxAttention(email).catch((error) => {
     console.error("[EMAIL_OUTBOX_ATTENTION_NOTIFICATION_ERROR]", {
@@ -132,16 +138,20 @@ async function requireAttention(
   },
   failedAt: Date,
 ) {
-  const marked = await db.$transaction((tx) =>
-    markEmailOutboxAttemptRequiresAttention(tx, {
+  const marked = await db.$transaction(async (tx) => {
+    const didMark = await markEmailOutboxAttemptRequiresAttention(tx, {
       outboxId: email.id,
       attemptNumber: email.attemptCount,
       errorCode: error.code,
       errorMessage: error.message,
       providerStatusCode: error.statusCode,
       failedAt,
-    }),
-  );
+    });
+    if (didMark) {
+      await recordDomainEmailRequiresAttention(tx, email, error.message);
+    }
+    return didMark;
+  });
 
   if (marked) {
     await notifyAttentionSafely(email);
@@ -240,10 +250,30 @@ async function processEmailOutboxItem(
       };
     }
 
+    let attachments;
+    try {
+      attachments = await resolveEmailOutboxAttachments(claim.outbox);
+    } catch (error) {
+      const failure =
+        error instanceof EmailOutboxAttachmentError
+          ? { code: error.code, message: error.message }
+          : {
+              code: "EMAIL_ATTACHMENT_LOAD_FAILED",
+              message: "O anexo do e-mail nao pode ser carregado.",
+            };
+      const marked = await requireAttention(claim.outbox, failure, new Date());
+      return {
+        outcome: marked ? "REQUIRES_ATTENTION" : "SKIPPED",
+        claimed: true,
+      };
+    }
+
     const result = await sendEmail({
       to: claim.outbox.recipientEmail,
       ...rendered,
+      attachments,
       idempotencyKey: claim.outbox.idempotencyKey,
+      tags: [{ name: "outbox_id", value: claim.outbox.id }],
       logPrefix: "EMAIL_OUTBOX",
       failWhenMissingConfig: true,
     });

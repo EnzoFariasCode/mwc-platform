@@ -8,6 +8,18 @@ import {
   renderTechTransactionalEmail,
   TECH_EMAIL_TEMPLATE_KEYS,
 } from "./tech-emails";
+import {
+  HEALTH_ONLINE_EMAIL_TEMPLATE_KEYS,
+  renderHealthOnlineTransactionalEmail,
+} from "./health-online-emails";
+import {
+  ADMIN_FINANCE_EMAIL_TEMPLATE_KEYS,
+  renderAdminFinanceTransactionalEmail,
+} from "./admin-finance-emails";
+import {
+  AUTH_EMAIL_TEMPLATE_KEYS,
+  renderAuthTransactionalEmail,
+} from "./auth-emails";
 
 export type RenderedTransactionalEmail = {
   subject: string;
@@ -74,6 +86,18 @@ const templateRegistry = new Map<string, EmailTemplateRenderer>([
   ...TECH_EMAIL_TEMPLATE_KEYS.map(
     (templateKey) =>
       [`${templateKey}:v1`, renderTechTransactionalEmail] as const,
+  ),
+  ...HEALTH_ONLINE_EMAIL_TEMPLATE_KEYS.map(
+    (templateKey) =>
+      [`${templateKey}:v1`, renderHealthOnlineTransactionalEmail] as const,
+  ),
+  ...ADMIN_FINANCE_EMAIL_TEMPLATE_KEYS.map(
+    (templateKey) =>
+      [`${templateKey}:v1`, renderAdminFinanceTransactionalEmail] as const,
+  ),
+  ...AUTH_EMAIL_TEMPLATE_KEYS.map(
+    (templateKey) =>
+      [`${templateKey}:v1`, renderAuthTransactionalEmail] as const,
   ),
 ]);
 

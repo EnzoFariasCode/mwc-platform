@@ -64,7 +64,17 @@ const getCachedPublicPaymentMethods = unstable_cache(
   { revalidate: 60 * 60 },
 );
 
+function hasUsableStripeSecretKey() {
+  const key = process.env.STRIPE_SECRET_KEY?.trim() ?? "";
+  return key.startsWith("sk_test_") || key.startsWith("sk_live_");
+}
+
 export async function getPublicPaymentMethods() {
+  // Local builds commonly use an explicit placeholder. Avoid making an
+  // external request that is guaranteed to fail while keeping production
+  // fail-closed when the real Stripe configuration cannot be read.
+  if (!hasUsableStripeSecretKey()) return [];
+
   try {
     return await getCachedPublicPaymentMethods();
   } catch (error) {

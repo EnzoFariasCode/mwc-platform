@@ -41,6 +41,13 @@ enum EmailDeliveryAttemptOutcome {
   CANCELED
 }
 
+enum EmailWebhookEventStatus {
+  PROCESSING
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
 // Diferencia os "mundos" dentro da plataforma
 enum Industry {
   TECH // Desenvolvedores, Designers, Freelancers (Padrão atual)
@@ -1319,11 +1326,14 @@ model EmailOutbox {
   failedAt               DateTime?
   requiresAttentionAt    DateTime?
   canceledAt             DateTime?
+  retryOfId              String?           @unique
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
 
   recipient User?                  @relation("EmailOutboxRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
   attempts  EmailDeliveryAttempt[]
+  retryOf   EmailOutbox?           @relation("EmailOutboxAdminRetries", fields: [retryOfId], references: [id], onDelete: SetNull)
+  retry     EmailOutbox?           @relation("EmailOutboxAdminRetries")
 
   @@index([status, nextAttemptAt, priority])
   @@index([status, processingStartedAt])
@@ -1350,6 +1360,44 @@ model EmailDeliveryAttempt {
   @@unique([emailOutboxId, attemptNumber])
   @@index([outcome, createdAt])
   @@index([providerMessageId])
+}
+
+model EmailWebhookEventLog {
+  id                  String                  @id @default(cuid())
+  provider            String                  @db.VarChar(50)
+  providerEventId     String                  @db.VarChar(191)
+  eventType           String                  @db.VarChar(100)
+  providerMessageId   String?                 @db.VarChar(191)
+  status              EmailWebhookEventStatus @default(PROCESSING)
+  attemptCount        Int                     @default(1)
+  processingStartedAt DateTime?               @default(now())
+  processedAt         DateTime?
+  failedAt            DateTime?
+  lastErrorCode       String?                 @db.VarChar(100)
+  lastErrorMessage    String?                 @db.Text
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@unique([provider, providerEventId])
+  @@index([status, processingStartedAt])
+  @@index([providerMessageId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model EmailOperationsHeartbeat {
+  key              String    @id @db.VarChar(100)
+  status           String    @db.VarChar(30)
+  lastStartedAt    DateTime?
+  lastSucceededAt  DateTime?
+  lastFailedAt     DateTime?
+  lastDurationMs   Int?
+  lastMetrics      Json      @default("{}")
+  lastErrorCode    String?   @db.VarChar(100)
+  lastErrorMessage String?   @db.Text
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([lastSucceededAt])
 }
 
 model ProfessionalTermsAcceptance {

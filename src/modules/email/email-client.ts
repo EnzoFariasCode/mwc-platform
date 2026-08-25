@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Resend } from "resend";
+import { Resend, type WebhookEventPayload } from "resend";
 import {
   classifyEmailException,
   classifyResendError,
@@ -20,6 +20,7 @@ export type SendEmailInput = {
   logPrefix?: string;
   failWhenMissingConfig?: boolean;
   idempotencyKey?: string;
+  tags?: Array<{ name: string; value: string }>;
 };
 
 export type SendEmailResult =
@@ -37,6 +38,29 @@ export type SendEmailResult =
 const resendApiKey = process.env.RESEND_API_KEY;
 const resendFrom = process.env.RESEND_FROM_EMAIL;
 const resend = resendApiKey && resendFrom ? new Resend(resendApiKey) : null;
+const resendWebhookVerifier = new Resend(
+  resendApiKey || "re_webhook_verification_only",
+);
+
+export function verifyResendWebhook({
+  payload,
+  id,
+  timestamp,
+  signature,
+  webhookSecret,
+}: {
+  payload: string;
+  id: string;
+  timestamp: string;
+  signature: string;
+  webhookSecret: string;
+}): WebhookEventPayload {
+  return resendWebhookVerifier.webhooks.verify({
+    payload,
+    headers: { id, timestamp, signature },
+    webhookSecret,
+  });
+}
 
 export async function sendEmail({
   to,
@@ -47,6 +71,7 @@ export async function sendEmail({
   logPrefix = "EMAIL",
   failWhenMissingConfig = false,
   idempotencyKey,
+  tags,
 }: SendEmailInput): Promise<SendEmailResult> {
   const recipients = Array.isArray(to) ? to.filter(Boolean) : to ? [to] : [];
   if (recipients.length === 0) {
@@ -124,6 +149,7 @@ export async function sendEmail({
             })),
           }
         : {}),
+      ...(tags?.length ? { tags } : {}),
     };
     const { data, error } = normalizedIdempotencyKey
       ? await resend.emails.send(payload, {

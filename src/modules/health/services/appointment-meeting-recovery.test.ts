@@ -13,7 +13,7 @@ const userUpdate = vi.hoisted(() => vi.fn());
 const createGoogleMeetEvent = vi.hoisted(() => vi.fn());
 const getGoogleMeetEvent = vi.hoisted(() => vi.fn());
 const requestGoogleMeetConference = vi.hoisted(() => vi.fn());
-const sendPaymentConfirmedEmail = vi.hoisted(() => vi.fn());
+const enqueuePaymentConfirmedEmails = vi.hoisted(() => vi.fn());
 const upsertNotification = vi.hoisted(() => vi.fn());
 
 vi.mock("server-only", () => ({}));
@@ -59,12 +59,8 @@ vi.mock("@/modules/health/services/google-meet-service", () => ({
 }));
 
 vi.mock("@/modules/health/services/transactional-email-service", () => ({
-  sendPaymentConfirmedEmail,
-  sendRefundProcessedEmail: vi.fn(),
-}));
-
-vi.mock("@/modules/admin/services/admin-notification-service", () => ({
-  sendAdminNotification: vi.fn(),
+  enqueueHealthOperationalAttentionEmail: vi.fn(),
+  enqueuePaymentConfirmedEmails,
 }));
 
 vi.mock("@/modules/notifications/services/notification-service", () => ({
@@ -116,7 +112,7 @@ describe("processAppointmentMeeting", () => {
     vi.clearAllMocks();
     appointmentUpdateMany.mockResolvedValue({ count: 1 });
     appointmentFindMany.mockResolvedValue([]);
-    sendPaymentConfirmedEmail.mockResolvedValue({ success: true });
+    enqueuePaymentConfirmedEmails.mockResolvedValue(undefined);
     upsertNotification.mockResolvedValue(undefined);
     userFindMany.mockResolvedValue([{ id: "admin-1" }]);
   });

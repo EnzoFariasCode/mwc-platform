@@ -2,14 +2,16 @@ import "server-only";
 
 import { db } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
-import { sendEmail } from "@/modules/email/email-client";
 import { getAppointmentStartAt } from "@/modules/health/lib/appointment-completion-time";
 import { CANCELLABLE_HEALTH_APPOINTMENT_STATUSES } from "@/modules/health/lib/appointment-cancellation-policy";
 import {
   cancelGoogleMeetEventIdempotently,
   findGoogleMeetEventForCancellation,
 } from "@/modules/health/services/google-meet-service";
-import { sendCancellationEmail } from "@/modules/health/services/transactional-email-service";
+import {
+  enqueueCancellationEmails,
+  enqueueHealthOperationalAttentionEmail,
+} from "@/modules/health/services/transactional-email-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import type { AppointmentCancellationInitiator } from "@prisma/client";
 
@@ -334,62 +336,57 @@ async function processEscrowStep(processId: string) {
 }
 
 async function notifyReconciliationRequired(processId: string) {
-  const process = await db.appointmentCancellationProcess.findUnique({
-    where: { id: processId },
-    select: {
-      id: true,
-      appointmentId: true,
-      lastError: true,
-      meetStatus: true,
-      refundStatus: true,
-      escrowStatus: true,
-      reconciliationAlertedAt: true,
-    },
-  });
+  await db.$transaction(async (tx) => {
+    const process = await tx.appointmentCancellationProcess.findUnique({
+      where: { id: processId },
+      select: {
+        id: true,
+        appointmentId: true,
+        meetStatus: true,
+        refundStatus: true,
+        escrowStatus: true,
+        reconciliationAlertedAt: true,
+      },
+    });
+    if (!process || process.reconciliationAlertedAt) return;
 
-  if (!process || process.reconciliationAlertedAt) return;
+    const admins = await tx.user.findMany({
+      where: { userType: "ADMIN", isActive: true },
+      select: { id: true, email: true, name: true, displayName: true },
+    });
+    const message = `O cancelamento exige reconciliacao manual. Meet: ${process.meetStatus}; reembolso: ${process.refundStatus}; saldo: ${process.escrowStatus}.`;
 
-  const admins = await db.user.findMany({
-    where: { userType: "ADMIN", isActive: true },
-    select: { id: true, email: true },
-  });
-  const message = `Cancelamento ${process.id} exige reconciliacao. Meet: ${process.meetStatus}; reembolso: ${process.refundStatus}; saldo: ${process.escrowStatus}. Erro: ${process.lastError || "nao informado"}`;
-
-  console.error("[HEALTH_CANCELLATION_RECONCILIATION_REQUIRED]", {
-    processId: process.id,
-    appointmentId: process.appointmentId,
-    message,
-  });
-
-  await Promise.all([
-    ...admins.map((admin) =>
-      upsertNotification({
+    for (const admin of admins) {
+      await upsertNotification({
         userId: admin.id,
         type: "WARNING",
         eventType: "HEALTH_CANCELLATION_RECONCILIATION_REQUIRED",
         title: "Cancelamento exige reconciliacao",
         message,
-        link: "/dashboard/admin",
+        link: "/dashboard/admin/reconciliacoes",
         entityType: "APPOINTMENT_CANCELLATION",
         entityId: process.id,
-      }),
-    ),
-    sendEmail({
-      to: admins.map((admin) => admin.email),
-      subject: "MWC Online - Cancelamento exige reconciliacao",
-      text: `${message}\nAgendamento: ${process.appointmentId}`,
-      logPrefix: "HEALTH_CANCELLATION_RECONCILIATION",
-    }),
-  ]);
+      }, tx);
+      await enqueueHealthOperationalAttentionEmail(tx, {
+        eventType: "HEALTH_CANCELLATION_RECONCILIATION_REQUIRED",
+        entityType: "APPOINTMENT_CANCELLATION",
+        entityId: process.id,
+        appointmentId: process.appointmentId,
+        title: "Cancelamento exige reconciliacao",
+        summary: message,
+        recipient: admin,
+      });
+    }
 
-  await db.appointmentCancellationProcess.updateMany({
-    where: { id: process.id, reconciliationAlertedAt: null },
-    data: { reconciliationAlertedAt: new Date() },
+    await tx.appointmentCancellationProcess.updateMany({
+      where: { id: process.id, reconciliationAlertedAt: null },
+      data: { reconciliationAlertedAt: new Date() },
+    });
   });
 }
 
 async function finalizeCancellation(processId: string) {
-  const result = await db.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     const process = await tx.appointmentCancellationProcess.findUnique({
       where: { id: processId },
       select: {
@@ -419,13 +416,13 @@ async function finalizeCancellation(processId: string) {
       },
     });
 
-    if (!process) return null;
+    if (!process) return;
     if (
       !isStepComplete(process.meetStatus) ||
       !isStepComplete(process.refundStatus) ||
       !isStepComplete(process.escrowStatus)
     ) {
-      return null;
+      return;
     }
 
     if (process.status !== "COMPLETED") {
@@ -453,50 +450,53 @@ async function finalizeCancellation(processId: string) {
       });
     }
 
-    return process;
-  });
+    if (process.completionNotifiedAt) return;
 
-  if (!result || result.completionNotifiedAt) return;
-
-  await Promise.all([
-    upsertNotification({
-      userId: result.appointment.patientId,
+    await upsertNotification({
+      userId: process.appointment.patientId,
       type: "INFO",
       eventType: "HEALTH_APPOINTMENT_CANCELED",
       title: "Consulta cancelada",
       message: "O cancelamento foi concluido e o reembolso foi solicitado.",
       link: "/agendar-consulta/historico",
       entityType: "APPOINTMENT",
-      entityId: result.appointment.id,
-      metadata: { refundId: result.refundId },
-    }),
-    upsertNotification({
-      userId: result.appointment.professionalId,
+      entityId: process.appointment.id,
+      metadata: { refundId: process.refundId },
+    }, tx);
+    await upsertNotification({
+      userId: process.appointment.professionalId,
       type: "INFO",
       eventType: "HEALTH_APPOINTMENT_CANCELED",
       title: "Consulta cancelada",
       message: "O cancelamento e o estorno da consulta foram processados.",
       link: "/agendar-consulta/dashboard-profissional",
       entityType: "APPOINTMENT",
-      entityId: result.appointment.id,
-      metadata: { refundId: result.refundId },
-    }),
-    sendCancellationEmail({
-      patient: result.appointment.patient,
-      professional: result.appointment.professional,
-      date: result.appointment.date,
-      time: result.appointment.time,
-      price: result.appointment.price,
-      reason: result.reason || undefined,
-      refundId: result.refundId || undefined,
-      canceledBy: result.initiator === "PATIENT" ? "patient" : "professional",
+      entityId: process.appointment.id,
+      metadata: { refundId: process.refundId },
+    }, tx);
+    await enqueueCancellationEmails(tx, {
+      appointmentId: process.appointment.id,
+      cancellationEventId: process.id,
+      patient: {
+        id: process.appointment.patientId,
+        ...process.appointment.patient,
+      },
+      professional: {
+        id: process.appointment.professionalId,
+        ...process.appointment.professional,
+      },
+      date: process.appointment.date,
+      time: process.appointment.time,
+      price: process.appointment.price,
+      reason: process.reason || undefined,
+      refundId: process.refundId || undefined,
+      canceledBy: process.initiator === "PATIENT" ? "patient" : "professional",
       refundRequested: true,
-    }),
-  ]);
-
-  await db.appointmentCancellationProcess.updateMany({
-    where: { id: processId, completionNotifiedAt: null },
-    data: { completionNotifiedAt: new Date() },
+    });
+    await tx.appointmentCancellationProcess.updateMany({
+      where: { id: processId, completionNotifiedAt: null },
+      data: { completionNotifiedAt: new Date() },
+    });
   });
 }
 

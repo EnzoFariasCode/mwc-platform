@@ -90,6 +90,7 @@ function makeEmail(overrides: Partial<EmailOutbox> = {}): EmailOutbox {
     failedAt: null,
     requiresAttentionAt: null,
     canceledAt: null,
+    retryOfId: null,
     createdAt: now,
     updatedAt: now,
     ...overrides,

@@ -13,8 +13,8 @@ import {
   normalizeChatReportDescription,
   type ChatReportReasonValue,
 } from "@/modules/chat/lib/chat-moderation";
-import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import type { ActionResponse } from "@/modules/users/types/user-types";
+import { enqueueAdminNotificationEmails } from "@/modules/email/services/admin-finance-email-service";
 
 const CHAT_REPORT_LIMIT = 3;
 const CHAT_REPORT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -184,11 +184,6 @@ export async function reportConversation(
         project.status,
       ),
     );
-    const adminUsers = await db.user.findMany({
-      where: { userType: "ADMIN", isActive: true },
-      select: { id: true },
-    });
-
     const report = await db.$transaction(async (tx) => {
       const created = await tx.chatReport.create({
         data: {
@@ -250,25 +245,38 @@ export async function reportConversation(
         },
       });
 
-      for (const admin of adminUsers) {
-        await upsertNotification(
-          {
-            userId: admin.id,
-            actorId: reporterId,
-            type: isPriority ? "WARNING" : "INFO",
-            eventType: "CHAT_REPORT_CREATED",
-            title: isPriority
-              ? "Denuncia prioritaria no chat"
-              : "Nova denuncia no chat",
-            message: `${reporter.displayName || reporter.name} denunciou ${reportedUser.displayName || reportedUser.name}.`,
-            link: `/dashboard/admin/denuncias/${created.id}`,
-            entityType: "CHAT_REPORT",
-            entityId: created.id,
-            metadata: { conversationId: conversation.id, isPriority },
-          },
-          tx,
-        );
-      }
+      const title = isPriority
+        ? "Denuncia prioritaria no chat"
+        : "Nova denuncia no chat";
+      const summary = `${reporter.displayName || reporter.name} denunciou ${reportedUser.displayName || reportedUser.name}.`;
+      await enqueueAdminNotificationEmails(tx, {
+        eventType: "CHAT_REPORT_CREATED",
+        entityType: "CHAT_REPORT",
+        entityId: created.id,
+        templateKey: "admin.report.created",
+        roles: ["OWNER", "SUPPORT"],
+        title,
+        summary,
+        lines: [
+          summary,
+          "A conversa foi preservada para auditoria e a comunicacao entre as contas foi bloqueada.",
+          "Consulte o painel para ler o relato e o contexto completo.",
+        ],
+        details: [
+          { label: "Motivo", value: input.reason },
+          { label: "Prioridade", value: isPriority ? "Alta" : "Normal" },
+        ],
+        actionPath: `/dashboard/admin/denuncias/${created.id}`,
+        actionLabel: "Analisar denuncia",
+        actorId: reporterId,
+        priority: isPriority ? 10 : 20,
+        notification: {
+          type: isPriority ? "WARNING" : "INFO",
+          title,
+          message: summary,
+          metadata: { conversationId: conversation.id, isPriority },
+        },
+      });
 
       return created;
     });

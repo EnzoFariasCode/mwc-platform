@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Flag,
   AlertTriangle,
+  MailWarning,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Logo from "@/assets/images/landingPage/logo.png";
@@ -311,6 +312,12 @@ export default function DashboardSidebar() {
       icon: AlertTriangle,
       label: "Reconciliação Online",
       href: "/dashboard/admin/reconciliacoes",
+      roles: ["OWNER", "FINANCE", "SUPPORT"],
+    },
+    {
+      icon: MailWarning,
+      label: "E-mails",
+      href: "/dashboard/admin/emails",
       roles: ["OWNER", "FINANCE", "SUPPORT"],
     },
   ];

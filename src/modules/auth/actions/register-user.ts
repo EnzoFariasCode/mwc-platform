@@ -7,7 +7,7 @@ import { UserType, Industry } from "@prisma/client"; // Adicionado Industry aqui
 import { findUserByEmail } from "@/modules/users/services/user-service";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { validatePassword } from "@/modules/auth/lib/password";
-import { sendWelcomeEmail } from "@/modules/auth/services/welcome-email-service";
+import { enqueueWelcomeEmail } from "@/modules/auth/services/welcome-email-service";
 import {
   GENERAL_TERMS_VERSION,
   PRIVACY_POLICY_VERSION,
@@ -135,7 +135,7 @@ export async function registerUser(
       "unknown";
     const userAgent = headersList.get("user-agent") || undefined;
 
-    const user = await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx) => {
       const createdUser = await tx.user.create({
         data: {
           name,
@@ -163,14 +163,15 @@ export async function registerUser(
         },
       });
 
-      return createdUser;
-    });
+      await enqueueWelcomeEmail(tx, {
+        userId: createdUser.id,
+        email: createdUser.email,
+        name: createdUser.name,
+        userType: createdUser.userType,
+        industry: createdUser.industry,
+      });
 
-    await sendWelcomeEmail({
-      email: user.email,
-      name: user.name,
-      userType: user.userType,
-      industry: user.industry,
+      return createdUser;
     });
 
     return { success: true };

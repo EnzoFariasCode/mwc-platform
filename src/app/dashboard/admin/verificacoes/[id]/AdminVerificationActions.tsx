@@ -45,8 +45,11 @@ export function AdminVerificationActions({
       const result = await decideProfessionalVerification(formData);
       if (result.error) toast.error(result.error);
       else {
-        if (result.emailDelivered) toast.success("Decisao registrada e comunicada.");
-        else toast.warning("Decisao registrada, mas o e-mail ficou pendente.");
+        toast.success(
+          result.emailQueued
+            ? "Decisao registrada para comunicacao."
+            : "Decisao registrada.",
+        );
         router.refresh();
       }
     });
@@ -58,7 +61,7 @@ export function AdminVerificationActions({
         await retryProfessionalVerificationDecisionEmail(verificationId);
       if (result.error) toast.error(result.error);
       else {
-        toast.success("E-mail reenviado.");
+        toast.success("Reenvio do e-mail registrado.");
         router.refresh();
       }
     });

@@ -122,7 +122,8 @@ vi.mock("@/modules/health/services/google-meet-service", () => ({
   updateGoogleMeetEvent,
 }));
 vi.mock("@/modules/health/services/transactional-email-service", () => ({
-  sendRescheduleEmail: vi.fn(),
+  enqueueHealthOperationalAttentionEmail: vi.fn(),
+  enqueueRescheduleEmail: vi.fn(),
 }));
 vi.mock("@/modules/notifications/services/notification-service", () => ({
   upsertNotification: vi.fn(),

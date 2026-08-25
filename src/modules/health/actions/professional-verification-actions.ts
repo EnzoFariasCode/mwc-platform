@@ -2,14 +2,13 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/prisma";
-import { sendEmail } from "@/modules/email/email-client";
+import { enqueueAdminNotificationEmails } from "@/modules/email/services/admin-finance-email-service";
 import {
   expectedCouncilForSpecialty,
   officialRegistryUrl,
   PROFESSIONAL_VERIFICATION_PRIVACY_VERSION,
   requiredVerificationDocuments,
 } from "@/modules/health/lib/professional-verification-policy";
-import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { revalidatePath } from "next/cache";
 
 function textValue(formData: FormData, name: string) {
@@ -140,52 +139,32 @@ export async function submitProfessionalVerification(formData: FormData) {
       });
     }
 
-    const admins = await tx.user.findMany({
-      where: {
-        userType: "ADMIN",
-        isActive: true,
-        OR: [{ adminRole: "OWNER" }, { adminRole: "SUPPORT" }, { adminRole: null }],
+    await enqueueAdminNotificationEmails(tx, {
+      eventType: "PROFESSIONAL_VERIFICATION_SUBMITTED",
+      entityType: "PROFESSIONAL_VERIFICATION",
+      entityId: verification.id,
+      templateKey: "admin.verification.submitted",
+      roles: ["OWNER", "SUPPORT"],
+      title: "Nova verificacao profissional",
+      summary: `${professional.name} enviou documentos para analise.`,
+      lines: [
+        "Um profissional da MWC Online concluiu o envio documental.",
+        "Analise os documentos exclusivamente pelo painel administrativo.",
+      ],
+      details: [
+        { label: "Profissional", value: professional.name },
+        { label: "Categoria", value: professional.onlineSpecialty! },
+      ],
+      actionPath: `/dashboard/admin/verificacoes/${verification.id}`,
+      actionLabel: "Analisar documentos",
+      actorId: professional.id,
+      notification: {
+        type: "INFO",
+        title: "Nova verificacao profissional",
+        message: `${professional.name} enviou documentos para analise.`,
       },
-      select: { id: true },
     });
-
-    await Promise.all(
-      admins.map((admin) =>
-        upsertNotification(
-          {
-            userId: admin.id,
-            actorId: professional.id,
-            type: "INFO",
-            eventType: "PROFESSIONAL_VERIFICATION_SUBMITTED",
-            title: "Nova verificacao profissional",
-            message: `${professional.name} enviou documentos para analise.`,
-            link: `/dashboard/admin/verificacoes/${verification.id}`,
-            entityType: "PROFESSIONAL_VERIFICATION",
-            entityId: verification.id,
-          },
-          tx,
-        ),
-      ),
-    );
   });
-
-  const adminEmails = await db.user.findMany({
-    where: {
-      userType: "ADMIN",
-      isActive: true,
-      OR: [{ adminRole: "OWNER" }, { adminRole: "SUPPORT" }, { adminRole: null }],
-    },
-    select: { email: true },
-  });
-
-  if (adminEmails.length > 0) {
-    await sendEmail({
-      to: adminEmails.map((admin) => admin.email),
-      subject: "MWC Online - nova verificacao profissional",
-      text: `${professional.name} enviou documentos para verificacao. Acesse o painel administrativo para analisar.`,
-      logPrefix: "PROFESSIONAL_VERIFICATION_ADMIN",
-    });
-  }
 
   revalidatePath("/agendar-consulta/verificacao");
   revalidatePath("/agendar-consulta/dashboard-profissional");

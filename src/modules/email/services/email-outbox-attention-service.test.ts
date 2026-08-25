@@ -16,14 +16,19 @@ import { notifyAdminsAboutEmailOutboxAttention } from "./email-outbox-attention-
 describe("email outbox attention notification", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    findMany.mockResolvedValue([{ id: "admin_1" }, { id: "admin_2" }]);
+    findMany.mockResolvedValue([
+      { id: "admin_1", adminRole: "OWNER" },
+      { id: "admin_2", adminRole: "SUPPORT" },
+      { id: "admin_3", adminRole: "FINANCE" },
+    ]);
     upsertNotification.mockResolvedValue({ id: "notification_1" });
   });
 
-  it("notifica todos os administradores ativos sem expor o destinatario", async () => {
+  it("notifica apenas administradores autorizados sem expor o destinatario", async () => {
     const result = await notifyAdminsAboutEmailOutboxAttention({
       id: "email_1",
       eventType: "HEALTH_PAYMENT_CONFIRMED",
+      entityType: "APPOINTMENT",
     });
 
     expect(result).toEqual({ recipientCount: 2, failed: 0 });

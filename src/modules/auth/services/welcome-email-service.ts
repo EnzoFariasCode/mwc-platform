@@ -1,35 +1,56 @@
 import "server-only";
 
-import { sendEmail } from "@/modules/email/email-client";
-import { welcomeEmail } from "@/modules/email/templates/auth-emails";
+import { db } from "@/lib/prisma";
+import {
+  enqueueTransactionalEmail,
+  type EmailOutboxDatabaseClient,
+} from "@/modules/email/services/email-outbox-service";
 
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br";
-
-export async function sendWelcomeEmail({
-  email,
-  name,
-  userType,
-  industry,
-}: {
+type WelcomeEmailInput = {
+  userId: string;
   email: string | null;
   name: string | null;
   userType: "CLIENT" | "PROFESSIONAL" | "ADMIN";
   industry: "TECH" | "HEALTH";
-}) {
-  const template = welcomeEmail({
+};
+
+export async function enqueueWelcomeEmail(
+  client: EmailOutboxDatabaseClient,
+  input: WelcomeEmailInput,
+) {
+  if (!input.email) return null;
+
+  return enqueueTransactionalEmail(client, {
+    idempotencyKey: `AUTH_WELCOME:${input.userId}`,
+    eventType: "AUTH_WELCOME",
+    templateKey: "auth.welcome",
+    templateVersion: 1,
+    recipientUserId: input.userId,
+    recipientEmail: input.email,
+    recipientName: input.name,
+    entityType: "USER_ACCOUNT",
+    entityId: input.userId,
+    priority: 60,
+    payload: {
+      name: input.name,
+      userType: input.userType,
+      industry: input.industry,
+    },
+  });
+}
+
+export async function sendWelcomeEmail({
+  userId,
+  email,
+  name,
+  userType,
+  industry,
+}: WelcomeEmailInput) {
+  return enqueueWelcomeEmail(db, {
+    userId,
+    email,
     name,
     userType,
     industry,
-    appUrl,
   });
-
-  const result = await sendEmail({
-    to: email,
-    ...template,
-    logPrefix: "WELCOME_EMAIL",
-  });
-
-  if (!result.success) {
-    console.error("[WELCOME_EMAIL_ERROR]", result.error);
-  }
 }

@@ -5,10 +5,13 @@ import Stripe from "stripe";
 import { db } from "@/lib/prisma";
 import { finalizeProjectPayment } from "@/modules/stripe/lib/project-payment";
 import { finalizeHealthAppointmentPayment } from "@/modules/health/actions/appointment-payment";
-import { sendRefundProcessedEmail } from "@/modules/health/services/transactional-email-service";
+import {
+  enqueueHealthOperationalAttentionEmail,
+  enqueueRefundProcessedEmail,
+} from "@/modules/health/services/transactional-email-service";
 import { Prisma, ProjectCheckoutHoldStatus } from "@prisma/client";
-import { sendAdminNotification } from "@/modules/admin/services/admin-notification-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
+import { enqueueAdminNotificationEmails } from "@/modules/email/services/admin-finance-email-service";
 import { getTechPlanTier } from "@/modules/subscriptions/tech-plan";
 import { refundUnavailableProjectPayment } from "@/modules/stripe/lib/refund-unavailable-project-payment";
 import {
@@ -237,6 +240,7 @@ async function reconcileRefundedHealthAppointment(
       time: true,
       price: true,
       status: true,
+      patientId: true,
       professionalId: true,
       patient: { select: { name: true, email: true } },
       professional: { select: { name: true, email: true } },
@@ -253,6 +257,17 @@ async function reconcileRefundedHealthAppointment(
 
   if (appt.status === "REFUNDED") {
     console.log("[WEBHOOK_REFUND] Appointment already REFUNDED:", appt.id);
+    await db.$transaction((tx) =>
+      enqueueRefundProcessedEmail(tx, {
+        appointmentId: appt.id,
+        patient: { id: appt.patientId, ...appt.patient },
+        professional: { id: appt.professionalId, ...appt.professional },
+        date: appt.date,
+        time: appt.time,
+        price: appt.price,
+        refundId,
+      }),
+    );
     return new NextResponse(null, { status: 200 });
   }
 
@@ -271,33 +286,34 @@ async function reconcileRefundedHealthAppointment(
       data: { status: "REFUNDED" },
     });
 
-    if (!pendingTransaction) return;
+    if (pendingTransaction) {
+      await tx.transaction.update({
+        where: { id: pendingTransaction.id },
+        data: { status: "CANCELED" },
+      });
 
-    await tx.transaction.update({
-      where: { id: pendingTransaction.id },
-      data: { status: "CANCELED" },
-    });
-
-    await tx.user.update({
-      where: { id: appt.professionalId },
-      data: {
-        pendingBalance: {
-          decrement: pendingTransaction.amount,
+      await tx.user.update({
+        where: { id: appt.professionalId },
+        data: {
+          pendingBalance: {
+            decrement: pendingTransaction.amount,
+          },
         },
-      },
+      });
+    }
+
+    await enqueueRefundProcessedEmail(tx, {
+      appointmentId: appt.id,
+      patient: { id: appt.patientId, ...appt.patient },
+      professional: { id: appt.professionalId, ...appt.professional },
+      date: appt.date,
+      time: appt.time,
+      price: appt.price,
+      refundId,
     });
   });
 
   console.log("[WEBHOOK_REFUND] Appointment marked as REFUNDED:", appt.id);
-
-  await sendRefundProcessedEmail({
-    patient: appt.patient,
-    professional: appt.professional,
-    date: appt.date,
-    time: appt.time,
-    price: appt.price,
-    refundId,
-  });
 
   return new NextResponse(null, { status: 200 });
 }
@@ -334,32 +350,33 @@ async function handleRefundEvent(refund: Stripe.Refund) {
       select: { id: true, appointmentId: true },
     });
 
-    if (cancellationProcess) {
-      await db.appointmentCancellationProcess.update({
-        where: { id: cancellationProcess.id },
-        data: {
-          status: "RECONCILIATION_REQUIRED",
-          refundStatus: "PENDING",
-          refundLastError: failureMessage,
-          lastError: failureMessage,
-          processingStartedAt: null,
-          reconciliationRequiredAt: new Date(),
-        },
-      });
-    }
-
     const admins = await db.user.findMany({
       where: { userType: "ADMIN", isActive: true },
-      select: { id: true },
+      select: { id: true, email: true, name: true, displayName: true },
     });
-    await Promise.allSettled([
-      ...admins.map((admin) =>
-        upsertNotification({
+    await db.$transaction(async (tx) => {
+      if (cancellationProcess) {
+        await tx.appointmentCancellationProcess.update({
+          where: { id: cancellationProcess.id },
+          data: {
+            status: "RECONCILIATION_REQUIRED",
+            refundStatus: "PENDING",
+            refundLastError: failureMessage,
+            lastError: failureMessage,
+            processingStartedAt: null,
+            reconciliationRequiredAt: new Date(),
+          },
+        });
+      }
+
+      for (const admin of admins) {
+        await upsertNotification({
           userId: admin.id,
           type: "WARNING",
           eventType: "STRIPE_REFUND_FAILED",
           title: "Reembolso Stripe falhou",
-          message: failureMessage,
+          message:
+            "A Stripe informou falha no reembolso. O caso exige reconciliacao manual.",
           link: "/dashboard/admin/reconciliacoes",
           entityType: "APPOINTMENT_CANCELLATION",
           entityId: cancellationProcess?.id ?? refund.id,
@@ -367,18 +384,20 @@ async function handleRefundEvent(refund: Stripe.Refund) {
             refundId: refund.id,
             appointmentId: cancellationProcess?.appointmentId ?? null,
           },
-        }),
-      ),
-      sendAdminNotification({
-        subject: "MWC Admin - Reembolso Stripe falhou",
-        lines: [
-          `Reembolso: ${refund.id}`,
-          `PaymentIntent: ${getStripeId(refund.payment_intent) || "Nao informado"}`,
-          `Motivo: ${refund.failure_reason || "Nao informado"}`,
-        ],
-        actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/reconciliacoes`,
-      }),
-    ]);
+        }, tx);
+        await enqueueHealthOperationalAttentionEmail(tx, {
+          eventType: "STRIPE_REFUND_FAILED",
+          entityType: "APPOINTMENT_CANCELLATION",
+          entityId: cancellationProcess?.id ?? refund.id,
+          appointmentId:
+            cancellationProcess?.appointmentId ?? "Nao localizado",
+          title: "Reembolso Stripe exige atencao",
+          summary:
+            "A Stripe informou falha no reembolso de uma consulta Online.",
+          recipient: admin,
+        });
+      }
+    });
     return new NextResponse(null, { status: 200 });
   }
 
@@ -481,20 +500,44 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
       },
     });
 
-    if (!pendingTransaction) return;
-
-    await tx.user.update({
-      where: { id: appt.professionalId },
-      data: {
-        pendingBalance: {
-          decrement: pendingTransaction.amount,
+    if (pendingTransaction) {
+      await tx.user.update({
+        where: { id: appt.professionalId },
+        data: {
+          pendingBalance: {
+            decrement: pendingTransaction.amount,
+          },
         },
-      },
-    });
+      });
 
-    await tx.transaction.update({
-      where: { id: pendingTransaction.id },
-      data: { status: "DISPUTED" },
+      await tx.transaction.update({
+        where: { id: pendingTransaction.id },
+        data: { status: "DISPUTED" },
+      });
+    }
+
+    await enqueueAdminNotificationEmails(tx, {
+      eventType: "ADMIN_HEALTH_STRIPE_CHARGEBACK_CREATED",
+      entityType: "STRIPE_DISPUTE",
+      entityId: dispute.id,
+      templateKey: "admin.dispute.alert",
+      roles: ["OWNER", "SUPPORT"],
+      title: "Chargeback Health aberto na Stripe",
+      summary: "A Stripe abriu uma contestacao sobre uma consulta online.",
+      lines: [
+        "Uma contestacao Stripe foi aberta e precisa de acompanhamento.",
+        "Os detalhes tecnicos e financeiros permanecem no painel administrativo.",
+      ],
+      details: [
+        { label: "Consulta", value: appt.id },
+        { label: "Disputa Stripe", value: dispute.id },
+        { label: "Status", value: dispute.status },
+      ],
+      actionPath: `/dashboard/admin/disputas/health/${appt.id}`,
+      notification: {
+        title: "Chargeback Health aberto",
+        message: "Uma contestacao Stripe de consulta precisa de analise.",
+      },
     });
   });
 
@@ -627,19 +670,47 @@ async function handleTechDisputeCreated(
     return new NextResponse(null, { status: 200 });
   }
 
-  if (project.status === "DISPUTE") {
-    await db.project.update({
-      where: { id: project.id },
-      data: {
-        disputeReason: `Stripe: ${dispute.reason}`,
-        disputeResolution: stripeDisputeSummary(
-          dispute,
-          paymentIntentId,
-          checkoutSessionId,
-          previousProjectStatusFromResolution(project.disputeResolution) ??
-            undefined,
-        ),
+  const enqueueChargebackAlert = (tx: Prisma.TransactionClient) =>
+    enqueueAdminNotificationEmails(tx, {
+      eventType: "ADMIN_TECH_STRIPE_CHARGEBACK_CREATED",
+      entityType: "STRIPE_DISPUTE",
+      entityId: dispute.id,
+      templateKey: "admin.dispute.alert",
+      roles: ["OWNER", "SUPPORT"],
+      title: "Chargeback Tech aberto na Stripe",
+      summary: "A Stripe abriu uma contestacao em um projeto Tech.",
+      lines: [
+        "Uma contestacao Stripe foi aberta e precisa de acompanhamento.",
+        "Consulte o painel para os dados financeiros e o prazo de evidencia.",
+      ],
+      details: [
+        { label: "Projeto", value: project.id },
+        { label: "Disputa Stripe", value: dispute.id },
+        { label: "Status", value: dispute.status },
+      ],
+      actionPath: `/dashboard/admin/disputas/tech/${project.id}`,
+      notification: {
+        title: "Chargeback Tech aberto",
+        message: "Uma contestacao Stripe de projeto precisa de analise.",
       },
+    });
+
+  if (project.status === "DISPUTE") {
+    await db.$transaction(async (tx) => {
+      await tx.project.update({
+        where: { id: project.id },
+        data: {
+          disputeReason: `Stripe: ${dispute.reason}`,
+          disputeResolution: stripeDisputeSummary(
+            dispute,
+            paymentIntentId,
+            checkoutSessionId,
+            previousProjectStatusFromResolution(project.disputeResolution) ??
+              undefined,
+          ),
+        },
+      });
+      await enqueueChargebackAlert(tx);
     });
 
     return new NextResponse(null, { status: 200 });
@@ -668,23 +739,8 @@ async function handleTechDisputeCreated(
       },
       data: { status: "DISPUTED" },
     });
-  });
-
-  await sendAdminNotification({
-    subject: "MWC Admin - Chargeback Tech aberto na Stripe",
-    lines: [
-      "A Stripe abriu uma disputa/chargeback em um projeto Tech.",
-      `Projeto: ${project.id}`,
-      `Stripe dispute: ${dispute.id}`,
-      `PaymentIntent: ${paymentIntentId}`,
-      `Motivo Stripe: ${dispute.reason}`,
-      `Status Stripe: ${dispute.status}`,
-    ],
-    actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
-  });
-
-  await Promise.all([
-    upsertNotification({
+    await enqueueChargebackAlert(tx);
+    await upsertNotification({
       userId: project.ownerId,
       type: "WARNING",
       eventType: "TECH_STRIPE_DISPUTE_CREATED",
@@ -698,10 +754,10 @@ async function handleTechDisputeCreated(
         paymentIntentId,
         checkoutSessionId,
       },
-    }),
-    project.professionalId
-      ? upsertNotification({
-          userId: project.professionalId,
+    }, tx);
+    if (project.professionalId) {
+      await upsertNotification({
+        userId: project.professionalId,
           type: "WARNING",
           eventType: "TECH_STRIPE_DISPUTE_CREATED",
           title: "Contestacao de pagamento aberta",
@@ -714,9 +770,9 @@ async function handleTechDisputeCreated(
             paymentIntentId,
             checkoutSessionId,
           },
-        })
-      : Promise.resolve(null),
-  ]);
+      }, tx);
+    }
+  });
 
   console.log("[WEBHOOK_TECH_DISPUTE] Project marked as DISPUTE:", project.id);
   return new NextResponse(null, { status: 200 });
@@ -802,20 +858,38 @@ async function handleDisputeClosed(dispute: Stripe.Dispute) {
         data: { status: "COMPLETED" },
       });
 
-      if (!disputedTransaction) return;
-
-      await tx.user.update({
-        where: { id: appt.professionalId },
-        data: {
-          walletBalance: {
-            increment: disputedTransaction.amount,
+      if (disputedTransaction) {
+        await tx.user.update({
+          where: { id: appt.professionalId },
+          data: {
+            walletBalance: {
+              increment: disputedTransaction.amount,
+            },
           },
-        },
-      });
+        });
 
-      await tx.transaction.update({
-        where: { id: disputedTransaction.id },
-        data: { status: "COMPLETED" },
+        await tx.transaction.update({
+          where: { id: disputedTransaction.id },
+          data: { status: "COMPLETED" },
+        });
+      }
+      await enqueueAdminNotificationEmails(tx, {
+        eventType: "ADMIN_HEALTH_STRIPE_CHARGEBACK_WON",
+        entityType: "STRIPE_DISPUTE",
+        entityId: dispute.id,
+        templateKey: "admin.dispute.alert",
+        roles: ["OWNER", "SUPPORT"],
+        title: "Chargeback Health vencido",
+        summary: "A Stripe encerrou a contestacao a favor da plataforma.",
+        lines: [
+          "Uma contestacao de consulta online foi encerrada como ganha.",
+          "O estado financeiro correspondente foi reconciliado.",
+        ],
+        details: [
+          { label: "Consulta", value: appt.id },
+          { label: "Disputa Stripe", value: dispute.id },
+        ],
+        actionPath: `/dashboard/admin/disputas/health/${appt.id}`,
       });
     });
 
@@ -837,6 +911,24 @@ async function handleDisputeClosed(dispute: Stripe.Dispute) {
           status: "DISPUTED",
         },
         data: { status: "CANCELED" },
+      });
+      await enqueueAdminNotificationEmails(tx, {
+        eventType: "ADMIN_HEALTH_STRIPE_CHARGEBACK_LOST",
+        entityType: "STRIPE_DISPUTE",
+        entityId: dispute.id,
+        templateKey: "admin.dispute.alert",
+        roles: ["OWNER", "SUPPORT"],
+        title: "Chargeback Health perdido",
+        summary: "A Stripe encerrou a contestacao contra a plataforma.",
+        lines: [
+          "Uma contestacao de consulta online foi encerrada como perdida.",
+          "O pagamento foi marcado como reembolsado e exige acompanhamento administrativo.",
+        ],
+        details: [
+          { label: "Consulta", value: appt.id },
+          { label: "Disputa Stripe", value: dispute.id },
+        ],
+        actionPath: `/dashboard/admin/disputas/health/${appt.id}`,
       });
     });
 
@@ -894,21 +986,25 @@ async function handleTechDisputeClosed(
         },
         data: { status: "COMPLETED" },
       });
-    });
-
-    console.log("[WEBHOOK_TECH_DISPUTE_CLOSED] Dispute won:", project.id);
-    await sendAdminNotification({
-      subject: "MWC Admin - Chargeback Tech vencido",
-      lines: [
-        "A Stripe fechou uma disputa Tech como ganha.",
-        `Projeto: ${project.id}`,
-        `Stripe dispute: ${dispute.id}`,
-        `PaymentIntent: ${paymentIntentId}`,
-      ],
-      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
-    });
-    await Promise.all([
-      upsertNotification({
+      await enqueueAdminNotificationEmails(tx, {
+        eventType: "ADMIN_TECH_STRIPE_CHARGEBACK_WON",
+        entityType: "STRIPE_DISPUTE",
+        entityId: dispute.id,
+        templateKey: "admin.dispute.alert",
+        roles: ["OWNER", "SUPPORT"],
+        title: "Chargeback Tech vencido",
+        summary: "A Stripe encerrou a contestacao a favor da plataforma.",
+        lines: [
+          "Uma contestacao de projeto Tech foi encerrada como ganha.",
+          "O estado financeiro correspondente foi reconciliado.",
+        ],
+        details: [
+          { label: "Projeto", value: project.id },
+          { label: "Disputa Stripe", value: dispute.id },
+        ],
+        actionPath: `/dashboard/admin/disputas/tech/${project.id}`,
+      });
+      await upsertNotification({
         userId: project.ownerId,
         type: "SUCCESS",
         eventType: "TECH_STRIPE_DISPUTE_WON",
@@ -918,21 +1014,23 @@ async function handleTechDisputeClosed(
         entityType: "TECH_PROJECT",
         entityId: project.id,
         metadata: { stripeDisputeId: dispute.id, paymentIntentId },
-      }),
-      project.professionalId
-        ? upsertNotification({
-            userId: project.professionalId,
-            type: "SUCCESS",
-            eventType: "TECH_STRIPE_DISPUTE_WON",
-            title: "Contestacao vencida",
-            message: `A contestacao Stripe do projeto "${project.title}" foi encerrada a favor da plataforma.`,
-            link: "/dashboard/projetos-ativos",
-            entityType: "TECH_PROJECT",
-            entityId: project.id,
-            metadata: { stripeDisputeId: dispute.id, paymentIntentId },
-          })
-        : Promise.resolve(null),
-    ]);
+      }, tx);
+      if (project.professionalId) {
+        await upsertNotification({
+          userId: project.professionalId,
+          type: "SUCCESS",
+          eventType: "TECH_STRIPE_DISPUTE_WON",
+          title: "Contestacao vencida",
+          message: `A contestacao Stripe do projeto "${project.title}" foi encerrada a favor da plataforma.`,
+          link: "/dashboard/projetos-ativos",
+          entityType: "TECH_PROJECT",
+          entityId: project.id,
+          metadata: { stripeDisputeId: dispute.id, paymentIntentId },
+        }, tx);
+      }
+    });
+
+    console.log("[WEBHOOK_TECH_DISPUTE_CLOSED] Dispute won:", project.id);
     return new NextResponse(null, { status: 200 });
   }
 
@@ -1068,22 +1166,26 @@ async function handleTechDisputeClosed(
           });
         }
       }
-    });
-
-    console.log("[WEBHOOK_TECH_DISPUTE_CLOSED] Dispute lost:", project.id);
-    await sendAdminNotification({
-      subject: "MWC Admin - Chargeback Tech perdido",
-      lines: [
-        "A Stripe fechou uma disputa Tech como perdida.",
-        `Projeto: ${project.id}`,
-        `Stripe dispute: ${dispute.id}`,
-        `PaymentIntent: ${paymentIntentId}`,
-        "Verifique a responsabilidade financeira do profissional no detalhe da disputa.",
-      ],
-      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
-    });
-    await Promise.all([
-      upsertNotification({
+      await enqueueAdminNotificationEmails(tx, {
+        eventType: "ADMIN_TECH_STRIPE_CHARGEBACK_LOST",
+        entityType: "STRIPE_DISPUTE",
+        entityId: dispute.id,
+        templateKey: "admin.dispute.alert",
+        roles: ["OWNER", "SUPPORT"],
+        title: "Chargeback Tech perdido",
+        summary: "A Stripe encerrou a contestacao contra a plataforma.",
+        lines: [
+          "Uma contestacao de projeto Tech foi encerrada como perdida.",
+          "Revise a responsabilidade financeira no detalhe da disputa.",
+        ],
+        details: [
+          { label: "Projeto", value: project.id },
+          { label: "Disputa Stripe", value: dispute.id },
+        ],
+        actionPath: `/dashboard/admin/disputas/tech/${project.id}`,
+        priority: 5,
+      });
+      await upsertNotification({
         userId: project.ownerId,
         type: "WARNING",
         eventType: "TECH_STRIPE_DISPUTE_LOST",
@@ -1093,21 +1195,23 @@ async function handleTechDisputeClosed(
         entityType: "TECH_PROJECT",
         entityId: project.id,
         metadata: { stripeDisputeId: dispute.id, paymentIntentId },
-      }),
-      project.professionalId
-        ? upsertNotification({
-            userId: project.professionalId,
-            type: "WARNING",
-            eventType: "TECH_STRIPE_DISPUTE_LOST",
-            title: "Contestacao perdida",
-            message: `A contestacao Stripe do projeto "${project.title}" foi perdida. Verifique seu financeiro.`,
-            link: "/dashboard/financeiro",
-            entityType: "TECH_PROJECT",
-            entityId: project.id,
-            metadata: { stripeDisputeId: dispute.id, paymentIntentId },
-          })
-        : Promise.resolve(null),
-    ]);
+      }, tx);
+      if (project.professionalId) {
+        await upsertNotification({
+          userId: project.professionalId,
+          type: "WARNING",
+          eventType: "TECH_STRIPE_DISPUTE_LOST",
+          title: "Contestacao perdida",
+          message: `A contestacao Stripe do projeto "${project.title}" foi perdida. Verifique seu financeiro.`,
+          link: "/dashboard/financeiro",
+          entityType: "TECH_PROJECT",
+          entityId: project.id,
+          metadata: { stripeDisputeId: dispute.id, paymentIntentId },
+        }, tx);
+      }
+    });
+
+    console.log("[WEBHOOK_TECH_DISPUTE_CLOSED] Dispute lost:", project.id);
   }
 
   return new NextResponse(null, { status: 200 });
@@ -1187,22 +1291,28 @@ export async function POST(req: Request) {
       }
 
       console.error("Webhook: Payment processing failed.", result.error);
-      await sendAdminNotification({
-        subject: "MWC Admin - Pagamento de projeto exige revisao",
+      await db.$transaction((tx) =>
+        enqueueAdminNotificationEmails(tx, {
+        eventType: "ADMIN_PROJECT_PAYMENT_REQUIRES_REVIEW",
+        entityType: "STRIPE_CHECKOUT_SESSION",
+        entityId: session.id,
+        templateKey: "admin.critical.alert",
+        title: "Pagamento de projeto exige revisao",
+        summary:
+          "A Stripe confirmou um pagamento, mas a plataforma nao conseguiu finalizar o projeto.",
         lines: [
           "A Stripe confirmou um pagamento de projeto, mas a plataforma nao conseguiu finalizar automaticamente.",
-          `Proposta: ${proposalId}`,
-          `Cliente: ${buyerId}`,
-          `Checkout Session: ${session.id}`,
-          `PaymentIntent: ${
-            typeof session.payment_intent === "string"
-              ? session.payment_intent
-              : session.payment_intent?.id || "Nao informado"
-          }`,
-          `Motivo: ${result.error}`,
+          "Consulte os registros internos e reconcilie o pagamento manualmente.",
         ],
-        actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas`,
-      });
+        details: [
+          { label: "Proposta", value: proposalId },
+          { label: "Cliente", value: buyerId },
+          { label: "Checkout Session", value: session.id },
+        ],
+        actionPath: "/dashboard/admin/disputas",
+        priority: 5,
+      }),
+      );
       return new NextResponse(null, { status: 200 });
     }
 
@@ -1369,22 +1479,53 @@ export async function POST(req: Request) {
     if (responseIsSuccess(response)) {
       await markStripeEventProcessed(event);
     } else {
-      await markStripeEventFailed(event, `HTTP ${response.status}`);
+      await db.$transaction(async (tx) => {
+        await markStripeEventFailed(event, `HTTP ${response.status}`, tx);
+        await enqueueAdminNotificationEmails(tx, {
+          eventType: "ADMIN_STRIPE_WEBHOOK_FAILED",
+          entityType: "STRIPE_EVENT",
+          entityId: event.id,
+          templateKey: "admin.critical.alert",
+          title: "Falha em webhook Stripe",
+          summary: "Um webhook Stripe terminou com resposta de erro.",
+          lines: [
+            "Um webhook Stripe nao concluiu o processamento.",
+            "O erro tecnico completo permanece registrado no banco para diagnostico.",
+          ],
+          details: [
+            { label: "Evento", value: event.id },
+            { label: "Tipo", value: event.type },
+            { label: "Resposta", value: `HTTP ${response.status}` },
+          ],
+          actionPath: "/dashboard/admin/disputas",
+          priority: 0,
+        });
+      });
     }
 
     return response;
   } catch (error) {
     console.error("Erro ao processar webhook:", error);
-    await markStripeEventFailed(event, errorToMessage(error));
-    await sendAdminNotification({
-      subject: "MWC Admin - Falha em webhook Stripe",
-      lines: [
-        "Um webhook Stripe falhou durante o processamento.",
-        `Evento: ${event.id}`,
-        `Tipo: ${event.type}`,
-        `Erro: ${errorToMessage(error)}`,
-      ],
-      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas`,
+    await db.$transaction(async (tx) => {
+      await markStripeEventFailed(event, errorToMessage(error), tx);
+      await enqueueAdminNotificationEmails(tx, {
+        eventType: "ADMIN_STRIPE_WEBHOOK_FAILED",
+        entityType: "STRIPE_EVENT",
+        entityId: event.id,
+        templateKey: "admin.critical.alert",
+        title: "Falha em webhook Stripe",
+        summary: "Um webhook Stripe falhou durante o processamento.",
+        lines: [
+          "Um webhook Stripe nao concluiu o processamento.",
+          "O erro tecnico completo permanece registrado no banco para diagnostico.",
+        ],
+        details: [
+          { label: "Evento", value: event.id },
+          { label: "Tipo", value: event.type },
+        ],
+        actionPath: "/dashboard/admin/disputas",
+        priority: 0,
+      });
     });
     return new NextResponse("Database Error", { status: 500 });
   }

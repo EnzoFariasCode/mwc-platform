@@ -236,8 +236,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   events: {
     async createUser({ user }) {
       try {
+        if (!user.id) return;
         const dbUser = await getAuthUserFields(user.id, user.email);
         await sendWelcomeEmail({
+          userId: user.id,
           email: user.email ?? null,
           name: user.name ?? null,
           userType: dbUser?.userType ?? "CLIENT",

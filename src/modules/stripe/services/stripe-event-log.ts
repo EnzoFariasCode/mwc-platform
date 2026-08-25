@@ -94,8 +94,9 @@ export async function markStripeEventProcessed(
 export async function markStripeEventFailed(
   event: Pick<Stripe.Event, "id" | "type">,
   error: string,
+  client: Pick<Prisma.TransactionClient, "stripeEventLog"> = db,
 ) {
-  await db.stripeEventLog.update({
+  await client.stripeEventLog.update({
     where: { stripeEventId: event.id },
     data: {
       type: event.type,
