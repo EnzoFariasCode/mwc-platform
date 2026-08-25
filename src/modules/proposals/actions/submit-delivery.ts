@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { getTechProjectReviewDeadline } from "@/modules/projects/lib/tech-project-review-deadline";
+import { enqueueTechEmail } from "@/modules/email/services/tech-email-service";
 
 const DELIVERY_DESCRIPTION_MIN = 20;
 const DELIVERY_DESCRIPTION_MAX = 3000;
@@ -47,7 +48,19 @@ export async function submitDelivery(
 
     const project = await db.project.findUnique({
       where: { id: projectId },
-      select: { id: true, title: true, ownerId: true, professionalId: true, status: true },
+      select: {
+        id: true,
+        title: true,
+        ownerId: true,
+        professionalId: true,
+        status: true,
+        owner: {
+          select: { id: true, email: true, name: true, displayName: true },
+        },
+        professional: {
+          select: { name: true, displayName: true },
+        },
+      },
     });
 
     if (!project) {
@@ -122,22 +135,55 @@ export async function submitDelivery(
           senderId: userId,
         },
       });
-    });
 
-    await upsertNotification({
-      userId: project.ownerId,
-      actorId: userId,
-      type: "WARNING",
-      eventType: "TECH_DELIVERY_SUBMITTED",
-      title: "Entrega aguardando aprovacao",
-      message: `O projeto "${project.title}" foi entregue. Voce tem 7 dias para aprovar, pedir revisao ou abrir disputa. Sem acao, o pagamento sera liberado.`,
-      link: "/dashboard/meus-projetos",
-      entityType: "TECH_PROJECT",
-      entityId: project.id,
-      metadata: {
-        projectId: project.id,
-        reviewDeadlineAt: reviewDeadlineAt.toISOString(),
-      },
+      await upsertNotification({
+        userId: project.ownerId,
+        actorId: userId,
+        type: "WARNING",
+        eventType: "TECH_DELIVERY_SUBMITTED",
+        title: "Entrega aguardando aprovacao",
+        message: `O projeto "${project.title}" foi entregue. Voce tem 7 dias para aprovar, pedir revisao ou abrir disputa. Sem acao, o pagamento sera liberado.`,
+        link: "/dashboard/meus-projetos",
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        metadata: {
+          projectId: project.id,
+          reviewDeadlineAt: reviewDeadlineAt.toISOString(),
+        },
+      }, tx);
+
+      await enqueueTechEmail(tx, {
+        idempotencyKey: `TECH_DELIVERY_SUBMITTED:${project.id}:${project.ownerId}:${deliveredAt.toISOString()}`,
+        eventType: "TECH_DELIVERY_SUBMITTED",
+        templateKey: "tech.delivery.submitted",
+        recipient: project.owner,
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        content: {
+          title: "Projeto entregue para analise",
+          preview: `${project.title} foi entregue pelo profissional.`,
+          lines: [
+            "O profissional enviou a entrega do projeto para sua analise.",
+            "Voce tem ate 7 dias para aprovar, pedir ajustes ou abrir uma disputa. Sem acao, o pagamento sera liberado automaticamente.",
+          ],
+          details: [
+            { label: "Projeto", value: project.title },
+            {
+              label: "Profissional",
+              value:
+                project.professional?.displayName ||
+                project.professional?.name ||
+                "Profissional",
+            },
+            {
+              label: "Prazo para analise",
+              value: reviewDeadlineAt.toLocaleDateString("pt-BR"),
+            },
+          ],
+          actionLabel: "Analisar entrega",
+          actionPath: "/dashboard/meus-projetos",
+        },
+      });
     });
 
     revalidatePath("/dashboard/projetos-ativos");

@@ -13,11 +13,13 @@ import { notifyAdminsAboutEmailOutboxAttention } from "./email-outbox-attention-
 import {
   claimEmailOutbox,
   listDueEmailOutboxIds,
+  markEmailOutboxAttemptCanceled,
   markEmailOutboxAttemptFailed,
   markEmailOutboxAttemptRequiresAttention,
   markEmailOutboxAttemptSent,
   recoverStaleEmailOutboxClaims,
 } from "./email-outbox-service";
+import { shouldDeliverTechEmailOutbox } from "./tech-email-service";
 
 const DEFAULT_BATCH_SIZE = 25;
 const DEFAULT_CONCURRENCY = 5;
@@ -209,6 +211,18 @@ async function processEmailOutboxItem(
       };
     }
     claimedEmail = claim.outbox;
+
+    const shouldDeliver = await shouldDeliverTechEmailOutbox(claim.outbox);
+    if (!shouldDeliver) {
+      const canceled = await db.$transaction((tx) =>
+        markEmailOutboxAttemptCanceled(tx, {
+          outboxId: claim.outbox.id,
+          attemptNumber: claim.outbox.attemptCount,
+          canceledAt: new Date(),
+        }),
+      );
+      return { outcome: "SKIPPED", claimed: canceled };
+    }
 
     let rendered;
     try {

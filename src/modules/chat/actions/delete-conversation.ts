@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { cancelPendingTechChatEmails } from "@/modules/email/services/tech-email-service";
 
 export async function deleteConversation(
   conversationId: string
@@ -43,13 +44,20 @@ export async function deleteConversation(
 
     // Soft Delete: Apenas adiciona meu ID na lista de excluídos
     // (Não deletamos do banco para manter o histórico para o outro usuário)
-    await db.conversation.update({
-      where: { id: conversationId },
-      data: {
-        deletedByIds: {
-          push: userId,
+    await db.$transaction(async (tx) => {
+      await tx.conversation.update({
+        where: { id: conversationId },
+        data: {
+          deletedByIds: {
+            push: userId,
+          },
         },
-      },
+      });
+
+      await cancelPendingTechChatEmails(tx, {
+        conversationId,
+        recipientUserId: userId,
+      });
     });
 
     revalidatePath("/dashboard/chat");

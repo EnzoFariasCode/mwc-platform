@@ -3,6 +3,7 @@ import "server-only";
 import { db } from "@/lib/prisma";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { Prisma, ProjectStatus } from "@prisma/client";
+import { enqueueTechEmail } from "@/modules/email/services/tech-email-service";
 
 const PLATFORM_FEE_PERCENT = 10;
 
@@ -34,6 +35,12 @@ export async function releaseTechProjectPayment({
           professionalId: true,
           agreedPrice: true,
           status: true,
+          owner: {
+            select: { id: true, email: true, name: true, displayName: true },
+          },
+          professional: {
+            select: { id: true, email: true, name: true, displayName: true },
+          },
         },
       });
 
@@ -41,6 +48,7 @@ export async function releaseTechProjectPayment({
       if (!project.professionalId || !project.agreedPrice) {
         throw new Error("PROJECT_PAYMENT_DATA_MISSING");
       }
+      if (!project.professional) throw new Error("PROFESSIONAL_NOT_FOUND");
       if (source === "CLIENT_APPROVAL" && project.ownerId !== clientId) {
         throw new Error("PROJECT_OWNER_REQUIRED");
       }
@@ -165,6 +173,60 @@ export async function releaseTechProjectPayment({
           tx,
         );
       }
+
+      const completionLine =
+        source === "CLIENT_APPROVAL"
+          ? "O cliente aprovou a entrega e o projeto foi concluido."
+          : "O prazo de analise terminou sem contestacao e o projeto foi concluido automaticamente.";
+
+      await enqueueTechEmail(tx, {
+        idempotencyKey: `TECH_PROJECT_COMPLETED:${project.id}:${project.owner.id}`,
+        eventType: "TECH_PROJECT_COMPLETED",
+        templateKey: "tech.project.completed",
+        recipient: project.owner,
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        content: {
+          title: "Projeto concluido",
+          preview: `${project.title} foi concluido.`,
+          lines: [
+            completionLine,
+            "O pagamento protegido foi liberado ao profissional conforme as regras da plataforma.",
+          ],
+          details: [{ label: "Projeto", value: project.title }],
+          actionLabel: "Ver projeto",
+          actionPath: "/dashboard/meus-projetos",
+        },
+      });
+
+      await enqueueTechEmail(tx, {
+        idempotencyKey: `TECH_PROJECT_COMPLETED:${project.id}:${project.professional.id}`,
+        eventType: "TECH_PROJECT_COMPLETED",
+        templateKey: "tech.project.completed",
+        recipient: project.professional,
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        content: {
+          title: "Projeto concluido e pagamento liberado",
+          preview: `${project.title} foi concluido e o pagamento esta disponivel.`,
+          lines: [
+            completionLine,
+            "O valor liquido ja esta disponivel na sua carteira.",
+          ],
+          details: [
+            { label: "Projeto", value: project.title },
+            {
+              label: "Valor liberado",
+              value: professionalAmount.toNumber().toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              }),
+            },
+          ],
+          actionLabel: "Abrir financeiro",
+          actionPath: "/dashboard/financeiro",
+        },
+      });
 
       return {
         released: true,

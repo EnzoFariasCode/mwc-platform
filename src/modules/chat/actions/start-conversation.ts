@@ -9,6 +9,7 @@ import { canExchangeTechMessages } from "@/modules/chat/lib/chat-safety";
 import { findChatBlockBetween } from "@/modules/chat/lib/chat-moderation";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import { enqueueTechChatStartedEmail } from "@/modules/email/services/tech-email-service";
 
 const CHAT_NEW_CONVERSATION_LIMIT = 5;
 const CHAT_NEW_CONVERSATION_WINDOW_MS = 60 * 60 * 1000;
@@ -72,6 +73,7 @@ export async function startConversation(
       where: { id: receiverId },
       select: {
         id: true,
+        email: true,
         name: true,
         displayName: true,
         userType: true,
@@ -129,27 +131,31 @@ export async function startConversation(
 
       const starter = await db.user.findUnique({
         where: { id: starterId },
-        select: { name: true, displayName: true, userType: true },
+        select: { id: true, name: true, displayName: true, userType: true },
       });
+      if (!starter) {
+        return { success: false, error: "Usuario nao encontrado." };
+      }
       const starterName =
         starter?.displayName || starter?.name || "Um cliente";
       const receiverName =
         receiver.displayName || receiver.name || "profissional";
 
-      conversation = await db.conversation.create({
-        data: {
-          participantAId: starterId,
-          participantBId: receiverId,
-          lastMessage: `${starterName} iniciou uma conversa com ${receiverName}.`,
-          lastMessageTime: new Date(),
-          unreadCountA: 0,
-          unreadCountB: 0,
-          deletedByIds: [],
-        },
-        select: { id: true },
-      });
+      const createdAt = new Date();
+      conversation = await db.$transaction(async (tx) => {
+        const created = await tx.conversation.create({
+          data: {
+            participantAId: starterId,
+            participantBId: receiverId,
+            lastMessage: `${starterName} iniciou uma conversa com ${receiverName}.`,
+            lastMessageTime: createdAt,
+            unreadCountA: 0,
+            unreadCountB: 0,
+            deletedByIds: [],
+          },
+          select: { id: true },
+        });
 
-      if (receiver.userType === "PROFESSIONAL" && starter?.userType === "CLIENT") {
         await upsertNotification({
           userId: receiverId,
           actorId: starterId,
@@ -159,13 +165,23 @@ export async function startConversation(
           message: `${starterName} abriu uma conversa com voce no chat.`,
           link: `/dashboard/chat?newChat=${starterId}`,
           entityType: "CONVERSATION",
-          entityId: conversation.id,
+          entityId: created.id,
           metadata: {
             starterId,
             receiverId,
           },
+        }, tx);
+
+        await enqueueTechChatStartedEmail(tx, {
+          conversationId: created.id,
+          createdAt,
+          recipient: receiver,
+          starterId,
+          starterName,
         });
-      }
+
+        return created;
+      });
     }
 
     revalidatePath("/dashboard/chat");

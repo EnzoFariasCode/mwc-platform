@@ -16,6 +16,7 @@ import {
 } from "@/modules/chat/lib/chat-safety";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { findChatBlockBetween } from "@/modules/chat/lib/chat-moderation";
+import { enqueueTechChatUnreadEmail } from "@/modules/email/services/tech-email-service";
 
 const CHAT_USER_LIMIT = 30;
 const CHAT_PAIR_LIMIT = 12;
@@ -196,6 +197,9 @@ export async function sendMessage(
       where: { id: receiverId },
       select: {
         id: true,
+        email: true,
+        name: true,
+        displayName: true,
         userType: true,
         industry: true,
         isActive: true,
@@ -211,7 +215,7 @@ export async function sendMessage(
 
     const receiverIsPublicTechProfessional =
       receiver.userType === "PROFESSIONAL" && receiver.industry === "TECH";
-    let conversation = await db.conversation.findFirst({
+    const conversation = await db.conversation.findFirst({
       where: {
         OR: [
           { participantAId: senderId, participantBId: receiverId },
@@ -252,6 +256,14 @@ export async function sendMessage(
 
     }
 
+    const sender = await db.user.findUnique({
+      where: { id: senderId },
+      select: { name: true, displayName: true },
+    });
+    if (!sender) {
+      return { success: false, error: "Remetente nao encontrado." };
+    }
+
     const hasExternalContact = containsExternalContact(normalizedContent);
     if (hasExternalContact) {
       const paidContext = await hasPaidTechContext(senderId, receiverId);
@@ -270,59 +282,77 @@ export async function sendMessage(
       }
     }
 
-    if (!conversation) {
-      conversation = await db.conversation.create({
+    const sentAt = new Date();
+    const newMessage = await db.$transaction(async (tx) => {
+      const storedConversation = conversation
+        ? await tx.conversation.update({
+            where: { id: conversation.id },
+            data: {
+              lastMessage: normalizedContent,
+              lastMessageTime: sentAt,
+              ...(conversation.participantAId === senderId
+                ? { unreadCountB: { increment: 1 } }
+                : { unreadCountA: { increment: 1 } }),
+              deletedByIds: [],
+            },
+          })
+        : await tx.conversation.create({
+            data: {
+              participantAId: senderId,
+              participantBId: receiverId,
+              lastMessage: normalizedContent,
+              lastMessageTime: sentAt,
+              unreadCountA: 0,
+              unreadCountB: 1,
+              deletedByIds: [],
+            },
+          });
+
+      const message = await tx.message.create({
         data: {
-          participantAId: senderId,
-          participantBId: receiverId,
-          lastMessage: normalizedContent,
-          lastMessageTime: new Date(),
-          unreadCountA: 0,
-          unreadCountB: 1,
-          deletedByIds: [],
+          content: normalizedContent,
+          senderId,
+          conversationId: storedConversation.id,
         },
       });
-    } else {
-      const isSenderA = conversation.participantAId === senderId;
 
-      await db.conversation.update({
-        where: { id: conversation.id },
-        data: {
-          lastMessage: normalizedContent,
-          lastMessageTime: new Date(),
-          unreadCountA: isSenderA
-            ? conversation.unreadCountA
-            : { increment: 1 },
-          unreadCountB: !isSenderA
-            ? conversation.unreadCountB
-            : { increment: 1 },
-          deletedByIds: [],
+      const firstUnread = await tx.message.findFirst({
+        where: {
+          conversationId: storedConversation.id,
+          senderId,
+          read: false,
         },
+        select: { id: true, createdAt: true },
+        orderBy: { createdAt: "asc" },
       });
-    }
+      if (!firstUnread) throw new Error("CHAT_UNREAD_MESSAGE_NOT_FOUND");
 
-    const newMessage = await db.message.create({
-      data: {
-        content: normalizedContent,
-        senderId,
-        conversationId: conversation.id,
-      },
-    });
+      await upsertNotification({
+        userId: receiverId,
+        actorId: senderId,
+        type: "MESSAGE",
+        eventType: "CHAT_UNREAD",
+        title: "Nova mensagem",
+        message: "Voce recebeu uma nova mensagem no chat.",
+        link: `/dashboard/chat?newChat=${senderId}`,
+        entityType: "CONVERSATION",
+        entityId: storedConversation.id,
+        metadata: {
+          senderId,
+          messageId: message.id,
+        },
+      }, tx);
 
-    await upsertNotification({
-      userId: receiverId,
-      actorId: senderId,
-      type: "MESSAGE",
-      eventType: "CHAT_UNREAD",
-      title: "Nova mensagem",
-      message: "Voce recebeu uma nova mensagem no chat.",
-      link: `/dashboard/chat?newChat=${senderId}`,
-      entityType: "CONVERSATION",
-      entityId: conversation.id,
-      metadata: {
+      await enqueueTechChatUnreadEmail(tx, {
+        conversationId: storedConversation.id,
+        firstUnreadMessageId: firstUnread.id,
+        firstUnreadAt: firstUnread.createdAt,
+        recipient: receiver,
         senderId,
-        messageId: newMessage.id,
-      },
+        senderName: sender.displayName || sender.name,
+      });
+
+      return message;
     });
 
     revalidatePath("/dashboard/chat");

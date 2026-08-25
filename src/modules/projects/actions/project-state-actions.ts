@@ -18,6 +18,7 @@ import { sendAdminNotification } from "@/modules/admin/services/admin-notificati
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { canCancelPaidTechProject } from "@/modules/projects/lib/tech-project-cancellation";
 import { validateAdminDecisionReason } from "@/modules/admin/lib/admin-decision-reason";
+import { enqueueTechEmail } from "@/modules/email/services/tech-email-service";
 
 const PLATFORM_FEE_PERCENT = 10;
 const ADMIN_DISPUTE_DECISION_LIMIT = 20;
@@ -50,6 +51,90 @@ function projectProfessionalAmount(amount: Prisma.Decimal) {
     .mul(100 - PLATFORM_FEE_PERCENT)
     .div(100)
     .toDecimalPlaces(2);
+}
+
+type TechDisputeEmailUser = {
+  id: string;
+  email: string;
+  name: string;
+  displayName: string | null;
+};
+
+async function queueTechDisputeResolutionCommunications(
+  tx: Prisma.TransactionClient,
+  input: {
+    projectId: string;
+    projectTitle: string;
+    amount: number;
+    owner: TechDisputeEmailUser;
+    professional: TechDisputeEmailUser;
+    adminId: string;
+    decision: DisputeDecision;
+    reason: string;
+  },
+) {
+  const clientWon = input.decision === "REFUND_CLIENT";
+  const recipients = [
+    {
+      user: input.owner,
+      actionPath: "/dashboard/meus-projetos",
+      message: clientWon
+        ? `A mediacao aprovou o reembolso do projeto "${input.projectTitle}".`
+        : `A mediacao liberou o pagamento do projeto "${input.projectTitle}" ao profissional.`,
+    },
+    {
+      user: input.professional,
+      actionPath: "/dashboard/projetos-ativos",
+      message: clientWon
+        ? `A mediacao aprovou o reembolso do projeto "${input.projectTitle}".`
+        : `A mediacao liberou o pagamento do projeto "${input.projectTitle}" para sua carteira.`,
+    },
+  ];
+
+  for (const recipient of recipients) {
+    await upsertNotification({
+      userId: recipient.user.id,
+      actorId: input.adminId,
+      type: clientWon ? "WARNING" : "SUCCESS",
+      eventType: "TECH_DISPUTE_RESOLVED",
+      title: "Disputa resolvida",
+      message: recipient.message,
+      link: recipient.actionPath,
+      entityType: "TECH_PROJECT",
+      entityId: input.projectId,
+      metadata: {
+        decision: input.decision,
+        reason: input.reason,
+        amount: input.amount,
+      },
+    }, tx);
+
+    await enqueueTechEmail(tx, {
+      idempotencyKey: `TECH_DISPUTE_RESOLVED:${input.projectId}:${input.decision}:${recipient.user.id}`,
+      eventType: "TECH_DISPUTE_RESOLVED",
+      templateKey: "tech.dispute.resolved",
+      recipient: recipient.user,
+      entityType: "TECH_PROJECT",
+      entityId: input.projectId,
+      content: {
+        title: "Disputa resolvida",
+        preview: `A mediacao de ${input.projectTitle} foi concluida.`,
+        lines: [
+          recipient.message,
+          clientWon
+            ? "O reembolso seguira o prazo do metodo de pagamento original."
+            : "O projeto foi concluido e o pagamento foi liberado ao profissional.",
+        ],
+        details: [
+          { label: "Projeto", value: input.projectTitle },
+          { label: "Decisao", value: clientWon ? "Reembolso ao cliente" : "Pagamento ao profissional" },
+          { label: "Justificativa", value: input.reason },
+        ],
+        actionLabel: "Ver resultado",
+        actionPath: recipient.actionPath,
+      },
+    });
+  }
 }
 
 async function requireAdmin() {
@@ -136,7 +221,19 @@ export async function withdrawProposal(
         status: true,
         professionalId: true,
         projectId: true,
-        project: { select: { status: true, title: true, ownerId: true } },
+        professional: {
+          select: { id: true, email: true, name: true, displayName: true },
+        },
+        project: {
+          select: {
+            status: true,
+            title: true,
+            ownerId: true,
+            owner: {
+              select: { id: true, email: true, name: true, displayName: true },
+            },
+          },
+        },
       },
     });
 
@@ -158,6 +255,7 @@ export async function withdrawProposal(
       };
     }
 
+    const withdrawnAt = new Date();
     const stripeSessionIds = await db.$transaction(async (tx) => {
       const withdrawn = await tx.proposal.updateMany({
         where: {
@@ -166,7 +264,7 @@ export async function withdrawProposal(
           status: ProposalStatus.PENDING,
           project: { status: ProjectStatus.OPEN },
         },
-        data: { status: ProposalStatus.WITHDRAWN },
+        data: { status: ProposalStatus.WITHDRAWN, updatedAt: withdrawnAt },
       });
 
       if (withdrawn.count !== 1) return null;
@@ -202,6 +300,39 @@ export async function withdrawProposal(
         },
       });
 
+      await upsertNotification({
+        userId: proposal.project.ownerId,
+        actorId: userId,
+        type: "INFO",
+        eventType: "TECH_PROPOSAL_WITHDRAWN",
+        title: "Proposta retirada",
+        message: `Uma proposta para "${proposal.project.title}" foi retirada pelo profissional.`,
+        link: "/dashboard/meus-projetos",
+        entityType: "TECH_PROJECT",
+        entityId: proposal.projectId,
+        metadata: { proposalId: proposal.id, professionalId: userId },
+      }, tx);
+
+      await enqueueTechEmail(tx, {
+        idempotencyKey: `TECH_PROPOSAL_WITHDRAWN:${proposal.id}:${proposal.project.ownerId}:${withdrawnAt.toISOString()}`,
+        eventType: "TECH_PROPOSAL_WITHDRAWN",
+        templateKey: "tech.proposal.withdrawn",
+        recipient: proposal.project.owner,
+        entityType: "TECH_PROJECT",
+        entityId: proposal.projectId,
+        content: {
+          title: "Proposta retirada",
+          preview: `Uma proposta para ${proposal.project.title} foi retirada.`,
+          lines: [
+            `${proposal.professional.displayName || proposal.professional.name} retirou a proposta enviada para o seu projeto.`,
+            "As demais propostas continuam disponiveis para analise.",
+          ],
+          details: [{ label: "Projeto", value: proposal.project.title }],
+          actionLabel: "Ver propostas",
+          actionPath: "/dashboard/meus-projetos",
+        },
+      });
+
       return activeHolds.flatMap((hold) =>
         hold.stripeSessionId ? [hold.stripeSessionId] : [],
       );
@@ -231,19 +362,6 @@ export async function withdrawProposal(
     });
 
     techProjectPaths(proposal.projectId, userId);
-
-    await upsertNotification({
-      userId: proposal.project.ownerId,
-      actorId: userId,
-      type: "INFO",
-      eventType: "TECH_PROPOSAL_WITHDRAWN",
-      title: "Proposta retirada",
-      message: `Uma proposta para "${proposal.project.title}" foi retirada pelo profissional.`,
-      link: "/dashboard/meus-projetos",
-      entityType: "TECH_PROJECT",
-      entityId: proposal.projectId,
-      metadata: { proposalId: proposal.id, professionalId: userId },
-    });
 
     return { success: true };
   } catch (error) {
@@ -295,6 +413,12 @@ export async function cancelTechProject(
         professionalId: true,
         agreedPrice: true,
         stripePaymentIntentId: true,
+        owner: {
+          select: { id: true, email: true, name: true, displayName: true },
+        },
+        professional: {
+          select: { id: true, email: true, name: true, displayName: true },
+        },
       },
     });
 
@@ -477,6 +601,92 @@ export async function cancelTechProject(
           data: { status: ProposalStatus.REJECTED },
         });
       }
+
+      if (project.professional) {
+        await upsertNotification({
+          userId: project.professionalId,
+          actorId: userId,
+          type: "WARNING",
+          eventType: "TECH_PROJECT_CANCELED",
+          title: "Projeto cancelado",
+          message: `O projeto "${project.title}" foi cancelado pelo cliente.`,
+          link: "/dashboard/projetos-ativos",
+          entityType: "TECH_PROJECT",
+          entityId: project.id,
+          metadata: {
+            reason: normalizedReason,
+            refundId,
+            cancellationType: isPaidCancellation
+              ? "PAID_WITHIN_12H"
+              : "UNPAID",
+          },
+        }, tx);
+
+        await enqueueTechEmail(tx, {
+          idempotencyKey: `TECH_PROJECT_CANCELED:${project.id}:${project.professional.id}`,
+          eventType: "TECH_PROJECT_CANCELED",
+          templateKey: "tech.project.canceled",
+          recipient: project.professional,
+          entityType: "TECH_PROJECT",
+          entityId: project.id,
+          content: {
+            title: "Projeto cancelado",
+            preview: `${project.title} foi cancelado pelo cliente.`,
+            lines: [
+              "O cliente cancelou o projeto.",
+              isPaidCancellation
+                ? "O cancelamento ocorreu dentro do prazo permitido e o pagamento sera estornado ao cliente."
+                : "O projeto foi encerrado antes da confirmacao do pagamento.",
+            ],
+            details: [
+              { label: "Projeto", value: project.title },
+              { label: "Motivo", value: normalizedReason },
+            ],
+            actionLabel: "Ver projetos",
+            actionPath: "/dashboard/projetos-ativos",
+          },
+        });
+      }
+
+      await upsertNotification({
+        userId: project.ownerId,
+        actorId: userId,
+        type: isPaidCancellation ? "SUCCESS" : "INFO",
+        eventType: "TECH_PROJECT_CANCELED_CLIENT",
+        title: "Pedido cancelado",
+        message: isPaidCancellation
+          ? `O pedido "${project.title}" foi cancelado e o estorno foi enviado ao cartao.`
+          : `O pedido "${project.title}" foi cancelado.`,
+        link: "/dashboard/meus-projetos",
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        metadata: { reason: normalizedReason, refundId },
+      }, tx);
+
+      await enqueueTechEmail(tx, {
+        idempotencyKey: `TECH_PROJECT_CANCELED:${project.id}:${project.owner.id}`,
+        eventType: "TECH_PROJECT_CANCELED",
+        templateKey: "tech.project.canceled",
+        recipient: project.owner,
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        content: {
+          title: "Projeto cancelado",
+          preview: `${project.title} foi cancelado.`,
+          lines: [
+            "Seu projeto foi cancelado com sucesso.",
+            isPaidCancellation
+              ? "A Stripe recebeu a solicitacao de estorno para o metodo de pagamento original."
+              : "Nenhum pagamento foi capturado para este projeto.",
+          ],
+          details: [
+            { label: "Projeto", value: project.title },
+            { label: "Motivo", value: normalizedReason },
+          ],
+          actionLabel: "Ver meus projetos",
+          actionPath: "/dashboard/meus-projetos",
+        },
+      });
     });
 
     techProjectPaths(project.id, project.professionalId);
@@ -494,40 +704,6 @@ export async function cancelTechProject(
         `Estorno Stripe: ${refundId || "Nao aplicavel"}`,
       ],
       actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/financeiro`,
-    });
-
-    if (project.professionalId) {
-      await upsertNotification({
-        userId: project.professionalId,
-        actorId: userId,
-        type: "WARNING",
-        eventType: "TECH_PROJECT_CANCELED",
-        title: "Projeto cancelado",
-        message: `O projeto "${project.title}" foi cancelado pelo cliente.`,
-        link: "/dashboard/projetos-ativos",
-        entityType: "TECH_PROJECT",
-        entityId: project.id,
-        metadata: {
-          reason: normalizedReason,
-          refundId,
-          cancellationType: isPaidCancellation ? "PAID_WITHIN_12H" : "UNPAID",
-        },
-      });
-    }
-
-    await upsertNotification({
-      userId: project.ownerId,
-      actorId: userId,
-      type: isPaidCancellation ? "SUCCESS" : "INFO",
-      eventType: "TECH_PROJECT_CANCELED_CLIENT",
-      title: "Pedido cancelado",
-      message: isPaidCancellation
-        ? `O pedido "${project.title}" foi cancelado e o estorno foi enviado ao cartao.`
-        : `O pedido "${project.title}" foi cancelado.`,
-      link: "/dashboard/meus-projetos",
-      entityType: "TECH_PROJECT",
-      entityId: project.id,
-      metadata: { reason: normalizedReason, refundId },
     });
 
     return { success: true };
@@ -587,6 +763,10 @@ export async function requestTechProjectRevision(
         ownerId: true,
         status: true,
         professionalId: true,
+        owner: { select: { name: true, displayName: true } },
+        professional: {
+          select: { id: true, email: true, name: true, displayName: true },
+        },
       },
     });
 
@@ -601,6 +781,7 @@ export async function requestTechProjectRevision(
       };
     }
 
+    const revisionRequestedAt = new Date();
     await db.$transaction(async (tx) => {
       await tx.deliverable.create({
         data: {
@@ -619,28 +800,51 @@ export async function requestTechProjectRevision(
           reviewReminder3dSentAt: null,
           reviewReminder1dSentAt: null,
           autoReleasedAt: null,
-          revisionRequestedAt: new Date(),
+          revisionRequestedAt,
           revisionReason: normalizedReason,
         },
       });
+
+      if (project.professional) {
+        await upsertNotification({
+          userId: project.professionalId,
+          actorId: userId,
+          type: "WARNING",
+          eventType: "TECH_REVISION_REQUESTED",
+          title: "Revisao solicitada",
+          message: `O cliente pediu ajustes no projeto "${project.title}".`,
+          link: "/dashboard/projetos-ativos",
+          entityType: "TECH_PROJECT",
+          entityId: project.id,
+          metadata: { reason: normalizedReason },
+        }, tx);
+
+        await enqueueTechEmail(tx, {
+          idempotencyKey: `TECH_REVISION_REQUESTED:${project.id}:${revisionRequestedAt.toISOString()}:${project.professional.id}`,
+          eventType: "TECH_REVISION_REQUESTED",
+          templateKey: "tech.revision.requested",
+          recipient: project.professional,
+          entityType: "TECH_PROJECT",
+          entityId: project.id,
+          content: {
+            title: "Ajustes solicitados no projeto",
+            preview: `O cliente solicitou ajustes em ${project.title}.`,
+            lines: [
+              `${project.owner.displayName || project.owner.name} analisou a entrega e solicitou ajustes.`,
+              "Revise as observacoes no painel e envie uma nova entrega quando concluir.",
+            ],
+            details: [
+              { label: "Projeto", value: project.title },
+              { label: "Solicitacao", value: normalizedReason },
+            ],
+            actionLabel: "Ver ajustes",
+            actionPath: "/dashboard/projetos-ativos",
+          },
+        });
+      }
     });
 
     techProjectPaths(project.id, project.professionalId);
-
-    if (project.professionalId) {
-      await upsertNotification({
-        userId: project.professionalId,
-        actorId: userId,
-        type: "WARNING",
-        eventType: "TECH_REVISION_REQUESTED",
-        title: "Revisao solicitada",
-        message: `O cliente pediu ajustes no projeto "${project.title}".`,
-        link: "/dashboard/projetos-ativos",
-        entityType: "TECH_PROJECT",
-        entityId: project.id,
-        metadata: { reason: normalizedReason },
-      });
-    }
 
     return { success: true };
   } catch (error) {
@@ -676,6 +880,12 @@ export async function openTechProjectDispute(
         ownerId: true,
         professionalId: true,
         status: true,
+        owner: {
+          select: { id: true, email: true, name: true, displayName: true },
+        },
+        professional: {
+          select: { id: true, email: true, name: true, displayName: true },
+        },
       },
     });
 
@@ -708,6 +918,8 @@ export async function openTechProjectDispute(
       };
     }
 
+    const counterpartyId =
+      project.ownerId === userId ? project.professionalId : project.ownerId;
     await db.$transaction(async (tx) => {
       await tx.deliverable.create({
         data: {
@@ -727,15 +939,9 @@ export async function openTechProjectDispute(
           disputeResolution: null,
         },
       });
-    });
 
-    techProjectPaths(project.id, project.professionalId);
-
-    const counterpartyId =
-      project.ownerId === userId ? project.professionalId : project.ownerId;
-
-    if (counterpartyId) {
-      await upsertNotification({
+      if (counterpartyId) {
+        await upsertNotification({
         userId: counterpartyId,
         actorId: userId,
         type: "WARNING",
@@ -746,8 +952,51 @@ export async function openTechProjectDispute(
         entityType: "TECH_PROJECT",
         entityId: project.id,
         metadata: { reason: normalizedReason },
-      });
-    }
+        }, tx);
+      }
+
+      const recipients = [
+        {
+          user: project.owner,
+          actionPath: "/dashboard/meus-projetos",
+        },
+        ...(project.professional
+          ? [
+              {
+                user: project.professional,
+                actionPath: "/dashboard/projetos-ativos",
+              },
+            ]
+          : []),
+      ];
+
+      for (const recipient of recipients) {
+        await enqueueTechEmail(tx, {
+          idempotencyKey: `TECH_DISPUTE_OPENED:${project.id}:${recipient.user.id}`,
+          eventType: "TECH_DISPUTE_OPENED",
+          templateKey: "tech.dispute.opened",
+          recipient: recipient.user,
+          entityType: "TECH_PROJECT",
+          entityId: project.id,
+          content: {
+            title: "Disputa aberta no projeto",
+            preview: `Uma disputa foi aberta em ${project.title}.`,
+            lines: [
+              "Uma disputa foi registrada e o projeto entrou em mediacao administrativa.",
+              "O pagamento permanece protegido enquanto a equipe analisa o caso.",
+            ],
+            details: [
+              { label: "Projeto", value: project.title },
+              { label: "Motivo informado", value: normalizedReason },
+            ],
+            actionLabel: "Acompanhar disputa",
+            actionPath: recipient.actionPath,
+          },
+        });
+      }
+    });
+
+    techProjectPaths(project.id, project.professionalId);
 
     await sendAdminNotification({
       roles: ["OWNER", "SUPPORT"],
@@ -823,6 +1072,8 @@ export async function resolveTechProjectDispute({
       professionalId: string | null;
       agreedPrice: Prisma.Decimal | null;
       status: ProjectStatus;
+      owner: TechDisputeEmailUser;
+      professional: TechDisputeEmailUser | null;
     };
 
     const project = (await db.project.findUnique({
@@ -834,6 +1085,12 @@ export async function resolveTechProjectDispute({
         professionalId: true,
         agreedPrice: true,
         status: true,
+        owner: {
+          select: { id: true, email: true, name: true, displayName: true },
+        },
+        professional: {
+          select: { id: true, email: true, name: true, displayName: true },
+        },
       } as Prisma.ProjectSelect,
     })) as ProjectDisputePayment | null;
 
@@ -854,6 +1111,10 @@ export async function resolveTechProjectDispute({
         error: "Projeto sem profissional ou valor acordado.",
       };
     }
+    if (!project.professional) {
+      return { success: false, error: "Profissional do projeto nao encontrado." };
+    }
+    const disputeProfessional = project.professional;
 
     await claimTechDisputeDecision({
       projectId: project.id,
@@ -979,6 +1240,17 @@ export async function resolveTechProjectDispute({
           },
         });
 
+        await queueTechDisputeResolutionCommunications(tx, {
+          projectId: freshProject.id,
+          projectTitle: freshProject.title,
+          amount: freshProject.agreedPrice.toNumber(),
+          owner: project.owner,
+          professional: disputeProfessional,
+          adminId: admin.session.sub,
+          decision,
+          reason: normalizedReason || "Nao informado",
+        });
+
         return;
       }
 
@@ -1049,6 +1321,17 @@ export async function resolveTechProjectDispute({
           platformFeePercent: PLATFORM_FEE_PERCENT,
         },
       });
+
+      await queueTechDisputeResolutionCommunications(tx, {
+        projectId: freshProject.id,
+        projectTitle: freshProject.title,
+        amount: freshProject.agreedPrice.toNumber(),
+        owner: project.owner,
+        professional: disputeProfessional,
+        adminId: admin.session.sub,
+        decision,
+        reason: normalizedReason || "Nao informado",
+      });
     }, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       maxWait: 5_000,
@@ -1067,46 +1350,6 @@ export async function resolveTechProjectDispute({
         `Motivo: ${normalizedReason || "Nao informado"}`,
       ],
       actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://maximusworldclick.com.br"}/dashboard/admin/disputas/tech/${project.id}`,
-    });
-
-    const clientWon = decision === "REFUND_CLIENT";
-
-    await upsertNotification({
-      userId: project.ownerId,
-      actorId: admin.session.sub,
-      type: clientWon ? "SUCCESS" : "INFO",
-      eventType: "TECH_DISPUTE_RESOLVED",
-      title: "Disputa resolvida",
-      message: clientWon
-        ? `A mediacao aprovou o reembolso do projeto "${project.title}".`
-        : `A mediacao liberou o pagamento do projeto "${project.title}" ao profissional.`,
-      link: "/dashboard/meus-projetos",
-      entityType: "TECH_PROJECT",
-      entityId: project.id,
-      metadata: {
-        decision,
-        reason: normalizedReason || null,
-        amount: project.agreedPrice.toNumber(),
-      },
-    });
-
-    await upsertNotification({
-      userId: project.professionalId,
-      actorId: admin.session.sub,
-      type: clientWon ? "WARNING" : "SUCCESS",
-      eventType: "TECH_DISPUTE_RESOLVED",
-      title: "Disputa resolvida",
-      message: clientWon
-        ? `A mediacao aprovou o reembolso do projeto "${project.title}".`
-        : `A mediacao liberou o pagamento do projeto "${project.title}" para sua carteira.`,
-      link: "/dashboard/projetos-ativos",
-      entityType: "TECH_PROJECT",
-      entityId: project.id,
-      metadata: {
-        decision,
-        reason: normalizedReason || null,
-        amount: project.agreedPrice.toNumber(),
-      },
     });
 
     return { success: true };

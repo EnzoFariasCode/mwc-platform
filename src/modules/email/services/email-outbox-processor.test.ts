@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   markSent: vi.fn(),
   markFailed: vi.fn(),
   markAttention: vi.fn(),
+  markCanceled: vi.fn(),
+  shouldDeliver: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -47,6 +49,10 @@ vi.mock("./email-outbox-service", () => ({
   markEmailOutboxAttemptSent: mocks.markSent,
   markEmailOutboxAttemptFailed: mocks.markFailed,
   markEmailOutboxAttemptRequiresAttention: mocks.markAttention,
+  markEmailOutboxAttemptCanceled: mocks.markCanceled,
+}));
+vi.mock("./tech-email-service", () => ({
+  shouldDeliverTechEmailOutbox: mocks.shouldDeliver,
 }));
 
 import {
@@ -143,6 +149,8 @@ describe("email outbox processor", () => {
     mocks.markSent.mockResolvedValue(true);
     mocks.markFailed.mockResolvedValue(true);
     mocks.markAttention.mockResolvedValue(true);
+    mocks.markCanceled.mockResolvedValue(true);
+    mocks.shouldDeliver.mockResolvedValue(true);
     mocks.notifyAttention.mockResolvedValue({ recipientCount: 1, failed: 0 });
     vi.spyOn(console, "info").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -178,6 +186,21 @@ describe("email outbox processor", () => {
         attemptNumber: 1,
         providerMessageId: "resend_1",
       }),
+    );
+  });
+
+  it("cancela aviso condicionado quando a conversa ja foi lida", async () => {
+    mocks.shouldDeliver.mockResolvedValue(false);
+
+    const metrics = await processEmailOutbox({ now });
+
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+    expect(mocks.markCanceled).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ outboxId: "email_1", attemptNumber: 1 }),
+    );
+    expect(metrics).toEqual(
+      expect.objectContaining({ claimed: 1, sent: 0, skipped: 1 }),
     );
   });
 

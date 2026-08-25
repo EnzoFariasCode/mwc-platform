@@ -1,0 +1,1 @@
+ALTER TYPE "EmailDeliveryAttemptOutcome" ADD VALUE IF NOT EXISTS 'CANCELED';

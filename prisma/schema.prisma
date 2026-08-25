@@ -38,6 +38,7 @@ enum EmailDeliveryAttemptOutcome {
   PROCESSING
   SENT
   FAILED
+  CANCELED
 }
 
 // Diferencia os "mundos" dentro da plataforma

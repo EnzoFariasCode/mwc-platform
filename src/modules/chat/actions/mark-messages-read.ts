@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { markEntityNotificationsRead } from "@/modules/notifications/services/notification-service";
 import { findChatBlockBetween } from "@/modules/chat/lib/chat-moderation";
+import { cancelPendingTechChatEmails } from "@/modules/email/services/tech-email-service";
 
 export async function markMessagesAsRead(
   targetUserId: string
@@ -44,29 +45,33 @@ export async function markMessagesAsRead(
     // Se eu sou o A, zero o unreadCountA. Se sou B, zero o unreadCountB.
     const isImParticipantA = conversation.participantAId === myId;
 
-    await db.conversation.update({
-      where: { id: conversation.id },
-      data: {
-        // Zera APENAS o meu contador
-        ...(isImParticipantA ? { unreadCountA: 0 } : { unreadCountB: 0 }),
-      },
-    });
+    await db.$transaction(async (tx) => {
+      await tx.conversation.update({
+        where: { id: conversation.id },
+        data: {
+          ...(isImParticipantA ? { unreadCountA: 0 } : { unreadCountB: 0 }),
+        },
+      });
 
-    // Opcional: Marcar flag "read" nas mensagens individuais (para tique azul)
-    // Isso pode ser pesado se tiver mil mensagens, mas ok para MVP.
-    await db.message.updateMany({
-      where: {
+      await tx.message.updateMany({
+        where: {
+          conversationId: conversation.id,
+          senderId: targetUserId,
+          read: false,
+        },
+        data: { read: true },
+      });
+
+      await markEntityNotificationsRead({
+        userId: myId,
+        entityType: "CONVERSATION",
+        entityId: conversation.id,
+      }, tx);
+
+      await cancelPendingTechChatEmails(tx, {
         conversationId: conversation.id,
-        senderId: targetUserId, // Mensagens enviadas pelo OUTRO
-        read: false,
-      },
-      data: { read: true },
-    });
-
-    await markEntityNotificationsRead({
-      userId: myId,
-      entityType: "CONVERSATION",
-      entityId: conversation.id,
+        recipientUserId: myId,
+      });
     });
 
     revalidatePath("/dashboard/chat");

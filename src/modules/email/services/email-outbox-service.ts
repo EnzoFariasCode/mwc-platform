@@ -686,6 +686,48 @@ export async function markEmailOutboxAttemptSent(
   return true;
 }
 
+export async function markEmailOutboxAttemptCanceled(
+  client: EmailOutboxDatabaseClient,
+  input: {
+    outboxId: string;
+    attemptNumber: number;
+    canceledAt?: Date;
+  },
+) {
+  const canceledAt = input.canceledAt ?? new Date();
+  const updated = await client.emailOutbox.updateMany({
+    where: {
+      id: input.outboxId,
+      status: EmailOutboxStatus.PROCESSING,
+      attemptCount: input.attemptNumber,
+    },
+    data: {
+      status: EmailOutboxStatus.CANCELED,
+      processingStartedAt: null,
+      canceledAt,
+      failedAt: null,
+      requiresAttentionAt: null,
+      lastErrorCode: null,
+      lastErrorMessage: null,
+    },
+  });
+
+  if (updated.count !== 1) return false;
+
+  await client.emailDeliveryAttempt.updateMany({
+    where: {
+      emailOutboxId: input.outboxId,
+      attemptNumber: input.attemptNumber,
+      outcome: EmailDeliveryAttemptOutcome.PROCESSING,
+    },
+    data: {
+      outcome: EmailDeliveryAttemptOutcome.CANCELED,
+      finishedAt: canceledAt,
+    },
+  });
+  return true;
+}
+
 export async function markEmailOutboxAttemptFailed(
   client: EmailOutboxDatabaseClient,
   input: {

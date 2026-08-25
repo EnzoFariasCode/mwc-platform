@@ -6,6 +6,7 @@ import { upsertNotification } from "@/modules/notifications/services/notificatio
 import { getTechProjectLimitStatus } from "@/modules/subscriptions/tech-plan-limits";
 import { ActionResponse } from "@/modules/users/types/user-types";
 import { revalidatePath } from "next/cache";
+import { enqueueTechEmail } from "@/modules/email/services/tech-email-service";
 
 interface CreateProposalData {
   projectId: string;
@@ -75,6 +76,11 @@ export async function createProposal(
 
     const project = await db.project.findUnique({
       where: { id: data.projectId },
+      include: {
+        owner: {
+          select: { id: true, email: true, name: true, displayName: true },
+        },
+      },
     });
 
     if (!project) {
@@ -125,8 +131,18 @@ export async function createProposal(
       };
     }
 
-    const proposal = existingProposal
-      ? await db.$transaction(async (tx) => {
+    const professional = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, displayName: true },
+    });
+    if (!professional) {
+      return { success: false, error: "Profissional nao encontrado." };
+    }
+
+    const proposalEventAt = new Date();
+    const proposal = await db.$transaction(async (tx) => {
+      const storedProposal = existingProposal
+        ? await (async () => {
           const reactivated = await tx.proposal.updateMany({
             where: {
               id: existingProposal.id,
@@ -139,6 +155,7 @@ export async function createProposal(
               estimatedDays: days,
               coverLetter,
               status: "PENDING",
+              updatedAt: proposalEventAt,
             },
           });
 
@@ -154,8 +171,8 @@ export async function createProposal(
           }
 
           return { id: existingProposal.id };
-        })
-      : await db.$transaction(async (tx) => {
+        })()
+        : await (async () => {
           const openProject = await tx.project.updateMany({
             where: { id: data.projectId, status: "OPEN" },
             data: { bidsCount: { increment: 1 } },
@@ -176,7 +193,59 @@ export async function createProposal(
             },
             select: { id: true },
           });
-        });
+        })();
+
+      if (!storedProposal) return null;
+
+      await upsertNotification({
+        userId: project.ownerId,
+        actorId: userId,
+        type: "INFO",
+        eventType: "TECH_PROPOSAL_RECEIVED",
+        title: "Nova proposta recebida",
+        message: `Seu projeto "${project.title}" recebeu uma nova proposta.`,
+        link: "/dashboard/meus-projetos",
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        metadata: {
+          proposalId: storedProposal.id,
+          professionalId: userId,
+          price,
+        },
+      }, tx);
+
+      await enqueueTechEmail(tx, {
+        idempotencyKey: `TECH_PROPOSAL_RECEIVED:${storedProposal.id}:${project.ownerId}:${proposalEventAt.toISOString()}`,
+        eventType: "TECH_PROPOSAL_RECEIVED",
+        templateKey: "tech.proposal.received",
+        recipient: project.owner,
+        entityType: "TECH_PROJECT",
+        entityId: project.id,
+        content: {
+          title: "Nova proposta recebida",
+          preview: `Seu projeto ${project.title} recebeu uma proposta.`,
+          lines: [
+            `${professional.displayName || professional.name} enviou uma proposta para o seu projeto.`,
+            "Compare o valor, o prazo e o perfil do profissional antes de decidir.",
+          ],
+          details: [
+            { label: "Projeto", value: project.title },
+            {
+              label: "Valor proposto",
+              value: price.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              }),
+            },
+            { label: "Prazo", value: `${days} dias` },
+          ],
+          actionLabel: "Analisar proposta",
+          actionPath: "/dashboard/meus-projetos",
+        },
+      });
+
+      return storedProposal;
+    });
 
     if (!proposal) {
       return {
@@ -184,23 +253,6 @@ export async function createProposal(
         error: "A proposta mudou de status e nao pode ser reenviada.",
       };
     }
-
-    await upsertNotification({
-      userId: project.ownerId,
-      actorId: userId,
-      type: "INFO",
-      eventType: "TECH_PROPOSAL_RECEIVED",
-      title: "Nova proposta recebida",
-      message: `Seu projeto "${project.title}" recebeu uma nova proposta.`,
-      link: "/dashboard/meus-projetos",
-      entityType: "TECH_PROJECT",
-      entityId: project.id,
-      metadata: {
-        proposalId: proposal.id,
-        professionalId: userId,
-        price,
-      },
-    });
 
     revalidatePath(`/dashboard/encontrar-projetos/${data.projectId}`);
     revalidatePath("/dashboard/meus-projetos");

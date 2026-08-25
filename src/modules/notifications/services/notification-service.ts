@@ -90,8 +90,8 @@ export async function markEntityNotificationsRead({
   userId: string;
   entityType: string;
   entityId: string;
-}) {
-  await db.notification.updateMany({
+}, client: NotificationClient = db) {
+  await client.notification.updateMany({
     where: {
       userId,
       entityType,

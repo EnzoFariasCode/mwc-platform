@@ -4,6 +4,10 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { baseEmail, paragraph } from "./base-email";
+import {
+  renderTechTransactionalEmail,
+  TECH_EMAIL_TEMPLATE_KEYS,
+} from "./tech-emails";
 
 export type RenderedTransactionalEmail = {
   subject: string;
@@ -67,6 +71,10 @@ const templateRegistry = new Map<string, EmailTemplateRenderer>([
       return { subject, text, html };
     },
   ],
+  ...TECH_EMAIL_TEMPLATE_KEYS.map(
+    (templateKey) =>
+      [`${templateKey}:v1`, renderTechTransactionalEmail] as const,
+  ),
 ]);
 
 function registryKey(templateKey: string, templateVersion: number) {
@@ -87,5 +95,12 @@ export function renderTransactionalEmailTemplate({
     throw new EmailTemplateNotFoundError(templateKey, templateVersion);
   }
 
-  return renderer(payload);
+  try {
+    return renderer(payload);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new EmailTemplatePayloadError(templateKey, templateVersion);
+    }
+    throw error;
+  }
 }

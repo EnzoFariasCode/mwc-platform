@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { getTechProjectLimitStatus } from "@/modules/subscriptions/tech-plan-limits";
+import { enqueueTechEmail } from "@/modules/email/services/tech-email-service";
 
 type FinalizeProjectPaymentInput = {
   proposalId: string;
@@ -41,9 +42,19 @@ export async function finalizeProjectPayment({
   const proposal = await db.proposal.findUnique({
     where: { id: proposalId },
     include: {
-      project: true,
+      project: {
+        include: {
+          owner: {
+            select: { id: true, email: true, name: true, displayName: true },
+          },
+        },
+      },
       professional: {
         select: {
+          id: true,
+          email: true,
+          name: true,
+          displayName: true,
           stripeSubscriptionStatus: true,
           stripePriceId: true,
           professionalPlanTier: true,
@@ -258,6 +269,20 @@ export async function finalizeProjectPayment({
         } as FinalizeProjectPaymentResult;
       }
 
+      const rejectedProposals = await tx.proposal.findMany({
+        where: {
+          projectId: proposal.projectId,
+          id: { not: proposalId },
+          status: ProposalStatus.PENDING,
+        },
+        select: {
+          id: true,
+          professional: {
+            select: { id: true, email: true, name: true, displayName: true },
+          },
+        },
+      });
+
       await tx.proposal.updateMany({
         where: {
           projectId: proposal.projectId,
@@ -302,14 +327,6 @@ export async function finalizeProjectPayment({
         },
       });
 
-      return { success: true };
-    }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    });
-
-    const finalResult = result as FinalizeProjectPaymentResult;
-
-    if (finalResult.success && !finalResult.alreadyProcessed) {
       await upsertNotification({
         userId: proposal.professionalId,
         actorId: buyerId,
@@ -326,8 +343,91 @@ export async function finalizeProjectPayment({
           stripeSessionId: stripeSessionId ?? null,
           source,
         },
+      }, tx);
+
+      await enqueueTechEmail(tx, {
+        idempotencyKey: `TECH_PROPOSAL_ACCEPTED:${proposalId}:${proposal.professionalId}`,
+        eventType: "TECH_PROPOSAL_ACCEPTED",
+        templateKey: "tech.proposal.accepted",
+        recipient: proposal.professional,
+        entityType: "TECH_PROJECT",
+        entityId: proposal.projectId,
+        content: {
+          title: "Proposta aceita e pagamento confirmado",
+          preview: `Sua proposta para ${proposal.project.title} foi aceita.`,
+          lines: [
+            "O cliente aceitou sua proposta e o pagamento foi confirmado pela Stripe.",
+            "O projeto esta liberado para inicio. Consulte os detalhes e os arquivos disponibilizados pelo cliente.",
+          ],
+          details: [
+            { label: "Projeto", value: proposal.project.title },
+            {
+              label: "Valor acordado",
+              value: proposal.price.toNumber().toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              }),
+            },
+          ],
+          actionLabel: "Abrir projeto",
+          actionPath: "/dashboard/projetos-ativos",
+        },
       });
-    }
+
+      await enqueueTechEmail(tx, {
+        idempotencyKey: `TECH_PROJECT_STARTED:${proposal.projectId}:${proposal.project.ownerId}`,
+        eventType: "TECH_PROJECT_STARTED",
+        templateKey: "tech.project.started",
+        recipient: proposal.project.owner,
+        entityType: "TECH_PROJECT",
+        entityId: proposal.projectId,
+        content: {
+          title: "Projeto iniciado",
+          preview: `O pagamento de ${proposal.project.title} foi confirmado.`,
+          lines: [
+            "O pagamento foi confirmado e o profissional ja pode iniciar o trabalho.",
+            "Acompanhe o andamento pelo painel e mantenha a comunicacao dentro da plataforma.",
+          ],
+          details: [
+            { label: "Projeto", value: proposal.project.title },
+            {
+              label: "Profissional",
+              value: proposal.professional.displayName || proposal.professional.name,
+            },
+          ],
+          actionLabel: "Acompanhar projeto",
+          actionPath: "/dashboard/meus-projetos",
+        },
+      });
+
+      for (const { id, professional } of rejectedProposals) {
+        await enqueueTechEmail(tx, {
+            idempotencyKey: `TECH_PROPOSAL_REJECTED:${id}:${professional.id}`,
+            eventType: "TECH_PROPOSAL_REJECTED",
+            templateKey: "tech.proposal.rejected",
+            recipient: professional,
+            entityType: "TECH_PROJECT",
+            entityId: proposal.projectId,
+            content: {
+              title: "Atualizacao de proposta",
+              preview: `O projeto ${proposal.project.title} selecionou outra proposta.`,
+              lines: [
+                "O cliente selecionou outra proposta para este projeto.",
+                "Sua proposta foi encerrada sem qualquer penalidade para o seu perfil.",
+              ],
+              details: [{ label: "Projeto", value: proposal.project.title }],
+              actionLabel: "Encontrar outros projetos",
+              actionPath: "/dashboard/encontrar-projetos",
+            },
+        });
+      }
+
+      return { success: true };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
+
+    const finalResult = result as FinalizeProjectPaymentResult;
 
     return finalResult;
   } catch (error) {

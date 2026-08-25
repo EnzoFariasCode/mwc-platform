@@ -15,6 +15,7 @@ import {
   EmailOutboxIdempotencyConflictError,
   EmailOutboxValidationError,
   enqueueTransactionalEmail,
+  markEmailOutboxAttemptCanceled,
   markEmailOutboxAttemptFailed,
   markEmailOutboxAttemptRequiresAttention,
   listDueEmailOutboxIds,
@@ -436,6 +437,38 @@ describe("email outbox", () => {
         data: expect.objectContaining({
           outcome: EmailDeliveryAttemptOutcome.FAILED,
           errorCode: "EMAIL_TEMPLATE_NOT_FOUND",
+        }),
+      }),
+    );
+  });
+
+  it("cancela claim sem registrar uma tentativa como falha", async () => {
+    const client = makeClient();
+    vi.mocked(client.emailOutbox.updateMany).mockResolvedValue({ count: 1 });
+    vi.mocked(client.emailDeliveryAttempt.updateMany).mockResolvedValue({
+      count: 1,
+    });
+
+    const result = await markEmailOutboxAttemptCanceled(client, {
+      outboxId: "email_1",
+      attemptNumber: 1,
+      canceledAt: now,
+    });
+
+    expect(result).toBe(true);
+    expect(client.emailOutbox.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: EmailOutboxStatus.CANCELED,
+          canceledAt: now,
+        }),
+      }),
+    );
+    expect(client.emailDeliveryAttempt.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          outcome: EmailDeliveryAttemptOutcome.CANCELED,
+          finishedAt: now,
         }),
       }),
     );
