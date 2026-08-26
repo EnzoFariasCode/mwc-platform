@@ -6,6 +6,7 @@ import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { ReconciliationActions } from "./ReconciliationActions";
 import { RescheduleReconciliationAction } from "./RescheduleReconciliationAction";
 import { MeetingReconciliationActions } from "./MeetingReconciliationActions";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 
 function stepLabel(status: string) {
   return status === "PENDING"
@@ -106,7 +107,7 @@ export default async function AdminReconciliacoesPage() {
 
   return (
     <PageContainer>
-      <section className="space-y-3">
+      <section className="space-y-5">
         <Link
           href="/dashboard/admin"
           className="inline-flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white"
@@ -114,19 +115,17 @@ export default async function AdminReconciliacoesPage() {
           <ArrowLeft className="h-4 w-4" />
           Voltar ao painel
         </Link>
-        <div>
-          <h1 className="text-3xl font-bold text-white">
-            Reconciliacao MWC Online
-          </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Acompanhe salas, cancelamentos e reagendamentos que exigem
-            intervencao. Falhas tecnicas na sala nao cancelam o pagamento.
-          </p>
-        </div>
+        <AdminPageHeader
+          eyebrow="Operação assistida"
+          title="Reconciliação MWC Online"
+          description="Acompanhe salas, cancelamentos e reagendamentos que exigem intervenção. Falhas técnicas na sala não cancelam o pagamento."
+          icon={Clock3}
+          tone="warning"
+        />
       </section>
 
       {!hasProcesses ? (
-        <section className="flex min-h-64 flex-col items-center justify-center rounded-lg border border-dashed border-white/10 text-center">
+        <section className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed border-white/10 text-center">
           <CheckCircle2 className="mb-3 h-8 w-8 text-emerald-400" />
           <h2 className="font-semibold text-white">Nenhuma pendencia</h2>
           <p className="mt-1 text-sm text-slate-500">
@@ -143,7 +142,7 @@ export default async function AdminReconciliacoesPage() {
               {meetings.map((appointment) => (
                 <article
                   key={appointment.id}
-                  className="rounded-lg border border-amber-500/20 bg-slate-900/70 p-5"
+                  className="rounded-xl border border-amber-500/20 bg-slate-900/70 p-4 sm:p-5"
                 >
                   <div className="flex flex-col justify-between gap-4 lg:flex-row">
                     <div className="min-w-0">
@@ -163,7 +162,7 @@ export default async function AdminReconciliacoesPage() {
                         tecnicas
                       </p>
                       {appointment.meetAttentionRequiredAt && (
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-slate-500 [overflow-wrap:anywhere]">
                           Em suporte desde{" "}
                           {appointment.meetAttentionRequiredAt.toLocaleString(
                             "pt-BR",
@@ -184,7 +183,7 @@ export default async function AdminReconciliacoesPage() {
                   </div>
 
                   {appointment.meetLastError && (
-                    <p className="mt-4 rounded-lg border border-red-500/15 bg-red-500/5 px-3 py-2 text-xs leading-5 text-red-200">
+                    <p className="mt-4 rounded-lg border border-red-500/15 bg-red-500/5 px-3 py-2 text-xs leading-5 text-red-200 [overflow-wrap:anywhere]">
                       {appointment.meetLastError}
                     </p>
                   )}
@@ -192,7 +191,7 @@ export default async function AdminReconciliacoesPage() {
                   {appointment.meetingAttempts.length > 0 && (
                     <div className="mt-4 space-y-1 text-xs text-slate-500">
                       {appointment.meetingAttempts.map((attempt) => (
-                        <p key={attempt.id}>
+                        <p key={attempt.id} className="[overflow-wrap:anywhere]">
                           {attempt.createdAt.toLocaleString("pt-BR")} ·{" "}
                           {attempt.operation} ·{" "}
                           {attempt.providerStatus || attempt.outcome}
@@ -227,7 +226,7 @@ export default async function AdminReconciliacoesPage() {
                 return (
                   <article
                     key={process.id}
-                    className="rounded-lg border border-white/10 bg-slate-900/70 p-5"
+                    className="rounded-xl border border-white/10 bg-slate-900/70 p-4 sm:p-5"
                   >
                     <div className="flex flex-col justify-between gap-4 lg:flex-row">
                       <div className="min-w-0">
@@ -258,7 +257,7 @@ export default async function AdminReconciliacoesPage() {
                       </dl>
                     </div>
                     {process.lastError && (
-                      <p className="mt-4 rounded-lg border border-red-500/15 bg-red-500/5 px-3 py-2 text-xs leading-5 text-red-200">
+                      <p className="mt-4 rounded-lg border border-red-500/15 bg-red-500/5 px-3 py-2 text-xs leading-5 text-red-200 [overflow-wrap:anywhere]">
                         {process.lastError}
                       </p>
                     )}
@@ -287,7 +286,7 @@ export default async function AdminReconciliacoesPage() {
                 return (
                   <article
                     key={process.id}
-                    className="rounded-lg border border-white/10 bg-slate-900/70 p-5"
+                    className="rounded-xl border border-white/10 bg-slate-900/70 p-4 sm:p-5"
                   >
                     <div className="flex flex-col justify-between gap-4 lg:flex-row">
                       <div className="min-w-0">
@@ -317,7 +316,7 @@ export default async function AdminReconciliacoesPage() {
                       </dl>
                     </div>
                     {process.lastError && (
-                      <p className="mt-4 rounded-lg border border-red-500/15 bg-red-500/5 px-3 py-2 text-xs leading-5 text-red-200">
+                      <p className="mt-4 rounded-lg border border-red-500/15 bg-red-500/5 px-3 py-2 text-xs leading-5 text-red-200 [overflow-wrap:anywhere]">
                         {process.lastError}
                       </p>
                     )}

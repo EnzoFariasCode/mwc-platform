@@ -81,7 +81,7 @@ export default function AdminChatReportActions({
   }
 
   return (
-    <div className="space-y-5 rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+    <div className="space-y-5 rounded-xl border border-white/10 bg-slate-900/70 p-4 sm:p-5">
       <div>
         <h2 className="font-bold text-white">Decisao administrativa</h2>
         <p className="mt-1 text-sm text-slate-400">

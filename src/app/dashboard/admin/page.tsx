@@ -16,6 +16,8 @@ import { requireAdminUser } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { canAccessAdminRoles } from "@/modules/admin/lib/admin-permissions";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
+import { AdminMetricCard } from "@/modules/admin/components/AdminMetricCard";
 
 async function getAdminOverview() {
   const [
@@ -96,30 +98,35 @@ export default async function AdminDashboardPage() {
       value: overview.totalUsers,
       detail: `${overview.activeUsers} ativos`,
       icon: Users,
+      tone: "brand" as const,
     },
     {
       label: "Profissionais",
       value: overview.professionals,
       detail: "Contas operacionais",
       icon: ShieldCheck,
+      tone: "success" as const,
     },
     {
       label: "Projetos abertos",
       value: overview.openProjects,
       detail: "Disponiveis para propostas",
       icon: Briefcase,
+      tone: "neutral" as const,
     },
     {
       label: "Saques pendentes",
       value: overview.pendingWithdrawals,
       detail: "Aguardando tesouraria",
       icon: Wallet,
+      tone: "warning" as const,
     },
     {
       label: "Denuncias abertas",
       value: overview.openChatReports,
       detail: "Chat do Marketplace Tech",
       icon: Flag,
+      tone: "danger" as const,
     },
     {
       label: "Webhook Stripe",
@@ -128,12 +135,14 @@ export default async function AdminDashboardPage() {
         ? `Ultimo: ${overview.latestStripeEvent.type} (${overview.latestStripeEvent.status})`
         : "Nenhum evento recebido",
       icon: Webhook,
+      tone: overview.failedStripeEvents > 0 ? "danger" as const : "success" as const,
     },
     {
       label: "E-mails com falha",
       value: overview.emailAttentionRequired,
       detail: "Exigem analise administrativa",
       icon: MailWarning,
+      tone: overview.emailAttentionRequired > 0 ? "danger" as const : "success" as const,
     },
   ];
 
@@ -193,57 +202,46 @@ export default async function AdminDashboardPage() {
 
   return (
     <PageContainer>
-      <section className="space-y-2">
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#d73cbe]/30 bg-[#d73cbe]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#d73cbe]">
-          <ShieldCheck className="h-3.5 w-3.5" />
-          ADMIN
-        </div>
-        <h1 className="text-3xl font-bold text-white">
-          Painel administrativo
-        </h1>
-        <p className="max-w-3xl text-sm text-slate-400">
-          Visao geral da operacao MWC para suporte, mediacao e financeiro.
-          Papel atual: {admin.adminRole}.
-        </p>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {cards.map((card) => (
-          <div
-            key={card.label}
-            className="rounded-lg border border-white/10 bg-slate-900/70 p-5"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm text-slate-400">{card.label}</p>
-                <p className="mt-2 text-3xl font-bold text-white">
-                  {card.value}
-                </p>
-              </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/5 text-[#d73cbe]">
-                <card.icon className="h-5 w-5" />
-              </div>
-            </div>
-            <p className="mt-4 text-xs text-slate-500">{card.detail}</p>
+      <AdminPageHeader
+        eyebrow="Administracao"
+        title="Painel administrativo"
+        description="Visao consolidada da operacao MWC para suporte, mediacao e financeiro."
+        icon={ShieldCheck}
+        actions={
+          <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-xs text-slate-400">
+            Perfil: <span className="font-semibold text-white">{admin.adminRole}</span>
           </div>
+        }
+      />
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {cards.map((card) => (
+          <AdminMetricCard
+            key={card.label}
+            label={card.label}
+            value={card.value}
+            detail={card.detail}
+            icon={card.icon}
+            tone={card.tone}
+          />
         ))}
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
         {shortcuts.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className="group rounded-lg border border-white/10 bg-slate-900/70 p-5 transition-colors hover:border-[#d73cbe]/40 hover:bg-slate-900"
+            className="group flex min-h-32 flex-col rounded-xl border border-white/[0.08] bg-slate-900/70 p-4 transition-colors hover:border-[#d73cbe]/35 hover:bg-slate-900"
           >
-            <div className="mb-5 flex items-center justify-between">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/5 text-[#d73cbe]">
-                <item.icon className="h-5 w-5" />
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#d73cbe]/10 text-[#e879d8]">
+                <item.icon className="h-4 w-4" />
               </div>
               <ArrowRight className="h-5 w-5 text-slate-500 transition-transform group-hover:translate-x-1 group-hover:text-[#d73cbe]" />
             </div>
-            <h2 className="text-lg font-bold text-white">{item.title}</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
+            <h2 className="text-sm font-semibold text-white">{item.title}</h2>
+            <p className="mt-1.5 text-xs leading-5 text-slate-400">
               {item.description}
             </p>
           </Link>

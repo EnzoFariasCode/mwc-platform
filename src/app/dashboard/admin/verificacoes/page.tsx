@@ -8,6 +8,8 @@ import {
   verificationStatusLabel,
 } from "@/modules/health/lib/professional-verification-policy";
 import { AdminPagination } from "@/modules/admin/components/AdminPagination";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
+import { AdminMetricCard } from "@/modules/admin/components/AdminMetricCard";
 
 const PAGE_SIZE = 25;
 
@@ -49,24 +51,25 @@ export default async function AdminVerificationsPage({
 
   return (
     <PageContainer>
-      <div className="space-y-7">
-        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#d73cbe]/20 bg-[#d73cbe]/10 px-3 py-1 text-xs font-bold uppercase text-[#d73cbe]">
-              <ShieldCheck className="h-3.5 w-3.5" /> MWC Online
+      <div className="space-y-8">
+        <AdminPageHeader
+          eyebrow="MWC Online"
+          title="Verificações profissionais"
+          description="Analise documentos, consulte o conselho oficial e libere o profissional para receber agendamentos."
+          icon={ShieldCheck}
+          actions={
+            <div className="w-full min-w-44 sm:w-auto">
+              <AdminMetricCard
+                label="Aguardando análise"
+                value={pending}
+                icon={FileCheck2}
+                tone="warning"
+              />
             </div>
-            <h1 className="mt-3 text-2xl font-bold text-white">Verificacoes profissionais</h1>
-            <p className="mt-1 text-sm text-slate-400">
-              Analise documentos, consulte o conselho oficial e libere o profissional.
-            </p>
-          </div>
-          <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3">
-            <p className="text-xs font-bold uppercase text-amber-300">Aguardando</p>
-            <p className="mt-1 text-2xl font-bold text-white">{pending}</p>
-          </div>
-        </header>
+          }
+        />
 
-        <section className="overflow-hidden rounded-lg border border-white/10 bg-slate-900/70">
+        <section className="overflow-hidden rounded-xl border border-white/10 bg-slate-900/70">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[880px] text-left text-sm">
               <thead className="border-b border-white/10 bg-slate-950 text-xs uppercase text-slate-500">

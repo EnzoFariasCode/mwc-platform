@@ -10,6 +10,8 @@ import {
   toggleUserStatus,
   updateAdminRole,
 } from "@/modules/admin/actions/user-actions";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
+import { AdminMetricCard } from "@/modules/admin/components/AdminMetricCard";
 
 export type AdminUserItem = {
   id: string;
@@ -141,37 +143,28 @@ export default function AdminUsuariosView({
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#d73cbe]/20 bg-[#d73cbe]/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-[#d73cbe]">
-            <UserCog className="h-3.5 w-3.5" />
-            CRM interno
+      <AdminPageHeader
+        eyebrow="CRM interno"
+        title="Controle de usuários"
+        description="Consulte todos os usuários e suspenda contas sem apagar dados transacionais ou médicos."
+        icon={UserCog}
+        actions={
+          <div className="w-full min-w-44 sm:w-auto">
+            <AdminMetricCard
+              label="Usuários encontrados"
+              value={pagination.totalItems}
+              icon={UserCog}
+            />
           </div>
-          <h1 className="text-2xl font-bold text-white font-futura">
-            Controle de Usuários
-          </h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Consulte todos os usuarios e suspenda contas sem apagar dados
-            transacionais ou medicos.
-          </p>
-        </div>
+        }
+      />
 
-        <div className="rounded-xl border border-white/5 bg-slate-900 px-4 py-3 text-right">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-            Listados
-          </p>
-          <p className="text-xl font-bold text-white">
-            {pagination.totalItems}
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-white/5 bg-slate-900 p-4">
+      <div className="rounded-xl border border-white/[0.08] bg-slate-900/70 p-4">
         <form
           method="get"
-          className="grid gap-3 xl:grid-cols-[1.5fr_0.75fr_0.75fr_0.75fr_0.75fr_0.75fr_auto_auto]"
+          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-[1.5fr_0.75fr_0.75fr_0.75fr_0.75fr_0.75fr_auto_auto]"
         >
-          <label className="relative">
+          <label className="relative sm:col-span-2 xl:col-span-2 2xl:col-span-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               name="q"
@@ -222,13 +215,13 @@ export default function AdminUsuariosView({
           />
           <button
             type="submit"
-            className="h-11 rounded-xl bg-[#d73cbe] px-4 text-xs font-bold text-white transition-colors hover:bg-[#b02da0]"
+            className="inline-flex h-11 items-center justify-center rounded-lg bg-[#d73cbe] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#b02da0]"
           >
             Aplicar
           </button>
           <Link
             href="/dashboard/admin/usuarios"
-            className="h-11 rounded-xl border border-white/10 bg-slate-950 px-4 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800"
+            className="inline-flex h-11 items-center justify-center rounded-lg border border-white/10 bg-slate-950 px-4 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-800"
           >
             Limpar
           </Link>
@@ -238,7 +231,7 @@ export default function AdminUsuariosView({
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-white/5 bg-slate-900 shadow-lg shadow-black/10">
+      <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-slate-900/70 shadow-sm shadow-black/10">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1120px] text-left text-sm">
             <thead className="border-b border-white/5 bg-slate-950 text-xs uppercase tracking-wide text-slate-500">

@@ -20,6 +20,8 @@ import { approveWithdrawal } from "@/modules/admin/actions/approve-withdrawal";
 import { rejectWithdrawal } from "@/modules/admin/actions/reject-withdrawal";
 import { uploadWithdrawalReceipt } from "@/modules/admin/actions/upload-withdrawal-receipt";
 import { resendWithdrawalReceiptEmail } from "@/modules/admin/actions/resend-withdrawal-receipt-email";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
+import { AdminMetricCard } from "@/modules/admin/components/AdminMetricCard";
 
 type WithdrawalStatusFilter =
   | "ALL"
@@ -268,36 +270,42 @@ export default function AdminFinanceiroView({
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-300">
-            <Landmark className="h-3.5 w-3.5" />
-            Tesouraria
-          </div>
-          <h1 className="text-2xl font-bold text-white font-futura">
-            Saques PIX
-          </h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Confira os dados, realize o Pix e marque como pago anexando o
-            comprovante. A plataforma enviara o arquivo ao profissional por
-            e-mail.
-          </p>
-        </div>
+      <AdminPageHeader
+        eyebrow="Tesouraria"
+        title="Saques via Pix"
+        description="Confira os dados, realize a transferência e marque o saque como pago anexando o comprovante que será enviado ao profissional."
+        icon={Landmark}
+        tone="success"
+      />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Metric label="Pendentes" value={summary.pendingCount.toString()} />
-          <Metric label="A transferir" value={formatMoney(summary.pendingAmount)} />
-          <Metric label="Transferido" value={formatMoney(summary.completedAmount)} />
-        </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <AdminMetricCard
+          label="Saques pendentes"
+          value={summary.pendingCount}
+          icon={Landmark}
+          tone="warning"
+        />
+        <AdminMetricCard
+          label="Valor a transferir"
+          value={formatMoney(summary.pendingAmount)}
+          icon={CircleDollarSign}
+          tone="warning"
+        />
+        <AdminMetricCard
+          label="Valor transferido"
+          value={formatMoney(summary.completedAmount)}
+          icon={CheckCircle2}
+          tone="success"
+        />
       </div>
 
-      <div className="rounded-2xl border border-white/5 bg-slate-900 p-4">
+      <div className="rounded-xl border border-white/[0.08] bg-slate-900/70 p-4">
         <form
           method="get"
-          className="grid gap-3 lg:grid-cols-[1.6fr_0.8fr_0.8fr_auto_auto]"
+          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.6fr_0.8fr_0.8fr_auto_auto]"
         >
           <input type="hidden" name="status" value={query.status} />
-          <label className="relative">
+          <label className="relative sm:col-span-2 xl:col-span-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               name="q"
@@ -360,7 +368,7 @@ export default function AdminFinanceiroView({
       </div>
 
       {withdrawals.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-12 text-center">
+        <div className="rounded-xl border border-dashed border-white/10 bg-slate-900/50 p-10 text-center">
           <CheckCircle2 className="mx-auto mb-4 h-10 w-10 text-emerald-400" />
           <h2 className="text-lg font-bold text-white">
             Nenhum registro neste filtro
@@ -370,7 +378,7 @@ export default function AdminFinanceiroView({
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-white/5 bg-slate-900 shadow-lg shadow-black/10">
+        <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-slate-900/70 shadow-sm shadow-black/10">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1040px] text-left text-sm">
               <thead className="border-b border-white/5 bg-slate-950 text-xs uppercase tracking-wide text-slate-500">
@@ -761,17 +769,6 @@ export default function AdminFinanceiroView({
           </Link>
         </nav>
       )}
-    </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-white/5 bg-slate-900 px-4 py-3 text-right">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-      <p className="text-xl font-bold text-white">{value}</p>
     </div>
   );
 }

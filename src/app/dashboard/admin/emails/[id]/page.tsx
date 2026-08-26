@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, ExternalLink, RotateCcw, ShieldAlert } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ExternalLink, Mail, RotateCcw, ShieldAlert } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { retryEmailOutboxAdmin } from "@/modules/admin/actions/retry-email-outbox";
 import { getAdminEmailOutboxDetail } from "@/modules/admin/services/admin-email-outbox-service";
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { renderTransactionalEmailTemplate } from "@/modules/email/templates/email-template-registry";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 
 const resultMessages: Record<string, string> = {
   "smoke-queued": "Teste operacional criado. O cron processara este e-mail em poucos minutos.",
@@ -62,21 +63,20 @@ export default async function AdminEmailDetailPage({ params, searchParams }: {
           </div>
         )}
 
-        <section className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-[#e879d8]">{email.eventType}</p>
-            <h1 className="mt-2 text-2xl font-bold text-white">Detalhes do envio</h1>
-            <p className="mt-2 text-sm text-slate-400">{email.recipientEmail} · {email.status}</p>
-          </div>
-          {retryable && (
+        <AdminPageHeader
+          eyebrow={email.eventType}
+          title="Detalhes do envio"
+          description={`${email.recipientEmail} · ${email.status}`}
+          icon={Mail}
+          actions={retryable ? (
             <form action={retryEmailOutboxAdmin}>
               <input type="hidden" name="outboxId" value={email.id} />
-              <button className="inline-flex items-center gap-2 rounded-xl bg-[#d73cbe] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#bd31a7]">
+              <button className="inline-flex items-center gap-2 rounded-lg bg-[#d73cbe] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#bd31a7]">
                 <RotateCcw className="h-4 w-4" /> Criar nova tentativa
               </button>
             </form>
-          )}
-        </section>
+          ) : undefined}
+        />
 
         {(email.retry || email.retryOf) && (
           <section className="rounded-xl border border-blue-400/20 bg-blue-400/10 p-4 text-sm text-blue-200">
@@ -93,12 +93,12 @@ export default async function AdminEmailDetailPage({ params, searchParams }: {
         </section>
 
         {email.lastErrorMessage && (
-          <section className="rounded-2xl border border-red-400/20 bg-red-400/10 p-5">
-            <div className="flex gap-3"><ShieldAlert className="h-5 w-5 shrink-0 text-red-300" /><div><h2 className="font-bold text-red-100">{email.lastErrorCode || "Falha de entrega"}</h2><p className="mt-1 text-sm text-red-100/70">{email.lastErrorMessage}</p></div></div>
+          <section className="rounded-xl border border-red-400/20 bg-red-400/10 p-4">
+            <div className="flex gap-3"><ShieldAlert className="h-5 w-5 shrink-0 text-red-300" /><div className="min-w-0"><h2 className="font-semibold text-red-100 [overflow-wrap:anywhere]">{email.lastErrorCode || "Falha de entrega"}</h2><p className="mt-1 text-sm text-red-100/70 [overflow-wrap:anywhere]">{email.lastErrorMessage}</p></div></div>
           </section>
         )}
 
-        <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+        <section className="rounded-xl border border-white/10 bg-slate-900/70 p-4 sm:p-5">
           <h2 className="font-bold text-white">Validação de destinatário, links e conteúdo</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <Validation label="Destinatário" ok={recipientIsValid} detail={email.recipientEmail} />
@@ -110,16 +110,16 @@ export default async function AdminEmailDetailPage({ params, searchParams }: {
           ) : rendered && (
             <div className="mt-5 space-y-4">
               <div><p className="text-xs uppercase text-slate-500">Assunto</p><p className="mt-1 text-white">{rendered.subject}</p></div>
-              <div><p className="text-xs uppercase text-slate-500">Conteúdo em texto</p><pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-slate-950 p-4 font-sans text-sm leading-6 text-slate-300">{rendered.text}</pre></div>
+              <div><p className="text-xs uppercase text-slate-500">Conteúdo em texto</p><pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-white/10 bg-slate-950 p-4 font-sans text-sm leading-6 text-slate-300 [overflow-wrap:anywhere]">{rendered.text}</pre></div>
               {safeLinks.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer" className="mr-3 inline-flex items-center gap-1 text-sm text-[#e879d8] hover:underline">Verificar link <ExternalLink className="h-3.5 w-3.5" /></a>)}
             </div>
           )}
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70">
-          <div className="border-b border-white/10 p-5"><h2 className="font-bold text-white">Histórico de tentativas</h2></div>
+        <section className="overflow-hidden rounded-xl border border-white/10 bg-slate-900/70">
+          <div className="border-b border-white/10 p-4 sm:px-5"><h2 className="font-semibold text-white">Histórico de tentativas</h2></div>
           {email.attempts.length === 0 ? <p className="p-5 text-sm text-slate-500">Ainda não houve tentativa de processamento.</p> : (
-            <div className="divide-y divide-white/5">{email.attempts.map((attempt) => <div key={attempt.id} className="grid gap-2 p-5 text-sm md:grid-cols-4"><span className="font-bold text-white">#{attempt.attemptNumber} · {attempt.outcome}</span><span className="text-slate-400">{attempt.startedAt.toLocaleString("pt-BR")}</span><span className="truncate text-slate-500">{attempt.providerMessageId || "Sem ID do provedor"}</span><span className={attempt.errorMessage ? "text-red-300" : "text-emerald-300"}>{attempt.errorMessage || "Processamento aceito"}</span></div>)}</div>
+            <div className="divide-y divide-white/5">{email.attempts.map((attempt) => <div key={attempt.id} className="grid min-w-0 gap-2 p-4 text-sm md:grid-cols-[0.8fr_1fr_1.2fr_1.5fr] md:px-5"><span className="font-semibold text-white">#{attempt.attemptNumber} · {attempt.outcome}</span><span className="text-slate-400">{attempt.startedAt.toLocaleString("pt-BR")}</span><span className="min-w-0 text-slate-500 [overflow-wrap:anywhere]">{attempt.providerMessageId || "Sem ID do provedor"}</span><span className={`${attempt.errorMessage ? "text-red-300" : "text-emerald-300"} min-w-0 [overflow-wrap:anywhere]`}>{attempt.errorMessage || "Processamento aceito"}</span></div>)}</div>
           )}
         </section>
       </div>
@@ -127,5 +127,5 @@ export default async function AdminEmailDetailPage({ params, searchParams }: {
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) { return <div className="rounded-xl border border-white/10 bg-slate-900/70 p-4"><p className="text-xs uppercase text-slate-500">{label}</p><p className="mt-2 text-sm font-bold text-white">{value}</p></div>; }
+function Info({ label, value }: { label: string; value: string }) { return <div className="min-w-0 rounded-xl border border-white/10 bg-slate-900/70 p-4"><p className="text-xs uppercase text-slate-500">{label}</p><p className="mt-2 text-sm font-semibold text-white [overflow-wrap:anywhere]">{value}</p></div>; }
 function Validation({ label, ok, detail }: { label: string; ok: boolean; detail: string }) { return <div className="rounded-xl border border-white/10 bg-black/15 p-4"><div className="flex items-center gap-2"><CheckCircle2 className={`h-4 w-4 ${ok ? "text-emerald-300" : "text-red-300"}`} /><span className="font-bold text-white">{label}</span></div><p className="mt-2 break-all text-xs text-slate-500">{detail}</p></div>; }

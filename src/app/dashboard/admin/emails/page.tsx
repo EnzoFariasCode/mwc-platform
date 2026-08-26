@@ -15,6 +15,8 @@ import {
   getAdminEmailOutboxDashboard,
 } from "@/modules/admin/services/admin-email-outbox-service";
 import { queueEmailSmokeTestAdmin } from "@/modules/admin/actions/queue-email-smoke-test";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
+import { AdminMetricCard } from "@/modules/admin/components/AdminMetricCard";
 
 const statusLabels: Record<string, string> = {
   ALL: "Todos",
@@ -73,26 +75,19 @@ export default async function AdminEmailsPage({
   return (
     <PageContainer>
       <div className="space-y-8">
-        <section className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#d73cbe]/25 bg-[#d73cbe]/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-[#e879d8]">
-            <Mail className="h-3.5 w-3.5" /> Operação de e-mail
-          </div>
-          <h1 className="text-3xl font-bold text-white">Caixa de saída transacional</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Acompanhe o processamento, a aceitação pelo Resend e a entrega ao
-            servidor do destinatário. Falhas permanentes ficam protegidas para
-            análise e nova tentativa administrativa.
-          </p>
-          </div>
-          {dashboard.canRunSmokeTest && (
+        <AdminPageHeader
+          eyebrow="Operação de e-mail"
+          title="Caixa de saída transacional"
+          description="Acompanhe o processamento, a aceitação pelo Resend e a entrega ao servidor do destinatário. Falhas permanentes ficam protegidas para análise administrativa."
+          icon={Mail}
+          actions={dashboard.canRunSmokeTest ? (
             <form action={queueEmailSmokeTestAdmin}>
-              <button className="rounded-xl border border-[#d73cbe]/40 bg-[#d73cbe]/10 px-4 py-2.5 text-sm font-bold text-[#ef9ee2] hover:bg-[#d73cbe]/20">
+              <button className="rounded-lg border border-[#d73cbe]/30 bg-[#d73cbe]/10 px-4 py-2.5 text-xs font-semibold text-[#ef9ee2] transition-colors hover:bg-[#d73cbe]/20">
                 Enviar teste para meu e-mail
               </button>
             </form>
-          )}
-        </section>
+          ) : undefined}
+        />
 
         {params.result === "smoke-rate-limited" && (
           <section className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
@@ -101,7 +96,7 @@ export default async function AdminEmailsPage({
         )}
 
         {configurationProblems.length > 0 && (
-          <section className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-5">
+          <section className="rounded-xl border border-amber-400/25 bg-amber-400/10 p-4">
             <div className="flex gap-3">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
               <div>
@@ -115,8 +110,8 @@ export default async function AdminEmailsPage({
           </section>
         )}
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <MetricCard
+        <section className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+          <AdminMetricCard
             icon={Clock3}
             label="Aguardando processamento"
             value={
@@ -125,20 +120,23 @@ export default async function AdminEmailsPage({
               dashboard.statusCounts.FAILED
             }
             detail="Fila e backoff automático"
+            tone="warning"
           />
-          <MetricCard
+          <AdminMetricCard
             icon={CheckCircle2}
             label="Entregues em 30 dias"
             value={dashboard.recent.delivered}
             detail={`${dashboard.recent.deliveryRate}% dos eventos com resultado final`}
+            tone="success"
           />
-          <MetricCard
+          <AdminMetricCard
             icon={AlertTriangle}
             label="Exigem atenção"
             value={dashboard.statusCounts.REQUIRES_ATTENTION}
             detail={`${dashboard.recent.attention} criados nos últimos 30 dias`}
+            tone="danger"
           />
-          <MetricCard
+          <AdminMetricCard
             icon={ServerCog}
             label="Webhook Resend"
             value={dashboard.latestWebhook?.status === "FAILED" ? "Falha" : dashboard.latestWebhook ? "Recebendo" : "Sem eventos"}
@@ -147,8 +145,9 @@ export default async function AdminEmailsPage({
                 ? `${dashboard.latestWebhook.eventType} · ${dashboard.latestWebhook.createdAt.toLocaleString("pt-BR")}`
                 : "Aguardando o primeiro evento autenticado"
             }
+            tone={dashboard.latestWebhook?.status === "FAILED" ? "danger" : "success"}
           />
-          <MetricCard
+          <AdminMetricCard
             icon={Clock3}
             label="Processador agendado"
             value={dashboard.cronHeartbeat?.status === "SUCCESS" ? "Ativo" : dashboard.cronHeartbeat?.status === "FAILED" ? "Falha" : "Sem execução"}
@@ -157,18 +156,19 @@ export default async function AdminEmailsPage({
                 ? `Último sucesso: ${dashboard.cronHeartbeat.lastSucceededAt.toLocaleString("pt-BR")}`
                 : "Aguardando a primeira execução autenticada"
             }
+            tone={dashboard.cronHeartbeat?.status === "FAILED" ? "danger" : "brand"}
           />
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-          <h2 className="font-bold text-white">Integridade da configuração</h2>
+        <section className="rounded-xl border border-white/[0.08] bg-slate-900/70 p-4">
+          <h2 className="text-sm font-semibold text-white">Integridade da configuração</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {dashboard.configuration.map((item) => (
               <div
                 key={item.key}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-black/15 px-4 py-3"
+                className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-white/[0.08] bg-black/15 px-3.5 py-3"
               >
-                <span className="text-sm text-slate-300">{item.label}</span>
+                <span className="min-w-0 text-xs leading-5 text-slate-300">{item.label}</span>
                 <span
                   className={`text-xs font-bold uppercase ${item.configured ? "text-emerald-300" : "text-amber-300"}`}
                 >
@@ -179,7 +179,7 @@ export default async function AdminEmailsPage({
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70">
+        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-slate-900/70">
           <div className="border-b border-white/10 p-5">
             <form className="flex flex-col gap-3 md:flex-row">
               <label className="relative flex-1">
@@ -285,7 +285,7 @@ export default async function AdminEmailsPage({
           )}
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70">
+        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-slate-900/70">
           <div className="border-b border-white/10 p-5">
             <h2 className="font-bold text-white">Métricas por tipo · últimos 30 dias</h2>
           </div>
@@ -297,7 +297,7 @@ export default async function AdminEmailsPage({
               <tbody className="divide-y divide-white/5">
                 {dashboard.eventMetrics.map((metric) => (
                   <tr key={metric.eventType}>
-                    <td className="px-5 py-3 font-medium text-white">{metric.eventType}</td>
+                    <td className="max-w-xs px-5 py-3 font-medium text-white [overflow-wrap:anywhere]">{metric.eventType}</td>
                     <td className="px-5 py-3 text-slate-400">{metric.total}</td>
                     <td className="px-5 py-3 text-emerald-300">{metric.delivered}</td>
                     <td className="px-5 py-3 text-amber-300">{metric.pending}</td>
@@ -310,17 +310,5 @@ export default async function AdminEmailsPage({
         </section>
       </div>
     </PageContainer>
-  );
-}
-
-function MetricCard({ icon: Icon, label, value, detail }: { icon: typeof Mail; label: string; value: number | string; detail: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-      <div className="flex items-center justify-between gap-4">
-        <div><p className="text-sm text-slate-400">{label}</p><p className="mt-2 text-3xl font-bold text-white">{value}</p></div>
-        <Icon className="h-6 w-6 text-[#d73cbe]" />
-      </div>
-      <p className="mt-4 text-xs text-slate-500">{detail}</p>
-    </div>
   );
 }

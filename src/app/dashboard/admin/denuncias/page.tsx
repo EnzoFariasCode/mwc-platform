@@ -5,6 +5,8 @@ import { requireAdminUser } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
 import { PageContainer } from "@/modules/dashboard/components/PageContainer";
 import { AdminPagination } from "@/modules/admin/components/AdminPagination";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
+import { AdminMetricCard } from "@/modules/admin/components/AdminMetricCard";
 
 const statusLabels = {
   OPEN: "Aberta",
@@ -75,28 +77,21 @@ export default async function AdminChatReportsPage({
   return (
     <PageContainer>
       <div className="space-y-8">
-        <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-red-300">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Admin
-            </div>
-            <h1 className="text-2xl font-bold text-white">
-              Denuncias do chat Tech
-            </h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-400">
-              Analise relatos com a conversa preservada e registre toda decisao
-              administrativa com justificativa.
-            </p>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <Metric label="Abertas" value={openCount} />
-            <Metric label="Em analise" value={reviewCount} />
-            <Metric label="Prioritarias" value={priorityCount} />
-          </div>
+        <AdminPageHeader
+          eyebrow="Segurança e conduta"
+          title="Denúncias do chat Tech"
+          description="Analise relatos com a conversa preservada e registre toda decisão administrativa com justificativa."
+          icon={ShieldCheck}
+          tone="danger"
+        />
+
+        <section className="grid gap-3 sm:grid-cols-3">
+          <AdminMetricCard label="Abertas" value={openCount} icon={Flag} tone="danger" />
+          <AdminMetricCard label="Em análise" value={reviewCount} icon={ShieldCheck} tone="warning" />
+          <AdminMetricCard label="Prioritárias" value={priorityCount} icon={AlertTriangle} tone="danger" />
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/70">
+        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-slate-900/70">
           {reports.length === 0 ? (
             <div className="flex flex-col items-center px-6 py-16 text-center">
               <Flag className="mb-4 h-10 w-10 text-slate-600" />
@@ -143,7 +138,7 @@ export default async function AdminChatReportsPage({
                     <p className="mt-1 truncate text-sm text-slate-400">
                       {report.description}
                     </p>
-                    <p className="mt-2 text-xs text-slate-500">
+                    <p className="mt-2 break-words text-xs leading-5 text-slate-500">
                       Denunciante: {report.reporter.displayName || report.reporter.name} ({report.reporter.email}) · Denunciado: {report.reportedUser.displayName || report.reportedUser.name} ({report.reportedUser.email})
                     </p>
                   </div>
@@ -163,14 +158,5 @@ export default async function AdminChatReportsPage({
         </section>
       </div>
     </PageContainer>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="min-w-24 rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-center">
-      <p className="text-xl font-bold text-white">{value}</p>
-      <p className="text-[10px] uppercase tracking-wide text-slate-500">{label}</p>
-    </div>
   );
 }

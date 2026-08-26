@@ -560,7 +560,7 @@ function DetailShell({
             <ShieldCheck className="h-3.5 w-3.5" />
             Detalhe administrativo
           </div>
-          <h1 className="max-w-4xl text-2xl font-bold text-white font-futura">
+          <h1 className="max-w-4xl text-xl font-semibold tracking-tight text-white sm:text-2xl">
             {title}
           </h1>
           <p className="mt-1 text-sm text-slate-400">{subtitle}</p>
@@ -590,8 +590,8 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-4 rounded-2xl border border-white/5 bg-slate-900 p-6 shadow-lg shadow-black/10">
-      <h2 className="text-lg font-bold text-white">{title}</h2>
+    <section className="space-y-4 rounded-xl border border-white/[0.08] bg-slate-900/70 p-4 shadow-sm shadow-black/10 sm:p-5">
+      <h2 className="text-base font-semibold text-white">{title}</h2>
       {children}
     </section>
   );

@@ -86,9 +86,9 @@ export default async function AdminChatReportDetailPage({
           <ArrowLeft className="h-4 w-4" /> Voltar para denuncias
         </Link>
 
-        <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-6">
+        <section className="rounded-xl border border-white/10 bg-slate-900/70 p-4 sm:p-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-2 rounded-full bg-red-500/10 px-3 py-1 text-xs font-bold uppercase text-red-300">
                   <Flag className="h-3.5 w-3.5" /> {reasonLabels[report.reason]}
@@ -103,7 +103,7 @@ export default async function AdminChatReportDetailPage({
                 )}
               </div>
               <h1 className="mt-4 text-2xl font-bold text-white">Caso {report.id.slice(0, 8).toUpperCase()}</h1>
-              <p className="mt-2 text-xs text-slate-500">Registrada em {report.createdAt.toLocaleString("pt-BR")} · Evidencias ate {report.reportedThroughAt.toLocaleString("pt-BR")}</p>
+              <p className="mt-2 text-xs leading-5 text-slate-500">Registrada em {report.createdAt.toLocaleString("pt-BR")} · Evidências até {report.reportedThroughAt.toLocaleString("pt-BR")}</p>
             </div>
             <div className="inline-flex items-center gap-2 text-xs text-emerald-300">
               <ShieldCheck className="h-4 w-4" /> Conversa preservada · bloqueio ativo
@@ -111,7 +111,7 @@ export default async function AdminChatReportDetailPage({
           </div>
           <div className="mt-6 rounded-xl border border-white/10 bg-slate-950/60 p-4">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Relato</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-200">{report.description}</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-200 [overflow-wrap:anywhere]">{report.description}</p>
           </div>
         </section>
 
@@ -121,7 +121,7 @@ export default async function AdminChatReportDetailPage({
         </section>
 
         {(snapshot.projects?.length || 0) > 0 && (
-          <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+          <section className="rounded-xl border border-white/10 bg-slate-900/70 p-4 sm:p-5">
             <h2 className="flex items-center gap-2 font-bold text-white"><Briefcase className="h-4 w-4 text-[#d73cbe]" /> Projetos relacionados no momento da denuncia</h2>
             <div className="mt-4 divide-y divide-white/5">
               {snapshot.projects!.map((project) => (
@@ -134,7 +134,7 @@ export default async function AdminChatReportDetailPage({
           </section>
         )}
 
-        <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+        <section className="rounded-xl border border-white/10 bg-slate-900/70 p-4 sm:p-5">
           <h2 className="font-bold text-white">Historico completo da conversa</h2>
           <p className="mt-1 text-xs text-slate-500">Mensagens posteriores ao envio da denuncia nao fazem parte da evidencia.</p>
           <div className="mt-5 max-h-[650px] space-y-3 overflow-y-auto rounded-xl border border-white/5 bg-slate-950/70 p-4">
@@ -153,7 +153,7 @@ export default async function AdminChatReportDetailPage({
         </section>
 
         {report.resolutionReason && (
-          <section className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+          <section className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:p-5">
             <h2 className="font-bold text-emerald-200">Conclusao administrativa</h2>
             <p className="mt-2 text-sm leading-6 text-slate-200">{report.resolutionReason}</p>
             <p className="mt-3 text-xs text-slate-500">Responsavel: {report.reviewer?.name || report.reviewer?.email || "Admin"} · {report.resolvedAt?.toLocaleString("pt-BR")}</p>
@@ -167,7 +167,7 @@ export default async function AdminChatReportDetailPage({
           decisionEmailError={report.decisionEmailError}
         />
 
-        <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+        <section className="rounded-xl border border-white/10 bg-slate-900/70 p-4 sm:p-5">
           <h2 className="font-bold text-white">Auditoria administrativa</h2>
           <div className="mt-4 space-y-3">
             {auditLogs.length === 0 ? <p className="text-sm text-slate-500">Nenhuma acao administrativa registrada.</p> : auditLogs.map((log) => (
@@ -186,10 +186,10 @@ export default async function AdminChatReportDetailPage({
 
 function PartyCard({ title, party }: { title: string; party: { id: string; name: string; displayName: string | null; email: string; userType: string; industry: string; isActive: boolean } }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+    <div className="min-w-0 rounded-xl border border-white/10 bg-slate-900/70 p-4 sm:p-5">
       <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500"><User className="h-4 w-4" /> {title}</h2>
       <p className="mt-4 font-bold text-white">{party.displayName || party.name}</p>
-      <p className="mt-1 text-sm text-slate-400">{party.email}</p>
+      <p className="mt-1 text-sm text-slate-400 [overflow-wrap:anywhere]">{party.email}</p>
       <p className="mt-3 text-xs text-slate-500">{party.userType} · {party.industry} · {party.isActive ? "Conta ativa" : "Conta inativa"}</p>
       <p className="mt-1 break-all text-[10px] text-slate-600">{party.id}</p>
     </div>

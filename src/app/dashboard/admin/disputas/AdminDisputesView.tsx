@@ -15,6 +15,8 @@ import { formatCurrencyBR, formatDateTimeBR } from "@/lib/formatters";
 import { TechProjectReasonModal } from "@/modules/projects/components/TechProjectReasonModal";
 import { resolveHealthAppointmentDispute } from "@/modules/health/actions/appointment-actions";
 import { resolveTechProjectDispute } from "@/modules/projects/actions/project-state-actions";
+import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
+import { AdminMetricCard } from "@/modules/admin/components/AdminMetricCard";
 
 export type AdminDisputeItem = {
   id: string;
@@ -159,31 +161,33 @@ export default function AdminDisputesView({
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-red-300">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Admin
-          </div>
-          <h1 className="text-2xl font-bold text-white font-futura">
-            Mediacao de Disputas
-          </h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Decida reembolsos e liberacoes financeiras, e consulte o historico
-            dos setores Tech e Saude.
-          </p>
-        </div>
+      <AdminPageHeader
+        eyebrow="Mediação administrativa"
+        title="Mediação de disputas"
+        description="Decida reembolsos e liberações financeiras e consulte o histórico dos setores Tech e Online."
+        icon={ShieldCheck}
+        tone="danger"
+      />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Metric label="Abertas" value={openDisputes.length} />
-          <Metric label="Tech" value={techCount} />
-          <Metric label="Saude" value={healthCount} />
-        </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <AdminMetricCard
+          label="Disputas abertas"
+          value={openDisputes.length}
+          icon={AlertTriangle}
+          tone="danger"
+        />
+        <AdminMetricCard label="Setor Tech" value={techCount} icon={CreditCard} />
+        <AdminMetricCard
+          label="Setor Online"
+          value={healthCount}
+          icon={ShieldCheck}
+          tone="warning"
+        />
       </div>
 
-      <div className="rounded-2xl border border-white/5 bg-slate-900 p-4">
-        <div className="grid gap-3 lg:grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_0.7fr_auto]">
-          <label className="relative">
+      <div className="rounded-xl border border-white/[0.08] bg-slate-900/70 p-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_0.7fr_auto]">
+          <label className="relative sm:col-span-2 xl:col-span-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               value={searchTerm}
@@ -269,7 +273,7 @@ export default function AdminDisputesView({
       </div>
 
       {filteredDisputes.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-12 text-center">
+        <div className="rounded-xl border border-dashed border-white/10 bg-slate-900/50 p-10 text-center">
           <CheckCircle2 className="mx-auto mb-4 h-10 w-10 text-emerald-400" />
           <h2 className="text-lg font-bold text-white">
             Nenhuma disputa neste filtro
@@ -283,7 +287,7 @@ export default function AdminDisputesView({
           {filteredDisputes.map((dispute) => (
             <article
               key={`${dispute.kind}-${dispute.id}`}
-              className="rounded-2xl border border-white/5 bg-slate-900 p-6 shadow-lg shadow-black/10"
+              className="rounded-xl border border-white/[0.08] bg-slate-900/70 p-5 shadow-sm shadow-black/10"
             >
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div className="min-w-0">
@@ -456,17 +460,6 @@ export default function AdminDisputesView({
         minLength={10}
         tone={pendingDecision?.decision === "REFUND" ? "danger" : "warning"}
       />
-    </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-xl border border-white/5 bg-slate-900 px-4 py-3 text-right">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-      <p className="text-xl font-bold text-white">{value}</p>
     </div>
   );
 }
