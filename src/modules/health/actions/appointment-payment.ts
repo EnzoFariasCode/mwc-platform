@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { isValidTimeZone } from "@/modules/health/lib/appointment-completion-time";
 import { db } from "@/lib/prisma";
+import { ensureAppointmentPaymentConfirmedEmails } from "@/modules/health/services/transactional-email-service";
 
 const PLATFORM_FEE_PERCENT = 10;
 
@@ -62,6 +63,14 @@ function revalidateAppointmentPaths(professionalId: string) {
   revalidatePath(`/agendar-consulta/perfil/${professionalId}`);
 }
 
+function shouldEnsureConfirmationEmail(status: string) {
+  return [
+    "MEETING_PENDING",
+    "MEETING_REQUIRES_ATTENTION",
+    "CONFIRMED",
+  ].includes(status);
+}
+
 function describePersistedAppointment({
   appointmentId,
   professionalId,
@@ -116,6 +125,12 @@ export async function finalizeHealthAppointmentPayment({
   });
 
   if (alreadyProcessed) {
+    if (shouldEnsureConfirmationEmail(alreadyProcessed.status)) {
+      await db.$transaction((tx) =>
+        ensureAppointmentPaymentConfirmedEmails(tx, alreadyProcessed.id),
+      );
+    }
+
     if (holdId) {
       await db.appointmentHold.deleteMany({
         where: { id: holdId, patientId, professionalId: proId },
@@ -201,6 +216,15 @@ export async function finalizeHealthAppointmentPayment({
       existingSlot.stripeSessionId === session.id ||
       (!existingSlot.stripeSessionId && existingSlot.patientId === patientId)
     ) {
+      if (
+        existingSlot.stripeSessionId === session.id &&
+        shouldEnsureConfirmationEmail(existingSlot.status)
+      ) {
+        await db.$transaction((tx) =>
+          ensureAppointmentPaymentConfirmedEmails(tx, existingSlot.id),
+        );
+      }
+
       return describePersistedAppointment({
         appointmentId: existingSlot.id,
         professionalId: existingSlot.professionalId,
@@ -269,6 +293,11 @@ export async function finalizeHealthAppointmentPayment({
         },
       });
 
+      await ensureAppointmentPaymentConfirmedEmails(
+        tx,
+        createdAppointment.id,
+      );
+
       return createdAppointment;
     });
 
@@ -289,6 +318,12 @@ export async function finalizeHealthAppointmentPayment({
       });
 
       if (persisted) {
+        if (shouldEnsureConfirmationEmail(persisted.status)) {
+          await db.$transaction((tx) =>
+            ensureAppointmentPaymentConfirmedEmails(tx, persisted.id),
+          );
+        }
+
         return describePersistedAppointment({
           appointmentId: persisted.id,
           professionalId: persisted.professionalId,

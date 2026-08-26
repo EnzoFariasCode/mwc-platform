@@ -8,10 +8,7 @@ import {
   getGoogleMeetEvent,
   requestGoogleMeetConference,
 } from "@/modules/health/services/google-meet-service";
-import {
-  enqueueHealthOperationalAttentionEmail,
-  enqueuePaymentConfirmedEmails,
-} from "@/modules/health/services/transactional-email-service";
+import { enqueueHealthOperationalAttentionEmail } from "@/modules/health/services/transactional-email-service";
 import { upsertNotification } from "@/modules/notifications/services/notification-service";
 import { getAppointmentStartAt } from "@/modules/health/lib/appointment-completion-time";
 
@@ -563,17 +560,6 @@ export async function processAppointmentMeeting(
           googleEventId: meetEvent.googleEventId,
           providerStatus: "success",
         });
-        await enqueuePaymentConfirmedEmails(tx, {
-          appointmentId: appointment.id,
-          patient: { id: appointment.patientId, ...appointment.patient },
-          professional: {
-            id: appointment.professionalId,
-            ...appointment.professional,
-          },
-          date: appointment.date,
-          time: appointment.time,
-          price: appointment.price,
-        });
         await upsertNotification({
           userId: appointment.patientId,
           type: "SUCCESS",
@@ -783,17 +769,6 @@ export async function registerManualAppointmentMeetingLink(
         requestId: appointment.meetRequestId,
         googleEventId: appointment.googleEventId,
         providerStatus: "ADMIN_PROVIDED",
-      });
-      await enqueuePaymentConfirmedEmails(tx, {
-        appointmentId: appointment.id,
-        patient: { id: appointment.patientId, ...appointment.patient },
-        professional: {
-          id: appointment.professionalId,
-          ...appointment.professional,
-        },
-        date: appointment.date,
-        time: appointment.time,
-        price: appointment.price,
       });
       await upsertNotification({
         userId: appointment.patientId,

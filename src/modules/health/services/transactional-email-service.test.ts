@@ -8,6 +8,7 @@ import {
   enqueueHealthOperationalAttentionEmail,
   enqueuePaymentConfirmedEmails,
   enqueueRefundProcessedEmail,
+  ensureAppointmentPaymentConfirmedEmails,
 } from "./transactional-email-service";
 
 function makeClient(existing: unknown = null) {
@@ -40,6 +41,36 @@ const appointment = {
 };
 
 describe("health transactional email service", () => {
+  it("carrega a consulta paga e registra os dois e-mails pela mesma transacao", async () => {
+    const emailClient = makeClient();
+    const appointmentFindUnique = vi.fn().mockResolvedValue({
+      id: appointment.appointmentId,
+      status: "MEETING_PENDING",
+      paymentConfirmedAt: new Date("2026-08-26T12:00:00.000Z"),
+      date: appointment.date,
+      time: appointment.time,
+      price: appointment.price,
+      patient: appointment.patient,
+      professional: appointment.professional,
+    });
+    const client = {
+      ...emailClient,
+      appointment: { findUnique: appointmentFindUnique },
+    } as unknown as Parameters<
+      typeof ensureAppointmentPaymentConfirmedEmails
+    >[0];
+
+    await ensureAppointmentPaymentConfirmedEmails(
+      client,
+      appointment.appointmentId,
+    );
+
+    expect(appointmentFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: appointment.appointmentId } }),
+    );
+    expect(emailClient.emailOutbox.create).toHaveBeenCalledTimes(2);
+  });
+
   it("registra a confirmacao para paciente e profissional sem expor o Meet", async () => {
     const client = makeClient();
 

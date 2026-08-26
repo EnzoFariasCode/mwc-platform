@@ -7,6 +7,7 @@ import {
   markEmailOutboxCronStarted,
   markEmailOutboxCronSucceeded,
 } from "@/modules/email/services/email-operations-service";
+import { recoverMissingAppointmentConfirmationEmails } from "@/modules/health/services/appointment-confirmation-email-recovery";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -35,10 +36,16 @@ export async function GET(request: Request) {
   const startedAt = new Date();
   try {
     await markEmailOutboxCronStarted(startedAt);
+    const appointmentConfirmationRecovery =
+      await recoverMissingAppointmentConfirmationEmails();
     const metrics = await processEmailOutbox();
     const purgedWebhookEvents = await cleanupEmailWebhookEventLogs();
     const completedAt = new Date();
-    const operationalMetrics = { ...metrics, purgedWebhookEvents };
+    const operationalMetrics = {
+      ...metrics,
+      purgedWebhookEvents,
+      appointmentConfirmationRecovery,
+    };
     await markEmailOutboxCronSucceeded({
       startedAt,
       completedAt,

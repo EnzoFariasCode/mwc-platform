@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const processEmailOutbox = vi.hoisted(() => vi.fn());
+const recoverMissingAppointmentConfirmationEmails = vi.hoisted(() => vi.fn());
 const operations = vi.hoisted(() => ({
   cleanup: vi.fn(),
   started: vi.fn(),
@@ -17,6 +18,10 @@ vi.mock("@/modules/email/services/email-operations-service", () => ({
   markEmailOutboxCronSucceeded: operations.succeeded,
   markEmailOutboxCronFailed: operations.failed,
 }));
+vi.mock(
+  "@/modules/health/services/appointment-confirmation-email-recovery",
+  () => ({ recoverMissingAppointmentConfirmationEmails }),
+);
 
 import { GET } from "./route";
 
@@ -39,6 +44,13 @@ describe("email outbox cron", () => {
     vi.stubEnv("CRON_SECRET", "cron-test-secret");
     processEmailOutbox.mockReset();
     processEmailOutbox.mockResolvedValue(metrics);
+    recoverMissingAppointmentConfirmationEmails.mockReset();
+    recoverMissingAppointmentConfirmationEmails.mockResolvedValue({
+      inspected: 0,
+      missing: 0,
+      repaired: 0,
+      failed: 0,
+    });
     operations.cleanup.mockReset();
     operations.cleanup.mockResolvedValue(0);
     operations.started.mockReset();
@@ -94,6 +106,9 @@ describe("email outbox cron", () => {
         sent: 1,
         inspected: 1,
         purgedWebhookEvents: 0,
+        appointmentConfirmationRecovery: expect.objectContaining({
+          repaired: 0,
+        }),
       }),
     );
     expect(operations.started).toHaveBeenCalledOnce();

@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Prisma } from "@prisma/client";
 import type { EmailOutboxDatabaseClient } from "@/modules/email/services/email-outbox-service";
 import { enqueueTransactionalEmail } from "@/modules/email/services/email-outbox-service";
 import type { HealthOnlineEmailTemplateKey } from "@/modules/email/templates/health-online-emails";
@@ -148,6 +149,52 @@ export async function enqueuePaymentConfirmedEmails(
       actionLabel: "Abrir agenda",
       actionPath: "/agendar-consulta/dashboard-profissional",
     },
+  });
+}
+
+export async function ensureAppointmentPaymentConfirmedEmails(
+  client: EmailOutboxDatabaseClient &
+    Pick<Prisma.TransactionClient, "appointment">,
+  appointmentId: string,
+) {
+  const appointment = await client.appointment.findUnique({
+    where: { id: appointmentId },
+    select: {
+      id: true,
+      status: true,
+      paymentConfirmedAt: true,
+      date: true,
+      time: true,
+      price: true,
+      patient: {
+        select: { id: true, email: true, name: true, displayName: true },
+      },
+      professional: {
+        select: { id: true, email: true, name: true, displayName: true },
+      },
+    },
+  });
+
+  if (
+    !appointment?.paymentConfirmedAt ||
+    ![
+      "MEETING_PENDING",
+      "MEETING_REQUIRES_ATTENTION",
+      "CONFIRMED",
+    ].includes(appointment.status)
+  ) {
+    throw new Error(
+      "Nao foi possivel registrar os e-mails: pagamento da consulta nao confirmado.",
+    );
+  }
+
+  await enqueuePaymentConfirmedEmails(client, {
+    appointmentId: appointment.id,
+    patient: appointment.patient,
+    professional: appointment.professional,
+    date: appointment.date,
+    time: appointment.time,
+    price: appointment.price,
   });
 }
 
