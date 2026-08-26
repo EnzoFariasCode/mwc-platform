@@ -11,17 +11,12 @@ import { ActionResponse } from "@/modules/users/types/user-types";
 import { SUBSCRIPTION_PAYMENT_METHODS } from "@/modules/stripe/lib/payment-methods";
 import { TECH_SUBSCRIPTION_TERMS_VERSION } from "@/modules/legal/terms-versions";
 import { headers } from "next/headers";
+import {
+  BillingPortalError,
+  createTechBillingPortalSession,
+} from "@/modules/stripe/services/tech-billing-portal";
 
 type PaidPlanId = "starter" | "advanced";
-
-async function createBillingPortalUrl(customerId: string) {
-  const portalSession = await stripe.billingPortal.sessions.create({
-    customer: customerId,
-    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/profissional`,
-  });
-
-  return portalSession.url;
-}
 
 async function findActiveCustomerSubscription(customerId: string) {
   const subscriptions = await stripe.subscriptions.list({
@@ -65,18 +60,26 @@ export async function createCheckoutSession(
   }
 
   if (isActiveTechSubscription(user.stripeSubscriptionStatus)) {
-    if (!user.stripeCustomerId) {
+    try {
+      const portalSession = await createTechBillingPortalSession({
+        id: user.id,
+        stripeCustomerId: user.stripeCustomerId,
+        stripeSubscriptionId: user.stripeSubscriptionId,
+      });
+
+      return {
+        success: true,
+        data: { url: portalSession.url },
+      };
+    } catch (error) {
       return {
         success: false,
-        error: "Assinatura ativa encontrada, mas sem cliente Stripe vinculado.",
-        data: { url: "/dashboard/profissional" },
+        error:
+          error instanceof BillingPortalError
+            ? error.userMessage
+            : "Não foi possível abrir o portal da Stripe.",
       };
     }
-
-    return {
-      success: true,
-      data: { url: await createBillingPortalUrl(user.stripeCustomerId) },
-    };
   }
 
   if (user.stripeCustomerId) {
@@ -106,10 +109,26 @@ export async function createCheckoutSession(
         },
       });
 
-      return {
-        success: true,
-        data: { url: await createBillingPortalUrl(user.stripeCustomerId) },
-      };
+      try {
+        const portalSession = await createTechBillingPortalSession({
+          id: user.id,
+          stripeCustomerId: user.stripeCustomerId,
+          stripeSubscriptionId: activeSubscription.id,
+        });
+
+        return {
+          success: true,
+          data: { url: portalSession.url },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error:
+            error instanceof BillingPortalError
+              ? error.userMessage
+              : "Não foi possível abrir o portal da Stripe.",
+        };
+      }
     }
   }
 

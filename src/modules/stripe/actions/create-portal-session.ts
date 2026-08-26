@@ -2,8 +2,11 @@
 
 import { getUserSession } from "@/lib/get-session";
 import { db } from "@/lib/prisma";
-import { stripe } from "@/lib/stripe";
 import { ActionResponse } from "@/modules/users/types/user-types";
+import {
+  BillingPortalError,
+  createTechBillingPortalSession,
+} from "@/modules/stripe/services/tech-billing-portal";
 
 export async function createPortalSession(): Promise<
   ActionResponse<{ url: string }>
@@ -26,25 +29,31 @@ export async function createPortalSession(): Promise<
 
   const user = await db.user.findUnique({
     where: { id: session.id },
-    select: { stripeCustomerId: true },
+    select: {
+      id: true,
+      stripeCustomerId: true,
+      stripeSubscriptionId: true,
+    },
   });
 
-  if (!user || !user.stripeCustomerId) {
+  if (!user) {
     return {
       success: false,
-      error: "Nenhuma assinatura encontrada para gerenciar.",
+      error: "Usuário não encontrado.",
     };
   }
 
   try {
-    const portalSession = await stripe.billingPortal.sessions.create({
-      customer: user.stripeCustomerId,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/profissional`,
-    });
+    const portalSession = await createTechBillingPortalSession(user);
 
     return { success: true, data: { url: portalSession.url } };
   } catch (error) {
-    console.error("Erro ao criar portal:", error);
-    return { success: false, error: "Erro ao abrir painel financeiro." };
+    return {
+      success: false,
+      error:
+        error instanceof BillingPortalError
+          ? error.userMessage
+          : "Não foi possível abrir o portal da Stripe.",
+    };
   }
 }
