@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search, MapPin } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
+import { Particles } from "@/components/ui/particles";
 import { resolveLandingSearchUrl } from "./landing-search";
 
 const popularSearches = [
@@ -58,7 +59,14 @@ export function HeroSection() {
       className="relative min-h-[100dvh] flex items-center overflow-hidden pt-32 pb-20 md:pt-20 md:pb-0"
     >
       {/* Backgrounds */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+      <Particles
+        className="absolute inset-0 z-0 opacity-70"
+        quantity={110}
+        staticity={40}
+        ease={65}
+        size={0.62}
+        color="#d73cbe"
+      />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[120px] -z-10" />
       <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px] -z-10" />
 
