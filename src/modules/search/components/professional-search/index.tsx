@@ -17,8 +17,7 @@ import {
 import Link from "next/link";
 import { getProfessionals } from "@/modules/search/actions/get-professionals";
 import { getCategories } from "@/modules/search/actions/get-categories";
-
-const ITEMS_PER_PAGE = 5;
+import { PROFESSIONAL_SEARCH_PAGE_SIZE } from "@/modules/search/lib/search-pagination";
 
 interface ProfessionalSearchProps {
   baseRoute?: string;
@@ -71,6 +70,11 @@ export function ProfessionalSearch({
     setLocalSearch(queryService);
   }, [queryService]);
 
+  // Uma nova combinacao de filtros sempre comeca na primeira pagina.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [queryService, queryLocation, selectedCategory, minPrice, maxPrice, sortBy]);
+
   // Busca Profissionais
   useEffect(() => {
     const fetchPros = async () => {
@@ -84,7 +88,7 @@ export function ProfessionalSearch({
         maxPrice: maxPrice ? Number(maxPrice) : undefined,
         sortBy,
         page: currentPage,
-        limit: ITEMS_PER_PAGE,
+        limit: PROFESSIONAL_SEARCH_PAGE_SIZE,
       });
 
       if (res.success && res.data) {
@@ -116,6 +120,7 @@ export function ProfessionalSearch({
   ]);
 
   const handleClearFilters = () => {
+    setCurrentPage(1);
     setSelectedCategory("Todas");
     setSortBy("relevancia");
     setLocalSearch("");

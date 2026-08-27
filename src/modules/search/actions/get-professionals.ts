@@ -7,6 +7,7 @@ import {
   buildTechProfessionalOrderBy,
   type TechProfessionalSort,
 } from "@/modules/subscriptions/tech-plan-ranking";
+import { PROFESSIONAL_SEARCH_PAGE_SIZE } from "@/modules/search/lib/search-pagination";
 
 interface SearchFilters {
   query?: string;
@@ -53,7 +54,7 @@ export async function getProfessionals({
   maxPrice,
   sortBy = "relevancia",
   page = 1,
-  limit = 10,
+  limit = PROFESSIONAL_SEARCH_PAGE_SIZE,
 }: SearchFilters): Promise<
   ActionResponse<{
     professionals: ProfessionalSummary[];
@@ -69,7 +70,7 @@ export async function getProfessionals({
     const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
     const safeLimit = Number.isFinite(limit)
       ? Math.min(MAX_LIMIT, Math.max(1, Math.floor(limit)))
-      : 10;
+      : PROFESSIONAL_SEARCH_PAGE_SIZE;
 
     let safeMinPrice = Number.isFinite(minPrice)
       ? Math.max(0, minPrice as number)
