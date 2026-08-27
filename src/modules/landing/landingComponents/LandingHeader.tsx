@@ -12,16 +12,6 @@ const LandingHeader = () => {
   const accountLink = session?.user
     ? getAccountDashboardPath(session.user)
     : "/login";
-  const scrollToSection = (sectionId: string) => {
-    const section = document.getElementById(sectionId);
-    if (!section) return;
-
-    const headerOffset = 96;
-    const targetTop =
-      section.getBoundingClientRect().top + window.scrollY - headerOffset;
-
-    window.scrollTo({ top: targetTop, behavior: "smooth" });
-  };
 
   return (
     <header className="fixed top-0 z-50 w-full border-b border-white/10 bg-black/20 backdrop-blur-md transition-all duration-300">
@@ -43,20 +33,18 @@ const LandingHeader = () => {
 
         <div className="flex items-center gap-3 md:gap-8">
           <nav className="hidden gap-8 text-sm font-medium text-slate-300 lg:flex">
-            <button
-              type="button"
-              onClick={() => scrollToSection("como-funciona")}
+            <Link
+              href="/#como-funciona"
               className="cursor-pointer transition-colors hover:text-[#d73cbe]"
             >
               Como funciona
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollToSection("servicesSection")}
+            </Link>
+            <Link
+              href="/#servicos"
               className="cursor-pointer transition-colors hover:text-[#d73cbe]"
             >
               Servicos
-            </button>
+            </Link>
             <Link
               href="/beWorker#planos"
               className="cursor-pointer transition-colors hover:text-[#d73cbe]"

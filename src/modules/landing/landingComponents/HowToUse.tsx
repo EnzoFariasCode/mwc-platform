@@ -106,7 +106,7 @@ function HowToUse() {
   return (
     <section
       ref={containerRef}
-      className="relative border-b border-white/5 bg-slate-950 px-4 py-16 overflow-hidden lg:py-20"
+      className="relative scroll-mt-24 border-b border-white/5 bg-slate-950 px-4 py-16 overflow-hidden lg:py-20"
       id="como-funciona"
     >
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-purple-900/10 rounded-full blur-[120px] -z-10" />

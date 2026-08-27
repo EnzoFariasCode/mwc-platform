@@ -81,9 +81,9 @@ function ServicesSection() {
 
   return (
     <section
-      id="servicesSection"
+      id="servicos"
       ref={containerRef}
-      className="relative border-b border-white/5 bg-slate-950 px-4 py-16 overflow-hidden lg:py-20"
+      className="relative scroll-mt-24 border-b border-white/5 bg-slate-950 px-4 py-16 overflow-hidden lg:py-20"
     >
       <div className="max-w-5xl mx-auto">
         <h2 className="gsap-title mb-10 text-center font-futura text-3xl font-bold uppercase opacity-0 md:text-4xl lg:mb-12">
