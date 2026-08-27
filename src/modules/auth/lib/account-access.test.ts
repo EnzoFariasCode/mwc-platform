@@ -118,4 +118,34 @@ describe("account access", () => {
       getAuthorizedCallbackPath("/dashboard/chat?newChat=abc", healthProfessional),
     ).toBe("/dashboard/chat?newChat=abc");
   });
+
+  it("envia acessos sem intencao de setor ao portal", () => {
+    expect(
+      getAuthorizedCallbackPath("/dashboard", { userType: "CLIENT" }),
+    ).toBe("/portal");
+    expect(getAuthorizedCallbackPath(undefined, { userType: "CLIENT" })).toBe(
+      "/portal",
+    );
+  });
+
+  it("preserva origens explicitas dos setores Online e Tech", () => {
+    expect(
+      getAuthorizedCallbackPath("/agendar-consulta", { userType: "CLIENT" }),
+    ).toBe("/agendar-consulta");
+    expect(
+      getAuthorizedCallbackPath("/checkout-saude?professionalId=abc", {
+        userType: "CLIENT",
+      }),
+    ).toBe("/checkout-saude?professionalId=abc");
+    expect(
+      getAuthorizedCallbackPath("/dashboard/profissional/abc", {
+        userType: "CLIENT",
+      }),
+    ).toBe("/dashboard/profissional/abc");
+    expect(
+      getAuthorizedCallbackPath("/dashboard/chat?newChat=abc", {
+        userType: "CLIENT",
+      }),
+    ).toBe("/dashboard/chat?newChat=abc");
+  });
 });

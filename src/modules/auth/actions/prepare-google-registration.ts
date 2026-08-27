@@ -2,15 +2,19 @@
 
 import { cookies } from "next/headers";
 import {
+  createGoogleAuthIntent,
   createGoogleRegistrationConsent,
+  GOOGLE_AUTH_INTENT_COOKIE,
   GOOGLE_REGISTRATION_COOKIE,
   GOOGLE_REGISTRATION_COOKIE_MAX_AGE,
 } from "@/modules/auth/lib/google-registration-consent";
+import { getSafeLocalCallbackPath } from "@/modules/auth/lib/account-access";
 
 export async function prepareGoogleRegistration(input: {
   birthDate: string;
   generalTermsAccepted: boolean;
   privacyPolicyAccepted: boolean;
+  callbackUrl?: string;
 }) {
   if (!input.generalTermsAccepted || !input.privacyPolicyAccepted) {
     return { success: false, error: "Confirme os Termos Gerais e a leitura da Politica de Privacidade." };
@@ -30,5 +34,18 @@ export async function prepareGoogleRegistration(input: {
     path: "/",
     maxAge: GOOGLE_REGISTRATION_COOKIE_MAX_AGE,
   });
+  cookieStore.set(
+    GOOGLE_AUTH_INTENT_COOKIE,
+    createGoogleAuthIntent(
+      getSafeLocalCallbackPath(input.callbackUrl) ?? "/portal",
+    ),
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: GOOGLE_REGISTRATION_COOKIE_MAX_AGE,
+    },
+  );
   return { success: true };
 }

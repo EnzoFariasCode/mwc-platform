@@ -132,6 +132,13 @@ export function getAuthorizedCallbackPath(
   const safeCallbackPath = getSafeLocalCallbackPath(callbackPath);
   if (!safeCallbackPath) return getPostLoginPath(identity);
 
+  // /dashboard, sem contexto adicional, era o fallback legado e enviava todo
+  // cliente ao setor Tech. Sem uma intencao explicita, o portal e o destino
+  // correto; profissionais e administradores continuam em seus paineis.
+  if (safeCallbackPath === "/dashboard") {
+    return getPostLoginPath(identity);
+  }
+
   return canAccessProfessionalSectorRoute(safeCallbackPath, identity)
     ? safeCallbackPath
     : getAccountDashboardPath(identity);

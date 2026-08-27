@@ -11,6 +11,7 @@ import {
   getAuthorizedCallbackPath,
   getSafeLocalCallbackPath,
 } from "@/modules/auth/lib/account-access";
+import { prepareGoogleSignIn } from "@/modules/auth/actions/prepare-google-sign-in";
 
 const SUSPENDED_ACCOUNT_MESSAGE =
   "Sua conta esta suspensa. Entre em contato com o suporte MWC para entender o motivo e solicitar revisao.";
@@ -61,17 +62,24 @@ function LoginContent() {
     }
   }, [registered, router, searchParams]);
 
-  const registerUrl = proId
-    ? `/cadastro?action=chat&proId=${proId}&proName=${encodeURIComponent(
-        proName || "",
-      )}`
-    : "/cadastro";
-
   const callbackUrl =
     action === "chat" && proId
       ? `/dashboard/chat?newChat=${proId}`
       : getSafeLocalCallbackPath(searchParams.get("callbackUrl")) ??
-        "/dashboard";
+        "/portal";
+
+  const registerParams = new URLSearchParams();
+  if (action === "chat" && proId) {
+    registerParams.set("action", "chat");
+    registerParams.set("proId", proId);
+    if (proName) registerParams.set("proName", proName);
+  } else if (callbackUrl !== "/portal") {
+    registerParams.set("callbackUrl", callbackUrl);
+  }
+  const registerQuery = registerParams.toString();
+  const registerUrl = registerQuery
+    ? `/cadastro?${registerQuery}`
+    : "/cadastro";
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -268,10 +276,16 @@ function LoginContent() {
         <button
           type="button"
           disabled={isSocialLoading || isLoading}
-          onClick={() => {
+          onClick={async () => {
             setIsSocialLoading(true);
             setErrorMessage("");
-            signIn("google", { callbackUrl: callbackUrl || "/dashboard" });
+            try {
+              await prepareGoogleSignIn(callbackUrl);
+              await signIn("google", { callbackUrl });
+            } catch {
+              setIsSocialLoading(false);
+              toast.error("Nao foi possivel iniciar o acesso com Google.");
+            }
           }}
           className="flex w-full cursor-pointer items-center justify-center gap-2 bg-card hover:bg-card/80 border border-border hover:border-gray-600 text-gray-300 py-2.5 rounded-xl transition-all disabled:opacity-70 disabled:cursor-wait"
         >

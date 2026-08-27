@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { verifySession } from "@/lib/auth";
-import { getAccountDashboardPath } from "@/modules/auth/lib/account-access";
+import { getPostLoginPath } from "@/modules/auth/lib/account-access";
 
 export default async function DashboardPage({
   searchParams,
@@ -18,5 +18,5 @@ export default async function DashboardPage({
     redirect(`/dashboard/chat?newChat=${encodeURIComponent(newChat)}`);
   }
 
-  redirect(getAccountDashboardPath(session));
+  redirect(getPostLoginPath(session));
 }

@@ -26,6 +26,7 @@ import {
   PRIVACY_POLICY_VERSION,
   PROFESSIONAL_TERMS,
 } from "@/modules/legal/terms-versions";
+import { getSafeLocalCallbackPath } from "@/modules/auth/lib/account-access";
 
 function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
   return (
@@ -50,6 +51,7 @@ function RegisterContent() {
   const proId = searchParams.get("proId");
   const proName = searchParams.get("proName");
   const professionalSector = searchParams.get("setor");
+  const registrationError = searchParams.get("error");
   const initialProfessionalSector: "" | "TECH" | "HEALTH" =
     professionalSector === "TECH" || professionalSector === "HEALTH"
       ? professionalSector
@@ -83,13 +85,21 @@ function RegisterContent() {
 
   const isPasswordValid = Object.values(reqs).every(Boolean);
 
-  const queryParams = proId
-    ? `?action=chat&proId=${proId}&proName=${encodeURIComponent(proName || "")}`
-    : "";
   const callbackUrl =
     action === "chat" && proId
       ? `/dashboard/chat?newChat=${proId}`
-      : "/portal";
+      : getSafeLocalCallbackPath(searchParams.get("callbackUrl")) ??
+        "/portal";
+
+  const loginParams = new URLSearchParams();
+  if (action === "chat" && proId) {
+    loginParams.set("action", "chat");
+    loginParams.set("proId", proId);
+    if (proName) loginParams.set("proName", proName);
+  } else if (callbackUrl !== "/portal") {
+    loginParams.set("callbackUrl", callbackUrl);
+  }
+  const loginQuery = loginParams.toString();
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -117,6 +127,8 @@ function RegisterContent() {
       params.set("action", "chat");
       params.set("proId", proId);
       if (proName) params.set("proName", proName);
+    } else if (callbackUrl !== "/portal") {
+      params.set("callbackUrl", callbackUrl);
     }
 
     router.push(`/login?${params.toString()}`);
@@ -148,12 +160,20 @@ function RegisterContent() {
           <p className="text-muted-foreground">
             Ja tem uma conta?{" "}
             <Link
-              href={`/login${queryParams}`}
+              href={loginQuery ? `/login?${loginQuery}` : "/login"}
               className="text-primary hover:underline font-medium transition-all"
             >
               Fazer Login
             </Link>
           </p>
+        )}
+
+        {registrationError === "google_terms_required" && (
+          <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-left text-sm text-amber-100">
+            Para concluir seu cadastro com Google, informe sua data de
+            nascimento e aceite os Termos Gerais e a Politica de Privacidade
+            abaixo.
+          </div>
         )}
       </div>
 
@@ -519,6 +539,10 @@ function RegisterContent() {
       </div>
 
       <div>
+        <p className="mb-3 text-center text-xs leading-relaxed text-muted-foreground">
+          Para continuar com Google, informe sua data de nascimento e aceite
+          os Termos Gerais e a Politica de Privacidade acima.
+        </p>
         <button
           type="button"
           disabled={isLoading || isSocialLoading}
@@ -528,7 +552,12 @@ function RegisterContent() {
               return;
             }
             setIsSocialLoading(true);
-            const prepared = await prepareGoogleRegistration({ birthDate, generalTermsAccepted, privacyPolicyAccepted });
+            const prepared = await prepareGoogleRegistration({
+              birthDate,
+              generalTermsAccepted,
+              privacyPolicyAccepted,
+              callbackUrl,
+            });
             if (!prepared.success) {
               toast.error(prepared.error);
               setIsSocialLoading(false);

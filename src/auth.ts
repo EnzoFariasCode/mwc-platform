@@ -8,7 +8,13 @@ import { Prisma } from "@prisma/client";
 import { getRateLimitKeys, rateLimit } from "@/lib/rate-limit";
 import { sendWelcomeEmail } from "@/modules/auth/services/welcome-email-service";
 import { cookies, headers } from "next/headers";
-import { GOOGLE_REGISTRATION_COOKIE, readGoogleRegistrationConsent } from "@/modules/auth/lib/google-registration-consent";
+import {
+  GOOGLE_AUTH_INTENT_COOKIE,
+  GOOGLE_REGISTRATION_COOKIE,
+  type GoogleRegistrationConsent,
+  readGoogleAuthIntent,
+  readGoogleRegistrationConsent,
+} from "@/modules/auth/lib/google-registration-consent";
 import { normalizePersonName } from "@/modules/users/lib/normalize-person-name";
 
 const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -73,6 +79,53 @@ async function storeRemoteProfileImage(userId: string, imageUrl: string) {
       profileImageType: contentType,
     },
   });
+}
+
+async function persistGoogleTermsAcceptance(
+  userId: string,
+  consent: GoogleRegistrationConsent,
+) {
+  const existingAcceptance = await db.termsAcceptance.findFirst({
+    where: { userId },
+    select: { id: true },
+  });
+  if (existingAcceptance) return false;
+
+  const birthDate = new Date(`${consent.birthDate}T12:00:00`);
+  if (Number.isNaN(birthDate.getTime())) {
+    throw new Error("Invalid birth date in signed Google consent");
+  }
+
+  const requestHeaders = await headers();
+  const ipAddress =
+    requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    requestHeaders.get("x-real-ip") ||
+    "unknown";
+
+  await db.$transaction([
+    db.user.update({
+      where: { id: userId },
+      data: { birthDate },
+    }),
+    db.termsAcceptance.create({
+      data: {
+        userId,
+        ipAddress,
+        userAgent: requestHeaders.get("user-agent") || undefined,
+        generalTermsVersion: consent.generalTermsVersion,
+        privacyPolicyVersion: consent.privacyPolicyVersion,
+      },
+    }),
+  ]);
+
+  return true;
+}
+
+function getGoogleTermsRegistrationPath(intentValue?: string) {
+  const params = new URLSearchParams({ error: "google_terms_required" });
+  const intent = readGoogleAuthIntent(intentValue);
+  if (intent) params.set("callbackUrl", intent.callbackPath);
+  return `/cadastro?${params.toString()}`;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -165,19 +218,56 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const dbUser = await getAuthUserFields(user.id, user.email);
 
-      if (account?.provider === "google" && dbUser) {
-        const existingAcceptance = await db.termsAcceptance.findFirst({ where: { userId: dbUser.id }, select: { id: true } });
+      if (account?.provider === "google") {
+        const cookieStore = await cookies();
+        const intentValue = cookieStore.get(GOOGLE_AUTH_INTENT_COOKIE)?.value;
+        const existingAcceptance = dbUser
+          ? await db.termsAcceptance.findFirst({
+              where: { userId: dbUser.id },
+              select: { id: true },
+            })
+          : null;
+
         if (!existingAcceptance) {
-          const cookieStore = await cookies();
-          const consent = readGoogleRegistrationConsent(cookieStore.get(GOOGLE_REGISTRATION_COOKIE)?.value);
-          if (!consent) return "/cadastro?error=google_terms_required";
-          const requestHeaders = await headers();
-          const ipAddress = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || requestHeaders.get("x-real-ip") || "unknown";
-          await db.$transaction([
-            db.user.update({ where: { id: dbUser.id }, data: { birthDate: new Date(`${consent.birthDate}T12:00:00`) } }),
-            db.termsAcceptance.create({ data: { userId: dbUser.id, ipAddress, userAgent: requestHeaders.get("user-agent") || undefined, generalTermsVersion: consent.generalTermsVersion, privacyPolicyVersion: consent.privacyPolicyVersion } }),
-          ]);
+          const consent = readGoogleRegistrationConsent(
+            cookieStore.get(GOOGLE_REGISTRATION_COOKIE)?.value,
+          );
+          if (!consent) {
+            return getGoogleTermsRegistrationPath(intentValue);
+          }
+
+          // Dependendo do momento do callback OAuth, o adapter pode ainda nao
+          // ter criado o usuario. Nesse caso, o evento createUser persiste o
+          // aceite logo depois da criacao da conta.
+          if (dbUser) {
+            const acceptedNow = await persistGoogleTermsAcceptance(
+              dbUser.id,
+              consent,
+            );
+            cookieStore.delete(GOOGLE_REGISTRATION_COOKIE);
+
+            if (acceptedNow) {
+              try {
+                await sendWelcomeEmail({
+                  userId: dbUser.id,
+                  email: user.email ?? null,
+                  name: user.name ?? null,
+                  userType: dbUser.userType,
+                  industry: dbUser.industry,
+                });
+              } catch (error) {
+                console.error("Failed to send welcome email:", error);
+              }
+            }
+          }
+        }
+
+        if (existingAcceptance) {
           cookieStore.delete(GOOGLE_REGISTRATION_COOKIE);
+        }
+
+        if (existingAcceptance || dbUser) {
+          cookieStore.delete(GOOGLE_AUTH_INTENT_COOKIE);
         }
       }
 
@@ -235,8 +325,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   events: {
     async createUser({ user }) {
+      if (!user.id) return;
+
+      const cookieStore = await cookies();
+      const consent = readGoogleRegistrationConsent(
+        cookieStore.get(GOOGLE_REGISTRATION_COOKIE)?.value,
+      );
+
+      // Uma conta OAuth pode ser materializada pelo adapter antes do callback
+      // signIn. Sem aceite valido ela permanece sem acesso e sem e-mail de
+      // boas-vindas; o callback redireciona o usuario para concluir o cadastro.
+      if (!consent) return;
+
+      await persistGoogleTermsAcceptance(user.id, consent);
+      cookieStore.delete(GOOGLE_REGISTRATION_COOKIE);
+      cookieStore.delete(GOOGLE_AUTH_INTENT_COOKIE);
+
       try {
-        if (!user.id) return;
         const dbUser = await getAuthUserFields(user.id, user.email);
         await sendWelcomeEmail({
           userId: user.id,
