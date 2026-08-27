@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, Loader2, Search, UserCog, UserX } from "lucide-react";
@@ -96,10 +96,28 @@ export default function AdminUsuariosView({
   };
 }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const pendingUserIdsRef = useRef(new Set<string>());
+  const [pendingUserIds, setPendingUserIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
 
-  function handleToggle(user: AdminUserItem) {
-    startTransition(async () => {
+  function beginUserAction(userId: string) {
+    if (pendingUserIdsRef.current.has(userId)) return false;
+
+    pendingUserIdsRef.current.add(userId);
+    setPendingUserIds(new Set(pendingUserIdsRef.current));
+    return true;
+  }
+
+  function finishUserAction(userId: string) {
+    pendingUserIdsRef.current.delete(userId);
+    setPendingUserIds(new Set(pendingUserIdsRef.current));
+  }
+
+  async function handleToggle(user: AdminUserItem) {
+    if (!beginUserAction(user.id)) return;
+
+    try {
       const result = await toggleUserStatus(user.id);
 
       if (result.success) {
@@ -110,14 +128,20 @@ export default function AdminUsuariosView({
       } else {
         toast.error(result.error || "Não foi possível alterar o usuário.");
       }
-    });
+    } catch {
+      toast.error("Não foi possível alterar o usuário.");
+    } finally {
+      finishUserAction(user.id);
+    }
   }
 
-  function handleAdminRoleChange(
+  async function handleAdminRoleChange(
     user: AdminUserItem,
     adminRole: NonNullable<AdminUserItem["adminRole"]>,
   ) {
-    startTransition(async () => {
+    if (!beginUserAction(user.id)) return;
+
+    try {
       const result = await updateAdminRole(user.id, adminRole);
 
       if (result.success) {
@@ -126,7 +150,11 @@ export default function AdminUsuariosView({
       } else {
         toast.error(result.error || "Nao foi possivel alterar o papel admin.");
       }
-    });
+    } catch {
+      toast.error("Nao foi possivel alterar o papel admin.");
+    } finally {
+      finishUserAction(user.id);
+    }
   }
 
   function pageHref(page: number) {
@@ -290,7 +318,7 @@ export default function AdminUsuariosView({
                             >,
                           )
                         }
-                        disabled={isPending}
+                        disabled={pendingUserIds.has(user.id)}
                         className="h-9 rounded-xl border border-white/10 bg-slate-950 px-2 text-xs font-bold text-slate-300 outline-none focus:border-[#d73cbe] disabled:cursor-wait disabled:opacity-60"
                       >
                         <option value="OWNER">{adminRoleLabel("OWNER")}</option>
@@ -347,14 +375,16 @@ export default function AdminUsuariosView({
                     <button
                       type="button"
                       onClick={() => handleToggle(user)}
-                      disabled={isPending || user.userType === "ADMIN"}
+                      disabled={
+                        pendingUserIds.has(user.id) || user.userType === "ADMIN"
+                      }
                       className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                         user.isActive
                           ? "border border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500 hover:text-white"
                           : "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500 hover:text-black"
                       }`}
                     >
-                      {isPending ? (
+                      {pendingUserIds.has(user.id) ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : user.isActive ? (
                         <UserX className="h-4 w-4" />
