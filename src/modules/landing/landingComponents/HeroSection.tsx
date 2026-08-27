@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, MapPin } from "lucide-react";
+import { Search } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { Particles } from "@/components/ui/particles";
@@ -21,7 +21,6 @@ export function HeroSection() {
   const router = useRouter();
 
   const [query, setQuery] = useState("");
-  const [location, setLocation] = useState("");
 
   useGSAP(
     () => {
@@ -38,7 +37,7 @@ export function HeroSection() {
   );
 
   const handleSearch = () => {
-    router.push(resolveLandingSearchUrl(query, location));
+    router.push(resolveLandingSearchUrl(query));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -96,18 +95,6 @@ export function HeroSection() {
                 className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500 text-sm"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-              />
-            </div>
-
-            <div className="flex-[0.6] flex items-center px-4 h-11 md:h-12 bg-black/20 rounded-md border border-transparent focus-within:border-purple-500/50 transition-all">
-              <MapPin className="w-5 h-5 text-slate-500 mr-3 shrink-0" />
-              <input
-                type="text"
-                placeholder="CEP ou Cidade"
-                className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500 text-sm"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
                 onKeyDown={handleKeyDown}
               />
             </div>
