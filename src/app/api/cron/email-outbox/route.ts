@@ -6,6 +6,7 @@ import {
   markEmailOutboxCronFailed,
   markEmailOutboxCronStarted,
   markEmailOutboxCronSucceeded,
+  redactExpiredEmailOutboxPersonalData,
 } from "@/modules/email/services/email-operations-service";
 import { recoverMissingAppointmentConfirmationEmails } from "@/modules/health/services/appointment-confirmation-email-recovery";
 
@@ -40,10 +41,13 @@ export async function GET(request: Request) {
       await recoverMissingAppointmentConfirmationEmails();
     const metrics = await processEmailOutbox();
     const purgedWebhookEvents = await cleanupEmailWebhookEventLogs();
+    const redactedOutboxEntries =
+      await redactExpiredEmailOutboxPersonalData();
     const completedAt = new Date();
     const operationalMetrics = {
       ...metrics,
       purgedWebhookEvents,
+      redactedOutboxEntries,
       appointmentConfirmationRecovery,
     };
     await markEmailOutboxCronSucceeded({

@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import type { EmailOutboxDatabaseClient } from "@/modules/email/services/email-outbox-service";
 import { enqueueTransactionalEmail } from "@/modules/email/services/email-outbox-service";
 import type { HealthOnlineEmailTemplateKey } from "@/modules/email/templates/health-online-emails";
+import { healthReasonEmailLine } from "@/modules/health/lib/health-email-privacy";
 
 type HealthEmailRecipient = {
   id: string;
@@ -215,7 +216,7 @@ export async function enqueueCancellationEmails(
       : "Nao houve solicitacao de reembolso.";
   const lines = [
     `A consulta foi cancelada pelo ${actor}.`,
-    ...(payload.reason ? [`Motivo: ${payload.reason}`] : []),
+    ...(payload.reason ? [healthReasonEmailLine(payload.reason)] : []),
     refundText,
   ];
 
@@ -264,7 +265,7 @@ export async function enqueueRefundProcessedEmail(
       preview: "Seu reembolso foi processado.",
       lines: [
         "Seu reembolso foi processado pela Stripe.",
-        ...(payload.reason ? [`Motivo: ${payload.reason}`] : []),
+        ...(payload.reason ? [healthReasonEmailLine(payload.reason)] : []),
         "O valor deve retornar ao metodo de pagamento original conforme o prazo da instituicao financeira.",
       ],
       details: appointmentDetails(payload),

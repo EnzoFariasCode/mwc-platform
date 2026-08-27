@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   heartbeatUpdate: vi.fn(),
   webhookFindMany: vi.fn(),
   webhookDeleteMany: vi.fn(),
+  outboxFindMany: vi.fn(),
+  outboxUpdateMany: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -18,6 +20,10 @@ vi.mock("@/lib/prisma", () => ({
       findMany: mocks.webhookFindMany,
       deleteMany: mocks.webhookDeleteMany,
     },
+    emailOutbox: {
+      findMany: mocks.outboxFindMany,
+      updateMany: mocks.outboxUpdateMany,
+    },
   },
 }));
 
@@ -25,6 +31,7 @@ import {
   cleanupEmailWebhookEventLogs,
   markEmailOutboxCronStarted,
   markEmailOutboxCronSucceeded,
+  redactExpiredEmailOutboxPersonalData,
 } from "./email-operations-service";
 
 describe("email operations heartbeat and retention", () => {
@@ -34,6 +41,8 @@ describe("email operations heartbeat and retention", () => {
     mocks.heartbeatUpdate.mockResolvedValue({});
     mocks.webhookFindMany.mockResolvedValue([]);
     mocks.webhookDeleteMany.mockResolvedValue({ count: 0 });
+    mocks.outboxFindMany.mockResolvedValue([]);
+    mocks.outboxUpdateMany.mockResolvedValue({ count: 0 });
   });
 
   it("registra inicio e sucesso sem apagar o historico anterior no inicio", async () => {
@@ -81,5 +90,34 @@ describe("email operations heartbeat and retention", () => {
     expect(mocks.webhookDeleteMany).toHaveBeenCalledWith({
       where: { id: { in: ["event_1"] } },
     });
+  });
+
+  it("remove dados pessoais antigos sem apagar a idempotencia da outbox", async () => {
+    const now = new Date("2026-08-25T12:00:00.000Z");
+    mocks.outboxFindMany.mockResolvedValue([{ id: "email_1" }]);
+    mocks.outboxUpdateMany.mockResolvedValue({ count: 1 });
+
+    await expect(redactExpiredEmailOutboxPersonalData(now)).resolves.toBe(1);
+
+    expect(mocks.outboxFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: ["SENT", "DELIVERED", "CANCELED"] },
+          redactedAt: null,
+        }),
+        take: 500,
+      }),
+    );
+    expect(mocks.outboxUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          recipientUserId: null,
+          recipientEmail: "redacted@privacy.invalid",
+          recipientName: null,
+          payload: { redacted: true },
+          redactedAt: now,
+        }),
+      }),
+    );
   });
 });

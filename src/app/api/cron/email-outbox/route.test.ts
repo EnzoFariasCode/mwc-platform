@@ -4,6 +4,7 @@ const processEmailOutbox = vi.hoisted(() => vi.fn());
 const recoverMissingAppointmentConfirmationEmails = vi.hoisted(() => vi.fn());
 const operations = vi.hoisted(() => ({
   cleanup: vi.fn(),
+  redact: vi.fn(),
   started: vi.fn(),
   succeeded: vi.fn(),
   failed: vi.fn(),
@@ -14,6 +15,7 @@ vi.mock("@/modules/email/services/email-outbox-processor", () => ({
 }));
 vi.mock("@/modules/email/services/email-operations-service", () => ({
   cleanupEmailWebhookEventLogs: operations.cleanup,
+  redactExpiredEmailOutboxPersonalData: operations.redact,
   markEmailOutboxCronStarted: operations.started,
   markEmailOutboxCronSucceeded: operations.succeeded,
   markEmailOutboxCronFailed: operations.failed,
@@ -53,6 +55,8 @@ describe("email outbox cron", () => {
     });
     operations.cleanup.mockReset();
     operations.cleanup.mockResolvedValue(0);
+    operations.redact.mockReset();
+    operations.redact.mockResolvedValue(0);
     operations.started.mockReset();
     operations.started.mockResolvedValue(undefined);
     operations.succeeded.mockReset();
@@ -106,6 +110,7 @@ describe("email outbox cron", () => {
         sent: 1,
         inspected: 1,
         purgedWebhookEvents: 0,
+        redactedOutboxEntries: 0,
         appointmentConfirmationRecovery: expect.objectContaining({
           repaired: 0,
         }),
@@ -114,7 +119,11 @@ describe("email outbox cron", () => {
     expect(operations.started).toHaveBeenCalledOnce();
     expect(operations.succeeded).toHaveBeenCalledWith(
       expect.objectContaining({
-        metrics: expect.objectContaining({ sent: 1, purgedWebhookEvents: 0 }),
+        metrics: expect.objectContaining({
+          sent: 1,
+          purgedWebhookEvents: 0,
+          redactedOutboxEntries: 0,
+        }),
       }),
     );
     expect(JSON.stringify(body)).not.toContain("example.com");

@@ -1326,6 +1326,7 @@ model EmailOutbox {
   failedAt               DateTime?
   requiresAttentionAt    DateTime?
   canceledAt             DateTime?
+  redactedAt             DateTime?
   retryOfId              String?           @unique
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
@@ -1340,6 +1341,7 @@ model EmailOutbox {
   @@index([eventType, createdAt])
   @@index([entityType, entityId])
   @@index([recipientUserId, createdAt])
+  @@index([status, redactedAt, updatedAt])
 }
 
 model EmailDeliveryAttempt {

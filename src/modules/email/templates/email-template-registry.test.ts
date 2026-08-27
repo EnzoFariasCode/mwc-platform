@@ -126,8 +126,9 @@ describe("email template registry", () => {
     });
 
     expect(email.subject).toBe(
-      "MWC Online - Pagamento confirmado e consulta agendada",
+      "Maximus World Click - Nova atualizacao na sua conta",
     );
+    expect(email.html).not.toContain("Seu pagamento foi confirmado.");
     expect(email.html).toContain("Paciente &lt;teste&gt;");
     expect(email.html).toContain("/agendar-consulta/historico");
     expect(email.html).not.toContain("Paciente <teste>");
@@ -223,7 +224,13 @@ describe("email template registry", () => {
           },
         });
 
-        expect(rendered.subject).toContain("Evento");
+        if (HEALTH_ONLINE_EMAIL_TEMPLATE_KEYS.includes(templateKey as never)) {
+          expect(rendered.subject).toBe(
+            "Maximus World Click - Nova atualizacao na sua conta",
+          );
+        } else {
+          expect(rendered.subject).toContain("Evento");
+        }
         expect(rendered.text).toContain("Pessoa destinataria");
         expect(rendered.text).toContain("https://");
         expect(rendered.html).toContain(group.actionPath);

@@ -65,7 +65,7 @@ export function renderHealthOnlineTransactionalEmail(payload: Prisma.JsonValue) 
     : "Ola.";
   const rendered = healthEmailTemplate({
     title: data.title,
-    preview: data.preview,
+    preview: "Ha uma nova atualizacao disponivel na sua conta.",
     lines: [greeting, ...data.lines],
     details: data.details.map(
       ({ label, value }) => [label, value] as [string, string],
@@ -75,7 +75,7 @@ export function renderHealthOnlineTransactionalEmail(payload: Prisma.JsonValue) 
   });
 
   return {
-    subject: `MWC Online - ${data.title}`,
+    subject: "Maximus World Click - Nova atualizacao na sua conta",
     ...rendered,
   };
 }

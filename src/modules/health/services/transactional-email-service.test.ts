@@ -117,7 +117,8 @@ describe("health transactional email service", () => {
       cancellationEventId: "cancellation_1",
       canceledBy: "patient",
       refundRequested: true,
-      reason: "Imprevisto",
+      reason:
+        "Nao poderei comparecer: informacao clinica que nao pode sair por e-mail",
     });
 
     expect(client.emailOutbox.create).toHaveBeenCalledTimes(2);
@@ -127,6 +128,11 @@ describe("health transactional email service", () => {
         templateKey: "health.appointment.canceled",
       }),
     });
+    const serializedCalls = JSON.stringify(
+      vi.mocked(client.emailOutbox.create).mock.calls,
+    );
+    expect(serializedCalls).toContain("Categoria informada");
+    expect(serializedCalls).not.toContain("informacao clinica");
   });
 
   it("nao duplica a confirmacao de reembolso recebida por mais de um webhook", async () => {

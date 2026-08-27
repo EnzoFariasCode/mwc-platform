@@ -35,6 +35,7 @@ import {
   processAppointmentReschedule,
   requestAppointmentReschedule,
 } from "@/modules/health/services/appointment-reschedule-recovery";
+import { healthReasonCategoryForEmail } from "@/modules/health/lib/health-email-privacy";
 
 const ADMIN_HEALTH_DISPUTE_DECISION_LIMIT = 20;
 const ADMIN_HEALTH_DISPUTE_DECISION_WINDOW_MS = 10 * 60 * 1000;
@@ -736,24 +737,20 @@ export async function reportHealthAppointmentDispute(
         entityId: freshAppointment.id,
         templateKey: "admin.dispute.alert",
         roles: ["OWNER", "SUPPORT"],
-        title: "Disputa Health aberta",
-        summary: "Uma disputa de consulta online precisa de mediacao.",
+        title: "Novo caso administrativo",
+        summary: "Um novo caso exige analise no painel autenticado.",
         lines: [
-          "Uma disputa de consulta online foi aberta e precisa de acompanhamento.",
-          "O valor permanece protegido durante a mediacao.",
+          "Um novo caso foi aberto e precisa de acompanhamento.",
+          "Os dados completos permanecem restritos ao painel administrativo.",
         ],
         details: [
           { label: "Consulta", value: freshAppointment.id },
           {
-            label: "Paciente",
-            value: appointment.patient.name || appointment.patient.email,
-          },
-          {
-            label: "Profissional",
+            label: "Categoria",
             value:
-              appointment.professional.name || appointment.professional.email,
+              healthReasonCategoryForEmail(normalizedReason) ||
+              "Detalhes disponiveis no painel",
           },
-          { label: "Motivo", value: normalizedReason },
         ],
         actionPath: `/dashboard/admin/disputas/health/${freshAppointment.id}`,
         actorId: session.user.id,
@@ -934,16 +931,15 @@ export async function resolveHealthAppointmentDispute({
           entityId: freshAppointment.id,
           templateKey: "admin.dispute.alert",
           roles: ["OWNER", "SUPPORT"],
-          title: "Disputa Health resolvida",
-          summary: "A disputa foi resolvida com reembolso ao paciente.",
+          title: "Caso administrativo atualizado",
+          summary: "Uma decisao foi registrada no painel autenticado.",
           lines: [
-            "Uma disputa de consulta online foi resolvida pelo painel administrativo.",
-            "A decisao financeira foi registrada e o reembolso aguarda a confirmacao oficial da Stripe.",
+            "Uma decisao administrativa foi registrada.",
+            "Consulte o painel autenticado para os detalhes e o andamento financeiro.",
           ],
           details: [
             { label: "Consulta", value: freshAppointment.id },
             { label: "Decisao", value: decision },
-            { label: "Motivo", value: normalizedReason },
           ],
           actionPath: `/dashboard/admin/disputas/health/${freshAppointment.id}`,
         });
@@ -1001,16 +997,15 @@ export async function resolveHealthAppointmentDispute({
         entityId: freshAppointment.id,
         templateKey: "admin.dispute.alert",
         roles: ["OWNER", "SUPPORT"],
-        title: "Disputa Health resolvida",
-        summary: "A disputa foi resolvida com liberacao ao profissional.",
+        title: "Caso administrativo atualizado",
+        summary: "Uma decisao foi registrada no painel autenticado.",
         lines: [
-          "Uma disputa de consulta online foi resolvida pelo painel administrativo.",
-          "A decisao e a liberacao financeira foram registradas.",
+          "Uma decisao administrativa foi registrada.",
+          "Consulte o painel autenticado para os detalhes e o andamento financeiro.",
         ],
         details: [
           { label: "Consulta", value: freshAppointment.id },
           { label: "Decisao", value: decision },
-          { label: "Motivo", value: normalizedReason },
         ],
         actionPath: `/dashboard/admin/disputas/health/${freshAppointment.id}`,
       });

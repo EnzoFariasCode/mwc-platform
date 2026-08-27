@@ -365,6 +365,20 @@ function assertSameIdempotentEmail(
   existing: EmailOutbox,
   requested: ReturnType<typeof normalizeEnqueueInput>,
 ) {
+  if (existing.redactedAt) {
+    const belongsToSameOperation =
+      existing.eventType === requested.eventType &&
+      existing.templateKey === requested.templateKey &&
+      existing.templateVersion === requested.templateVersion &&
+      existing.entityType === requested.entityType &&
+      existing.entityId === requested.entityId;
+
+    if (!belongsToSameOperation) {
+      throw new EmailOutboxIdempotencyConflictError(requested.idempotencyKey);
+    }
+    return;
+  }
+
   const isSameEmail =
     existing.eventType === requested.eventType &&
     existing.templateKey === requested.templateKey &&
