@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 
 import { db } from "@/lib/prisma";
+import { scheduleEmailOutboxDispatch } from "./email-outbox-dispatch";
 
 const DEFAULT_MAX_ATTEMPTS = 5;
 const DEFAULT_PRIORITY = 100;
@@ -399,11 +400,13 @@ export async function enqueueTransactionalEmail(
 
   if (existing) {
     assertSameIdempotentEmail(existing, data);
+    scheduleEmailOutboxDispatch();
     return { email: existing, created: false } as const;
   }
 
   try {
     const email = await client.emailOutbox.create({ data });
+    scheduleEmailOutboxDispatch();
     return { email, created: true } as const;
   } catch (error) {
     if (!isUniqueConstraintError(error)) throw error;
@@ -414,6 +417,7 @@ export async function enqueueTransactionalEmail(
     if (!concurrent) throw error;
 
     assertSameIdempotentEmail(concurrent, data);
+    scheduleEmailOutboxDispatch();
     return { email: concurrent, created: false } as const;
   }
 }

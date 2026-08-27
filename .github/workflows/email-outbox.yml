@@ -2,7 +2,8 @@ name: Process transactional email outbox
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    # Evita o minuto zero, periodo de maior congestionamento do scheduler.
+    - cron: "2-57/5 * * * *"
   workflow_dispatch:
 
 permissions:

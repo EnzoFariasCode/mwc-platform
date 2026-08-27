@@ -15,6 +15,7 @@ import {
   getAdminEmailOutboxDashboard,
 } from "@/modules/admin/services/admin-email-outbox-service";
 import { queueEmailSmokeTestAdmin } from "@/modules/admin/actions/queue-email-smoke-test";
+import { processEmailOutboxAdmin } from "@/modules/admin/actions/process-email-outbox";
 import { AdminPageHeader } from "@/modules/admin/components/AdminPageHeader";
 import { AdminMetricCard } from "@/modules/admin/components/AdminMetricCard";
 
@@ -64,6 +65,10 @@ export default async function AdminEmailsPage({
     status?: string;
     search?: string;
     result?: string;
+    inspected?: string;
+    sent?: string;
+    retryScheduled?: string;
+    attention?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -81,13 +86,32 @@ export default async function AdminEmailsPage({
           description="Acompanhe o processamento, a aceitação pelo Resend e a entrega ao servidor do destinatário. Falhas permanentes ficam protegidas para análise administrativa."
           icon={Mail}
           actions={dashboard.canRunSmokeTest ? (
-            <form action={queueEmailSmokeTestAdmin}>
-              <button className="rounded-lg border border-[#d73cbe]/30 bg-[#d73cbe]/10 px-4 py-2.5 text-xs font-semibold text-[#ef9ee2] transition-colors hover:bg-[#d73cbe]/20">
-                Enviar teste para meu e-mail
-              </button>
-            </form>
+            <div className="flex flex-wrap gap-2">
+              <form action={processEmailOutboxAdmin}>
+                <button className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-2.5 text-xs font-semibold text-emerald-200 transition-colors hover:bg-emerald-400/20">
+                  Processar fila agora
+                </button>
+              </form>
+              <form action={queueEmailSmokeTestAdmin}>
+                <button className="rounded-lg border border-[#d73cbe]/30 bg-[#d73cbe]/10 px-4 py-2.5 text-xs font-semibold text-[#ef9ee2] transition-colors hover:bg-[#d73cbe]/20">
+                  Enviar teste para meu e-mail
+                </button>
+              </form>
+            </div>
           ) : undefined}
         />
+
+        {params.result === "processed" && (
+          <section className="rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+            Fila processada: {params.inspected ?? "0"} inspecionados, {params.sent ?? "0"} enviados, {params.retryScheduled ?? "0"} reagendados e {params.attention ?? "0"} exigindo atencao.
+          </section>
+        )}
+
+        {params.result === "process-rate-limited" && (
+          <section className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+            Limite de processamentos manuais atingido. Aguarde alguns minutos.
+          </section>
+        )}
 
         {params.result === "smoke-rate-limited" && (
           <section className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
